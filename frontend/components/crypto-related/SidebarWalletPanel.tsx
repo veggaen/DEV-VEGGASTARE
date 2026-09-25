@@ -35,7 +35,8 @@ import { FiZap, FiExternalLink, FiPower, FiChevronDown, FiShield, FiLogOut, FiSe
 import { motion, AnimatePresence } from "framer-motion";
 import { CopyChip } from "@/components/uicustom/CopyChip";
 import { CHAIN_DISPLAY } from "@/lib/vegga-system-constants";
-import { useWalletVerify, type VerifyStep } from "@/hooks/use-wallet-verify";
+import { useWalletVerify } from "@/hooks/use-wallet-verify";
+import { WalletVerificationAction } from "./WalletVerificationAction";
 import { useDonate, getNextDonationInfo, type DonateStep } from "@/hooks/use-donate";
 import { useWalletTransfer } from "@/hooks/use-wallet-transfer";
 import { isLocalChain } from "@/lib/is-local-chain";
@@ -1407,117 +1408,6 @@ function WaitingDots({ prefix = "Waiting" }: { prefix?: string }) {
 /*  VerifyActionRow — inline verification flow with animated states    */
 /* ------------------------------------------------------------------ */
 
-function VerifyActionRow({
-  step,
-  error,
-  onVerify,
-  onReset,
-  nextTierCta,
-}: {
-  step: VerifyStep;
-  error: string | null;
-  onVerify: () => void;
-  onReset: () => void;
-  nextTierCta?: string;
-}) {
-  // After success, show the next tier CTA (e.g. "Grab a buff for $5 donation →")
-  if (step === "success") {
-    return (
-      <div className="text-center space-y-1">
-        <span className="text-[9px] font-semibold text-sky-600 dark:text-emerald-400">
-          ✓ Verified
-        </span>
-        {nextTierCta && nextTierCta !== "Max tier reached" && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="block w-full text-[9px] text-sky-500 dark:text-emerald-400 hover:underline"
-          >
-            {nextTierCta}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (step === "error") {
-    return (
-      <div className="text-center space-y-0.5">
-        <span className="text-[9px] text-red-500 dark:text-red-400 block">
-          {error ?? "Failed"}
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:underline"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "preparing") {
-    return (
-      <div className="text-center flex items-center justify-center gap-1.5">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
-          <WaitingDots prefix="Preparing request" />
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
-          title="Cancel"
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "in-wallet") {
-    return (
-      <div className="text-center flex items-center justify-center gap-1.5">
-        <span className="text-[9px] text-amber-500 dark:text-amber-400 font-medium animate-pulse">
-          Waiting for wallet signature…
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
-          title="Cancel"
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "waiting") {
-    return (
-      <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
-          <WaitingDots prefix="Validating signature" />
-        </span>
-      </div>
-    );
-  }
-
-  // idle — show CTA as a proper pill (verification is a trust action, not fine print)
-  return (
-    <div className="text-center">
-      <button
-        type="button"
-        onClick={onVerify}
-        className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[9px] font-semibold text-sky-600 transition-all hover:bg-sky-500/15 hover:border-sky-500/60 motion-safe:hover:-translate-y-px dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15 dark:hover:border-emerald-500/60"
-        title="Free — one signature proves you own this wallet. No transaction, no gas."
-      >
-        <FiShield className="h-2.5 w-2.5" />
-        Verify ownership · free signature
-      </button>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  DonateActionRow — inline donation flow with animated states        */
@@ -1734,7 +1624,7 @@ function WalletRow({
   const resolvedName = ensName || baseName;
 
   // Inline signature verification flow — pass connectorUid so the CORRECT wallet extension opens
-  const { step: verifyStep, error: verifyError, verify, reset: verifyReset } = useWalletVerify({
+  const verification = useWalletVerify({
     address: family === "EVM" ? address : undefined,
     chainId: family === "EVM" ? chainId : undefined,
     connectorUid: isLive ? connectorUid : undefined,
@@ -2137,7 +2027,7 @@ function WalletRow({
 
       {/* Combined: chain info (left) + verify/tier CTA (right) */}
       {((isActive && chainName) || (isLive && family === "EVM")) && (
-        <div className="flex items-center px-3 pb-1.5 -mt-0.5 gap-2">
+        <div className="flex flex-wrap items-center px-3 pb-1.5 -mt-0.5 gap-2">
           {isActive && chainName && (
             <span className={`text-[9px] shrink-0 inline-flex items-center gap-1 ${
               isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
@@ -2147,15 +2037,9 @@ function WalletRow({
             </span>
           )}
           {isLive && family === "EVM" && (
-            <div className="ml-auto shrink-0">
+            <div className={`min-w-0 max-w-full ${!verified ? 'w-full' : 'ml-auto'}`}>
               {!verified ? (
-                <VerifyActionRow
-                  step={verifyStep}
-                  error={verifyError}
-                  onVerify={verify}
-                  onReset={verifyReset}
-                  nextTierCta={nextTier?.nextCta}
-                />
+                <WalletVerificationAction flow={verification} />
               ) : walletTier === "PATRON_1M" ? (
                 <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
                   🐋 Max tier

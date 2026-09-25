@@ -7,6 +7,105 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+for (const surface of ['sidebar', 'settings'] as const) test(`S6 server-challenge wallet verification UX (${surface})`, async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo cookies; wallet/session responses are browser-only fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
+    viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  await context.addInitScript(() => {
+    let connected = false;
+    const account = '0x1111111111111111111111111111111111111111';
+    const qa = { signatures: [] as unknown[], transactions: 0 };
+    Object.assign(window, { __qaProof: qa });
+    const provider = {
+      request: async ({ method, params }: { method: string; params?: unknown[] }) => {
+        if (method === 'eth_chainId') return '0x1';
+        if (method === 'eth_accounts') return connected ? [account] : [];
+        if (method === 'eth_requestAccounts') { connected = true; return [account]; }
+        if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }];
+        if (method === 'personal_sign') { qa.signatures.push(params); return '0x' + '1'.repeat(130); }
+        if (/sendTransaction/i.test(method)) { qa.transactions++; throw new Error('QA forbids transactions'); }
+        throw Object.assign(new Error('Unsupported QA method'), { code: 4200 });
+      }, on: () => {}, removeListener: () => {},
+    };
+    const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: {
+      info: { uuid: '0e001ee1-28e3-4df6-b8b4-0c39a62d878c', name: 'Veggat QA Proof Wallet',
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', rdns: 'test.veggat.proof' }, provider,
+    } }));
+    window.addEventListener('eip6963:requestProvider', announce); announce();
+  });
+  const page = await context.newPage(), errors: string[] = [], requests: { path: string; data: Record<string, unknown> }[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  // Only client-visible state changes. The server session remains a demo and
+  // cannot link wallets. Every proof POST is intercepted, never forwarded.
+  await page.route('**/api/auth/session', async route => {
+    const response = await route.fetch(), session = await response.json();
+    await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
+  });
+  await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets: [] } }));
+  await page.route('**/api/wallets/evm/challenge', route => {
+    const data = route.request().postDataJSON(); requests.push({ path: 'challenge', data });
+    if (!data.code) return route.fulfill({ json: { twoFactor: true } });
+    if (data.code !== '654321') return route.fulfill({ status: 400, json: { error: 'Incorrect code. Check the six digits in your email.' } });
+    return route.fulfill({ json: { challengeId: 'qa-proof', message: 'QA server challenge only; not a real signature request', expires: new Date(Date.now() + 600000).toISOString() } });
+  });
+  await page.route('**/api/wallets/evm/verify', route => {
+    const data = route.request().postDataJSON(); requests.push({ path: 'verify', data });
+    return route.fulfill({ json: { ok: true, wallet: { id: 'qa-wallet', label: 'QA', address: '0x' + '1'.repeat(40),
+      family: 'EVM', chainId: 1, solanaCluster: null, ownerUserId: 'qa-display-only', ownerCompanyId: null, isDefault: false,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), verifiedAt: new Date().toISOString() } } });
+  });
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    const guide = page.getByRole('button', { name: 'How wallet linking works', exact: true });
+    await guide.click(); await expect(guide).toHaveAttribute('aria-expanded', 'true');
+    // Revalidate the server-seeded demo session through the controlled client
+    // fixture, using the same visibility event NextAuth handles on tab focus.
+    const refreshedSession = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await refreshedSession;
+    await expect(page.getByRole('region', { name: 'Verify connected wallet', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Choose wallet connection method', exact: true }).click();
+    const chooser = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+    await chooser.getByRole('button', { name: /Veggat QA Proof Wallet/ }).click(); await expect(chooser).toBeHidden();
+    if (surface === 'sidebar') await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const target = surface === 'sidebar'
+      ? page.getByRole('dialog', { name: 'Navigation Menu', exact: true }).getByRole('group', { name: 'Veggat QA Proof Wallet wallet', exact: true })
+      : page.getByRole('region', { name: 'Verify connected wallet', exact: true });
+    await target.getByRole('button', { name: 'Verify ownership', exact: true }).click();
+    const code = target.getByRole('textbox', { name: 'Email verification code', exact: true }); await expect(code).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __qaProof: { signatures: unknown[] } }).__qaProof.signatures.length)).toBe(0);
+    for (const [width, height] of [[390,844],[1280,800],[360,800],[844,390],[2560,1440]]) {
+      await page.setViewportSize({ width, height }); await target.scrollIntoViewIfNeeded(); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (surface === 'sidebar') expect(await page.getByRole('dialog', { name: 'Navigation Menu', exact: true }).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`wallet-proof-${surface}-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(target.getByRole('status')).toContainText('Incorrect code');
+    await code.fill('654321'); await code.press('Enter'); await expect(target.getByRole('status')).toHaveText('Wallet verified');
+    expect(requests.map(r => r.path)).toEqual(['challenge', 'challenge', 'challenge', 'verify']);
+    expect(requests[3].data).toMatchObject({ challengeId: 'qa-proof', connectorType: 'injected' });
+    expect(requests[3].data).not.toHaveProperty('message'); expect(requests[3].data).not.toHaveProperty('address');
+    const proof = await page.evaluate(() => (window as unknown as { __qaProof: { signatures: unknown[]; transactions: number } }).__qaProof);
+    expect(proof.signatures).toHaveLength(1); expect(proof.transactions).toBe(0); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S6 wallet challenge endpoints refuse anonymous and cross-site requests', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL });
+  try {
+    for (const endpoint of ['challenge', 'verify']) {
+      const path = `/api/wallets/evm/${endpoint}`;
+      const foreign = await context.request.post(path, { headers: { origin: 'https://attacker.example' }, data: {} });
+      expect(foreign.status()).toBe(403); expect(foreign.headers()['cache-control']).toContain('no-store');
+      const anon = await context.request.post(path, { headers: { origin: new URL(baseURL!).origin }, data: {} });
+      expect(anon.status()).toBe(401); expect(anon.headers()['cache-control']).toContain('no-store');
+    }
+  } finally { await context.close(); }
+});
+
 for (const corrupt of ['object', 'null', 'mixed'] as const) test(`S6 corrupt wallet cache keeps navigation usable (${corrupt})`, async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained app-issued demo; browser-only corrupt cache');
   test.setTimeout(90_000);

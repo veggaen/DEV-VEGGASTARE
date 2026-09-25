@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Wallet-linking security: **PARTIAL — final local acceptance passes, Live pending**.
+Both verification UIs now require a server-issued account/host/chain-bound
+challenge; purpose-scoped email codes and challenge consumption are single-use.
+Wallet writes and challenge consumption commit together. Direct client-generated
+proofs are rejected; cancellation cannot submit a late wallet signature.
+38 focused tests (including 16 isolated PostgreSQL cases), strict local build,
+touched lint and final local browser **9/9** pass (21.8s, no retries/skips).
+No real wallet signature, email, payment or production data mutation occurred.
+Wallet login, primary/rename/delete and real crypto acceptance remain separate.
+See [wallet-link evidence](wallet-link-evidence-2026-09.md).
+
 Wallet read/cache safety: **DONE for this focused local/Live slice**. Wallet listing
 no longer assigns a primary/payout destination; the unused automatic metadata
 writer is retired. Malformed browser cache entries no longer crash navigation,
