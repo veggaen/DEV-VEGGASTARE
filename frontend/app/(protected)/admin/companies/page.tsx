@@ -1,379 +1,74 @@
 'use client';
-
-import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { toast } from 'sonner';
-import { 
-  FiBriefcase, FiSearch, FiFilter, FiChevronLeft, FiChevronRight,
-  FiEdit2, FiTrash2, FiEye, FiMoreVertical, FiCalendar, FiUsers,
-  FiPackage, FiDollarSign, FiGlobe, FiHash
-} from 'react-icons/fi';
-import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { AdminCompanyPage } from '@/lib/admin-company-policy';
+import { CompanyAccess } from './CompanyAccess';
 
-interface Company {
-  id: string;
-  name: string;
-  description: string | null;
-  logo: string[];
-  orgNumber: string | null;
-  orgType: string | null;
-  createdAt: string;
-  User_Company_ownerIdToUser: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-  };
-  _count: {
-    Employee: number;
-    Product: number;
-    Sale: number;
-  };
+const selectClass = 'h-11 w-full min-w-0 rounded-md border border-border bg-input px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+function navigate(changes: Record<string, string>, replace = false) {
+  const next = new URLSearchParams(window.location.search); next.delete('limit');
+  for (const [key, value] of Object.entries(changes)) if (value) next.set(key, value); else next.delete(key);
+  window.history[replace ? 'replaceState' : 'pushState'](null, '', '/admin/companies' + (next.size ? '?' + next : ''));
 }
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export default function AdminCompaniesPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Check auth
+export default function AdminCompaniesPage() { return <CompanyAccess><Directory /></CompanyAccess>; }
+function Directory() {
+  const params = useSearchParams(), querySearch = (params.get('search') ?? '').slice(0, 100);
+  const sortBy = params.get('sortBy') === 'name' ? 'name' : 'createdAt', sortOrder = params.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+  const rawPage = Number(params.get('page') ?? 1), page = Number.isInteger(rawPage) && rawPage > 0 && rawPage <= 1000 ? rawPage : 1;
+  const [search, setSearch] = useState(querySearch), [refresh, setRefresh] = useState(0), [pending, setPending] = useState(true), [denied, setDenied] = useState(false);
+  const [result, setResult] = useState<{ key: string; data?: AdminCompanyPage; error?: string }>({ key: '' });
+  const queryKey = new URLSearchParams({ search: querySearch, page: String(page), limit: '20', sortBy, sortOrder }).toString();
+  const waiting = search.trim() !== querySearch, data = !waiting && result.key === queryKey ? result.data : undefined;
+  const error = !waiting && result.key === queryKey ? result.error : undefined, busy = pending || waiting || result.key !== queryKey;
+  useEffect(() => { setSearch(querySearch); }, [querySearch]);
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session || (session.user?.role !== 'OWNER' && session.user?.role !== 'ADMIN')) {
-      router.push('/');
-    }
-  }, [session, status, router]);
-
-  // Fetch companies
-  const fetchCompanies = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        search,
-        sortBy,
-        sortOrder,
-      });
-
-      const res = await fetch(`/api/admin/companies?${params}`);
-      if (!res.ok) throw new Error('Failed to fetch companies');
-      
-      const data = await res.json();
-      setCompanies(data.companies);
-      setPagination(data.pagination);
-    } catch (error) {
-      toast.error('Failed to load companies');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [pagination.page, pagination.limit, search, sortBy, sortOrder]);
-
-  useEffect(() => {
-    if (session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN') {
-      fetchCompanies();
-    }
-  }, [fetchCompanies, session?.user?.role]);
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPagination(p => ({ ...p, page: 1 }));
-    }, 300);
+    if (search.trim() === querySearch) return;
+    const timer = setTimeout(() => navigate({ search: search.trim(), page: '' }, true), 300);
     return () => clearTimeout(timer);
-  }, [search]);
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  if (status === 'loading' || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-              <FiBriefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Company Management
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {pagination.total} total companies
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <Input
-              type="search"
-              placeholder="Search by name, org number, or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="createdAt">Created Date</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-            title={`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
-          >
-            <FiFilter className={cn(
-              "h-4 w-4 transition-transform",
-              sortOrder === 'asc' && "rotate-180"
-            )} />
-          </Button>
-        </div>
-
-        {/* Companies Grid */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          {loading ? (
-            <div className="p-6 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-12 w-12 rounded-lg" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-3 w-1/4" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : companies.length === 0 ? (
-            <div className="p-12 text-center">
-              <FiBriefcase className="h-12 w-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
-              <p className="text-zinc-500 dark:text-zinc-400">No companies found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {companies.map((company, index) => (
-                <motion.div
-                  key={company.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 rounded-lg">
-                      <AvatarImage src={company.logo?.[0]} />
-                      <AvatarFallback className="rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                        {company.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                          {company.name}
-                        </span>
-                        {company.orgType && (
-                          <Badge variant="outline" className="text-xs">
-                            {company.orgType}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400">
-                        {company.orgNumber && (
-                          <span className="flex items-center gap-1">
-                            <FiHash className="h-3 w-3" />
-                            {company.orgNumber}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <FiCalendar className="h-3 w-3" />
-                          {formatDate(company.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Owner Info */}
-                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={company.User_Company_ownerIdToUser.image || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {company.User_Company_ownerIdToUser.name?.charAt(0) || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-zinc-600 dark:text-zinc-300 truncate max-w-[120px]">
-                        {company.User_Company_ownerIdToUser.name || company.User_Company_ownerIdToUser.email}
-                      </span>
-                    </div>
-
-                    <div className="hidden lg:flex items-center gap-6 text-sm text-zinc-500 dark:text-zinc-400">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiUsers className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {company._count.Employee}
-                          </span>
-                        </div>
-                        <span className="text-xs">Employees</span>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiPackage className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {company._count.Product}
-                          </span>
-                        </div>
-                        <span className="text-xs">Products</span>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiDollarSign className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {company._count.Sale}
-                          </span>
-                        </div>
-                        <span className="text-xs">Sales</span>
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <FiMoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/companies/${company.id}`)}
-                        >
-                          <FiEye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/companies/${company.id}/edit`)}
-                        >
-                          <FiEdit2 className="h-4 w-4 mr-2" />
-                          Edit Company
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => window.open(`/company/${company.id}`, '_blank')}
-                        >
-                          <FiGlobe className="h-4 w-4 mr-2" />
-                          View Public Page
-                        </DropdownMenuItem>
-                        {session?.user?.role === 'OWNER' && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600 dark:text-red-400"
-                              onClick={() => {
-                                toast.error('Delete functionality coming soon');
-                              }}
-                            >
-                              <FiTrash2 className="h-4 w-4 mr-2" />
-                              Delete Company
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                  disabled={pagination.page <= 1}
-                >
-                  <FiChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                  disabled={pagination.page >= pagination.totalPages}
-                >
-                  Next
-                  <FiChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+  }, [search, querySearch]);
+  useEffect(() => {
+    if (denied) return;
+    let active = true;
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15_000);
+    setPending(true);
+    void (async () => {
+      try {
+        const response = await fetch('/api/admin/companies?' + queryKey, { cache: 'no-store', signal: controller.signal });
+        if (!active) return;
+        if ([401, 403].includes(response.status)) { setResult({ key: '' }); setDenied(true); return; }
+        if (!response.ok) throw new Error();
+        const body: AdminCompanyPage = await response.json();
+        if (!Array.isArray(body.companies) || !Number.isInteger(body.pagination?.total)) throw new Error();
+        if (active) setResult({ key: queryKey, data: body });
+      } catch { if (active) setResult(previous => ({ key: queryKey, data: previous.key === queryKey ? previous.data : undefined, error: 'Companies could not be loaded. Try again.' })); }
+      finally { clearTimeout(timeout); if (active) setPending(false); }
+    })();
+    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+  }, [queryKey, refresh, denied]);
+  if (denied) return <section className="mx-auto max-w-7xl space-y-4 px-4 py-6"><h1 className="text-2xl font-semibold">Companies</h1><p role="alert">Admin access is no longer available. Sign in again or retry.</p><Button className="h-11" onClick={() => setDenied(false)}>Retry access</Button></section>;
+  const pages = Math.min(1000, data?.pagination.totalPages ?? 0);
+  return <section aria-label="Company administration" className="mx-auto w-full min-w-0 max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8 [overflow-wrap:anywhere]">
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Companies</h1><p className="mt-1 text-sm text-muted-foreground">Company records & storefronts.</p></div><Button variant="outline" className="h-11" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Refresh</Button></header>
+    <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <div className="min-w-0 sm:col-span-2 lg:col-span-1"><label htmlFor="company-search" className="mb-1.5 block text-sm font-medium">Search companies</label><Input id="company-search" name="search" type="search" autoComplete="off" maxLength={100} placeholder="Name, organisation number or ID…" className="h-11 text-base" value={search} onChange={event => setSearch(event.target.value)} /></div>
+      <div><label htmlFor="company-sort" className="mb-1.5 block text-sm font-medium">Sort by</label><select id="company-sort" name="sortBy" className={selectClass} value={sortBy} onChange={event => navigate({ sortBy: event.target.value, page: '' })}><option value="createdAt">Created date</option><option value="name">Name</option></select></div>
+      <div><label htmlFor="company-order" className="mb-1.5 block text-sm font-medium">Order</label><select id="company-order" name="sortOrder" className={selectClass} value={sortOrder} onChange={event => navigate({ sortOrder: event.target.value, page: '' })}><option value="desc">Descending</option><option value="asc">Ascending</option></select></div>
+      <Button variant="ghost" className="h-11" onClick={() => { setSearch(''); navigate({ search: '', sortBy: '', sortOrder: '', page: '' }); }}>Clear filters</Button>
     </div>
-  );
+    <p role="status" className="min-h-5 text-sm text-muted-foreground tabular-nums">{busy ? data ? 'Refreshing…' : 'Loading companies…' : error ? 'Refresh unavailable' : `${data?.pagination.total.toLocaleString() ?? 0} matching companies`}</p>
+    {error && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4"><p role="alert" className="min-w-0 flex-1 text-sm">{error}{data && ' Showing the last loaded companies.'}</p><Button variant="outline" className="h-11" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Retry</Button></div>}
+    <div aria-label="Company results" aria-busy={busy} className="rounded-xl border border-border bg-card">
+      {!data && busy ? <div aria-hidden className="divide-y divide-border">{Array.from({ length: 5 }, (_, i) => <div key={i} className="min-h-36 space-y-3 p-4 sm:min-h-28"><Skeleton className="h-5 w-60 max-w-full" /><Skeleton className="h-4 w-80 max-w-full" /><Skeleton className="h-11 w-28" /></div>)}</div>
+      : data?.companies.length ? <ul className="divide-y divide-border">{data.companies.map(company => <li key={company.id} className="grid min-w-0 items-center gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <div className="min-w-0"><h2 className="font-semibold"><Link className="inline-flex min-h-11 items-center hover:underline" href={'/admin/companies/' + encodeURIComponent(company.id)}>{company.name}</Link></h2><p className="text-sm text-muted-foreground">{company.orgNumber ? `Org. ${company.orgNumber}` : 'Not registered'}{company.orgType ? ` · ${company.orgType}` : ''}</p><p className="mt-1 text-sm text-muted-foreground">Owner: {company.User_Company_ownerIdToUser.name || company.User_Company_ownerIdToUser.id}</p></div>
+        <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm tabular-nums">{(['Employee', 'Product', 'Sale'] as const).map((key, index) => <div key={key}><dt className="text-xs text-muted-foreground">{['Employees', 'Products', 'Sales'][index]}</dt><dd className="mt-1 font-medium">{company._count[key].toLocaleString()}</dd></div>)}</dl>
+        <div className="flex flex-wrap gap-2"><Button asChild variant="outline" className="h-11"><Link aria-label={'Details ' + company.name} href={'/admin/companies/' + encodeURIComponent(company.id)}>Details</Link></Button><Button asChild variant="ghost" className="h-11"><Link aria-label={'Edit ' + company.name} href={'/admin/companies/' + encodeURIComponent(company.id) + '/edit'}>Edit</Link></Button></div>
+      </li>)}</ul> : !error && <div className="p-8 text-center"><h2 className="font-medium">No matching companies</h2><p className="mt-1 text-sm text-muted-foreground">Try a different name or clear the filters.</p></div>}
+    </div>
+    {pages > 1 && <nav aria-label="Company pages" className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Page {page} of {pages}</p><div className="flex gap-2"><Button variant="outline" className="h-11" disabled={busy || page <= 1} onClick={() => navigate({ page: String(page - 1) })}>Previous</Button><Button variant="outline" className="h-11" disabled={busy || page >= pages} onClick={() => navigate({ page: String(page + 1) })}>Next</Button></div></nav>}
+  </section>;
 }

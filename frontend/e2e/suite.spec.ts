@@ -10,6 +10,115 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 company admin denies anonymous and demo reads and edits', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
+  for (const authenticated of [false, true]) {
+    const context = await browser.newContext({ baseURL, ...(authenticated ? { storageState: process.env.E2E_DEMO_STORAGE_STATE } : {}) });
+    try {
+      await openDirectoryGate(context);
+      for (const [path, method] of [['/api/admin/companies','GET'],['/api/admin/companies/qa-company','GET'],['/api/admin/companies/qa-company','PATCH'],['/api/admin/companies/qa-company','DELETE']]) {
+        const response = await context.request.fetch(path, { method, headers: { origin: baseURL! }, ...(method === 'PATCH' ? { data: { name: 'Forbidden' } } : {}) });
+        expect(response.status()).toBe(authenticated ? 403 : 401); expect(response.headers()['cache-control']).toContain('no-store');
+        const body = await response.json(); expect(body).not.toHaveProperty('company'); expect(body).not.toHaveProperty('companies');
+      }
+    } finally { await context.close(); }
+  }
+});
+
+test('S8 company admin directory, edit and recovery fit all screens', async ({ browser, baseURL }, info) => {
+  test.setTimeout(150000);
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only admin fixture; no customer writes');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  await openDirectoryGate(context);
+  const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.id).toMatch(/^demo_/);
+  const page = await context.newPage(), errors: string[] = [], writes: Record<string, unknown>[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let listFailure = false, saveStatus = 200, denied = false, sessionRevoked = false;
+  let company = { id:'qa-company', name:'Example Company', description:'Digital products and thoughtful design.', websiteUrl:'https://example.test', logo:[], bannerImage:[], colorScheme:null, usesShipping:false, orgNumber:'123456789',orgType:'AS',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',employmentNoticeDays:14, orgVerification:{status:'VERIFIED',verifiedAt:'2026-01-01T00:00:00Z'},User_Company_ownerIdToUser:{id:'qa-company-owner',name:'Example owner'},User_Company_creatorIdToUser:{id:'qa-company-owner',name:'Example owner'},_count:{Employee:3,Product:5,Sale:7,WarehouseLocation:1}};
+  await page.route('**/api/admin/stats', route => route.fulfill({status:503,json:{error:'QA unavailable'}}));
+  await page.route('**/api/auth/session', route => route.fulfill({json:sessionRevoked?session:{...session,user:{...session.user,id:'qa-company-owner',role:'OWNER',isDemo:false}}}));
+  await page.route('**/api/admin/companies?**', async route => {
+    expect(route.request().method()).toBe('GET'); const query = new URL(route.request().url()).searchParams;
+    if (denied) return route.fulfill({status:403,json:{error:'Access ended'}});
+    if (listFailure) return route.fulfill({status:503,json:{error:'Unavailable'}});
+    if (query.get('search') === 'old') await new Promise(resolve=>setTimeout(resolve,800));
+    const rows = query.get('search') === 'missing' ? [] : Array.from({length:query.get('page')==='2'?1:20},(_,index)=>({...company,id:index?company.id+'-'+index:company.id,name:query.get('search')==='old'?'Stale company':index?`Example Company ${index}`:company.name}));
+    return route.fulfill({json:{companies:rows,pagination:{page:Number(query.get('page')),limit:20,total:rows.length?21:0,totalPages:rows.length?2:0}}});
+  });
+  await page.route('**/api/admin/companies/qa-company', async route => {
+    if (denied) return route.fulfill({status:403,json:{error:'Access ended'}});
+    if(route.request().method()==='PATCH') {
+      const body=route.request().postDataJSON(); writes.push(body);
+      expect(body).not.toHaveProperty('ownerId'); expect(body).not.toHaveProperty('orgNumber');
+      if(saveStatus!==200) return route.fulfill({status:saveStatus,json:{error:'Fixture failure'}});
+      company={...company,...body,updatedAt:'2026-02-01T00:00:00.000Z'};
+    } else expect(route.request().method()).toBe('GET');
+    return route.fulfill({json:{company}});
+  });
+  try {
+    await page.goto('/',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const refreshed=page.waitForResponse(response=>response.url().includes('/api/auth/session'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
+    await page.getByRole('button',{name:'Open menu',exact:true}).click();
+    await page.getByRole('link',{name:'Admin',exact:true}).filter({visible:true}).click();
+    await page.getByRole('heading',{name:'Company Management',exact:true}).click();
+    const directory=page.getByRole('region',{name:'Company administration',exact:true});
+    const details=()=>directory.getByRole('link',{name:'Details Example Company',exact:true});
+    await expect(details()).toBeVisible();
+    const search=directory.getByRole('searchbox',{name:'Search companies'});
+    await search.fill('missing'); await expect(directory.getByRole('heading',{name:'No matching companies'})).toBeVisible();
+    await directory.getByRole('button',{name:'Clear filters'}).click(); await expect(details()).toBeVisible();
+    await directory.getByRole('combobox',{name:'Sort by',exact:true}).selectOption('name');
+    await directory.getByRole('combobox',{name:'Order',exact:true}).selectOption('asc'); await expect(page).toHaveURL(/sortOrder=asc/);
+    await directory.getByRole('button',{name:'Next',exact:true}).click(); await expect(directory.getByText('Page 2 of 2')).toBeVisible();
+    await page.goBack(); await expect(directory.getByText('Page 1 of 2')).toBeVisible();
+    const slow=page.waitForRequest(request=>request.url().includes('search=old')); await search.fill('old'); await slow; await search.fill('fresh');
+    await expect(page).toHaveURL(/search=fresh/); await page.waitForTimeout(900); await expect(directory.getByText('Stale company')).toHaveCount(0);
+    listFailure=true; await directory.getByRole('button',{name:'Refresh',exact:true}).click(); await expect(directory.getByRole('alert')).toContainText('Showing the last loaded companies');
+    listFailure=false; await directory.getByRole('button',{name:'Retry',exact:true}).click(); await expect(directory.getByRole('alert')).toHaveCount(0);
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height}); await search.scrollIntoViewIfNeeded(); expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:info.outputPath('company-list-'+width+'.png')});
+    }
+    await page.setViewportSize({width:390,height:844}); await details().click();
+    const detail=page.getByRole('region',{name:'Company details',exact:true}); await expect(detail.getByRole('heading',{name:'Example Company',exact:true})).toBeVisible();
+    await expect(detail.getByRole('link',{name:'Public storefront',exact:false})).toHaveAttribute('href','/company/qa-company');
+    await detail.getByRole('link',{name:'Edit company',exact:true}).click();
+    const form=page.getByRole('form',{name:'Edit company',exact:true}), name=form.getByRole('textbox',{name:'Company name',exact:true});
+    await expect(name).toHaveValue('Example Company'); await name.fill('Updated company');
+    await form.getByRole('button',{name:'Save changes',exact:true}).click(); await expect(form.getByText('Add a short reason for the audit record.')).toBeVisible(); expect(writes).toHaveLength(0);
+    await form.getByRole('textbox',{name:'Reason for change',exact:true}).fill('Browser fixture correction');
+    saveStatus=409; await form.getByRole('button',{name:'Save changes',exact:true}).click(); await expect(detail.getByRole('alert')).toContainText('changed elsewhere'); await expect(name).toHaveValue('Updated company'); await expect(form.getByRole('button',{name:'Save changes',exact:true})).toBeDisabled();
+    await detail.getByRole('button',{name:'Reload saved company',exact:true}).click(); const dialog=page.getByRole('dialog',{name:'Discard draft & reload?',exact:true}); await expect(dialog).toBeVisible(); await dialog.getByRole('button',{name:'Reload saved company',exact:true}).click();
+    await expect(name).toHaveValue('Example Company'); saveStatus=200;
+    await name.fill('Updated company'); await form.getByRole('textbox',{name:'Reason for change',exact:true}).fill('Browser fixture correction'); await form.getByRole('checkbox',{name:'Uses shipping'}).check();
+    await form.getByRole('button',{name:'Save changes',exact:true}).click(); await expect(form.getByRole('status')).toHaveText('Company changes saved.'); expect(writes).toHaveLength(2);
+    expect(writes[1]).toMatchObject({name:'Updated company',usesShipping:true,expectedUpdatedAt:'2026-01-01T00:00:00.000Z',reason:'Browser fixture correction'});
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height}); await name.scrollIntoViewIfNeeded(); expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      for(const control of await form.locator('input:not([type=checkbox]),button').filter({visible:true}).all()) {const box=await control.boundingBox(); if(box) expect(box.height).toBeGreaterThanOrEqual(44);}
+      await page.screenshot({path:info.outputPath('company-edit-'+width+'.png')});
+    }
+    await page.setViewportSize({width:390,height:480});
+    await form.getByRole('textbox',{name:'Reason for change',exact:true}).focus();
+    const reasonBox=await form.getByRole('textbox',{name:'Reason for change',exact:true}).boundingBox(), saveBox=await form.getByRole('button',{name:'Save changes',exact:true}).boundingBox();
+    expect(reasonBox!.y + reasonBox!.height).toBeLessThanOrEqual(saveBox!.y);
+    await page.setViewportSize({width:390,height:844}); await page.mouse.move(200,600); await page.mouse.wheel(0,2000); await expect(page.getByRole('contentinfo')).toBeInViewport();
+    await name.fill('Unsaved company'); await detail.getByRole('link',{name:'All companies',exact:false}).click();
+    const leave=page.getByRole('dialog',{name:'Discard unsaved changes?',exact:true}); await expect(leave).toBeVisible(); await leave.getByRole('button',{name:'Cancel',exact:true}).click(); await expect(name).toHaveValue('Unsaved company');
+    saveStatus=503; await form.getByRole('textbox',{name:'Reason for change',exact:true}).fill('Failed save keeps draft'); await form.getByRole('button',{name:'Save changes',exact:true}).click();
+    await expect(detail.getByRole('alert')).toContainText('Save could not be confirmed'); await expect(name).toHaveValue('Unsaved company');
+    await detail.getByRole('button',{name:'Reload saved company',exact:true}).click(); await page.getByRole('dialog',{name:'Discard draft & reload?',exact:true}).getByRole('button',{name:'Reload saved company',exact:true}).click(); await expect(name).toHaveValue('Updated company');
+    denied=true; await detail.getByRole('link',{name:'All companies',exact:false}).click(); await expect(page.getByRole('alert').filter({hasText:'Admin access is no longer available'})).toBeVisible(); await expect(page.getByText('Updated company',{exact:true})).toHaveCount(0);
+    denied=false; listFailure=true; await page.getByRole('button',{name:'Retry access'}).click(); await expect(directory.getByRole('alert')).toContainText('Companies could not be loaded'); await expect(page.getByText('Updated company',{exact:true})).toHaveCount(0);
+    sessionRevoked=true; const revoke=page.waitForResponse(response=>response.url().includes('/api/auth/session')); await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await revoke; await expect(directory).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S8 audit log denies anonymous and demo reads without returning records', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
   const anonymous = await browser.newContext({ baseURL });
