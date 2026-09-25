@@ -10,6 +10,103 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 admin detail real endpoint denies anonymous and demo operations', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
+  const anonymous = await browser.newContext({ baseURL });
+  const demo = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    for (const [context, status] of [[anonymous, 401], [demo, 403]] as const) {
+      await openDirectoryGate(context);
+      for (const method of ['GET', 'PATCH', 'DELETE']) {
+        const response = await context.request.fetch('/api/admin/users/qa-boundary-nonexistent', { method, headers: { origin: baseURL! }, ...(method === 'GET' ? {} : { data: { name: 'Never changed', reason: 'Boundary denial QA', expectedUpdatedAt: '2026-01-01T00:00:00.000Z' } }) });
+        expect(response.status()).toBe(status); expect(response.headers()['cache-control']).toContain('no-store');
+        expect(await response.json()).not.toHaveProperty('user');
+      }
+    }
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
+test('S8 admin detail keeps drafts, handles conflicts and adapts across screens', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'All account changes are browser-only fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  const retained = await (await context.request.get('/api/auth/session')).json(); expect(retained.user.id).toMatch(/^demo_/);
+  await openDirectoryGate(context);
+  const page = await context.newPage(), writes: Record<string, unknown>[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let readFailure = true, saveFailure = true, viewOnly = false;
+  let user = { id: 'qa-editor-member', name: 'Alex Example', email: 'alex@example.test', role: 'USER', image: null, banner: null, bio: '',
+    emailVerified: '2026-01-01T00:00:00.000Z', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', verificationTier: 'WEB2_BASIC', verificationScore: 10,
+    hasGoogleAuth: true, hasGithubAuth: false, hasDiscordAuth: false, hasVerifiedWallet: false, isTwoFactorEnabled: true,
+    _count: { Order: 3, Conversation: 2, followers: 0, following: 0, Employee: 1, Company_Company_ownerIdToUser: 1 },
+    Employee: [{ id: 'qa-job', role: 'STAFF', jobTitle: 'QA', Company: { id: 'qa-company', name: 'QA company' } }],
+    Company_Company_ownerIdToUser: [{ id: 'qa-company', name: 'QA company' }],
+  };
+  const permissions = () => ({ edit: !viewOnly, changeRole: !viewOnly, preview: !viewOnly });
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ...retained, user: { ...retained.user, id: 'qa-editor-owner', role: 'OWNER', isDemo: false } } }));
+  await page.route('**/api/admin/users?**', route => route.fulfill({ json: { users: [user], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } } }));
+  await page.route('**/api/admin/users/qa-editor-member', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({ status: readFailure ? 503 : 200, json: readFailure ? { error: 'Account could not be loaded. Try again.' } : { user, permissions: permissions() } });
+    expect(route.request().method()).toBe('PATCH'); const patch = route.request().postDataJSON(); writes.push(patch);
+    if (saveFailure) return route.fulfill({ status: 409, json: { error: 'This account changed elsewhere. Your draft is kept; reload the saved account before editing again.' } });
+    user = { ...user, ...patch, updatedAt: '2026-01-02T00:00:00.000Z' };
+    return route.fulfill({ json: { user, permissions: permissions(), message: 'Changes saved.' } });
+  });
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' }); await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const refresh = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refresh;
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await page.getByRole('link', { name: 'Users', exact: true }).filter({ visible: true }).click();
+    await page.getByRole('link', { name: 'Manage Alex Example', exact: true }).click();
+    const editor = page.getByRole('region', { name: 'Account administration' });
+    await expect(editor.getByRole('alert')).toContainText('Account could not be loaded');
+    readFailure = false; await editor.getByRole('button', { name: 'Retry', exact: true }).click();
+    const form = editor.getByRole('form', { name: 'Edit account' }), name = form.getByLabel('Display Name', { exact: true });
+    await expect(name).toHaveValue('Alex Example'); await expect(form.locator('input[type=email]')).toHaveCount(0);
+    await name.fill('QA changed'); await form.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(form.getByRole('alert')).toContainText('Add a short reason'); expect(writes).toHaveLength(0);
+    await form.getByLabel('Reason for Change', { exact: true }).fill('Disposable UI QA');
+    const reauth = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await reauth;
+    await expect(name).toHaveValue('QA changed');
+    await form.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(editor.getByRole('alert')).toContainText('changed elsewhere'); await expect(name).toHaveValue('QA changed');
+    expect(writes[0]).toEqual({ name: 'QA changed', expectedUpdatedAt: '2026-01-01T00:00:00.000Z', reason: 'Disposable UI QA' });
+    await editor.getByRole('button', { name: 'Reload saved account', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(name).toHaveValue('QA changed');
+    saveFailure = false; await form.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(form.getByRole('status')).toHaveText('Changes saved.'); await expect(form.getByLabel('Reason for Change')).toHaveValue('');
+    await form.getByRole('combobox', { name: 'Account Role' }).selectOption('ADMIN'); await form.getByLabel('Reason for Change').fill('QA role confirmation');
+    await form.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('signs out'); await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click(); expect(writes).toHaveLength(2);
+    await form.getByRole('combobox', { name: 'Account Role' }).selectOption('USER');
+    await name.fill('LongDisplayName'.repeat(9));
+    await editor.getByRole('link', { name: 'All users' }).click(); await expect(page.getByRole('dialog')).toContainText('Discard unsaved changes');
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(name).toHaveValue('LongDisplayName'.repeat(9));
+    await form.getByText('Profile images', { exact: true }).click();
+    await form.getByLabel('Upload avatar', { exact: true }).setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('QA only') });
+    await expect(form.getByRole('alert')).toContainText('Choose a JPG');
+    await form.getByText('Profile images', { exact: true }).click();
+    for (const [width, height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width, height }); await name.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      for (const element of await form.locator('input:visible,select:visible,button:visible').all()) expect((await element.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: info.outputPath('admin-detail-' + width + '.png') });
+      await form.getByLabel('Reason for Change').scrollIntoViewIfNeeded();
+      await expect(form.getByRole('button', { name: 'Save Changes', exact: true })).toBeInViewport();
+      await editor.getByText('Account record', { exact: true }).scrollIntoViewIfNeeded();
+    }
+    viewOnly = true; await form.getByRole('button', { name: 'Discard Changes', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Reload saved account', exact: true }).click();
+    await expect(name).toBeDisabled(); await expect(form.getByRole('button', { name: 'Save Changes', exact: true })).toHaveCount(0);
+    await expect(editor.getByRole('button', { name: 'Preview Account', exact: true })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 const directoryGateCookies = new Map<string, Awaited<ReturnType<BrowserContext['cookies']>>>();
 
 test('S2 account preview endpoints reject anonymous and demo switches', async ({ browser, baseURL }) => {

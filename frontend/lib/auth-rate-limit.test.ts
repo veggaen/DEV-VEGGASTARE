@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ query: vi.fn(), execute: vi.fn() }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { $queryRaw: mocks.query, $executeRaw: mocks.execute } }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
-import { allowAuthAttempt } from './auth-rate-limit';
+import { allowAuthAttempt, allowAdminDetailRead } from './auth-rate-limit';
 
 describe('durable auth throttling', () => {
   beforeEach(() => { vi.resetAllMocks(); vi.stubEnv('AUTH_SECRET', 'unit-test-only-secret'); mocks.query.mockResolvedValue([{ count: 1 }]); mocks.execute.mockResolvedValue(0); });
@@ -23,5 +23,16 @@ describe('durable auth throttling', () => {
   it('fails closed on database errors', async () => {
     mocks.query.mockRejectedValue(new Error('unavailable'));
     expect(await allowAuthAttempt('password')).toBe(false);
+  });
+  it('keeps the admin read budget separate from strict auth/write attempts', async () => {
+    const request = new Request('http://localhost:3000');
+    mocks.query.mockResolvedValueOnce([{ count: 60 }]).mockResolvedValueOnce([{ count: 60 }]);
+    expect(await allowAdminDetailRead('qa-admin', request)).toBe(true);
+    const readKey = mocks.query.mock.calls[1][1];
+    mocks.query.mockResolvedValueOnce([{ count: 61 }]).mockResolvedValueOnce([{ count: 61 }]);
+    expect(await allowAdminDetailRead('qa-admin', request)).toBe(false);
+    mocks.query.mockResolvedValue([{ count: 1 }]);
+    expect(await allowAuthAttempt('admin-user-edit', 'qa-admin', request)).toBe(true);
+    expect(mocks.query.mock.calls.at(-1)![1]).not.toBe(readKey);
   });
 });

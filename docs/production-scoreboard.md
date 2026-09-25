@@ -4,6 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Account administration: **PARTIAL — local safeguards and editor verification
+pass; deployment acceptance pending**. Strict field policy, current-role/version
+checks, optimistic concurrency and transactional audits replace the unsafe
+privileged update. USER/ADMIN role changes revoke existing target sessions;
+email and verification cannot be fabricated. Cascading deletion is refused, not
+reported as completed erasure. The responsive editor preserves drafts and handles
+conflicts explicitly. 85 units, four isolated PostgreSQL checks, actual local
+HTTP/UI acceptance and light/dark browser 2/2 pass. Real Chrome needs the existing
+admin gate sign-in. See [admin detail evidence](admin-user-detail-evidence-2026-09.md).
+
 Account preview: **DONE for scoped session/perimeter safeguards and local
 synthetic-principal UI acceptance; wider account management remains PARTIAL**.
 Runtime `9624ca1` is promoted as `dpl_6EdfXa99sJMRZyL2FDbmN1uhji5X`.
