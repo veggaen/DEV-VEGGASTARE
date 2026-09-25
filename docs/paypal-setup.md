@@ -1,21 +1,27 @@
 # PayPal checkout setup and acceptance
 
-Status: **Sandbox server capture verified for both SKUs in real Chrome** on
-23 September 2026. The credit order captured 39 NOK and granted exactly 100 test
-credits; replaying its return kept one grant. The 29 NOK digital order delivered
-the real JPG and TXT, whose downloaded sizes/SHA-256 match the stored assets.
-Logged-out requests to both signed links return 401. No real money was spent.
+## Current acceptance — 25 September 2026
 
-Live credentials and the approved Live webhook were saved, but the new release
-is only deployed to isolated Preview and Live acceptance is not yet verified. Do not describe the
-whole payment integration as production-ready until the remaining checks pass.
+- **Sandbox verified:** separate SKU captures and a mixed 122-credit + artwork
+  purchase (76.16 NOK), actual signed downloads, refund webhook reconciliation,
+  revoked downloads and replay without duplicate grants. See
+  [Sandbox evidence](paypal-refund-acceptance-2026-09.md).
+- **Live credit purchase verified:** one owner-approved 9 NOK / ten-credit
+  starter capture, exactly one grant and subsequent funded AI use. This is not
+  evidence of a 39 NOK purchase. See [Live evidence](receipt-layout-2026-09.md).
+- **Live artwork purchase and refund remain unverified.** One 29 NOK artwork
+  checkout is prepared in real Chrome; consent and payment await the owner.
+  No payment or refund has been submitted for that acceptance step.
+- **Unpaid recovery verified:** local and Preview real Sandbox approval links
+  resume the same order; cancellation grants nothing. Live UI/API checks pass.
+  See [recovery evidence](order-recovery-2026-09.md).
+- Source `210660a` is deployed to Live and stable isolated Preview. Current
+  purchase terms version is `2026-09-25.1`; historical receipts stay unchanged.
+  See the [production scoreboard](production-scoreboard.md) for deployment IDs.
 
-The custom-credit candidate `d640b2b` is READY on the stable Preview alias as
-`dpl_Ax3eErQ96wEndT5Khk6PLCx3ohQk`. Local and deployed browser checks pass for
-typed quantities, stale-quote rejection and unpaid demo receipts. A real Chrome
-555-credit demo receipt is verified locally. This does not replace actual
-custom-amount Sandbox capture/webhook/refund acceptance; the Developer dashboard
-requires the owner's fresh sign-in/passkey check before retrieving its test buyer.
+The environment provisioning observations below are a historical setup record,
+not the current acceptance status. Do not rerun provisioning or rotate working
+credentials because an older observation mentions an unconfigured listener.
 
 ## Credentials and environments
 
@@ -134,10 +140,12 @@ and keep the client secret on the server.
 
 ## Sandbox first
 
-Use a Sandbox buyer, not a real card. Verify both reviewer SKUs separately and
-then together: Interview Pack 29 NOK; 100 AI credits 39 NOK. Prices come from
-`frontend/lib/showcase-catalog.ts`, never client-supplied totals. The custom-credit
-candidate adds 100–1,000 whole credits through `lib/ai-credit-purchase.ts`:
+Use a Sandbox buyer, not a real card. Verify both permanent SKUs separately and
+then together: Fjord Study — Digital Artwork 29 NOK; 100 AI credits 39 NOK.
+Prices come from `frontend/lib/showcase-catalog.ts`, never client-supplied totals.
+The current `lib/ai-credit-purchase.ts` permits a ten-credit / 9 NOK starter or
+100–10,000 whole credits, with at most two attempts and 5,000 NOK exposure per
+user per UTC day. Cancellation does not reset those limits. Price examples:
 122 = 47.16 NOK and 555 = 206.51 NOK. Progressive discounts apply only to credits
 above each tier, not retroactively. Test an exact custom grant and keep the
 digital SKU as its own line. Stored capture amounts remain NOK regardless of
@@ -176,9 +184,24 @@ provider proof, uses the same fulfillment lock, reverses the purchase grant once
 revokes downloads and keeps partial refunds in payment review. Already-used
 credits become a disclosed adjustment, not a negative spendable balance or a
 card charge. A later purchase first offsets that adjustment. Unit/isolated
-database tests cover concurrent/replayed/out-of-order reconciliation, but a real
-Sandbox refund webhook has not yet been exercised end-to-end. That remains a
-release gate; dashboard success alone is not entitlement-reconciliation proof.
+database tests cover concurrent/replayed/out-of-order reconciliation. Real
+Sandbox refund and late capture replay passed; Live refund acceptance remains
+open. Dashboard success alone is not entitlement-reconciliation proof.
+
+### Live digital acceptance handoff
+
+1. Owner reviews the single 29 NOK artwork checkout and delivery consent, then
+   pays with a buyer account different from the receiving merchant account.
+   Stop if PayPal's final amount differs. Do not create another order if the
+   original can be resumed through My orders.
+2. Verify the server-captured NOK amount and exact capture ID, one entitlement
+   per file, and successful authenticated JPG/TXT downloads. Test anonymous and
+   unrelated-account denial without exposing signed links publicly.
+3. Only after separate owner approval, use the exact transaction's PayPal refund
+   control. Verify the signed event is accepted, order is reconciled and old
+   download links are revoked. Record replay results without resetting counters.
+4. Keep the record and original receipt. A downloaded copy cannot be recalled;
+   revocation prevents future downloads, not access to an already saved file.
 
 Creating an order uses an idempotency key; fulfillment is separately guarded by
 the verified capture ID. Provider idempotency does not replace database guards.

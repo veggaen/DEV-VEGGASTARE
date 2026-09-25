@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Live digital acceptance: **awaiting owner payment**. Real Chrome is signed in;
+the permanent artwork's Buy now path opened a single-item checkout showing
+PayPal Live and NOK 29.00. Delivery consent remains unchecked and no order/payment
+was submitted. The tab is retained for the owner; do not report a paid artwork
+until verified capture and actual download evidence exist. The refund is a
+separate owner approval, not implicit in completing this payment. A fresh run of
+69 private-storage, download-entitlement, PayPal proof, signature, webhook and
+refund-policy unit tests passes. These do not substitute for Live acceptance.
+The [PayPal runbook](paypal-setup.md) now separates current results from historical
+setup observations and includes the exact download/refund acceptance procedure.
+
 Unpaid order recovery: **DONE for deployed resume/cancel behavior**. Continue payment
 reuses the existing purchase; confirmed cancellation keeps records/cart and daily
 caps. 49 unit cases, three isolated Postgres tests (including 12 capture/cancel
