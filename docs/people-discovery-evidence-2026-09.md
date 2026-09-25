@@ -93,7 +93,9 @@ were submitted. Routine feed viewing may update normal view counts.
 people panel still produces screenshots with blank left-card interiors. A fresh
 screenshot repeats it; the article DOM retains text, opacity 1, visibility visible,
 and no backdrop filter or content-visibility suppression. The blur removal did
-not resolve this observation. Owner screen confirmation is requested to distinguish
+not resolve this observation. It also repeats at the normal screen size after
+resetting the viewport override, so it is not limited to phone/device emulation.
+Owner screen confirmation is requested to distinguish
 an actual display problem from a capture-only issue. No speculative global GPU/CSS
 workaround was applied and the regression is not called fixed.
 

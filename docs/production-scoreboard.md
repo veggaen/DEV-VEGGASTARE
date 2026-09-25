@@ -14,8 +14,8 @@ Real Chrome confirms phone placement but still captures blank card interiors
 after independent sidebar scrolling. No real follow/payment write was submitted.
 See [people discovery evidence](people-discovery-evidence-2026-09.md).
 
-Source publication: **PARTIAL**. The release branch is 79 commits ahead of its
-remote, with no open release PR. The unpublished range passes a redacted secret
+Source publication: **PARTIAL**. The runtime release was 79 commits ahead of its
+remote at this audit, with no open release PR. That unpublished range passes a redacted secret
 scan; the historical repository scan requires separate owner-approved remediation.
 No force push, history rewrite, repository visibility change or credential use
 was performed. GitHub's isolated E2E job remains blocked by an account billing lock.
