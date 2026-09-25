@@ -82,6 +82,35 @@ email/role/verification writes, impersonation and the admin hard-delete endpoint
 still need their separate audit. Historical public-repository exposure and
 GitHub billing/CI remain separate owner-action items.
 
+Read-only follow-up inspection also found that the impersonation branch of the
+JWT callback returns before the ordinary session-version check. The new settings
+service increments the version correctly; revocation of an already-impersonated
+session is **not accepted** by these tests. Its creation/restoration endpoints
+and privileged user-detail edits/deletion need the next separate security slice.
+No impersonation or privileged mutation was exercised against an actual member.
+
+## Release acceptance
+
+Runtime commit `a4d40fd`:
+
+- Isolated Preview `dpl_Dty3ynfuZRcg1xHwk9ugNi5uFCuf`, immutable
+  `https://dev-veggastare-rauminerd-v3ggas-projects.vercel.app`, is READY and
+  assigned to the existing isolated Preview alias. Its scoped browser case
+  passes **1/1** (eight viewports, no retries/skips); health is healthy.
+- Production candidate `dpl_9Nm3dqkYF7okt1jCkSNqJL5RgNT9`, immutable
+  `https://dev-veggastare-gd2rgsjfn-v3ggas-projects.vercel.app`, passed its strict
+  build and health check before promotion. Vercel inspection confirms
+  `www.veggat.com` resolves to it after promotion.
+- Live scoped browser checks pass **1/1 light** and **1/1 dark**, with no
+  retries/skips. Real Chrome shows the retained signed-in account's Security
+  page, the visible phone save action and clean page/footer scrolling. No real
+  password, two-factor setting, deletion request, payment or email was changed.
+  The temporary viewport override was reset.
+- Public Live health returns HTTP 200 / healthy. Both remote builds reported
+  53 migrations with none pending; this slice adds no migration.
+- The staged 55.17 KB change passed a redacted secret scan with zero findings.
+  This is not clearance of the separately documented repository history.
+
 References: [OWASP authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
 [Next.js Server Action security](https://nextjs.org/docs/app/guides/data-security),
 [interface guidelines](https://github.com/vercel-labs/web-interface-guidelines).

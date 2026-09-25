@@ -4,6 +4,23 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Personal account settings: **DONE for deployed validation, scoped service tests
+and UI recovery; full account management remains PARTIAL**. Runtime `a4d40fd`
+is promoted as `dpl_9Nm3dqkYF7okt1jCkSNqJL5RgNT9`. Strict allowlisted writes,
+current-password/action-bound email confirmation, atomic version increment and
+proof revocation replace the unsafe settings update. An unused unauthenticated
+hard-delete Server Action is removed; account-owned deletion requests are
+serialized and cancellable only while pending. Profile and Security save
+separately, keep drafts across session refresh, and use bounded touch-sized forms
+with a sticky action. 69 focused units, three isolated PostgreSQL checks, touched
+lint and local/remote strict builds pass. Final local light/dark, Preview and
+Live light/dark browser runs each pass **1/1**, eight sizes, no configured retries
+or skips; the initial cold-start null-demo-session failure is recorded, not hidden.
+Real Chrome confirms local/Live phone scrolling and unchanged account settings.
+Verified email replacement, actual security-email/credential-change acceptance,
+retention-safe erasure, privileged user-detail writes and impersonation revocation
+remain unfinished. See [account settings evidence](account-settings-evidence-2026-09.md).
+
 Admin directory: **DONE for deployed list/read fixes and scoped automated checks;
 real-Chrome privileged-session acceptance and wider account management remain
 PARTIAL**. Runtime `02a0771` is promoted as
@@ -1639,6 +1656,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | Google | DONE for existing-account local/Live real-Chrome sign-in and logout; automated-browser restriction remains, not bypassed |
 | Auth | GitHub | DONE for existing-account local/Live real-Chrome sign-in and logout; separate email/trust-badge confirmation is not claimed |
 | Auth | Discord | PARTIAL — correct Live callback/S256 consent screen and safe cancellation observed; positive local/Live callback/link requires explicit owner consent |
+| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted account writes, atomic code-confirmed security service, safe request/cancel and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review and impersonated-session revocation remain |
 | Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |
