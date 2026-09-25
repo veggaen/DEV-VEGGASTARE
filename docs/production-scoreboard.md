@@ -4,7 +4,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Work in progress — exact selected-currency purchases
 
-**PARTIAL, not activated or deployed.** Server quote arithmetic, fresh reference
+**PARTIAL, deployed to isolated Sandbox Preview only; not activated in production.** Server quote arithmetic, fresh reference
 FX, actor/cart/environment-bound attestations and currency-aware PayPal proofs
 are implemented. Cart spend intent and immutable, serialized order preparation
 now pass real PostgreSQL migration, replay and cross-tab race tests in disposable
@@ -28,8 +28,16 @@ response guards, and identical-body payment retries. Combined payment/cart/repor
 regressions pass **629/629 across 29 files**; the final cross-tab guard follow-up
 passes **23/23**. Browser checks cover USD 100, NOK 1000 and light/dark responsive
 checkout without making payments. Real Sandbox capture is not yet claimed.
-Next: isolated Preview deployment and actual native-currency Sandbox
-capture/refund acceptance before production activation. The new generated client requires the additive
+Runtime `ac784e7` is READY on the stable isolated Preview as
+`dpl_8EhTGTcSg8pMiL3KPPgMBPTwgxpX`. Hosted acceptance passes **5/5**, zero skips or
+retries: exact amount/retry, six-currency HTTP quotes, guarded cart edits, flexible
+budgets/light-dark responsive checkout and the 9 NOK starter. Payments are
+intercepted; no paid order, grant or email is created. Real Chrome confirms the
+automatic USD 100 input, signed-in Sandbox checkout and footer scrolling without
+horizontal overflow or captured console errors. The computer-use and testing
+skills guided real-browser observation plus focused automated checks.
+Next: actual native-currency Sandbox capture/refund acceptance and merchant
+receiving settings before production activation. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping
 the draft input at `100` does not yet make a USD 100 charge. See
 [exact-currency settlement work](exact-currency-settlement-2026-09.md).

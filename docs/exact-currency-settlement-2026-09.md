@@ -1,9 +1,9 @@
 # Exact-currency credit purchases — implementation in progress
 
-Status: **PARTIAL, exact-price entry implemented locally, not deployed**. Production still
+Status: **PARTIAL, exact-price entry deployed to isolated Sandbox Preview only**. Production still
 charges server-priced NOK and treats a typed budget as a maximum. Keeping `100`
 in that input did not fulfill the request to actually buy for USD 100.00.
-The local customer journey now uses native-currency server quotes. Real Sandbox
+The local and Preview customer journeys now use native-currency server quotes. Real Sandbox
 capture/refund acceptance and production activation are still required.
 
 ## Required end state
@@ -84,7 +84,7 @@ legacy rows were compatible. Production is unchanged. New builds still require
 this migration before their first application run; do not deploy this intermediate
 commit against the old production schema.
 
-## Payment and receipt integration (not deployed)
+## Payment and receipt integration (isolated Preview only)
 
 - `checkout-money.ts` validates each original v1 NOK or v2 exact-currency record
   and returns native cash separately from exposure. It does not reprice old
@@ -117,15 +117,15 @@ commit against the old production schema.
   not NOK exposure. Server-rendered tests cover USD 100.00 and its USD refund
   with ETH parentheses. The receipt layout itself is unchanged in this slice.
 
-Quote/input routes are locally verified; storefront/cart UI remains incomplete.
-Connect and verify that UI before enabling any v2 customer purchase. This
-integration is not evidence of a real PayPal native-currency Sandbox capture.
+Quote/input routes and the storefront/cart UI are verified locally and on isolated
+Preview. This integration is not evidence of a real PayPal native-currency Sandbox
+capture. Production activation still requires that acceptance.
 The transport/proof contracts were rechecked against PayPal's
 [capture-order reference](https://developer.paypal.com/api/orders/v2/orders-capture),
 [capture-details reference](https://developer.paypal.com/api/payments/v2/captures-get)
 and [refund-details reference](https://developer.paypal.com/api/payments/v2/refunds-get).
 
-## Currency-aware reporting and verification (not deployed)
+## Currency-aware reporting and verification (isolated Preview only)
 
 - `checkout-reporting.ts` shares read-only, parameterized capture/money predicates
   across the owner report, company counts and payment-verification evidence.
@@ -249,7 +249,7 @@ The fee policy expires with the existing 24 October review deadline.
 
 1. Persistence and isolated PostgreSQL verification are implemented; the additive
    migration and production-mode local build are verified against isolated Preview.
-   Keep the feature undeployed until the dependent UI is complete. Apply the
+   The dependent UI is complete and the compatible build is on isolated Preview. Apply the
    migration to production only with the
    verified compatible release. Never backfill/reprice old NOK orders.
 2. Create/capture/refund, native Payment amounts, receipt/confirmation, grouped
@@ -308,3 +308,41 @@ The fee policy expires with the existing 24 October review deadline.
 - Final optimized build, full TypeScript and touched ESLint pass. Local testing
   uses the production-mode build on :3000 with isolated Preview data and Sandbox
   credentials only.
+
+## Hosted Preview acceptance — 25 September 2026
+
+- Runtime `ac784e7` is READY as `dpl_8EhTGTcSg8pMiL3KPPgMBPTwgxpX`, aliased only
+  to `dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app`.
+  The guarded build verified the isolated Neon host and all 55 applied migrations;
+  no migration was pending. Existing Sandbox credentials/webhook were reused.
+- Focused hosted browser/API checks pass **5/5**, zero skips/retries, in four
+  spaced invocations: exact USD 100 through product/basket/cart/checkout and an
+  identical-body payment retry; six-currency HTTP quotes and forged/origin/auth
+  denials; revisioned cart edits and currency-change rejection; NOK 1000/10,000
+  credits/currency switching with light/dark layout; and the 10-credit 9 NOK pack.
+- Payment submissions are intercepted, never sent to PayPal or demo fulfillment.
+  Only the retained disposable demo cart is edited and restored. Its session was
+  still authenticated, so no new demo identity or allowance was created. Display
+  FX in the flexible-layout test is a fixture; server settlement quotes use the
+  hosted server's real fresh FX source.
+- Inspected hosted screenshots at 390, 1280 and 2560; automated overflow and CTA
+  reachability checks cover 360/390/844 landscape/768/1024/1280/1920/2560, including
+  a 1024px portrait case. This is responsive browser acceptance, not physical-phone
+  keyboard or actual 125% browser zoom acceptance.
+- Real Chrome confirms automatic USD 100.00 with no Update button, the balanced
+  credit-product workspace, and signed-in file checkout showing USD 3.21 plus
+  ETH estimate and an explicit Sandbox badge. Actual viewport: 2498 × 1263.
+  The inner checkout scroller reaches its 110px bottom; no horizontal overflow
+  or captured console errors. No consent box or payment button was submitted.
+- Test allowlists now exclude production from these cart-editing checks. Touched
+  ESLint, full TypeScript and the hosted optimized build pass.
+- Read-only verification confirms production still points to
+  `dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu` (`92c5ac7`). No production migration,
+  charge/refund, email, key, grant, limit or billing change occurred.
+- Resend remains signed in; the existing enabled webhook has a recorded HTTP 200
+  bounce event. The prior Live purchase email remains ACCEPTED_UNCONFIRMED with no
+  delivered timestamp. Neither signal proves inbox delivery; no message was resent.
+- Next: actual native-currency Sandbox create/capture/refund and merchant receiving
+  behavior. The retained password QA buyer has already used today's two attempts
+  on cancelled orders; limits were not reset or weakened. Hosted quote/UI success
+  must not be described as a successful PayPal capture.

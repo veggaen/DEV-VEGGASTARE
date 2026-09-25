@@ -10,8 +10,15 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+// Money UI acceptance may change only a disposable cart in these environments.
+// Payment submission is intercepted; production is deliberately excluded.
+const SETTLEMENT_QA_ORIGINS = new Set([
+  'http://localhost:3000',
+  'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app',
+]);
+
 test('S4 exact spend stays 100 through product, basket, cart and checkout with safe retry', async ({ browser, baseURL }, info) => {
-  test.skip(process.env.E2E_EXACT_SPEND_UI !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || baseURL !== 'http://localhost:3000', 'Local retained demo cart only; payment intercepted');
+  test.skip(process.env.E2E_EXACT_SPEND_UI !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || !SETTLEMENT_QA_ORIGINS.has(baseURL ?? ''), 'Isolated retained demo cart only; payment intercepted');
   test.setTimeout(180000);
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width:1280, height:800 }, reducedMotion:'reduce' });
   const headers = { origin: baseURL! }, sku = 'cveggatinterviewcredits01';
@@ -85,8 +92,8 @@ test('S4 exact spend stays 100 through product, basket, cart and checkout with s
   }
 });
 
-test('S4 exact settlement HTTP quotes use real local runtime and reject forged inputs', async ({ browser, baseURL }) => {
-  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || baseURL !== 'http://localhost:3000', 'Opt-in local quotes only; no payment or email');
+test('S4 exact settlement HTTP quotes use the real isolated runtime and reject forged inputs', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || !SETTLEMENT_QA_ORIGINS.has(baseURL ?? ''), 'Opt-in isolated quotes only; no payment or email');
   const context = await browser.newContext({ baseURL });
   try {
     await openDirectoryGate(context);
@@ -120,7 +127,7 @@ test('S4 exact settlement HTTP quotes use real local runtime and reject forged i
 });
 
 test('S4 exact settlement HTTP saves spend intent and rejects stale cart revisions', async ({ browser, baseURL }) => {
-  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || baseURL !== 'http://localhost:3000',
+  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || !SETTLEMENT_QA_ORIGINS.has(baseURL ?? ''),
     'Opt-in retained disposable demo cart; restored afterward, no order or payment');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
   type CreditItem = { id: string; updatedAt: string; creditAmount: number; creditSpendMinor?: number | null;
@@ -9509,7 +9516,7 @@ test.describe("Layer 5 — API Data Shapes", () => {
   });
 });
 test('S4 flexible credit budgets persist and checkout reflows without a payment', async ({ browser, baseURL }, testInfo) => {
-  test.skip(process.env.E2E_CREDIT_BUDGET !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained disposable demo; no order submission');
+  test.skip(process.env.E2E_CREDIT_BUDGET !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || !SETTLEMENT_QA_ORIGINS.has(baseURL ?? ''), 'Isolated retained disposable demo; no order submission');
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage(), errors: string[] = [];
@@ -9604,7 +9611,7 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
 
 test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', async ({ browser, baseURL }, testInfo) => {
   test.setTimeout(120_000);
-  test.skip(process.env.E2E_SMALL_CREDITS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
+  test.skip(process.env.E2E_SMALL_CREDITS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || !SETTLEMENT_QA_ORIGINS.has(baseURL ?? ''),
     'Opt-in disposable demo cart only; never requests payment or grants credits');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE,
     viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
