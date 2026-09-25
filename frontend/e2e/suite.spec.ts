@@ -920,6 +920,8 @@ test('S8 Pulse cards provide labelled keyboard actions and responsive touch targ
       await page.setViewportSize({width,height});await card.scrollIntoViewIfNeeded();
       for(const control of [options,heartbeat,tag]){const rect=(await control.boundingBox())!;expect(rect.width).toBeGreaterThanOrEqual(44);expect(rect.height).toBeGreaterThanOrEqual(44);}
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      expect(await page.locator('[data-site-scroll]').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      expect(await card.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
       await expect(card).toHaveCSS('transition-property','none');
       await page.screenshot({path:info.outputPath('pulse-actions-'+width+'.png')});
     }

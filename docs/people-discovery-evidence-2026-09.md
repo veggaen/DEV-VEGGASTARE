@@ -129,7 +129,7 @@ The temporary viewport override was reset. No real follows or posts were submitt
   corrected; neither was an application defect.
 - Final strict local build/TypeScript pass. Touched lint has no errors and one
   pre-existing internal-navigation warning at `app/feed/page.tsx:2528`.
-  Local browser **3/3, 10.9s**, zero retries/skips: real anonymous/demo discovery
+  Local browser **3/3, 11.0s**, zero retries/skips: real anonymous/demo discovery
   boundaries, populated responsive search, and new post-control acceptance.
   The new case checks 360/390/844-landscape/1024-portrait/1280/2560, keyboard
   menus/Escape focus, tag URL state, actual quote/detail hrefs, 44px controls,
@@ -140,7 +140,26 @@ The temporary viewport override was reset. No real follows or posts were submitt
   horizontal page overflow. Populated interaction evidence above is explicitly
   a Playwright UI fixture, not fabricated persistent posts.
 
-Hosted acceptance is pending; production is unchanged.
+Runtime `b4a3140` is READY on isolated Preview as
+`dpl_2KosieHQQy2a2ikYcmKNGhxMW7qo`. The stable Sandbox alias was explicitly moved
+to that deployment; its build/full TypeScript passed and all 55 existing
+migrations were already applied. Initial hosted checks encountered an expired
+retained demo session before acceptance. The normal public demo-login flow renewed
+the disposable session; no cap was bypassed and no owner credits were granted.
+Final hosted browser **3/3, 12.8s**, zero retries/skips, also includes explicit
+main-scroller/card overflow assertions (local follow-up **3/3, 11.0s**).
+
+Real Chrome on Preview at measured 390x844 shows no main-scroller horizontal
+overflow. The navigation drawer opens, scrolls to the wallet/cookie/sign-out
+controls, and Escape closes it with focus returned to Menu. No wallet connection
+or account action was submitted. Temporary viewport sizing was reset.
+
+Production alias inspection still points to
+`dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu` (`92c5ac7`). This UI update is **Preview only**:
+the release branch also contains native-currency payment work, whose production
+activation remains gated on the separate Live merchant receiving check. The
+retained PayPal merchant page still requests sign-in, independently of Developer
+authentication. No Live charge, refund, credential or payment setting changed.
 
 Reference: Chrome's [rendering diagnostics](https://developer.chrome.com/docs/devtools/rendering/performance)
 and [compositing explanation](https://developer.chrome.com/blog/inside-browser-part3)

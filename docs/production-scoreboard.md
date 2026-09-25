@@ -241,6 +241,12 @@ independent sidebar scrolling. On September 25 the owner checked the actual
 display during reproduction and confirmed that posts remain visible. Treat
 those blank captures as a capture-path artifact, not a CSS fix or display failure.
 No real follow/payment write was submitted.
+Pulse control follow-up `b4a3140` is verified **local 3/3 and isolated Preview
+3/3** with strict builds, keyboard focus/in-flight guards, accessible names and
+44px targets across 360–2560 widths. Preview is now
+`dpl_2KosieHQQy2a2ikYcmKNGhxMW7qo`; production remains `92c5ac7`. Real Chrome
+confirms mobile navigation scrolling and Escape focus return. Native-currency
+production activation still awaits the Live merchant receiving check.
 See [people discovery evidence](people-discovery-evidence-2026-09.md).
 
 Source publication: **PARTIAL**. The runtime release was 79 commits ahead of its
