@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}));
 import { createHmac } from 'node:crypto';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 import { quoteSettlementCart } from './settlement-quote';
-import { issueSettlementQuoteToken, settlementCartFingerprint, verifySettlementQuoteToken } from './settlement-quote-token';
+import { issueSettlementQuoteToken, readSignedSettlementQuoteToken, settlementCartFingerprint, verifySettlementQuoteToken } from './settlement-quote-token';
 
 const now = Date.parse('2026-09-25T12:00:00Z');
 const secret = 'not-a-real-secret-unit-test-only-32-bytes';
@@ -46,6 +46,12 @@ describe('short-lived settlement attestation', () => {
     expect(() => verifySettlementQuoteToken(token, scope, secret, Date.parse(quote().expiresAt))).toThrow('SETTLEMENT_QUOTE_EXPIRED');
     expect(() => verifySettlementQuoteToken(token, scope, secret, now - 1)).toThrow('SETTLEMENT_QUOTE_EXPIRED');
     expect(() => verifySettlementQuoteToken(token, scope, `${secret}-rotated`, now)).toThrow('INVALID_SETTLEMENT_TOKEN');
+  });
+  it('can identify an expired signed quote without authorizing a new purchase', () => {
+    const issued = issueSettlementQuoteToken(quote(), scope, secret, now);
+    expect(readSignedSettlementQuoteToken(issued.token, secret)).toEqual({ quoteId: issued.quoteId, quote: quote(), scope });
+    expect(() => verifySettlementQuoteToken(issued.token, scope, secret, now + 86400000)).toThrow('SETTLEMENT_QUOTE_EXPIRED');
+    expect(() => readSignedSettlementQuoteToken(issued.token, `${secret}-rotated`)).toThrow('INVALID_SETTLEMENT_TOKEN');
   });
   it.each(['', '.', 'one.two.three', 'a.!', 'a.'.padEnd(20000, 'a'), 123, null])('rejects malformed/oversized token %j', token => {
     expect(() => verifySettlementQuoteToken(token, scope, secret, now)).toThrow('INVALID_SETTLEMENT_TOKEN');

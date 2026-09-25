@@ -63,7 +63,17 @@ export function issueSettlementQuoteToken(quote: SettlementQuote, scope: Settlem
 }
 
 export function verifySettlementQuoteToken(input: unknown, expectedScope: SettlementQuoteScope, secret: string, now = Date.now()) {
-  const key = signingKey(secret), scope = Scope.parse(expectedScope);
+  const scope = Scope.parse(expectedScope), decoded = readSignedSettlementQuoteToken(input, secret);
+  if (decoded.scope.userId !== scope.userId || decoded.scope.environment !== scope.environment ||
+      decoded.scope.cartFingerprint !== scope.cartFingerprint) throw new SettlementError('SETTLEMENT_QUOTE_SCOPE_CHANGED');
+  return { ...decoded, quote: assertSettlementQuoteCurrent(decoded.quote, now) };
+}
+
+/** Signature and structure only. Used to locate an already prepared purchase
+ * after token expiry. New purchases MUST additionally verify current cart scope
+ * and expiry in their transaction; this function does not grant that authority. */
+export function readSignedSettlementQuoteToken(input: unknown, secret: string) {
+  const key = signingKey(secret);
   if (typeof input !== 'string' || input.length > MAX_TOKEN_BYTES) throw new SettlementError('INVALID_SETTLEMENT_TOKEN');
   const parts = input.split('.');
   if (parts.length !== 2 || !/^[A-Za-z0-9_-]+$/.test(parts[0]) || !/^[A-Za-z0-9_-]{43}$/.test(parts[1])) throw new SettlementError('INVALID_SETTLEMENT_TOKEN');
@@ -76,8 +86,6 @@ export function verifySettlementQuoteToken(input: unknown, expectedScope: Settle
     if (bytes.toString('base64url') !== parts[0]) throw new Error();
     decoded = Envelope.parse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)));
   } catch { throw new SettlementError('INVALID_SETTLEMENT_TOKEN'); }
-  if (decoded.scope.userId !== scope.userId || decoded.scope.environment !== scope.environment ||
-      decoded.scope.cartFingerprint !== scope.cartFingerprint) throw new SettlementError('SETTLEMENT_QUOTE_SCOPE_CHANGED');
-  const quote = assertSettlementQuoteCurrent(readStoredSettlementQuote(decoded.quote), now);
+  const quote = readStoredSettlementQuote(decoded.quote);
   return { quoteId: decoded.quoteId, quote, scope: decoded.scope };
 }

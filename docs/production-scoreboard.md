@@ -6,10 +6,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 **PARTIAL, not activated or deployed.** Server quote arithmetic, fresh reference
 FX, actor/cart/environment-bound attestations and currency-aware PayPal proofs
-are implemented. 278 focused tests and a separate read-only real-FX test pass.
-No new capture or browser-flow acceptance is claimed. Next: persist spend intent,
-wire transactional payment/refund/receipt/report paths, then local and Sandbox
-browser acceptance before activation. Production still settles in NOK; keeping
+are implemented. Cart spend intent and immutable, serialized order preparation
+now pass real PostgreSQL migration, replay and cross-tab race tests in disposable
+empty schemas on isolated Preview. Combined regressions pass **316/316 across
+eleven files**, including fresh public FX; touched lint and TypeScript pass.
+No public database migration, new capture or browser-flow acceptance is claimed.
+Next: wire payment/refund/receipt/report paths, then local and Sandbox browser
+acceptance before activation. The new generated client requires the additive
+migration before its first application run. Production still settles in NOK; keeping
 the draft input at `100` does not yet make a USD 100 charge. See
 [exact-currency settlement work](exact-currency-settlement-2026-09.md).
 

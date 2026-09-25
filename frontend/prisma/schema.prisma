@@ -70,8 +70,13 @@ model CheckoutAttempt {
   userId           String
   requestKey       String
   environment      String
+  // NOK cash for legacy orders; frozen NOK exposure valuation for exact quotes.
   totalOre         Int
   currency         String   @default("NOK")
+  totalMinor       Int?
+  refundedMinor    Int?
+  settlementQuoteId String? @unique
+  cartFingerprint  String?
   quote            Json
   state            String   @default("PREPARED")
   paypalOrderId    String?  @unique
@@ -217,6 +222,9 @@ model CartItem {
   quantity  Int
   // Null preserves legacy 100-credit carts; credit purchases always have quantity 1.
   creditAmount Int?
+  // Exact-spend intent is separate from the current whole-credit preview.
+  creditSpendMinor Int?
+  creditSpendCurrency String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Cart      Cart     @relation(fields: [cartId], references: [id])

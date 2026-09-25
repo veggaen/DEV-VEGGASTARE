@@ -14,7 +14,7 @@ export const DeliveryConsentInput = z.object({
 }).strict();
 export type DeliveryConsent = z.infer<typeof DeliveryConsentInput>;
 
-export function recordCheckoutAgreement(quote: ShowcaseQuote, input: unknown, demo: boolean, now = new Date()) {
+export function recordCheckoutAgreement(quote: { lines: readonly { kind: string }[] }, input: unknown, demo: boolean, now = new Date()) {
   const publishedTerms = { version: SALES_TERMS_VERSION, language: 'nb' as const, text: SALES_TERMS_TEXT };
   // Demo has no paid agreement; never manufacture the visitor's consent.
   if (demo) return { version: CHECKOUT_AGREEMENT_VERSION, recordedAt: now.toISOString(), demo: true,

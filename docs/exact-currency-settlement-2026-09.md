@@ -52,6 +52,31 @@ claim that the customer journey is complete.
   order, merchant and capture bindings. Partial adjustments retain review rather
   than guessing which line was refunded. These helpers do not make a payment,
   verify a webhook signature themselves, or grant/revoke entitlements.
+- Transactional cart-intent storage and preparation in `settlement-store.ts`.
+  A signed quote ID becomes a unique persisted request identity; concurrent
+  retries return the same frozen order, including after expiry or cart removal.
+  New requests recheck cart fingerprint, expiry, explicit consent, listing/file
+  readiness, reviewed model costs, two-attempt limit and combined NOK exposure.
+  Resuming a prepared quote is not permission to capture an expired payment.
+- Additive migration `20260925190000_exact_settlement_quotes` separates native
+  `totalMinor`/`refundedMinor` from `totalOre` exposure. SQL constraints reject
+  mismatched native amounts/currencies, half-defined cart intent and duplicate
+  quote IDs. A trigger preserves original v2 quote, agreement, request IDs and
+  established provider identifiers. Existing v1 NOK records remain unchanged.
+  V2 refunds must not write a native amount into the legacy `refundedOre` field.
+- Cart preparation locks the parent and existing child rows. Tests with real
+  foreign keys confirm that concurrent legacy edits/deletes/inserts wait until
+  the frozen snapshot is persisted. Both count-mode cart APIs use the shared
+  helper that clears old spend intent. This follows PostgreSQL's documented
+  [row-lock semantics](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS).
+
+The new store is not connected to any HTTP route. Its future callers must enforce
+authentication, ownership, same-origin checks, durable rate limits and private
+response headers. It does not contact PayPal, send email or grant entitlements.
+The migration has been applied only to disposable empty test schemas, not the
+Preview public schema or production. Prisma's generated client and the updated
+cart helper require the additive migration before running a new application
+build; do not deploy this intermediate commit against the old public schema.
 
 ## Draft commercial policy (not Live pricing)
 
@@ -85,23 +110,30 @@ The fee policy expires with the existing 24 October review deadline.
 - One opt-in integration test passed using actual fresh public ECB rates to
   generate exact 100.00 quotes in all six currencies. This read contains no
   user data and makes no PayPal request.
-  The final combined invocation passed **279/279 across nine files**, no skips.
-- Touched ESLint and full TypeScript pass after fixing a literal-inference issue
-  in the cart-fingerprint test. The initial four margin failures are documented
+  The quote-foundation invocation passed **279/279 across nine files**, no skips.
+- The persistence slice's combined invocation passes **316/316 across eleven
+  files**, no skips: real isolated PostgreSQL preparation/constraints/concurrency,
+  the fresh public FX check, quote/token/proof/transport, agreement, pricing and
+  shared cart-policy regressions. Includes exact USD 100.00/NOK 1000, mixed lines,
+  replay after expiry/cart removal, different signed money under the same ID,
+  actor/environment isolation, unsafe cost review, daily caps, stale edits,
+  expiry after lock waits and no grant at preparation. Test schemas clone table
+  structure only, never customer rows; their synthetic records are removed with
+  the schema afterward. No public database schema was changed.
+- Touched ESLint and full TypeScript pass. A widened test-consent literal was
+  fixed before the final typecheck; the initial margin failures remain documented
   above, not counted as passes.
-- No live payment, refund, credit, email, secret, migration, billing or deployment
-  change. No new browser acceptance is claimed: these helpers are deliberately
-  not imported by an active route yet. Existing production remains `92c5ac7`.
+- No Live payment, refund, credit, email, secret, billing or deployment change.
+  No new browser acceptance is claimed: the store is not imported by an active
+  route yet. Existing production remains `92c5ac7`.
 
 ## Next implementation and activation gates
 
-1. Add nullable cart spend intent and separate native amount/refund fields on
-   checkout attempts, preserving every legacy NOK record. Persist the immutable
-   quote and agreement atomically. Re-read/fingerprint the cart inside the same
-   serialized prepare transaction, enforce current price review and reuse quote
-   ID as the unique request identity. The daily cap must sum frozen NOK exposure,
-   not mixed native currency units. Cross-tab edits and replay need real isolated
-   PostgreSQL tests before enabling this path.
+1. Persistence and isolated PostgreSQL verification are implemented. Keep them
+   inactive until the dependent payment, receipt and report paths below are
+   currency-aware; then apply the additive migration to isolated Preview before
+   building/running the new Prisma client. Apply to production only with the
+   verified compatible release. Never backfill/reprice old NOK orders.
 2. Route v2 create/capture/refund through the new proof boundary while preserving
    v1 NOK orders. Continue signature verification and idempotent grants/revocation.
    Record native Order/OrderItem/Payment amounts. Original receipts, confirmation
