@@ -17,7 +17,11 @@ test('S8 company payment settings are compact, responsive and preserve the revie
   page.on('pageerror', error => errors.push(error.message));
   const identity = { id: 'qa-display-only', name: 'QA studio owner', image: null, email: 'qa@example.test' };
   const now = new Date().toISOString(); let pendingEmail: string | null = null;
-  await page.route('**/api/auth/session', async route => { const response = await route.fetch(), session = await response.json(); await route.fulfill({ json: { ...session, user: { ...session.user, ...identity, isDemo: false } } }); });
+  const retainedSession = await (await context.request.get('/api/auth/session')).json();
+  expect(retainedSession.user.id).toMatch(/^demo_/);
+  // Resolve the real demo session once; background focus refreshes use the same
+  // browser-only owner fixture and cannot leave a credentialed fetch in flight.
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ...retainedSession, user: { ...retainedSession.user, ...identity, isDemo: false } } }));
   await page.route(`**/api/companies/${SHOWCASE_COMPANY_ID}`, route => route.fulfill({ json: {
     id: SHOWCASE_COMPANY_ID, name: 'QA studio', ownerId: identity.id, creatorId: identity.id, owner: identity, creator: identity,
     logo: [], bannerImage: [], description: 'A private company settings fixture.', websiteUrl: 'javascript:alert(1)', usesShipping: false,
@@ -62,7 +66,7 @@ test('S8 company payment settings are compact, responsive and preserve the revie
     const scroller = page.locator('[data-app-scroll-container]:visible'); await scroller.evaluate(el => el.scrollTo(0,0));
     await page.mouse.move(280,450); await page.mouse.wheel(0,600); await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
-  } finally { await context.close(); }
+  } finally { await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
 });
 
 test('S4 receiving-email links review first and mutate only after explicit confirmation', async ({ browser, baseURL }, info) => {
