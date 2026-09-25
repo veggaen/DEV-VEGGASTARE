@@ -60,6 +60,22 @@ test('unpaid order recovery confirms cancellation and resumes the same purchase'
   } finally { await context.close(); }
 });
 
+test('unpaid order recovery rejects anonymous cross-origin and demo mutations', async ({ playwright, baseURL }) => {
+  test.skip(process.env.E2E_ORDER_RECOVERY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || !process.env.E2E_RECOVERY_PRIVATE_ID, 'Requires an existing other-account order ID');
+  const endpoint = `/api/checkout/${encodeURIComponent(process.env.E2E_RECOVERY_PRIVATE_ID!)}/recovery`;
+  const anonymous = await playwright.request.newContext({ baseURL });
+  const other = await playwright.request.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    expect((await anonymous.post(endpoint, { headers: { Origin: baseURL! }, data: { action: 'cancel' } })).status()).toBe(401);
+    const crossOrigin = await anonymous.post(endpoint, { headers: { Origin: 'https://example.invalid' }, data: { action: 'cancel' } });
+    expect(crossOrigin.status()).toBe(403); expect(await crossOrigin.json()).toEqual({ error: 'INVALID_ORIGIN' });
+    for (const action of ['resume', 'cancel']) {
+      const response = await other.post(endpoint, { headers: { Origin: baseURL! }, data: { action } });
+      expect(response.status()).toBe(403); expect(await response.json()).toMatchObject({ error: 'DEMO_READ_ONLY' });
+    }
+  } finally { await anonymous.dispose(); await other.dispose(); }
+});
+
 test('media Studio adapts across screens and preserves one request through network recovery', async ({browser,baseURL},info)=>{
   test.skip(process.env.E2E_MEDIA!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Focused Studio audit; paid providers always mocked');
   test.setTimeout(180_000);

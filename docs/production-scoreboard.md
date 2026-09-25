@@ -4,12 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Unpaid order recovery: **LOCAL VERIFIED, deployment pending**. Continue payment
+Unpaid order recovery: **DEPLOYED; fresh provider-resume acceptance PARTIAL**. Continue payment
 reuses the existing purchase; confirmed cancellation keeps records/cart and daily
 caps. 49 unit cases, three isolated Postgres tests (including 12 capture/cancel
-races), strict local build and responsive browser flow pass. Real Chrome cancelled
-an expired Sandbox order without affecting its paid sibling. Production remains
-unchanged. See [order recovery evidence](order-recovery-2026-09.md).
+races), strict builds and two focused browser tests in local/Live/Preview pass.
+Real Chrome cancelled an expired Sandbox order without affecting its paid sibling;
+Live confirmation/Keep order was checked without cancelling or buying anything.
+Source `3d29861`, Production `dpl_B5uj2WYZ2s5kfaigvtV58DtQBaQv`, stable Preview
+`dpl_DmeQLPLQntt4NQzuEVNy7PRuNrY4`. A fresh real PayPal approval resumed from history
+still needs acceptance beyond mocks. See [order recovery evidence](order-recovery-2026-09.md).
 
 AI Studio: **DONE for bounded image/video generation locally and Live**.
 Source `2579e7e`, deployment `dpl_CXhgmxsb5YnFy3Jofmk9YqD691uH`.

@@ -31,7 +31,24 @@ are silently ignored and cancellation never invents a refund.
   checks cover 360, 390, 844 landscape, 1024 portrait, 1280 and 2560 widths.
 - Real Chrome cancelled the existing expired Sandbox order ending 2ZKCJ8P8.
   The record remains visible as Cancelled; the paid order and cart are unchanged.
-- Local/Preview database migration applied; production deployment is pending.
+- Migration applied to isolated and production databases. The deployed source is
+  `3d29861`; local, Production and Preview strict builds/typechecks pass.
+- Production `dpl_B5uj2WYZ2s5kfaigvtV58DtQBaQv` promoted to www.veggat.com after its
+  authenticated candidate health check passed. Preview
+  `dpl_DmeQLPLQntt4NQzuEVNy7PRuNrY4` is assigned to the existing stable Sandbox
+  Preview hostname; its health check also passed. No billing or gate changes.
+- Two focused Playwright tests pass in each of local, Live and Preview: responsive
+  mocked recovery flow plus actual endpoint rejection of anonymous, foreign-origin
+  and demo mutations. Ownership checks additionally pass in service unit tests.
+- Real Chrome Live inspection confirms the unpaid expired order has a cancellation
+  confirmation, Keep order leaves it untouched, and the paid order remains verified.
+  No Live cancellation, new purchase or refund was made. An actual fresh PayPal
+  approval resumed from history is not yet independently exercised; navigation and
+  immutable request reuse are covered by browser mocks and unit tests respectively.
+
+Artifacts: `frontend/test-results-release-order-recovery-local-secure-final`,
+`frontend/test-results-release-order-recovery-live`, and
+`frontend/test-results-release-order-recovery-preview` (generated, untracked).
 
 ## Rollout
 
