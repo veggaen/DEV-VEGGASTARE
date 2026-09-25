@@ -4,7 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Web3 mode: **PARTIAL — local verification complete, not deployed**. One guarded
+Combined wallet release: **DONE for deployment and scoped acceptance; S6 remains
+PARTIAL**. Source `07cabde` is READY and promoted as
+`dpl_DbYF6shZVj6jzstPgrbB7Z4XHcLg`. Isolated Preview **16/16** (including actual
+disposable EOA login, HTTPS cookie binding, logout/replay), Live **14/14**, strict
+builds and candidate/Live health pass. No retries/skips. Real Chrome preserves
+both owner wallet links and receiving choice; phone/landscape confirmation,
+Cancel/focus, page/footer and drawer scrolling checked without submitting changes.
+Real extension, company-page and crypto-payment acceptance remain separate.
+See [combined release evidence](wallet-combined-release-2026-09.md).
+
+Web3 mode: **PARTIAL — deployed; scoped checks pass**. One guarded
 API now requires explicit confirmation, fresh account state, a remaining sign-in
 method when disabling, scoped one-use 2FA and atomic writes. Obsolete email links
 are read-only; neutral loading replaces the false-off flash. Server preference
@@ -12,10 +22,10 @@ overrides stale browser opt-ins. **266 focused checks (89 isolated PostgreSQL)**
 strict build, touched lint and final local browser **14/14 (31.9s, no retries/skips)**
 pass. Eight screen sizes plus real Chrome desktop/phone/landscape, page/drawer
 scrolling and Cancel/focus checked. No owner mode, wallet, payout, email or payment
-changed. Combined wallet release still requires Preview/live acceptance.
+changed. Combined Preview/live acceptance is recorded above.
 See [Web3 mode evidence](web3-mode-evidence-2026-09.md).
 
-Wallet sign-in: **PARTIAL — local implementation, not deployed**. Browser/host-
+Wallet sign-in: **PARTIAL — deployed; real extension acceptance pending**. Browser/host-
 bound one-use EOA proof, verified personal-wallet identity resolution, atomic
 signup/2FA, shared address locks and last-wallet recovery checks replace the old
 address-only path. **214 focused checks (73 isolated PostgreSQL)** pass. Local
@@ -23,9 +33,9 @@ real-signature sign-in/logout/replay and responsive code-form acceptance passed
 in a **12/12** focused browser run; final compact-UI follow-up recorded in
 [wallet sign-in evidence](wallet-login-evidence-2026-09.md). Real Chrome retained
 the signed-in owner session with no wallet changes. Web3 enable/disable alignment
-is now verified locally (above); combined Preview/live acceptance remains.
+is now verified and deployed (above); genuine extension acceptance remains.
 
-Receiving-wallet settings: **PARTIAL — local verification complete, not deployed**.
+Receiving-wallet settings: **PARTIAL — deployed; company-page acceptance pending**.
 Personal/company setters now share ownership locks, host/action/current-choice
 codes, atomic destination writes and explicit clear confirmation. Wallet list and
 seller defaults stay consistent across families; company choices cannot alter a
@@ -33,17 +43,17 @@ personal default. Shared form handles cancellation, errors and uncertain outcome
 Final **138 focused checks (49 isolated PostgreSQL)**, strict build, touched lint
 and local browser **10/10 (20.3s, no retries/skips)** pass. Eight screen sizes and
 real Chrome page/drawer/sidebar scrolling checked. No real payout/email/payment
-changes. Wallet login still needs alignment before combined deployment; company
+changes. Wallet login alignment and combined deployment now pass (above); company
 page browser acceptance remains separate. See [receiving-choice evidence](payout-choice-evidence-2026-09.md).
 
-Wallet mutations: **PARTIAL — local implementation, not deployed**. Strict
+Wallet mutations: **PARTIAL — deployed; real extension acceptance pending**. Strict
 action parsing, action/host/wallet-scoped one-use codes, transactional receiving
 choices, reference-safe removal and manual-create default isolation are added.
 88 focused checks (36 isolated PostgreSQL), strict build, touched lint and final
 local browser **9/9 (18.6s, no retries/skips)** pass. Real Chrome local phone
 scrolling and targeted responsive screenshots were inspected.
 The parallel seller-payment actions are now aligned locally (follow-up above);
-the wallet-login flow still needs alignment before payout/security acceptance.
+the wallet-login flow is now aligned and deployed; full wallet acceptance remains.
 No real wallet/payout changes were made.
 See [wallet mutation evidence](wallet-mutation-evidence-2026-09.md).
 

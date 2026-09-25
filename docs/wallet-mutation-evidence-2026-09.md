@@ -1,7 +1,8 @@
 # Wallet changes — 25 September 2026
 
-Status: **PARTIAL; local implementation, not deployed**. The currently accepted
-Live runtime remains `ec4d88f`. This is not full wallet/payment acceptance.
+Status: **PARTIAL; deployed, scoped checks pass**. See the
+[combined release](wallet-combined-release-2026-09.md).
+This is not full wallet/payment acceptance.
 
 ## Changes
 
@@ -50,7 +51,7 @@ The final strict build passes (36.8s webpack, 16.5s TypeScript, 188 pages),
 as does touched-file lint. The final local browser batch passes **9/9 (18.6s)**,
 no retries/skips, including real anonymous/cross-origin denials for creation.
 Artifacts: `frontend/test-results-release-wallet-mutation-local-final/` (ignored).
-Live deployment and Live acceptance are still pending, not implied by these tests.
+Subsequent Live deployment and scoped acceptance are recorded in the linked release.
 
 ## Next required work before complete payout acceptance
 
@@ -58,9 +59,9 @@ Live deployment and Live acceptance are still pending, not implied by these test
   they do not use action-scoped email codes or the same atomic primary flags.
   Both user and company settings must be reconciled, not merely the EVM API.
   **Follow-up:** reconciled and tested locally in the
-  [receiving-choice slice](payout-choice-evidence-2026-09.md), not yet deployed.
-- Wallet login must reject unverified/manual records, consume nonces atomically
-  and bind them to the host. Review last-login-method removal/recovery too.
+  [receiving-choice slice](payout-choice-evidence-2026-09.md), now deployed.
+- Wallet login now rejects unverified/manual identity assertions and uses atomic,
+  host/browser-bound proofs; last-login-method recovery checks pass in isolation.
 - Genuine extension signing, production crypto checkout and owner-only provider
   permissions remain separate acceptance items. No real wallet signature,
   receiving choice, purchase, email or customer-data mutation occurred here.

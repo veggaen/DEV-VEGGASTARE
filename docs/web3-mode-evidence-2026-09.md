@@ -1,6 +1,7 @@
 # Web3 mode confirmation — September 2026
 
-Status: **PARTIAL: local implementation; not deployed**. Scope is account access
+Status: **Deployed; scoped checks pass**. See the
+[combined release](wallet-combined-release-2026-09.md). Scope is account access
 and the settings UX, not acceptance of on-chain payments or real extensions.
 
 ## Changes
@@ -70,8 +71,8 @@ truthful loading/error states. These checks are not a full security audit.
 
 ## Remaining
 
-- Deploy these changes with the preceding wallet-login, receiving-choice and
-  wallet-mutation commits to Preview, validate there, then Production and Live.
+- Combined Preview/Live deployment and acceptance are recorded in the linked
+  release evidence; they do not establish full wallet/payment acceptance.
 - Real extension acceptance, company payment-settings browser coverage and actual
   crypto payment acceptance remain separate unfinished requirements.
 - No real email, payment, AI generation, signature, credential rotation or owner

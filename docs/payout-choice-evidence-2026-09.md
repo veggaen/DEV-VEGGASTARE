@@ -1,7 +1,8 @@
 # Receiving-wallet choices — 25 September 2026
 
-Status: **PARTIAL — verified locally, not deployed**. Live remains the accepted
-`ec4d88f` runtime. Wallet login and genuine crypto-payment acceptance remain open;
+Status: **PARTIAL — deployed; company-page and genuine crypto acceptance open**.
+See the [combined release](wallet-combined-release-2026-09.md). Wallet login is
+aligned and verified with a disposable signer, not a real wallet extension;
 these checks do not prove that the entire S6 slice is complete.
 
 ## Changes
@@ -65,11 +66,11 @@ No real wallet signature, payout change, email, payment or secret operation.
 
 ## Remaining acceptance
 
-- Wallet login: host-bound challenges, verified personal ownership only, atomic
-  nonce consumption, ambiguous ownership refusal, and last-login-method recovery.
+- Wallet-login alignment is deployed and verified with a disposable signer;
+  real extension acceptance remains separate.
 - Company-page browser acceptance with an isolated owner fixture; shared picker
   behavior and company component failure states currently have unit/DB evidence.
-- Preview/Live deployment and post-deployment checks for this combined change.
+- Preview/Live deployment and post-deployment checks pass in the linked release.
 - Genuine wallet extension/crypto checkout, configured OAuth/provider checks and
   the other open full-goal scoreboard items remain separate.
 

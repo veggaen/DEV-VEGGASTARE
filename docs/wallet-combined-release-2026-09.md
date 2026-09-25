@@ -1,6 +1,7 @@
 # Combined wallet release — September 2026
 
-Status: **Preview accepted; Production acceptance pending**.
+Status: **Deployed; scoped local, Preview and Live checks pass**. Real extension
+and complete wallet/payment acceptance remain partial.
 
 Combines wallet mutation `c6763a1`, receiving choice `d41c0f8`, wallet login
 `485df0f` and Web3 mode `6478721`. Existing wallet-link challenge protection is
@@ -35,9 +36,41 @@ retained. No Prisma schema change or migration is introduced by this release.
 Artifacts: `frontend/test-results-release-wallet-combined-preview/` and
 `frontend/test-results-release-wallet-cookie-local/` (ignored).
 
+## Production and Live
+
+Source `07cabde` (same runtime as `6478721`; updated test/evidence only) is READY
+as `dpl_DbYF6shZVj6jzstPgrbB7Z4XHcLg` at
+`https://dev-veggastare-4tsbat95f-v3ggas-projects.vercel.app`.
+Production build: webpack 57s, strict TypeScript 58s, 189 static pages;
+orange-wildflower database, 53 migrations, none pending. No Live secret was
+copied into local configuration. Initial deploy skipped the main domain switch.
+
+Authenticated candidate health passed; cross-origin mode PATCH returned 403.
+`www.veggat.com` was confirmed on the prior deployment before explicit promotion.
+After promotion, CLI inspection resolves the main site to this new deployment,
+and public `/api/health` is 200/healthy. The first cold observation was 1,239ms DB
+latency; this is not a field-performance or percentile claim.
+
+Live browser acceptance: **14/14, 51.4s, zero retries/skips**. The account-creating
+disposable EOA test is intentionally not selected for Production. Intercepted
+positive UI flows do not submit wallet/payout/email changes; deployed negative
+endpoint checks and OAuth PKCE/callback/cookie checks are real HTTP requests.
+The retained live demo session was reused without a new credit grant.
+
+Real Chrome preserved both saved wallet links, verification labels and the
+existing receiving choice. It showed neutral loading, a correctly styled switch,
+compact phone/landscape confirmation, Cancel with restored focus and unchanged
+mode, page scrolling to the footer, and independently scrolling mobile navigation
+with reachable wallet controls and Sign out. No console errors. Viewport reset.
+No owner setting, receiving destination, real extension signature, email, payment,
+AI generation or refund was submitted.
+
+Final Live artifacts: `frontend/test-results-release-wallet-combined-live/`.
+Testing and computer-use skills informed explicit cancellation, rendered-state,
+scrolling and screenshot checks; synthetic and real-provider evidence stay separate.
+
 ## Remaining
 
-- Production candidate health, promotion and live browser acceptance.
 - Real wallet extension acceptance and crypto checkout are not proved by the
   disposable signer or intercepted UI checks. Company-page browser acceptance
   remains distinct from shared-picker unit/database coverage.

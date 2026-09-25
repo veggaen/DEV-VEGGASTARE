@@ -1,6 +1,7 @@
 # Wallet sign-in acceptance — September 2026
 
-Status: **PARTIAL — local implementation; not deployed**. This is one security
+Status: **PARTIAL — deployed; genuine extension acceptance pending**. See the
+[combined release](wallet-combined-release-2026-09.md). This is one security
 slice, not a claim that every authentication method or wallet integration passes.
 
 ## Changes
@@ -57,14 +58,13 @@ slice, not a claim that every authentication method or wallet integration passes
   The submit-control visibility assertion explicitly scrolls short viewports.
   That strengthened code-form check passed separately: **1/1**, 7.8s, no retry.
 
-## Remaining before combined deployment
+## Follow-up acceptance
 
 - The older Web3 email mutation and pre-hydration false-off toggle discovered
   here are resolved locally in the [Web3 mode follow-up](web3-mode-evidence-2026-09.md).
   That slice adds explicit atomic changes, a last-sign-in-method guard and neutral
-  loading. Combined deployment/acceptance remains outstanding.
-- Preview then live deployment/acceptance of this slice and the two preceding
-  wallet-mutation/payout commits; real-extension sign-in with owner consent;
+  loading. Combined deployment and scoped acceptance now pass.
+- Real-extension sign-in with owner consent;
   company settings browser acceptance. Do not equate dummy-signature UI tests
   with real extension acceptance or with working crypto payments.
 - No live payment, AI generation, email, credential rotation or production
