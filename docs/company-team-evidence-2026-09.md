@@ -54,10 +54,29 @@ touch targets, token styling, and modal scroll containment. No new design system
 - Initial browser pass exposed transient modal positioning and a retry-test
   synchronization race. Assertions now include complete dialog bounds and
   reduced-motion animation/opacity, not only width and button visibility.
-- Final local/Preview/live acceptance and deployment IDs: pending.
+- Final six-test acceptance: local **6/6, 17.0s**; Preview **6/6, 20.7s**;
+  Live **6/6, 21.0s**, zero retries or skips. The independent dark-theme pass is
+  local **1/1, 6.2s**, Live **1/1, 6.9s**.
+- First Live run was 5/6: the test filled the search while Radix was still
+  restoring focus after cancellation. It now asserts dialog/overlay detachment
+  and focus on the original Remove trigger, then clicks and types in search.
+  This is a test synchronization change, not a production behavior bypass.
+- Reports: `frontend/test-results-release-company-team-{local,preview,live}-focus/results.json`
+  and `frontend/test-results-release-company-team-live-dark/results.json`.
+- Runtime **73fbabe**: Preview `dpl_G9ebUjpJEDDQKqQYx5R6M9QKVseY`,
+  immutable `https://dev-veggastare-jxp0wrcbt-v3ggas-projects.vercel.app`;
+  production `dpl_GzBe9UhaKx73rXiVEFYBTGqMTPkp`, immutable
+  `https://dev-veggastare-neba2uusz-v3ggas-projects.vercel.app`.
+  Both are READY with passing health checks. Preview's stable alias was updated;
+  production was promoted and `www.veggat.com` resolved to that deployment.
+- Real Chrome on the promoted release: retained owner can open Team (0), search
+  completes, and role choices exclude OWNER. No selection or write submitted.
+  Desktop 1280x800, phone 390x844, page/footer scrolling and landscape 844x390
+  drawer scrolling visually checked. Viewport restored; no captured console errors.
 
 Real Chrome local account is a non-member of the permanent company: access
-denied with public-profile navigation, as expected. Authoritative positive
+denied with public-profile navigation, as expected, rechecked this release.
+Authoritative positive
 mutations are tested only in the disposable database. Browser owner/manager
 mutation interactions use intercepted responses, not real team changes.
 

@@ -83,8 +83,13 @@ test('S8 team forms use reviewed versions, scoped roles and responsive dialogs',
     await expect(member.getByText('ACCOUNTANT',{exact:true})).toBeVisible();
     await member.getByRole('button',{name:'Remove',exact:true}).click(); const beforeCancel = writes.length;
     await dialog.getByRole('button',{name:'Keep member',exact:true}).click(); expect(writes).toHaveLength(beforeCancel);
+    // Wait for Radix's close lifecycle and focus restoration before typing
+    // elsewhere; fill() alone can race the departing modal's focus scope.
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('[data-state="closed"].fixed.inset-0')).toHaveCount(0);
+    await expect(member.getByRole('button',{name:'Remove',exact:true})).toBeFocused();
     const form = page.getByRole('form',{name:'Add team member',exact:true}), search = form.getByRole('combobox',{name:'Search user',exact:true});
-    await search.fill('Taylor'); await expect(page.getByRole('option',{name:'Taylor Example',exact:true})).toBeVisible();
+    await search.click(); await search.fill('Taylor'); await expect(page.getByRole('option',{name:'Taylor Example',exact:true})).toBeVisible();
     await search.press('ArrowDown'); await search.press('Enter'); await expect(form.getByText('Selected: Taylor Example',{exact:true})).toBeVisible();
     await search.fill('Different'); await form.getByRole('button',{name:'Add employee',exact:true}).click();
     await expect(form.getByRole('alert')).toHaveText('Select a person from the search results.'); expect(writes).toHaveLength(beforeCancel);

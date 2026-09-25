@@ -4,6 +4,19 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company-team authorization and forms: **DONE for this scoped slice; full S8
+remains PARTIAL**. Runtime `73fbabe` is promoted as
+`dpl_GzBe9UhaKx73rXiVEFYBTGqMTPkp`. Both Server Actions and four mutation routes
+now check current actor/company authority and reviewed member versions. Owner/self
+protection, lower-role delegation, partial permission updates and serialized
+concurrent writes are covered. 48 focused unit/database checks, strict builds
+and local/Preview/Live browser **6/6** each pass; dark-mode follow-ups pass.
+Final runs have no retries/skips. Real Chrome confirms unchanged owner settings,
+bounded search, responsive team forms and page/footer/drawer scrolling. No real
+membership, payout or payment changed. The initial Live focus-race test failure
+and synchronization correction are recorded in
+[company-team evidence](company-team-evidence-2026-09.md).
+
 Personal payment loading: **DONE for this scoped slice; full S6 remains PARTIAL**.
 Runtime `0a9372f` is promoted as `dpl_3BBG14nUjk62GL6WksePop6uQ1Tv`. One
 owner-checked snapshot replaces the separate EVM-only request; eligible families,
