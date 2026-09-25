@@ -18,6 +18,7 @@ vi.mock('next-auth/jwt',async original=>{
   return {...actual, encode:async(...args:Parameters<typeof actual.encode>)=>{await state.pause?.();return actual.encode(...args);}};
 });
 import { switchAccount } from './impersonation';
+import { revokePreviewOnSignOut } from './preview-signout';
 describe.skipIf(process.env.TEST_IMPERSONATION_DATABASE!=='1')('isolated audited account preview',()=>{
   const schema=`qa_preview_${randomUUID().replaceAll('-','')}`, secret='isolated-preview-test-key-only';
   let admin:Client, db:PrismaClient;
@@ -91,6 +92,32 @@ describe.skipIf(process.env.TEST_IMPERSONATION_DATABASE!=='1')('isolated audited
     expect((await switchAccount(await request(),true)).status).toBe(200);
     expect(validPreviewSession(first,await db.accountPreviewSession.findUnique({where:{id:first.impersonationSessionId as string}}))).toBe(false);
     expect(validPreviewSession(second,await db.accountPreviewSession.findUnique({where:{id:second.impersonationSessionId as string}}))).toBe(true);
+    state.actor={id:'qa-owner',role:'OWNER',sessionVersion:3};
+  },30000);
+  it('sign-out revokes the exact preview without changing either user and is replay-safe',async()=>{
+    const before=await db.user.findMany({select});
+    const token=(await claims(await switchAccount(await request())))!;const id=token.impersonationSessionId as string;
+    await revokePreviewOnSignOut(token);await revokePreviewOnSignOut(token);
+    expect(validPreviewSession(token,await db.accountPreviewSession.findUnique({where:{id}}))).toBe(false);
+    const audits=await db.adminAuditLog.findMany({where:{newData:{path:['previewSessionId'],equals:id}},orderBy:{createdAt:'asc'}});
+    expect(audits.map(row=>(row.newData as {phase:string}).phase)).toEqual(['start','signout']);
+    expect(await db.user.findMany({select})).toEqual(before);
+  },30000);
+  it('rolls back sign-out if its audit fails, then revokes on retry',async()=>{
+    const token=(await claims(await switchAccount(await request())))!;const id=token.impersonationSessionId as string;
+    await admin.query('ALTER TABLE "AdminAuditLog" RENAME TO "AuditUnavailable"');
+    try{await expect(revokePreviewOnSignOut(token)).rejects.toThrow('Sign-out could not be confirmed');}
+    finally{await admin.query('ALTER TABLE "AuditUnavailable" RENAME TO "AdminAuditLog"');}
+    expect(validPreviewSession(token,await db.accountPreviewSession.findUnique({where:{id}}))).toBe(true);
+    await revokePreviewOnSignOut(token);expect(validPreviewSession(token,await db.accountPreviewSession.findUnique({where:{id}}))).toBe(false);
+  },30000);
+  it('serializes competing End and Sign Out with exactly one closing audit',async()=>{
+    const token=(await claims(await switchAccount(await request())))!;const id=token.impersonationSessionId as string;
+    state.actor={...token,id:token.sub,sessionVersion:token.tokenVersion,role:'USER'};
+    const [ended]=await Promise.all([switchAccount(await request(),true),revokePreviewOnSignOut(token)]);
+    expect([200,401]).toContain(ended.status);
+    expect(validPreviewSession(token,await db.accountPreviewSession.findUnique({where:{id}}))).toBe(false);
+    expect(await db.adminAuditLog.count({where:{newData:{path:['previewSessionId'],equals:id}}})).toBe(2);
     state.actor={id:'qa-owner',role:'OWNER',sessionVersion:3};
   },30000);
   it('serializes owner revocation against issuance and the resulting old-version token is invalid',async()=>{

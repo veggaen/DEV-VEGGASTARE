@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { isDemoUserId } from "@/lib/demo-policy"
 import { previewSessionId, validImpersonation, validPreviewSession } from '@/lib/impersonation-policy';
+import { revokePreviewOnSignOut } from '@/lib/preview-signout';
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
@@ -185,7 +186,7 @@ export const {
           // Previously this code deleted the oldest Account on every sign-out,
           // which broke OAuth provider linking, the AppKit→NextAuth auto-bridge,
           // and the verification tier system.
-          void token; // keep for future use (e.g. audit logging)
+          await revokePreviewOnSignOut(token);
         }
 
       },

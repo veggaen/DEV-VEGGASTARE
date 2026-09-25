@@ -156,6 +156,33 @@ test('S2 account preview banner preserves navigation and handles failed restorat
   } finally {await context.close();}
 });
 
+test('S2 account preview sign-out retains retry controls until the server confirms', async ({browser,baseURL},info)=>{
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Browser-only preview fixture, never signs out a real member');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  if(process.env.E2E_PREVIEW_THEME==='dark')await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const retained=await (await context.request.get('/api/auth/session')).json();expect(retained.user.id).toMatch(/^demo_/);
+  const page=await context.newPage(),errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));let failed=true,submissions=0;
+  await page.route('**/api/auth/session',route=>route.fulfill({json:{...retained,user:{...retained.user,isDemo:false,isImpersonating:true,name:'QA preview member',role:'USER'}}}));
+  await page.route('**/api/admin/impersonate/end',route=>route.fulfill({status:503,json:{error:'Preview could not be ended. Try again.'}}));
+  await page.route('**/api/auth/signout',route=>{submissions++;return route.fulfill({status:failed?503:200,json:failed?{error:'Sign-out could not be confirmed. Please try again.'}:{url:`${baseURL}/auth/login?callbackUrl=%2Fadmin%2Fusers`}});});
+  try{
+    await page.goto('/',{waitUntil:'domcontentloaded'});await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const refresh=page.waitForResponse(response=>response.url().includes('/api/auth/session'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await refresh;
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+    const banner=page.getByRole('region',{name:'Read-only account preview'});
+    await banner.getByRole('button',{name:'End Preview',exact:true}).click();
+    const exit=banner.getByRole('button',{name:'Sign Out Safely',exact:true});await exit.click();
+    await expect(banner.getByRole('alert')).toHaveText('Sign-out could not be confirmed. Please try again.');await expect(exit).toBeEnabled();expect(new URL(page.url()).pathname).toBe('/');
+    for(const [width,height] of [[390,844],[1280,800]]){
+      await page.setViewportSize({width,height});expect((await exit.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:info.outputPath(`preview-signout-retry-${width}.png`)});
+    }
+    failed=false;const navigation=page.waitForRequest(request=>new URL(request.url()).pathname==='/auth/login'&&request.isNavigationRequest());
+    await exit.focus();await page.keyboard.press('Enter');await navigation;expect(submissions).toBe(2);expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
 test('S2 account settings separate profile and security changes and confirm safely across screens', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; all settings writes are browser-only fixtures');
   test.setTimeout(120_000);

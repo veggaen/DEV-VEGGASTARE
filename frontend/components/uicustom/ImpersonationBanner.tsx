@@ -1,6 +1,7 @@
 'use client';
 
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { confirmedSignOut } from '@/lib/confirmed-signout-client';
 import { useState } from 'react';
 import { FiEye } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 export default function ImpersonationBanner() {
   const { data: session } = useSession();
   const [ending, setEnding] = useState(false), [error, setError] = useState('');
+  const [leaving, setLeaving] = useState(false);
   if (!session?.user?.isImpersonating) return null;
   const handleEnd = async () => {
     setEnding(true); setError('');
@@ -24,6 +26,11 @@ export default function ImpersonationBanner() {
       setEnding(false);
     }
   };
+  const handleSignOut = async () => {
+    setLeaving(true);
+    try { await confirmedSignOut('/auth/login?callbackUrl=%2Fadmin%2Fusers'); }
+    catch { setError('Sign-out could not be confirmed. Please try again.'); setLeaving(false); }
+  };
   return (
     <section aria-label="Read-only account preview" className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-foreground sm:px-6">
       <div className="mx-auto flex max-w-7xl min-w-0 flex-wrap items-center justify-between gap-2">
@@ -31,8 +38,8 @@ export default function ImpersonationBanner() {
           <FiEye aria-hidden="true" className="shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="min-w-0 break-words"><span className="font-semibold">Read-only preview</span><span className="block break-all text-muted-foreground sm:inline"> · {session.user.name || 'Member'}</span></p>
         </div>
-        <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={handleEnd} disabled={ending}>{ending ? 'Returning…' : 'End Preview'}</Button>
-        {error && <div className="w-full min-w-0"><p role="alert" className="break-words text-destructive">{error}</p><Button type="button" variant="link" className="min-h-11 px-0" onClick={() => void signOut({ callbackUrl: '/auth/login?callbackUrl=%2Fadmin%2Fusers' })}>Sign Out Safely</Button></div>}
+        <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={handleEnd} disabled={ending || leaving}>{ending ? 'Returning…' : 'End Preview'}</Button>
+        {error && <div className="w-full min-w-0"><p role="alert" className="break-words text-destructive">{error}</p><Button type="button" variant="link" className="min-h-11 px-0" disabled={ending || leaving} onClick={handleSignOut}>{leaving ? 'Signing out…' : 'Sign Out Safely'}</Button></div>}
       </div>
     </section>
   );

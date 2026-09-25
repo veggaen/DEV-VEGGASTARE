@@ -6,6 +6,7 @@ import { encode } from 'next-auth/jwt';
 import { Auth } from '@auth/core';
 
 const fixture = vi.hoisted(() => ({ config: null as NextAuthConfig | null, user: vi.fn(), account: vi.fn(), preview: vi.fn() }));
+vi.mock('server-only', () => ({}));
 vi.mock('next-auth', () => ({ default: (config: NextAuthConfig) => {
   fixture.config = config;
   return { handlers: {}, auth: vi.fn(), signIn: vi.fn(), signOut: vi.fn() };
