@@ -442,6 +442,12 @@ body {
   height: 100%;
 }
 
+/* Saved consent affects presentation only; SiteTelemetry independently checks
+   explicit opt-in before mounting either SDK and before every event. */
+html[data-saved-consent="true"] [data-cookie-banner] {
+  display: none;
+}
+
 body {
   min-height: 100dvh;
   background-size: 200% 200%;
