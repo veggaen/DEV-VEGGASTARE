@@ -7,6 +7,74 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S6 saved wallet actions stay explicit, cancellable and responsive', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Demo auth with browser-only fixtures; no real wallet changes or emails');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), requests: { method: string; data: Record<string, unknown> }[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let wallets = [1,2,3].map(n => ({ id: `qa-action-${n}`, label: `QA receiving ${n}`, address: '0x' + String(n).repeat(40), chainId: 1, isDefault: n === 1,
+    verifiedAt: n === 3 ? null : new Date().toISOString(), createdAt: new Date().toISOString() }));
+  await page.route('**/api/auth/session', async route => {
+    const response = await route.fetch(), session = await response.json();
+    await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
+  });
+  await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets } }));
+  await page.route('**/api/wallets/evm/qa-action-*', route => {
+    const method = route.request().method(), data = route.request().postDataJSON(); requests.push({ method, data });
+    if (!data.code) return route.fulfill({ json: { twoFactor: true } });
+    if (data.code !== '654321') return route.fulfill({ status: 400, json: { error: 'Incorrect code. Use the six digits for this wallet action.' } });
+    if (method === 'PATCH') wallets = wallets.map(w => ({ ...w, isDefault: w.id === 'qa-action-2' }));
+    if (method === 'DELETE') wallets = wallets.filter(w => w.id !== 'qa-action-2');
+    return route.fulfill({ json: { ok: true } });
+  });
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const session = page.waitForResponse(r => r.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await session;
+    const region = page.getByRole('region', { name: 'Saved receiving wallets', exact: true }); await expect(region).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const second = region.getByRole('group', { name: 'QA receiving 2 receiving wallet', exact: true });
+    await expect(region.getByRole('group', { name: 'QA receiving 3 receiving wallet' }).getByRole('button', { name: 'Use for sales', exact: true })).toBeDisabled();
+    await second.getByRole('button', { name: 'Use for sales', exact: true }).click();
+    const code = second.getByRole('textbox', { name: 'Email verification code', exact: true }); await expect(code).toBeVisible();
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await region.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`wallet-action-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(second.getByRole('alert')).toContainText('Incorrect code');
+    await code.fill('654321'); await code.press('Enter'); await expect(second.getByText('Primary', { exact: true })).toBeVisible();
+    await second.getByRole('button', { name: 'Remove link', exact: true }).click();
+    await expect(second.getByText(/No replacement receiving wallet/)).toBeVisible();
+    await second.getByRole('button', { name: 'Keep linked', exact: true }).click(); expect(requests).toHaveLength(3);
+    await second.getByRole('button', { name: 'Remove link', exact: true }).click();
+    await second.getByRole('button', { name: 'Remove wallet link', exact: true }).click();
+    await expect(code).toBeVisible(); await second.getByRole('button', { name: 'Cancel', exact: true }).click(); expect(requests).toHaveLength(4);
+    await second.getByRole('button', { name: 'Remove link', exact: true }).click();
+    await second.getByRole('button', { name: 'Remove wallet link', exact: true }).click();
+    await code.fill('654321'); await code.press('Enter'); await expect(second).toHaveCount(0);
+    await expect(region.getByText('No active receiving wallet yet', { exact: true })).toBeVisible();
+    expect(requests.map(r => r.method)).toEqual(['PATCH','PATCH','PATCH','DELETE','DELETE','DELETE']);
+    expect(requests.slice(0,3).every(r => r.data.action === 'setPrimary')).toBe(true); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S6 wallet changes reject cross-site and anonymous requests', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL });
+  try {
+    for (const [method, path] of [['PATCH','/api/wallets/evm/qa-boundary-only'],['DELETE','/api/wallets/evm/qa-boundary-only'],['POST','/api/wallets']]) {
+      const foreign = await context.request.fetch(path, { method, headers: { origin: 'https://attacker.example' }, data: {} });
+      expect(foreign.status()).toBe(403); expect(foreign.headers()['cache-control']).toContain('no-store');
+      const anon = await context.request.fetch(path, { method, headers: { origin: new URL(baseURL!).origin }, data: {} });
+      expect(anon.status()).toBe(401); expect(anon.headers()['cache-control']).toContain('no-store');
+    }
+  } finally { await context.close(); }
+});
+
 for (const surface of ['sidebar', 'settings'] as const) test(`S6 server-challenge wallet verification UX (${surface})`, async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo cookies; wallet/session responses are browser-only fixtures');
   test.setTimeout(120_000);

@@ -12,8 +12,8 @@ export async function walletLinkRequest(req: NextRequest) {
   const origin = req.nextUrl.origin;
   if (req.headers.get('origin') !== origin) return walletLinkResponse({ error: 'Open wallet settings on this site and try again.' }, 403);
   const session = await MyLibUserAuth();
-  if (!session?.id) return walletLinkResponse({ error: 'Sign in to link your wallet.' }, 401);
-  if (isDemoUserId(session.id)) return walletLinkResponse({ error: 'Wallet linking is unavailable in the demo.' }, 403);
+  if (!session?.id) return walletLinkResponse({ error: 'Sign in to manage your wallets.' }, 401);
+  if (isDemoUserId(session.id)) return walletLinkResponse({ error: 'Wallet changes are unavailable in the demo.' }, 403);
   for (const key of [getClientIdentifier(req), `wallet-user:${session.id}`]) {
     const limit = await checkRateLimit(key, 'wallet');
     if (!limit.success) {
@@ -22,8 +22,8 @@ export async function walletLinkRequest(req: NextRequest) {
   }
   return { userId: session.id, origin };
 }
-export function walletLinkFailure(error: unknown) {
+export function walletLinkFailure(error: unknown, message = 'Wallet verification is unavailable. Please try again.') {
   if (error instanceof WalletLinkError) return walletLinkResponse({ error: error.message }, error.status);
   console.error('[wallet-link] Request could not be completed');
-  return walletLinkResponse({ error: 'Wallet verification is unavailable. Please try again.' }, 503);
+  return walletLinkResponse({ error: message }, 503);
 }

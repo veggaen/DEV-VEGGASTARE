@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,9 @@ export default function EvmWalletList({
 	const [code, setCode] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [confirmingUnlinkId, setConfirmingUnlinkId] = useState<string | null>(null);
+	const [actionError, setActionError] = useState<{ walletId: string; message: string } | null>(null);
+	const actionRequest = useRef<AbortController | null>(null);
+	useEffect(() => () => actionRequest.current?.abort(), [enabled]);
 
 	const defaultWallet = useMemo(() => wallets.find((w) => w.isDefault) ?? null, [wallets]);
 
@@ -91,30 +94,38 @@ export default function EvmWalletList({
 		action: PendingAction,
 		codeOrNull: string | null
 	) => {
+		if (actionRequest.current) return;
 		if (!enabled) {
 			toast.error("Enable Web3 mode first.", { position: "top-center" });
 			return;
 		}
 
+		const controller = new AbortController();
+		actionRequest.current = controller;
+		const timeout = setTimeout(() => controller.abort(), 20_000);
 		setBusy(true);
+		setActionError(null);
 		try {
 			const url = `/api/wallets/evm/${action.walletId}`;
 			const method = action.type === "setPrimary" ? "PATCH" : "DELETE";
 			const res = await fetch(url, {
 				method,
+				signal: controller.signal,
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ code: codeOrNull }),
+				body: JSON.stringify({ ...(action.type === 'setPrimary' ? { action: 'setPrimary' } : {}), code: codeOrNull }),
 			});
 			const json = await res.json();
 
-			if (json?.twoFactor) {
+			if (res.ok && json?.twoFactor) {
 				setPending(action);
+				setCode('');
+				setConfirmingUnlinkId(null);
 				toast.success("2FA code sent to your email.", { position: "top-center" });
 				return;
 			}
 
 			if (!res.ok) {
-				toast.error(json?.error ?? "Action failed", { position: "top-center" });
+				setActionError({ walletId: action.walletId, message: json?.error ?? 'Unable to change this wallet. Refresh and try again.' });
 				return;
 			}
 
@@ -127,14 +138,16 @@ export default function EvmWalletList({
 			setCode("");
 			await load();
 		} catch {
-			toast.error("Something went wrong.", { position: "top-center" });
+			setActionError({ walletId: action.walletId, message: 'We could not confirm the change. Refresh the list before trying again.' });
 		} finally {
+			clearTimeout(timeout);
+			actionRequest.current = null;
 			setBusy(false);
 		}
 	};
 
 	return (
-		<div className="rounded-xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+		<div role="region" aria-label="Saved receiving wallets" className="min-w-0 rounded-xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
 			<div className="flex items-start justify-between gap-3">
 				<div>
 					<div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -152,7 +165,7 @@ export default function EvmWalletList({
 					disabled={loading || busy || !enabled}
 					onClick={() => void load()}
 				>
-					Refresh
+					{loading ? 'Refreshing…' : 'Refresh'}
 				</Button>
 			</div>
 
@@ -175,12 +188,14 @@ export default function EvmWalletList({
 						return (
 							<div
 								key={w.id}
+								role="group"
+								aria-label={`${w.label} receiving wallet`}
 								className="rounded-lg border border-black/10 p-2 dark:border-white/10"
 							>
-								<div className="flex items-start justify-between gap-3">
+								<div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
 									<div className="min-w-0">
-										<div className="flex items-center gap-2">
-											<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+										<div className="flex flex-wrap items-center gap-2">
+											<div className="min-w-0 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
 												{w.label}
 											</div>
 											{w.isDefault ? (
@@ -208,12 +223,13 @@ export default function EvmWalletList({
 										</div>
 									</div>
 
-									<div className="flex shrink-0 items-center gap-2">
+									<div className="flex shrink-0 flex-wrap items-center gap-2">
 										{!w.isDefault ? (
 											<Button
 												variant="outline"
 												size="sm"
-												disabled={busy}
+												className="min-h-11"
+												disabled={busy || !!pending || !w.verifiedAt}
 												onClick={() => void runAction({ type: "setPrimary", walletId: w.id }, null)}
 											>
 												Use for sales
@@ -222,7 +238,8 @@ export default function EvmWalletList({
 										<Button
 											variant="destructive"
 											size="sm"
-											disabled={busy}
+											className="min-h-11"
+											disabled={busy || !!pending}
 											onClick={() => setConfirmingUnlinkId(w.id)}
 										>
 											Remove link
@@ -236,12 +253,13 @@ export default function EvmWalletList({
 											Remove this verified wallet link?
 										</div>
 										<p className="mt-1 text-xs leading-relaxed text-red-700/80 dark:text-red-200/80">
-											This does not just disconnect the current wallet session. It removes this address from your VeggaStare account and seller payout choices.
+											Remove this address from Veggat. No replacement receiving wallet is selected automatically. Your extension stays connected.
 										</p>
 										<div className="mt-3 flex flex-wrap gap-2">
 											<Button
 												variant="outline"
 												size="sm"
+												className="min-h-11"
 												disabled={busy}
 												onClick={() => setConfirmingUnlinkId(null)}
 											>
@@ -250,6 +268,7 @@ export default function EvmWalletList({
 											<Button
 												variant="destructive"
 												size="sm"
+												className="min-h-11"
 												disabled={busy}
 												onClick={() => void runAction({ type: "unlink", walletId: w.id }, null)}
 											>
@@ -260,37 +279,52 @@ export default function EvmWalletList({
 								) : null}
 
 								{isPending ? (
-									<div className="mt-2 space-y-2">
+									<form className="mt-3 max-w-sm space-y-2" onSubmit={event => { event.preventDefault(); if (/^\d{6}$/.test(code)) void runAction(pending!, code); }}>
 										<div className="text-xs text-zinc-500 dark:text-zinc-400">
-											Enter the 2FA code from email to continue.
+											{pending.type === 'unlink' ? 'Confirm removal with the code sent to your email.' : 'Confirm the receiving wallet with the code sent to your email.'}
 										</div>
+										<label className="block text-sm" htmlFor={`wallet-action-code-${w.id}`}>Email verification code</label>
 										<Input
+											id={`wallet-action-code-${w.id}`}
+											name="walletActionCode"
+											className="min-h-11 text-base"
+											autoComplete="one-time-code"
+											maxLength={6}
+											pattern="[0-9]{6}"
+											required
+											spellCheck={false}
+											aria-invalid={actionError?.walletId === w.id || undefined}
+											aria-describedby={actionError?.walletId === w.id ? `wallet-action-error-${w.id}` : undefined}
 											value={code}
 											onChange={(e) => setCode(e.target.value)}
 											disabled={busy}
-											placeholder="123456"
 											inputMode="numeric"
 										/>
-										<div className="flex gap-2">
+										<div className="flex flex-wrap gap-2">
 											<Button
 												variant="outline"
+												type="button"
+												className="min-h-11"
 												disabled={busy}
 												onClick={() => {
 													setPending(null);
 													setCode("");
+													setActionError(null);
 												}}
 											>
 												Cancel
 											</Button>
 											<Button
-												disabled={busy || !code.trim()}
-												onClick={() => void runAction(pending!, code.trim())}
+												type="submit"
+												className="min-h-11"
+												disabled={busy}
 											>
-												Continue
+												{busy ? 'Confirming…' : pending.type === 'unlink' ? 'Confirm removal' : 'Confirm receiving wallet'}
 											</Button>
 										</div>
-									</div>
-							) : null}
+									</form>
+								) : null}
+								{actionError?.walletId === w.id ? <p id={`wallet-action-error-${w.id}`} role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">{actionError.message}</p> : null}
 							</div>
 						);
 					})}

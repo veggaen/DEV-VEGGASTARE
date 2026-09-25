@@ -10,14 +10,14 @@ export class WalletLinkError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 const codeDigest = (scope: string, code: string) => createHash('sha256').update(`${scope}:${code}`).digest('hex');
-async function lockedUser(tx: Prisma.TransactionClient, userId: string) {
+export async function lockedWalletUser(tx: Prisma.TransactionClient, userId: string) {
   await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
   const user = await tx.user.findUnique({ where: { id: userId }, select: {
     id: true, email: true, name: true, web3ModeEnabled: true,
     isTwoFactorEnabled: true, defaultReceivingWalletId: true,
   } });
-  if (!user) throw new WalletLinkError('Sign in again to link your wallet.', 401);
-  if (isDemoUserId(userId)) throw new WalletLinkError('Wallet linking is unavailable in the demo.', 403);
+  if (!user) throw new WalletLinkError('Sign in again to manage your wallets.', 401);
+  if (isDemoUserId(userId)) throw new WalletLinkError('Wallet changes are unavailable in the demo.', 403);
   if (!user.web3ModeEnabled) throw new WalletLinkError('Enable Web3 mode first.', 403);
   return user;
 }
@@ -27,7 +27,7 @@ export async function createWalletLinkChallenge(input: {
 }) {
   const address = getAddress(input.address);
   return dbPrisma.$transaction(async tx => {
-    const user = await lockedUser(tx, input.userId);
+    const user = await lockedWalletUser(tx, input.userId);
     if (user.isTwoFactorEnabled) {
       if (!user.email) throw new WalletLinkError('Add a verified email before linking your wallet.', 403);
       // Purpose/account/host scoped: a login code cannot authorize wallet linking.
@@ -74,7 +74,7 @@ export async function verifyWalletLink(input: {
   try { valid = await verifyMessage({ address: getAddress(challenge.address), message: challenge.message, signature: input.signature }); } catch { /* invalid proof */ }
   if (!valid) throw new WalletLinkError('Signature did not match. Check the selected wallet and try again.');
   return dbPrisma.$transaction(async tx => {
-    const user = await lockedUser(tx, input.userId);
+    const user = await lockedWalletUser(tx, input.userId);
     const expected = walletLinkMessage({ ...challenge, origin: input.origin, chainId: challenge.chainId!, twoFactor: user.isTwoFactorEnabled });
     if (challenge.message !== expected || challenge.createdAt.getTime() > Date.now()
       || challenge.expires.getTime() - challenge.createdAt.getTime() !== WALLET_LINK_TTL) {

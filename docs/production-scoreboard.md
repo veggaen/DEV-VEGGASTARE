@@ -4,6 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Wallet mutations: **PARTIAL — local implementation, not deployed**. Strict
+action parsing, action/host/wallet-scoped one-use codes, transactional receiving
+choices, reference-safe removal and manual-create default isolation are added.
+88 focused checks (36 isolated PostgreSQL), strict build, touched lint and final
+local browser **9/9 (18.6s, no retries/skips)** pass. Real Chrome local phone
+scrolling and targeted responsive screenshots were inspected.
+The parallel seller-payment actions and wallet-login flow still need alignment
+before payout/security acceptance. No real wallet/payout changes were made.
+See [wallet mutation evidence](wallet-mutation-evidence-2026-09.md).
+
 Wallet-linking security: **DONE for the focused server-challenge slice;
 real extension acceptance remains PARTIAL**.
 Both verification UIs now require a server-issued account/host/chain-bound
