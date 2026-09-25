@@ -40,11 +40,13 @@ consent. Approving review changes only the review record; direct `REFUND` reques
 return 409 even for admins. A fresh 42-case seller-return/security/acknowledgment
 test run passes. No automatic after-download refund policy was added.
 
-Transactional email is ACCEPTED_UNCONFIRMED. One send was accepted; the subsequent
-provider receipt lookup returned 401 (the code explicitly supports sending-only
-keys). This does not establish human inbox delivery. Do not resend a successfully
-accepted message merely because retrieval is unavailable, or expand key access
-without approval. The downloadable original confirmation remains available.
+The application email row is ACCEPTED_UNCONFIRMED because its sending-only key
+cannot retrieve delivery history. On 25 September the authenticated Resend
+dashboard independently confirmed the matching message as Delivered, with the
+original terms/consent attachment and SMTP 250 response. Its mail-server acceptance
+preceded both first file requests. This is delivery evidence for this purchase,
+not proof that a human read it or legal certification. No resend or manual database
+status change was performed. See [exact timeline and boundaries](email-delivery-events-2026-09.md).
 
 The `PaymentWebhookEvent` table has no entry for this capture, but this showcase
 listener does not write capture events to that legacy table. Absence there is

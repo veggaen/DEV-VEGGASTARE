@@ -4,6 +4,19 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Receipt delivery evidence: **PARTIAL — authenticated provider evidence obtained;
+signed callback implementation passed local acceptance**. The real Resend dashboard
+confirms receiving-server acceptance of the paid artwork's original receipt at
+01:13:45 UTC, before the recorded JPG/TXT requests. This is not proof of a human
+reading it or complete legal compliance. New signed callbacks preserve original
+messages, serialize delivery/dispatch races and cannot grant/refund purchases.
+59 units, four isolated Postgres cases and touched lint pass; the optional real
+send test is deliberately skipped. Strict build/TypeScript and final local
+receipt/job checks pass 2/2 (5.1s) after a normal free-demo fixture checkout.
+Migration is Preview-only; production and
+the new provider signing secret are not yet configured. No paid purchase,
+refund or customer email resend occurred. See [delivery evidence](email-delivery-events-2026-09.md).
+
 First-download reminder: **local and Live acceptance DONE for this UI slice**.
 Source `273c162`, Production `dpl_9wGrjccRuQiJCoN37rGFHMtHsjiv` is READY at
 www.veggat.com. Three focused checks pass locally (25.7s) and Live (46.6s):
@@ -70,7 +83,7 @@ refund-policy unit tests passes. These do not substitute for Live acceptance.
 The [PayPal runbook](paypal-setup.md) now separates current results from historical
 setup observations and includes the exact download/refund acceptance procedure.
 See [Live digital evidence](live-digital-acceptance-2026-09.md), including the
-unconfirmed email-delivery boundary.
+independently verified receiving-mail-server delivery and human-read boundary.
 
 Unpaid order recovery: **DONE for deployed resume/cancel behavior**. Continue payment
 reuses the existing purchase; confirmed cancellation keeps records/cart and daily

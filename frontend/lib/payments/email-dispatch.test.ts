@@ -39,7 +39,8 @@ beforeEach(() => {
   row = { id: 'mail1', sourceKey: 'purchase:order1', userId: 'buyer', orderId: 'order1', kind: 'PURCHASE',
     environment: 'PRODUCTION', recipient, payload, status: 'QUEUED', attempts: 0,
     firstAttemptAt: null, leaseUntil: null, nextAttemptAt: now, providerId: null, acceptedAt: null,
-    deliveredAt: null, lastErrorCode: null, createdAt: now, updatedAt: now };
+    deliveredAt: null, deliveryEventAt: null, deliveryEventType: null, deliveryEventId: null,
+    lastErrorCode: null, createdAt: now, updatedAt: now };
   transport.mockResolvedValue(new Response(JSON.stringify({ id: 'provider1' }), { status: 200 }));
 });
 afterEach(() => vi.unstubAllEnvs());

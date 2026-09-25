@@ -9,6 +9,10 @@ export const EmailPayload = z.object({
   subject: z.string().min(1).max(200).regex(/^[^\r\n]+$/),
   text: z.string().min(1).max(60_000),
   attachments: z.array(z.object({ filename: z.string().regex(/^veggat-[a-zA-Z0-9_-]+\.txt$/), content: z.string().min(1).max(80_000) }).strict()).length(1),
+  tags: z.tuple([
+    z.object({ name: z.literal('veggat_mail_id'), value: z.string().uuid() }).strict(),
+    z.object({ name: z.literal('veggat_environment'), value: z.enum(['PRODUCTION', 'PREVIEW', 'LOCAL']) }).strict(),
+  ]).optional(),
 }).strict();
 
 export function emailEnvironment() {
@@ -24,10 +28,11 @@ export function emailRecipientAllowed(email: string, verified: boolean, environm
   return (process.env.TRANSACTIONAL_EMAIL_TEST_RECIPIENTS ?? '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean).includes(email.toLowerCase());
 }
 
-export function transactionMessage(recipient: string, subject: string, filename: string, original: string) {
+export function transactionMessage(recipient: string, subject: string, filename: string, original: string, binding?: { id: string; environment: string }) {
   return EmailPayload.parse({ from: TRANSACTIONAL_SENDER, to: [recipient], reply_to: 'kontakt@veggat.com', subject,
     text: `${original}\nThis email is an additional copy of your purchase record. Keep the attached text file. Sign in directly at Veggat to review current order status. No password, card details or private download token is included.\n`,
-    attachments: [{ filename, content: Buffer.from(original, 'utf8').toString('base64') }] });
+    attachments: [{ filename, content: Buffer.from(original, 'utf8').toString('base64') }],
+    ...(binding ? { tags: [{ name: 'veggat_mail_id', value: binding.id }, { name: 'veggat_environment', value: binding.environment }] } : {}) });
 }
 
 export function emailStatusText(status: string | null | undefined): string {

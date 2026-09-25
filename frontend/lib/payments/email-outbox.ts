@@ -1,5 +1,6 @@
 /** @fileOverview Persist transaction mail without contacting a provider inside a DB transaction. @stability experimental */
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { z } from 'zod';
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -20,9 +21,11 @@ export async function queueTransactionEmail(tx: Prisma.TransactionClient, input:
   const allowed = emailRecipientAllowed(user.email, !!user.emailVerified, environment) &&
     (!input.paymentEnvironment || input.paymentEnvironment === (environment === 'PRODUCTION' ? 'LIVE' : 'SANDBOX'));
   const enabled = process.env.TRANSACTIONAL_EMAIL_ENABLED === 'true';
+  const id = randomUUID();
   return tx.transactionalEmail.upsert({ where: { sourceKey: input.sourceKey }, update: {}, create: {
+    id,
     sourceKey: input.sourceKey, userId: input.userId, orderId: input.orderId, environment,
-    kind: input.kind, recipient: user.email, payload: transactionMessage(user.email, input.subject, input.filename, input.original),
+    kind: input.kind, recipient: user.email, payload: transactionMessage(user.email, input.subject, input.filename, input.original, { id, environment }),
     status: !allowed ? 'SKIPPED' : enabled ? 'QUEUED' : 'REVIEW',
     lastErrorCode: !allowed ? 'RECIPIENT_NOT_ELIGIBLE' : enabled ? null : 'EMAIL_NOT_CONFIGURED',
   } });

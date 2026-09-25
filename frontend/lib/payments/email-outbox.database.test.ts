@@ -9,6 +9,7 @@ import { previewDatabaseUrl } from '@/lib/preview-database';
 vi.mock('server-only', () => ({}));
 import { queueTransactionEmail } from './email-outbox';
 import { dispatchTransactionEmail } from './email-dispatch';
+import { recordDeliveryEvent, type DeliveryEvent } from './email-webhook';
 
 describe.skipIf(process.env.TEST_EMAIL_DATABASE !== '1')('transaction mail: real Postgres concurrency', () => {
   const schema = `qa_email_${randomUUID().replaceAll('-', '')}`;
@@ -20,13 +21,16 @@ describe.skipIf(process.env.TEST_EMAIL_DATABASE !== '1')('transaction mail: real
   beforeAll(async () => {
     vi.stubEnv('VERCEL_ENV', 'preview'); vi.stubEnv('TRANSACTIONAL_EMAIL_ENABLED', 'true');
     vi.stubEnv('TRANSACTIONAL_EMAIL_TEST_RECIPIENTS', recipient); vi.stubEnv('RESEND_API_KEY', 're_fixture_no_real_network_allowed');
-    const connectionString = previewDatabaseUrl({ DATABASE_URL_MAINPREVIEW: process.env.DATABASE_URL_MAINPREVIEW, DATABASE_URL_MAINLIVE: process.env.DATABASE_URL_MAINLIVE });
+    const verifiedUrl = new URL(previewDatabaseUrl({ DATABASE_URL_MAINPREVIEW: process.env.DATABASE_URL_MAINPREVIEW, DATABASE_URL_MAINLIVE: process.env.DATABASE_URL_MAINLIVE }));
+    verifiedUrl.searchParams.set('sslmode', 'verify-full');
+    const connectionString = verifiedUrl.toString();
     const direct = new URL(connectionString); direct.hostname = direct.hostname.replace('-pooler.', '.');
     admin = new Client({ connectionString: direct.toString() }); await admin.connect();
     if (!/^qa_email_[a-f0-9]{32}$/.test(schema)) throw new Error('Unsafe QA schema');
     await admin.query(`CREATE SCHEMA "${schema}"`);
     await admin.query(`SET search_path TO "${schema}"`);
     await admin.query(await readFile(new URL('../../prisma/migrations/20260924000700_transactional_email_outbox/migration.sql', import.meta.url), 'utf8'));
+    await admin.query(await readFile(new URL('../../prisma/migrations/20260925060000_transactional_delivery_events/migration.sql', import.meta.url), 'utf8'));
     await admin.query('CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT, "emailVerified" TIMESTAMP(3)); CREATE TABLE "Order" ("id" TEXT PRIMARY KEY, "userId" TEXT)');
     await admin.query('INSERT INTO "User" VALUES ($1, $2, now())', ['qa-buyer', recipient]);
     await admin.query('INSERT INTO "Order" VALUES ($1, $2)', ['order1', 'qa-buyer']);
@@ -61,6 +65,44 @@ describe.skipIf(process.env.TEST_EMAIL_DATABASE !== '1')('transaction mail: real
     expect(transport).toHaveBeenCalledTimes(2);
     expect(transport.mock.calls[1][1]?.method).toBe('GET');
     expect((await db.transactionalEmail.findUniqueOrThrow({ where: { id: message.id } })).status).toBe('DELIVERED');
+  }, 30_000);
+  it('serializes concurrent delivery replays and preserves a later complaint', async () => {
+    const message = await db.transactionalEmail.findUniqueOrThrow({ where: { sourceKey: input.sourceKey } });
+    const now = new Date();
+    const providerId = randomUUID();
+    await db.transactionalEmail.update({ where: { id: message.id }, data: { providerId, status: 'ACCEPTED_UNCONFIRMED', deliveredAt: null } });
+    const event: DeliveryEvent = { type: 'email.delivered', created_at: now.toISOString(), data: {
+      email_id: providerId, from: 'Veggat Orders <Veggat-Orders@veggat.com>', to: [recipient], subject: input.subject,
+      tags: { veggat_mail_id: message.id, veggat_environment: 'PREVIEW' },
+    } };
+    const results = await Promise.all(Array.from({ length: 8 }, () => recordDeliveryEvent(db, 'msg_concurrent', event)));
+    expect(results.filter(result => result === 'applied')).toHaveLength(1);
+    expect(results.filter(result => result === 'duplicate')).toHaveLength(7);
+    const complaint = { ...event, type: 'email.complained' as const, created_at: new Date(now.getTime() + 100).toISOString() };
+    await Promise.all([recordDeliveryEvent(db, 'msg_complaint', complaint), recordDeliveryEvent(db, 'msg_delayed_delivery', event)]);
+    const after = await db.transactionalEmail.findUniqueOrThrow({ where: { id: message.id } });
+    expect(after).toMatchObject({ status: 'FAILED', deliveryEventId: 'msg_complaint', deliveredAt: now });
+    expect(after.payload).toEqual(message.payload); expect(after.attempts).toBe(message.attempts);
+  }, 30_000);
+  it('a callback before the send response survives concurrent workers and an uncertain sender response', async () => {
+    const message = await db.$transaction(tx => queueTransactionEmail(tx, { ...input, sourceKey: 'early-delivery' }));
+    expect(message).toBeDefined();
+    const now = new Date(), providerId = randomUUID();
+    const transport = vi.fn<typeof fetch>(async () => {
+      const event: DeliveryEvent = { type: 'email.delivered', created_at: now.toISOString(), data: {
+        email_id: providerId, from: 'Veggat Orders <Veggat-Orders@veggat.com>', to: [recipient], subject: input.subject,
+        tags: { veggat_mail_id: message!.id, veggat_environment: 'PREVIEW' },
+      } };
+      expect(await recordDeliveryEvent(db, 'msg_early_database', event)).toBe('applied');
+      throw new Error('Controlled uncertain send response');
+    });
+    await Promise.all(Array.from({ length: 8 }, () => dispatchTransactionEmail(db, message!.id, transport, now)));
+    await dispatchTransactionEmail(db, message!.id, transport, new Date(now.getTime() + 3_600_000));
+    expect(transport).toHaveBeenCalledOnce();
+    const after = await db.transactionalEmail.findUniqueOrThrow({ where: { id: message!.id } });
+    expect(after).toMatchObject({ status: 'DELIVERED', providerId, deliveredAt: now, attempts: 1,
+      deliveryEventId: 'msg_early_database', lastErrorCode: null, leaseUntil: null });
+    expect(after.payload).toEqual(message!.payload);
   }, 30_000);
   it.skipIf(!providerKey)('accepts a synthetic provider test copy using the real sending key, without claiming delivery', async () => {
     const testRecipient = 'delivered+veggat-outbox-qa@resend.dev';

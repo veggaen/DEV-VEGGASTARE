@@ -38,6 +38,9 @@ async function claim(db: PrismaClient, id: string, now: Date) {
   return db.$transaction(async tx => {
     // A single brief budget lock also serializes lease claims across replicas.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'transactional-email-budget'}, 0))`;
+    // Share the callback's per-message lock before reading. A stale claim must
+    // not replace freshly verified delivery with SENDING/ACCEPTED.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`email-delivery:${id}`}, 0))`;
     const row = await tx.transactionalEmail.findUnique({ where: { id } });
     if (!row || row.environment !== emailEnvironment() || !['QUEUED', 'SENDING', 'ACCEPTED'].includes(row.status) ||
         row.nextAttemptAt > now || (row.leaseUntil && row.leaseUntil > now)) return null;
