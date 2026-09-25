@@ -61,5 +61,31 @@ inspected; the sidebar uses the full card width. Real Chrome verifies ordinary
 phone text wrapping on the final build, and its viewport override was reset.
 Artifacts: `frontend/test-results-release-wallet-link-local-final/` (ignored).
 
-Live deployment evidence will be added after verification. Wallet login, primary/rename/delete mutation security,
-real extension signing and production crypto checkout remain separate work.
+## Live acceptance
+
+Runtime source `ec4d88f` deployed READY as
+`dpl_H9pKHzLJ46nCEouZ8S39uAZAjsgH`, then promoted to www.veggat.com.
+The remote strict build passed (78s webpack, 28.2s TypeScript, 188 pages),
+with 53 migrations and none pending. Candidate and Live health passed; the
+observed database times were 1000ms and 984ms respectively, not percentiles.
+
+The first Live browser run passed 8/9. The remaining test clicked the Settings
+help disclosure before hydration and it stayed collapsed. The test now waits
+for the shell's existing enabled Open menu control before interacting; no
+wallet assertion was removed. Repeated locally first, the identical final
+batch passed **9/9 locally (20.7s)** and **9/9 Live (25.8s)**, no retries/skips.
+The early-click help-disclosure behavior remains a separate UX follow-up;
+these passing runs do not claim that behavior was fixed.
+
+Final Live 390px sidebar and 2560px Settings screenshots were visually reviewed.
+The email-code form reflows without horizontal overflow and keeps its actions
+together. In real Chrome, read-only Refresh completes with both saved verified
+owner wallets and the existing primary receiving choice unchanged. No real
+wallet signature, email, payment or customer-data mutation was performed.
+Positive browser flows still use fixtures, not a real wallet extension.
+
+Final artifacts (ignored):
+`frontend/test-results-release-wallet-link-local-accepted/` and
+`frontend/test-results-release-wallet-link-live-accepted/`.
+Wallet login, primary/rename/delete mutation security, real extension signing
+and production crypto checkout remain separate work.

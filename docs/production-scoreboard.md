@@ -4,14 +4,21 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Wallet-linking security: **PARTIAL — final local acceptance passes, Live pending**.
+Wallet-linking security: **DONE for the focused server-challenge slice;
+real extension acceptance remains PARTIAL**.
 Both verification UIs now require a server-issued account/host/chain-bound
 challenge; purpose-scoped email codes and challenge consumption are single-use.
 Wallet writes and challenge consumption commit together. Direct client-generated
 proofs are rejected; cancellation cannot submit a late wallet signature.
 38 focused tests (including 16 isolated PostgreSQL cases), strict local build,
-touched lint and final local browser **9/9** pass (21.8s, no retries/skips).
-No real wallet signature, email, payment or production data mutation occurred.
+touched lint pass. Source `ec4d88f` is READY and promoted as
+`dpl_H9pKHzLJ46nCEouZ8S39uAZAjsgH`. Final browser **9/9 locally (20.7s)**
+and **9/9 Live (25.8s)** pass, no retries/skips. The initial Live 8/9 result
+identified a pre-hydration help click; the test now waits for the existing
+hydration-ready shell, while that early-click UX issue remains open.
+Real Chrome Refresh preserves both owner wallets and the receiving choice.
+Positive browser flows use a dummy signer, not real extension acceptance.
+No real wallet signature, email, payment or customer-data mutation occurred.
 Wallet login, primary/rename/delete and real crypto acceptance remain separate.
 See [wallet-link evidence](wallet-link-evidence-2026-09.md).
 

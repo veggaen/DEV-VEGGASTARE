@@ -57,6 +57,9 @@ for (const surface of ['sidebar', 'settings'] as const) test(`S6 server-challeng
   });
   try {
     await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    // SSR content alone is not readiness. The shell enables this control only
+    // after hydration; an early help-button click is not a reliable barrier.
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
     const guide = page.getByRole('button', { name: 'How wallet linking works', exact: true });
     await guide.click(); await expect(guide).toHaveAttribute('aria-expanded', 'true');
     // Revalidate the server-seeded demo session through the controlled client
