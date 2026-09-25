@@ -46,15 +46,25 @@
 - Real Chrome read-only local inspection confirmed Google/GitHub remain awaiting
   email confirmation; no provider was unlinked, confirmed or emailed during QA.
   The final build's inert-token review and Cancel were also checked in Chrome.
-  Live deployment/acceptance is pending.
+  Production source `b7b1b16` deployed as
+  `dpl_9pAddYnAJ6pKB1ncFTBSu6F7Sq8u` and was promoted to www.veggat.com
+  only after candidate health and read-only redirect checks passed.
+- Live browser batch **3/3 passed**, 38.4s, no retries/skips. Live health is 200;
+  malformed email links redirect safely (303/no-store); cross-origin unlink
+  returns 403. Real Chrome shows Google verified and GitHub connected but not
+  verified from the actual account, without changing either provider.
+- Real Chrome at 390px: pending actions wrap, scrolling reaches linked accounts
+  and the footer after the page content. The viewport override was reset.
 
 ## Remaining acceptance
 
 Real confirmation-email send/inbox round trip remains unverified. No email was
 sent under the separate delivery-webhook setup approval. Positive Discord
 consent and linked-account login still need their own explicit owner action.
-Stored experimental Reach scores may predate completed checks; this patch does
-not rewrite all users' tiers or present those scores as proof of identity.
+The real Live account exposed a remaining stale experimental Reach summary:
+the saved tier says Web3 Verified, but the current wallet flag is false. This
+patch does not rewrite all users' tiers. Reconcile that summary against current
+completed checks next; the whole verification module is not marked complete.
 
 References: [Next.js Server Action security](https://github.com/vercel/next.js/blob/canary/docs/01-app/02-guides/data-security.mdx),
 [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines).

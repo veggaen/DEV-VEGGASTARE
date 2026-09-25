@@ -4,12 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Account-verification follow-up: **PARTIAL, candidate ready for deployment**.
+Account-verification follow-up: **PARTIAL, guarded link fix deployed**.
 Truthful pending/expired badges, real resend action, scanner-safe confirmation,
 atomic token use and last-login preservation are implemented. **55 units + 2
 isolated PostgreSQL concurrency tests pass**; final local browser batch **3/3**
-passes, including five widths in both themes. Final strict build and lint pass;
-Live deployment/acceptance remains pending.
+passes, including five widths in both themes. Final strict build and lint pass.
+Source `b7b1b16` is live as `dpl_9pAddYnAJ6pKB1ncFTBSu6F7Sq8u`;
+Live focused browser **3/3** passes (38.4s), health 200, scanner-safe redirect
+303/no-store and cross-origin unlink 403. Real Chrome confirms the actual
+Google/GitHub badge distinction. A stale saved Reach tier was separately
+observed against the current wallet flag and needs reconciliation next.
 No real confirmation email or account unlink was performed. See
 [account-link evidence](oauth-link-verification-2026-09.md).
 
