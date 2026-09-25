@@ -4,12 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Company PayPal settings: **PARTIAL — local implementation verified; deployment next**.
+Company PayPal settings: **DONE for the scoped implementation/deployment; real
+inbox-confirmation acceptance remains PARTIAL**. Runtime `2b1c540` is promoted as
+`dpl_D3pZ51WDfYmCamiWW2e8QNKjPic3`.
 The permanent company ID is accepted; pending email changes preserve the current
 address and use owner/site-bound, atomic one-use verification with explicit approval.
-Company settings is payment-first and responsive. Strict build, 72 focused tests,
-16 isolated PostgreSQL tests and local Playwright 4/4 pass without retries/skips.
-No real receiving details or emails were changed. See
+Company settings is payment-first and responsive. Strict builds, 74 focused tests,
+16 isolated PostgreSQL tests and final local/Preview/Live Playwright 4/4 each pass
+without retries/skips. Real Chrome confirms live owner access, phone fit, page/footer
+and drawer scrolling. The failed Preview currency prerender is fixed with a request-time
+boundary; provider caches remain. Health/currency checks pass. No real receiving
+details or emails were changed. See
 [company PayPal evidence](company-paypal-evidence-2026-09.md).
 
 Company read boundaries: **DONE for this scoped slice — deployed as `cc31221`,
@@ -19,9 +24,9 @@ The public storefront routing regression is corrected without opening management
 pages. 48 focused units, 37 rolled-back PostgreSQL checks, strict builds and local
 2/2, Preview 2/2, Live 2/2 browser checks pass (no retries/skips). Real Chrome
 confirms non-member denial and retained live owner access; Live health passes.
-Full company payment/layout acceptance remains separate: the owner payment panel
-currently rejects the permanent 26-character company ID; atomic PayPal email
-verification and the oversized settings layout are the next concrete work.
+The subsequent company PayPal release above resolves the permanent 26-character
+company ID rejection, atomic email-verification gap and oversized settings layout.
+Genuine inbox confirmation and company personal-wallet choices remain separate.
 See [company access evidence](company-access-evidence-2026-09.md).
 
 Combined wallet release: **DONE for deployment and scoped acceptance; S6 remains
@@ -72,7 +77,7 @@ choices, reference-safe removal and manual-create default isolation are added.
 88 focused checks (36 isolated PostgreSQL), strict build, touched lint and final
 local browser **9/9 (18.6s, no retries/skips)** pass. Real Chrome local phone
 scrolling and targeted responsive screenshots were inspected.
-The parallel seller-payment actions are now aligned locally (follow-up above);
+The parallel seller-payment actions are now aligned and deployed (follow-up above);
 the wallet-login flow is now aligned and deployed; full wallet acceptance remains.
 No real wallet/payout changes were made.
 See [wallet mutation evidence](wallet-mutation-evidence-2026-09.md).
