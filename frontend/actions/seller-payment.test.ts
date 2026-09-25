@@ -26,7 +26,7 @@ it('denies demo mutations before database or email side effects', async () => {
   m.auth.mockResolvedValue({ id: 'demo_fixture' });
   expect(await savePaypalEmail({ target: 'user', paypalEmail: 'qa@example.com', expectedEmail: null })).toHaveProperty('error');
   expect(await removePaypalEmail({ target: 'user', expectedEmail: null, expectedPendingEmail: null })).toHaveProperty('error');
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toHaveProperty('error');
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toHaveProperty('error');
   expect(m.update).not.toHaveBeenCalled(); expect(m.mail).not.toHaveBeenCalled(); expect(m.user).not.toHaveBeenCalled();
 });
 it('normalizes the pending address without changing the current receiving email', async () => {
@@ -41,45 +41,47 @@ it('rejects company edits by a non-owner', async () => {
   expect(m.update).not.toHaveBeenCalled(); expect(m.mail).not.toHaveBeenCalled();
 });
 it('delegates only authenticated identity and validated choices to the transactional service', async () => {
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toHaveProperty('success');
-  expect(m.payout).toHaveBeenCalledWith({ userId: 'qa-user', origin: 'http://localhost:3000', target: 'user', walletId, action: 'set' });
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toHaveProperty('success');
+  expect(m.payout).toHaveBeenCalledWith({ userId: 'qa-user', origin: 'http://localhost:3000', target: 'user', walletId, expectedWalletId: null, action: 'set' });
   expect(m.update).not.toHaveBeenCalled();
   expect(await removeDefaultReceivingWallet({ target: 'company', companyId, expectedWalletId: walletId, code: '654321' })).toHaveProperty('success');
   expect(m.payout).toHaveBeenLastCalledWith({ userId: 'qa-user', origin: 'http://localhost:3000', target: 'company', companyId, expectedWalletId: walletId, code: '654321', action: 'clear' });
 });
 it.each([null, { id: 'demo_fixture' }])('rejects anonymous/demo wallet changes', async user => {
   m.auth.mockResolvedValue(user);
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toHaveProperty('error');
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toHaveProperty('error');
   expect(await removeDefaultReceivingWallet({ target: 'user', expectedWalletId: walletId })).toHaveProperty('error');
   expect(m.payout).not.toHaveBeenCalled(); expect(m.codeMail).not.toHaveBeenCalled();
 });
 it('requires a reviewed pointer to clear and an exact ASCII code', async () => {
+  // @ts-expect-error A stale client must refresh before selecting a wallet.
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toHaveProperty('error');
   // @ts-expect-error Exercise untrusted input without the required expected pointer.
   expect(await removeDefaultReceivingWallet({ target: 'user' })).toHaveProperty('error');
-  for (const code of ['1234560', 'abc123', '１２３４５６']) expect(await setDefaultReceivingWallet({ target: 'user', walletId, code })).toHaveProperty('error');
+  for (const code of ['1234560', 'abc123', '１２３４５６']) expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null, code })).toHaveProperty('error');
   expect(m.payout).not.toHaveBeenCalled();
 });
 it('rejects a foreign origin and shared wallet rate limit before writes', async () => {
   m.origin.mockRejectedValueOnce(new WalletLinkError('Wrong host', 403));
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toEqual({ error: 'Wrong host' });
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toEqual({ error: 'Wrong host' });
   m.rate.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false });
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toHaveProperty('error');
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toHaveProperty('error');
   expect(m.rate).toHaveBeenCalledWith('wallet-user:qa-user', 'wallet');
   expect(m.payout).not.toHaveBeenCalled();
 });
 it('returns no code or recipient to the browser', async () => {
   m.payout.mockResolvedValue({ twoFactor: true, email: 'qa@example.test', code: '654321' });
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toEqual({ twoFactor: true });
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toEqual({ twoFactor: true });
   expect(m.codeMail).toHaveBeenCalledWith('qa@example.test', '654321');
 });
 it('reports mail failure without claiming the choice changed or leaking provider details', async () => {
   m.payout.mockResolvedValue({ twoFactor: true, email: 'qa@example.test', code: '654321' });
   m.codeMail.mockRejectedValue(new Error('SECRET_PROVIDER_DETAIL'));
-  expect(await setDefaultReceivingWallet({ target: 'user', walletId })).toEqual({ error: 'Unable to confirm this change. Refresh payment settings before trying again.' });
+  expect(await setDefaultReceivingWallet({ target: 'user', walletId, expectedWalletId: null })).toEqual({ error: 'Unable to confirm this change. Refresh payment settings before trying again.' });
 });
 it('returns an ownership error without direct writes from the action', async () => {
   m.payout.mockRejectedValue(new WalletLinkError('Only the current company owner can change its receiving wallet.', 403));
-  expect(await setDefaultReceivingWallet({ target: 'company', companyId, walletId })).toHaveProperty('error');
+  expect(await setDefaultReceivingWallet({ target: 'company', companyId, walletId, expectedWalletId: null })).toHaveProperty('error');
   expect(m.update).not.toHaveBeenCalled(); expect(m.codeMail).not.toHaveBeenCalled();
 });
 it('accepts the permanent 26-character company ID without weakening owner checks', async () => {

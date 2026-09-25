@@ -3,7 +3,7 @@ import { dbPrisma } from '@/lib/db';
 import { lockedWalletUser, WalletLinkError } from '@/lib/wallet-link';
 import { walletActionCode } from '@/lib/wallet-action-code';
 export type PayoutTarget = { target: 'user' } | { target: 'company'; companyId: string };
-export type PayoutChoice = { action: 'set'; walletId: string } | { action: 'clear'; expectedWalletId: string };
+export type PayoutChoice = { action: 'set'; walletId: string; expectedWalletId: string | null } | { action: 'clear'; expectedWalletId: string };
 export async function changePayoutWallet(input: PayoutTarget & PayoutChoice & { userId: string; origin: string; code?: string | null }) {
   return dbPrisma.$transaction(async tx => {
     const user = await lockedWalletUser(tx, input.userId);
@@ -14,7 +14,7 @@ export async function changePayoutWallet(input: PayoutTarget & PayoutChoice & { 
       if (!company || company.ownerId !== user.id) throw new WalletLinkError('Only the current company owner can change its receiving wallet.', 403);
       current = company.defaultReceivingWalletId;
     }
-    if (input.action === 'clear' && current !== input.expectedWalletId) {
+    if (current !== input.expectedWalletId) {
       throw new WalletLinkError('The receiving wallet changed. Refresh and review the current choice.', 409);
     }
     const walletId = input.action === 'set' ? input.walletId : input.expectedWalletId;

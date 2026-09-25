@@ -51,6 +51,7 @@ const RemovePaypalEmailSchema = z.object({
 
 const SetDefaultWalletSchema = z.object({
   walletId: z.string().min(1).max(30).regex(CUID_RE, 'Invalid wallet ID'),
+  expectedWalletId: z.string().regex(CUID_RE, 'Refresh payment settings before changing the receiving wallet.').nullable(),
   code: z.string().regex(/^\d{6}$/).optional().nullable(),
 }).and(TargetSchema);
 
@@ -191,6 +192,8 @@ export type SellerPaymentStatus = {
   pendingPaypalEmail: string | null;
   defaultReceivingWalletId: string | null;
   defaultReceivingWalletAddress: string | null;
+  walletChangesAllowed: boolean;
+  receivingWallets: Array<{ id: string; label: string; address: string; family: string; verifiedAt: string; scope: 'personal' | 'company' }>;
 };
 
 export async function getSellerPaymentStatus(

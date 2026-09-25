@@ -282,9 +282,7 @@ const CompanySettingsClient = () => {
                     <Button asChild variant="outline" className="min-h-11"><Link href={`/companies/${company.id}/hub`}>Company hub</Link></Button>
                 </nav>
             </header>
-            {isOwner && <CompanyPaymentSettings companyId={company.id} wallets={company.wallets?.map(w => ({
-                id: w.id, label: w.label, address: w.address, isDefault: w.isDefault, verifiedAt: w.verifiedAt ?? null,
-            })) ?? []} />}
+            {isOwner && <CompanyPaymentSettings companyId={company.id} />}
             <details className="rounded-xl border border-border bg-card p-4 sm:p-5">
                 <summary className={disclosure}>Company details</summary>
                 <div className="space-y-4 pt-3 text-sm">

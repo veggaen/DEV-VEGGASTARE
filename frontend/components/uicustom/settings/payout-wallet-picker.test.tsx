@@ -37,6 +37,19 @@ it('a loading failure offers retry instead of claiming there are no wallets', as
   expect(button('Clear selection').disabled).toBe(true);
   await click('Retry wallets'); expect(retry).toHaveBeenCalledTimes(1);
 });
+it('Web3-disabled state blocks mutations and links to the real wallet section', async () => {
+  await act(async () => root.render(<PayoutWalletPicker {...props} web3Disabled />));
+  expect(host.querySelector('a')?.getAttribute('href')).toBe('/settings?section=wallet');
+  expect(button('Clear selection').disabled).toBe(true);
+  expect(host.querySelectorAll('[aria-pressed]')).toHaveLength(0);
+  expect(m.set).not.toHaveBeenCalled();
+});
+it('distinguishes personal and company choices and blocks clearing while refreshing', async () => {
+  await act(async () => root.render(<PayoutWalletPicker {...props} wallets={wallets.map((w,i) => ({ ...w, family: 'EVM', scope: i ? 'personal' : 'company' }))} />));
+  expect(host.textContent).toContain('Company wallet · EVM'); expect(host.textContent).toContain('Your wallet · EVM');
+  await act(async () => root.render(<PayoutWalletPicker {...props} loading />));
+  expect(button('Clear selection').disabled).toBe(true);
+});
 it('keeps the existing choice until approval succeeds and Cancel sends no mutation', async () => {
   await click('Use Wallet 2 for receiving payments');
   expect(host.querySelector('[aria-pressed="true"]')?.getAttribute('aria-label')).toContain('Wallet 1');
@@ -60,7 +73,7 @@ it('retains a rejected code for correction and refreshes only after success', as
   expect(host.querySelector('[role="alert"]')?.textContent).toBe('Incorrect code.');
   expect(host.querySelector('input')?.value).toBe('123456'); expect(m.refresh).not.toHaveBeenCalled();
   m.set.mockResolvedValue({ success: 'Receiving wallet updated.' }); await enterCode('654321');
-  expect(m.set).toHaveBeenLastCalledWith({ target: 'user', walletId: 'wallet-2', code: '654321' });
+  expect(m.set).toHaveBeenLastCalledWith({ target: 'user', walletId: 'wallet-2', expectedWalletId: 'wallet-1', code: '654321' });
   expect(m.refresh).toHaveBeenCalledTimes(1); expect(host.querySelector('input')).toBeNull();
 });
 it('does not submit malformed codes', async () => {
@@ -69,7 +82,7 @@ it('does not submit malformed codes', async () => {
 it('forwards company scope without changing the personal target', async () => {
   await act(async () => root.render(<PayoutWalletPicker {...props} target={{ target: 'company', companyId: 'company-qa' }} />));
   await click('Use Wallet 2 for receiving payments');
-  expect(m.set).toHaveBeenCalledWith({ target: 'company', companyId: 'company-qa', walletId: 'wallet-2', code: undefined });
+  expect(m.set).toHaveBeenCalledWith({ target: 'company', companyId: 'company-qa', walletId: 'wallet-2', expectedWalletId: 'wallet-1', code: undefined });
 });
 it('blocks double submission while the action is pending', async () => {
   let resolve!: (value: { success: string }) => void;

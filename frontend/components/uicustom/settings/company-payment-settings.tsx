@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useEffect, useState, useTransition, useCallback, useId } from 'react';
+import { useEffect, useState, useTransition, useCallback, useId, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,19 +24,11 @@ import {
 
 interface CompanyPaymentSettingsProps {
   companyId: string;
-  /** Wallets already loaded from the company API (WalletDto-like) */
-  wallets?: Array<{
-    id: string;
-    label: string;
-    address: string;
-    isDefault: boolean;
-    verifiedAt: string | null;
-  }>;
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPaymentSettingsProps) {
+export function CompanyPaymentSettings({ companyId }: CompanyPaymentSettingsProps) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<SellerPaymentStatus | null>(null);
   const [paypalInput, setPaypalInput] = useState('');
@@ -44,26 +36,33 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const emailId = useId();
+  const requestSequence = useRef(0), emailEdited = useRef(false);
 
   // ── Fetch current status ──────────────────────────────────────────────────
 
   const fetchStatus = useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     setIsLoadingStatus(true);
     setLoadError(null);
     try {
-      const res = await getSellerPaymentStatus({ target: 'company', companyId });
+      const res = await Promise.race([getSellerPaymentStatus({ target: 'company', companyId }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 12_000); })]);
+      if (sequence !== requestSequence.current) return false;
       if ('data' in res) {
         setStatus(res.data);
-        setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
+        if (!emailEdited.current) setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
+        return true;
       } else setLoadError(res.error);
-    } catch { setLoadError('Payment settings could not load. Try again.'); }
-    finally { setIsLoadingStatus(false); }
+    } catch { if (sequence === requestSequence.current) setLoadError('Payment settings could not load. Try again.'); }
+    finally { if (timer) clearTimeout(timer); if (sequence === requestSequence.current) setIsLoadingStatus(false); }
+    return false;
   }, [companyId]);
 
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      void fetchStatus();
-    });
+    const sequence = requestSequence; // Request counter, not a DOM ref.
+    void fetchStatus();
+    return () => { sequence.current++; };
   }, [fetchStatus]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -78,6 +77,7 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
         setSaveError(res.error);
       } else {
         toast.success(res.success);
+        emailEdited.current = false;
         await fetchStatus();
       }
       } catch { setSaveError('Your change could not be saved. Please try again.'); }
@@ -94,6 +94,7 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
         setSaveError(res.error);
       } else {
         toast.success(res.success);
+        emailEdited.current = false;
         setPaypalInput('');
         await fetchStatus();
       }
@@ -163,20 +164,20 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
               type="email"
               placeholder="company-paypal@email.com"
               value={paypalInput}
-              onChange={(e) => setPaypalInput(e.target.value)}
+              onChange={(e) => { emailEdited.current = true; setPaypalInput(e.target.value); }}
               className="min-h-11 pl-10 text-base"
-              disabled={isPending}
+              disabled={isPending || isLoadingStatus}
             />
           </div>
           <Button
             type="submit"
-            disabled={isPending || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
+            disabled={isPending || isLoadingStatus || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
             className="min-h-11"
           >
             {isPending ? 'Sending…' : status?.pendingPaypalEmail ? 'Resend verification' : 'Send verification'}
           </Button>
           {(status?.paypalEmail || status?.pendingPaypalEmail) && (
-            <Button type="button" variant="destructive" className="min-h-11 min-w-11" aria-label="Remove company PayPal receiving email" onClick={handleRemovePaypal} disabled={isPending}>
+            <Button type="button" variant="destructive" className="min-h-11 min-w-11" aria-label="Remove company PayPal receiving email" onClick={handleRemovePaypal} disabled={isPending || isLoadingStatus}>
               <FiTrash2 aria-hidden="true" className="h-4 w-4" />
             </Button>
           )}
@@ -184,10 +185,11 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
         {saveError && <p role="alert" className="mt-2 text-sm text-destructive">{saveError}</p>}
       </div>
 
-      <PayoutWalletPicker key={companyId} target={{ target: 'company', companyId }}
-        wallets={wallets} selectedId={status?.defaultReceivingWalletId ?? null}
+      <PayoutWalletPicker key={`${companyId}:${status?.defaultReceivingWalletId}:${status?.walletChangesAllowed}`} target={{ target: 'company', companyId }}
+        wallets={status?.receivingWallets ?? []} selectedId={status?.defaultReceivingWalletId ?? null}
         selectedAddress={status?.defaultReceivingWalletAddress ?? null}
-        disabled={isPending} onChanged={fetchStatus} />
+        loading={isLoadingStatus} web3Disabled={status?.walletChangesAllowed === false}
+        disabled={isPending} onChanged={async () => { if (!await fetchStatus()) throw new Error('Refresh failed'); }} />
     </div>
   );
 }

@@ -20,9 +20,9 @@ describe.skipIf(process.env.TEST_PAYPAL_EMAIL_DATABASE !== '1')('atomic PayPal r
     admin = new Client({ connectionString: url.toString() }); await admin.connect();
     if (!/^qa_paypal_email_[a-f0-9]{32}$/.test(schema)) throw new Error('Invalid disposable schema');
     await admin.query(`CREATE SCHEMA "${schema}"`); await admin.query(`SET search_path TO "${schema}"`);
-    await admin.query(`CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "paypalEmail" TEXT, "paypalEmailVerifiedAt" TIMESTAMP(3), "defaultReceivingWalletId" TEXT, "updatedAt" TIMESTAMP(3));
+    await admin.query(`CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "paypalEmail" TEXT, "paypalEmailVerifiedAt" TIMESTAMP(3), "defaultReceivingWalletId" TEXT, "updatedAt" TIMESTAMP(3), "web3ModeEnabled" BOOLEAN DEFAULT TRUE);
       CREATE TABLE "Company" ("id" TEXT PRIMARY KEY, "ownerId" TEXT, "paypalEmail" TEXT, "paypalEmailVerifiedAt" TIMESTAMP(3), "defaultReceivingWalletId" TEXT, "updatedAt" TIMESTAMP(3));
-      CREATE TABLE "Wallet" ("id" TEXT PRIMARY KEY, "address" TEXT);
+      CREATE TABLE "Wallet" ("id" TEXT PRIMARY KEY, "address" TEXT, "label" TEXT, "family" TEXT, "verifiedAt" TIMESTAMP(3), "ownerUserId" TEXT, "ownerCompanyId" TEXT);
       CREATE TABLE "PaypalVerificationToken" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL, "token" TEXT UNIQUE NOT NULL,
         "entityType" TEXT NOT NULL, "entityId" TEXT NOT NULL, "expires" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) DEFAULT now(), "updatedAt" TIMESTAMP(3), UNIQUE("entityType","entityId"));`);
     url.searchParams.set('options', `-c search_path=${schema}`);
@@ -41,6 +41,36 @@ describe.skipIf(process.env.TEST_PAYPAL_EMAIL_DATABASE !== '1')('atomic PayPal r
     await admin.query(`TRUNCATE "PaypalVerificationToken","Company","Wallet","User";
       INSERT INTO "User" ("id","paypalEmail","paypalEmailVerifiedAt") VALUES ('qa-owner','old@example.test',now()),('qa-other',null,null),('demo_fixture',null,null);`);
     await admin.query('INSERT INTO "Company" ("id","ownerId","paypalEmail","paypalEmailVerifiedAt") VALUES ($1,$2,$3,now())', [companyId, 'qa-owner', 'old@example.test']);
+  });
+  const seedChoices = async () => {
+    for (const [id, ownerUserId, ownerCompanyId, verified, family] of [
+      ['personal','qa-owner',null,true,'SOLANA'], ['company',null,companyId,true,'EVM'],
+      ['foreign-user','qa-other',null,true,'EVM'], ['foreign-company',null,'another-company',true,'EVM'],
+      ['unverified','qa-owner',null,false,'EVM'], ['ambiguous','qa-owner',companyId,true,'EVM'],
+    ] as const) await admin.query('INSERT INTO "Wallet" ("id","label","address","family","ownerUserId","ownerCompanyId","verifiedAt") VALUES ($1,$1,$1,$2,$3,$4,$5)', [id,family,ownerUserId,ownerCompanyId,verified ? new Date() : null]);
+  };
+  const companyIdentity = { target: 'company' as const, companyId, userId: 'qa-owner', origin: '' };
+  it('company choices include only current-owner personal and company-owned verified wallets', async () => {
+    await seedChoices();
+    const result = await readPaypalPaymentStatus(companyIdentity);
+    expect(result.walletChangesAllowed).toBe(true);
+    expect(result.receivingWallets.map(w => [w.id,w.scope,w.family])).toEqual([['company','company','EVM'],['personal','personal','SOLANA']]);
+    expect(result.receivingWallets.every(w => typeof w.verifiedAt === 'string')).toBe(true);
+    const personal = await readPaypalPaymentStatus({ target: 'user', userId: 'qa-owner', origin: '' });
+    expect(personal.receivingWallets.map(w => w.id)).toEqual(['personal']);
+  });
+  it('Web3 off preserves the displayed destination but disables all new choices', async () => {
+    await seedChoices();
+    await admin.query('UPDATE "Company" SET "defaultReceivingWalletId"=$1 WHERE "id"=$2',['company',companyId]);
+    await admin.query('UPDATE "User" SET "web3ModeEnabled"=FALSE WHERE "id"=$1',['qa-owner']);
+    expect(await readPaypalPaymentStatus(companyIdentity)).toMatchObject({ walletChangesAllowed: false, receivingWallets: [], defaultReceivingWalletId: 'company', defaultReceivingWalletAddress: 'company' });
+  });
+  it('company ownership transfer removes access and previous-owner personal choices', async () => {
+    await seedChoices();
+    await admin.query('UPDATE "Company" SET "ownerId"=$1 WHERE "id"=$2',['qa-other',companyId]);
+    await expect(readPaypalPaymentStatus(companyIdentity)).rejects.toThrow('current company owner');
+    const result = await readPaypalPaymentStatus({ ...companyIdentity, userId: 'qa-other' });
+    expect(result.receivingWallets.map(w => w.id)).toEqual(['company','foreign-user']);
   });
   for (const target of [{ target: 'user' }, { target: 'company', companyId }] as PaypalEmailTarget[]) {
     const identity = { ...target, userId: 'qa-owner', origin: 'http://localhost:3000' };

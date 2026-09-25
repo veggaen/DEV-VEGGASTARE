@@ -348,14 +348,26 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     expect((await db.wallet.findUnique({ where: { id: 'qa-other-wallet' } }))?.isDefault).toBe(true);
     expect(await db.wallet.count({ where: { isDefault: true } })).toBe(2);
   });
-  const payout = (overrides: Partial<Parameters<typeof changePayoutWallet>[0]> = {}) => changePayoutWallet({ userId: input.userId, origin: input.origin, target: 'user', action: 'set', walletId: 'qa-second', ...overrides } as Parameters<typeof changePayoutWallet>[0]);
+  const payout = (overrides: Partial<Parameters<typeof changePayoutWallet>[0]> = {}) => changePayoutWallet({ userId: input.userId, origin: input.origin, target: 'user', action: 'set', walletId: 'qa-second', expectedWalletId: overrides.target === 'company' ? null : 'qa-first', ...overrides } as Parameters<typeof changePayoutWallet>[0]);
   const companyDestination = () => db.company.findUnique({ where: { id: 'qa-company' }, select: { defaultReceivingWalletId: true } });
+  it.each(['user','company'] as const)('rejects stale %s selection before changing defaults or issuing approval', async target => {
+    await seedWallets();
+    if (target === 'company') await admin.query(`INSERT INTO "Company" ("id","ownerId","defaultReceivingWalletId") VALUES ('qa-company','qa-owner','qa-first')`);
+    const stale = target === 'company' ? { target: 'company' as const, companyId: 'qa-company', expectedWalletId: null } : { target: 'user' as const, expectedWalletId: null };
+    await expect(payout(stale)).rejects.toThrow('changed');
+    expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
+    if (target === 'company') expect((await companyDestination())?.defaultReceivingWalletId).toBe('qa-first');
+    expect(await db.twoFactorToken.count()).toBe(0);
+    expect((await db.wallet.findUnique({ where: { id: 'qa-second' } }))?.isDefault).toBe(false);
+  });
   it('keeps wallet-list and seller choices consistent across families and concurrent requests', async () => {
     await seedWallets();
     await db.wallet.update({ where: { id: 'qa-first' }, data: { family: 'SOLANA' } });
     await change('setPrimary');
     expect(await db.wallet.count({ where: { isDefault: true } })).toBe(1);
-    await Promise.all([payout({ walletId: 'qa-first' }), change('setPrimary'), payout()]);
+    const results = await Promise.allSettled([payout({ walletId: 'qa-first', expectedWalletId: 'qa-second' }), change('setPrimary'), payout({ expectedWalletId: 'qa-second' })]);
+    expect(results.some(result => result.status === 'fulfilled')).toBe(true);
+    for (const result of results) if (result.status === 'rejected') expect(result.reason.message).toContain('changed');
     const defaults = await db.wallet.findMany({ where: { isDefault: true } });
     expect(defaults).toHaveLength(1); expect((await destination())?.defaultReceivingWalletId).toBe(defaults[0].id);
   });
@@ -382,7 +394,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
       await expect(payout({ code: gate.code, ...overrides })).rejects.toThrow('Incorrect code');
     }
     await db.user.update({ where: { id: input.userId }, data: { defaultReceivingWalletId: null }, select: { id: true } });
-    await expect(payout({ code: gate.code })).rejects.toThrow('Incorrect code');
+    await expect(payout({ code: gate.code })).rejects.toThrow('changed');
     await db.user.update({ where: { id: input.userId }, data: { defaultReceivingWalletId: 'qa-first' }, select: { id: true } });
     const results = await Promise.allSettled([payout({ code: gate.code }), payout({ code: gate.code })]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1); expect(await db.twoFactorToken.count()).toBe(0);
@@ -407,7 +419,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
     expect((await db.wallet.findUnique({ where: { id: 'qa-second' } }))?.isDefault).toBe(false);
     await db.wallet.create({ data: { id: 'qa-company-wallet', label: 'Company', family: 'EVM', address: '0x' + '9'.repeat(40), ownerCompanyId: 'qa-company', verifiedAt: new Date() } });
-    await payout({ ...target, walletId: 'qa-company-wallet' });
+    await payout({ ...target, walletId: 'qa-company-wallet', expectedWalletId: 'qa-second' });
     expect((await db.wallet.findUnique({ where: { id: 'qa-company-wallet' } }))?.isDefault).toBe(true);
     await payout({ ...target, action: 'clear', expectedWalletId: 'qa-company-wallet' });
     expect((await companyDestination())?.defaultReceivingWalletId).toBeNull();

@@ -12,13 +12,13 @@ const invalidLink = () => new PaypalEmailError('Verification failed or expired. 
 async function lockTarget(tx: Prisma.TransactionClient, input: Identity) {
   // Match the payout lock order. Ownership and the write share this lock.
   await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${input.userId} FOR UPDATE`;
-  const user = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true, paypalEmail: true, paypalEmailVerifiedAt: true } });
+  const user = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true, paypalEmail: true, paypalEmailVerifiedAt: true, web3ModeEnabled: true } });
   if (!user || isDemoUserId(input.userId)) throw new PaypalEmailError('Sign in to your own account to change payment settings.');
-  if (input.target === 'user') return { id: user.id, email: user.paypalEmail };
+  if (input.target === 'user') return { id: user.id, email: user.paypalEmail, walletChangesAllowed: user.web3ModeEnabled };
   await tx.$queryRaw`SELECT "id" FROM "Company" WHERE "id" = ${input.companyId} FOR UPDATE`;
   const company = await tx.company.findUnique({ where: { id: input.companyId }, select: { ownerId: true, paypalEmail: true } });
   if (!company || company.ownerId !== user.id) throw new PaypalEmailError('Only the current company owner can manage payment settings.');
-  return { id: input.companyId, email: company.paypalEmail };
+  return { id: input.companyId, email: company.paypalEmail, walletChangesAllowed: user.web3ModeEnabled };
 }
 
 function digest(input: Identity, current: string | null, email: string, token: string) {
@@ -90,11 +90,23 @@ export async function readPaypalPaymentStatus(input: Identity) {
       ? await tx.company.findUniqueOrThrow({ where: { id: current.id }, select })
       : await tx.user.findUniqueOrThrow({ where: { id: current.id }, select });
     const pending = await tx.paypalVerificationToken.findUnique({ where: { entityType_entityId: { entityType: input.target, entityId: current.id } } });
+    const wallets = current.walletChangesAllowed ? await tx.wallet.findMany({
+      where: { verifiedAt: { not: null }, OR: [
+        { ownerUserId: input.userId, ownerCompanyId: null },
+        ...(input.target === 'company' ? [{ ownerCompanyId: input.companyId, ownerUserId: null }] : []),
+      ] },
+      select: { id: true, label: true, address: true, family: true, verifiedAt: true, ownerCompanyId: true },
+      orderBy: [{ label: 'asc' }, { id: 'asc' }],
+    }) : [];
     return {
       paypalEmail: row.paypalEmail, paypalEmailVerified: !!row.paypalEmailVerifiedAt,
       pendingPaypalEmail: pending && pending.expires.getTime() > Date.now() ? pending.email : null,
       defaultReceivingWalletId: row.defaultReceivingWalletId,
       defaultReceivingWalletAddress: row.defaultReceivingWallet?.address ?? null,
+      walletChangesAllowed: current.walletChangesAllowed,
+      receivingWallets: wallets.map(wallet => ({ id: wallet.id, label: wallet.label, address: wallet.address,
+        family: wallet.family, verifiedAt: wallet.verifiedAt!.toISOString(),
+        scope: wallet.ownerCompanyId ? 'company' as const : 'personal' as const })),
     };
   });
 }

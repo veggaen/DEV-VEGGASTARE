@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { setDefaultReceivingWallet, removeDefaultReceivingWallet } from '@/actions/seller-payment';
 import type { PayoutChoice, PayoutTarget } from '@/lib/payout-wallet';
 
-type Wallet = { id: string; label: string; address: string; verifiedAt: string | null };
+type Wallet = { id: string; label: string; address: string; verifiedAt: string | null; family?: string; scope?: 'personal' | 'company' };
 type Props = {
   target: PayoutTarget; wallets: Wallet[]; selectedId: string | null; selectedAddress: string | null;
   loading?: boolean; disabled?: boolean; onChanged: () => Promise<void>;
   loadError?: boolean; onRetry?: () => void;
+  web3Disabled?: boolean;
 };
-export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddress, loading, disabled, onChanged, loadError, onRetry }: Props) {
+export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddress, loading, disabled, onChanged, loadError, onRetry, web3Disabled }: Props) {
   const [pending, setPending] = useState<PayoutChoice | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [code, setCode] = useState('');
@@ -25,12 +26,12 @@ export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddres
   const inputId = useId();
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const run = async (choice: PayoutChoice, approvalCode?: string) => {
-    if (active.current || disabled || uncertain) return;
+    if (active.current || disabled || uncertain || web3Disabled || loading || loadError) return;
     active.current = true; setBusy(true); setError(null); setMessage('');
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const request = choice.action === 'set'
-        ? setDefaultReceivingWallet({ ...target, walletId: choice.walletId, code: approvalCode })
+        ? setDefaultReceivingWallet({ ...target, walletId: choice.walletId, expectedWalletId: choice.expectedWalletId, code: approvalCode })
         : removeDefaultReceivingWallet({ ...target, expectedWalletId: choice.expectedWalletId, code: approvalCode });
       const result = await Promise.race([request, new Promise<never>((_, reject) => {
         timeout = setTimeout(() => reject(new Error('timeout')), 20_000);
@@ -43,7 +44,7 @@ export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddres
     } catch { if (mounted.current) { setUncertain(true); setError('We could not confirm the change. Refresh payment settings before trying again.'); } }
     finally { if (timeout) clearTimeout(timeout); active.current = false; if (mounted.current) setBusy(false); }
   };
-  const blocked = !!disabled || busy || !!pending || confirmClear || uncertain || !!loadError;
+  const blocked = !!disabled || busy || !!pending || confirmClear || uncertain || !!loadError || !!loading || !!web3Disabled;
   const verified = wallets.filter(wallet => wallet.verifiedAt);
   return <section aria-label="Receiving wallet" className="min-w-0 space-y-3 rounded-xl border border-border p-4">
     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -53,14 +54,17 @@ export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddres
       </div>
       {selectedId && <Button variant="outline" className="min-h-11" disabled={blocked} onClick={() => { setConfirmClear(true); setError(null); setMessage(''); }}>Clear selection</Button>}
     </div>
-    {loading ? <p role="status" className="text-sm text-muted-foreground">Loading verified wallets…</p>
+    {web3Disabled ? <p className="text-sm text-muted-foreground"><Link href="/settings?section=wallet" className="underline underline-offset-4">Enable Web3 mode</Link> to change the receiving wallet.</p>
+      : loading ? <p role="status" className="text-sm text-muted-foreground">Loading verified wallets…</p>
       : loadError ? <div className="space-y-2"><p role="alert" className="text-sm text-destructive">Verified wallets could not load.</p><Button variant="outline" className="min-h-11" onClick={onRetry}>Retry wallets</Button></div>
       : verified.length ? <div className="grid gap-2">
         {verified.map(wallet => <button key={wallet.id} type="button" aria-label={`Use ${wallet.label} for receiving payments`}
           aria-pressed={wallet.id === selectedId} disabled={blocked || wallet.id === selectedId}
-          onClick={() => void run({ action: 'set', walletId: wallet.id })}
+          onClick={() => void run({ action: 'set', walletId: wallet.id, expectedWalletId: selectedId })}
           className={`flex min-h-11 min-w-0 items-center gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${wallet.id === selectedId ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border hover:bg-muted/60'} disabled:cursor-default`}>
-          <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{wallet.label}</span><span className="block break-all font-mono text-xs text-muted-foreground">{wallet.address}</span></span>
+          <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{wallet.label}</span>
+            {wallet.scope && <span className="block text-xs text-muted-foreground">{wallet.scope === 'company' ? 'Company wallet' : 'Your wallet'}{wallet.family ? ` · ${wallet.family}` : ''}</span>}
+            <span className="block break-all font-mono text-xs text-muted-foreground">{wallet.address}</span></span>
           {wallet.id === selectedId && <span className="shrink-0 text-xs font-medium text-emerald-700 dark:text-emerald-300">Selected</span>}
         </button>)}
       </div> : <p className="text-sm text-muted-foreground">No verified wallets available. <Link href="/settings?section=wallet" className="underline underline-offset-4">Connect and verify a wallet</Link>.</p>}
