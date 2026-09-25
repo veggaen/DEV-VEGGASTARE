@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const m = vi.hoisted(() => ({ auth: vi.fn(), rate: vi.fn(), reads: vi.fn(), writes: vi.fn(), actor: vi.fn(), list: vi.fn(), count: vi.fn(), get: vi.fn(), update: vi.fn(), audit: vi.fn(), raw: vi.fn(), transaction: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), rate: vi.fn(), reads: vi.fn(), writes: vi.fn(), actor: vi.fn(), list: vi.fn(), count: vi.fn(), get: vi.fn(), update: vi.fn(), audit: vi.fn(), raw: vi.fn(), transaction: vi.fn(), checkoutCounts: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/user-auth', () => ({ MyLibUserAuth: m.auth }));
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: m.rate }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: m.writes, allowAdminDetailRead: m.reads }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { $transaction: m.transaction } }));
+vi.mock('./company-checkout-counts', () => ({ companyCheckoutCounts: m.checkoutCounts }));
 import { adminCompanies, adminCompanyDetail } from './admin-company';
 import { adminCompanyPatchSchema } from './admin-company-policy';
 const time = '2026-01-01T00:00:00.000Z';
@@ -16,6 +17,7 @@ beforeEach(() => {
   vi.resetAllMocks(); m.auth.mockResolvedValue({ id: 'actor', role: 'ADMIN', sessionVersion: 3 }); m.actor.mockResolvedValue({ id: 'actor', role: 'ADMIN', tokenVersion: 3 });
   m.rate.mockResolvedValue({ success: true, resetIn: 12 }); m.reads.mockResolvedValue(true); m.writes.mockResolvedValue(true);
   m.list.mockResolvedValue([]); m.count.mockResolvedValue(31); m.get.mockResolvedValue(row); m.update.mockResolvedValue({ ...row, name: 'Updated' }); m.audit.mockResolvedValue({ id: 'audit' });
+  m.checkoutCounts.mockResolvedValue(new Map([['company', { livePaid: 2, liveAdjusted: 1, liveReview: 0, sandbox: 5 }]]));
   m.transaction.mockImplementation(async (run: (tx: unknown) => unknown) => run({ user: { findUnique: m.actor }, company: { findMany: m.list, count: m.count, findUnique: m.get, update: m.update }, adminAuditLog: { create: m.audit }, $queryRaw: m.raw }));
 });
 describe('company administration boundary', () => {
@@ -57,9 +59,24 @@ describe('company administration boundary', () => {
     expect((await adminCompanyDetail(request('DELETE'), 'company', 'DELETE')).status).toBe(409); expect(m.update).not.toHaveBeenCalled(); expect(m.audit).not.toHaveBeenCalled();
   });
   it('returns a bounded detail and mandatory VIEW audit without payout or verification-token data', async () => {
-    expect((await adminCompanyDetail(request(), 'company', 'GET')).status).toBe(200);
+    const response = await adminCompanyDetail(request(), 'company', 'GET'); expect(response.status).toBe(200);
+    expect((await response.json()).company.checkoutCounts).toEqual({ livePaid: 2, liveAdjusted: 1, liveReview: 0, sandbox: 5 });
     const select = m.get.mock.calls[0][0].select; expect(select.orgVerification.select).toEqual({ status: true, verifiedAt: true }); expect(select).not.toHaveProperty('paypalEmail'); expect(select).not.toHaveProperty('Employee');
     expect(m.audit.mock.calls[0][0].data).toMatchObject({ adminId: 'actor', action: 'VIEW', targetType: 'COMPANY', targetId: 'company' });
+    expect(m.transaction.mock.calls[0][1].isolationLevel).toBe('RepeatableRead');
+  });
+  it('loads checkout counts only for the visible page in the same transaction', async () => {
+    m.list.mockResolvedValue([row]); const response = await list();
+    expect((await response.json()).companies[0].checkoutCounts.livePaid).toBe(2);
+    expect(m.checkoutCounts).toHaveBeenCalledTimes(1); expect(m.checkoutCounts.mock.calls[0][1]).toEqual(['company']);
+    expect(m.checkoutCounts.mock.calls[0][0].company.findMany).toBe(m.list);
+  });
+  it('does not substitute zero when checkout reporting fails', async () => {
+    m.checkoutCounts.mockRejectedValue(new Error('private-reporting-failure'));
+    for (const response of [await list(), await adminCompanyDetail(request(), 'company', 'GET')]) {
+      expect(response.status).toBe(503); expect(await response.text()).not.toContain('private-reporting-failure');
+    }
+    expect(m.audit).not.toHaveBeenCalled();
   });
 });
 describe('audited company edits', () => {

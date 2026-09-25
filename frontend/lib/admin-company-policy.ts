@@ -22,10 +22,12 @@ export const adminCompanyQuerySchema = z.object({
   sortBy: z.enum(['createdAt', 'name']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 }).strict();
+export type CompanyCheckoutCounts = { livePaid: number; liveAdjusted: number; liveReview: number; sandbox: number };
 export interface AdminCompany {
   id: string; name: string; orgNumber: string | null; orgType: string | null; createdAt: string;
   User_Company_ownerIdToUser: { id: string; name: string | null };
   _count: { Employee: number; Product: number; Sale: number; WarehouseLocation?: number };
+  checkoutCounts: CompanyCheckoutCounts;
 }
 export interface AdminCompanyDetail extends AdminCompany {
   description: string | null; websiteUrl: string | null; logo: string[]; bannerImage: string[];

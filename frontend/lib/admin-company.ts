@@ -7,6 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { allowAuthAttempt, allowAdminDetailRead } from '@/lib/auth-rate-limit';
 import { adminCompanyFields, adminCompanyPatchSchema, adminCompanyQuerySchema } from './admin-company-policy';
 import type { Prisma } from '@/generated/prisma/client';
+import { companyCheckoutCounts } from './company-checkout-counts';
 
 class CompanyError extends Error {
   constructor(message: string, public status: number, public fields?: Record<string, string>) { super(message); }
@@ -61,7 +62,8 @@ export async function adminCompanies(request: Request) {
       await verifyActor(tx, actor);
       const companies = await tx.company.findMany({ where, select: summarySelect, orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }], skip: (page - 1) * limit, take: limit });
       const total = await tx.company.count({ where });
-      return reply({ companies, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+      const counts = await companyCheckoutCounts(tx, companies.map(company => company.id));
+      return reply({ companies: companies.map(company => ({ ...company, checkoutCounts: counts.get(company.id)! })), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
     }, { isolationLevel: 'RepeatableRead', timeout: 10_000, maxWait: 5000 });
   } catch (error) { return failure(error); }
 }
@@ -102,8 +104,9 @@ export async function adminCompanyDetail(request: Request, companyId: string, me
       const current = await tx.company.findUnique({ where: { id: companyId }, select: input ? editSelect : detailSelect });
       if (!current) fail('Company not found.', 404);
       if (!input) {
+        const counts = await companyCheckoutCounts(tx, [companyId]);
         await tx.adminAuditLog.create({ data: { adminId: actor.id, action: 'VIEW', targetType: 'COMPANY', targetId: companyId }, select: { id: true } });
-        return reply({ company: current });
+        return reply({ company: { ...current, checkoutCounts: counts.get(companyId)! } });
       }
       if (current!.updatedAt.toISOString() !== input.expectedUpdatedAt) fail('This company changed elsewhere. Your draft is kept; reload the saved company before editing again.', 409);
       const data: Record<string, string | string[] | boolean | null> = {}, previous: Record<string, string | string[] | boolean | null> = {};
@@ -114,6 +117,6 @@ export async function adminCompanyDetail(request: Request, companyId: string, me
       const company = await tx.company.update({ where: { id: companyId }, data: { ...data, updatedAt: new Date(Math.max(Date.now(), current!.updatedAt.getTime() + 1)) }, select: editSelect });
       await tx.adminAuditLog.create({ data: { adminId: actor.id, action: 'EDIT', targetType: 'COMPANY', targetId: companyId, previousData: previous, newData: data, reason: input.reason }, select: { id: true } });
       return reply({ company, message: 'Company changes saved.' });
-    }, { timeout: 10_000, maxWait: 5000 });
+    }, { isolationLevel: input ? 'ReadCommitted' : 'RepeatableRead', timeout: 10_000, maxWait: 5000 });
   } catch (error) { return failure(error); }
 }

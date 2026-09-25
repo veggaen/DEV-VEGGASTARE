@@ -36,6 +36,7 @@ test('S8 company admin directory, edit and recovery fit all screens', async ({ b
   page.on('pageerror', error => errors.push(error.message));
   let listFailure = false, saveStatus = 200, denied = false, sessionRevoked = false;
   let company = { id:'qa-company', name:'Example Company', description:'Digital products and thoughtful design.', websiteUrl:'https://example.test', logo:[], bannerImage:[], colorScheme:null, usesShipping:false, orgNumber:'123456789',orgType:'AS',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',employmentNoticeDays:14, orgVerification:{status:'VERIFIED',verifiedAt:'2026-01-01T00:00:00Z'},User_Company_ownerIdToUser:{id:'qa-company-owner',name:'Example owner'},User_Company_creatorIdToUser:{id:'qa-company-owner',name:'Example owner'},_count:{Employee:3,Product:5,Sale:7,WarehouseLocation:1}};
+  company = Object.assign(company, { checkoutCounts: { livePaid: 2, liveAdjusted: 1, liveReview: 3, sandbox: 9 } });
   await page.route('**/api/admin/stats', route => route.fulfill({status:503,json:{error:'QA unavailable'}}));
   await page.route('**/api/auth/session', route => route.fulfill({json:sessionRevoked?session:{...session,user:{...session.user,id:'qa-company-owner',role:'OWNER',isDemo:false}}}));
   await page.route('**/api/admin/companies?**', async route => {
@@ -85,6 +86,12 @@ test('S8 company admin directory, edit and recovery fit all screens', async ({ b
     }
     await page.setViewportSize({width:390,height:844}); await details().click();
     const detail=page.getByRole('region',{name:'Company details',exact:true}); await expect(detail.getByRole('heading',{name:'Example Company',exact:true})).toBeVisible();
+    const activity=detail.getByRole('region',{name:'Checkout activity',exact:true});
+    for(const [label,value] of [['Live paid orders','2'],['Live refunded / reversed','1'],['Live payment review','3'],['Sandbox captures','9']]) {
+      await expect(activity.locator('dl > div').filter({has:page.getByText(label,{exact:true})}).locator('dd')).toHaveText(value);
+    }
+    await activity.getByText('How orders are counted',{exact:true}).click(); await expect(activity.getByText('Legacy sales records: 7 (separate from checkout).',{exact:true})).toBeVisible();
+    await expect(activity.getByText(/not revenue or historical seller attribution/)).toBeVisible();
     await expect(detail.getByRole('link',{name:'Public storefront',exact:false})).toHaveAttribute('href','/company/qa-company');
     await detail.getByRole('link',{name:'Edit company',exact:true}).click();
     const form=page.getByRole('form',{name:'Edit company',exact:true}), name=form.getByRole('textbox',{name:'Company name',exact:true});
