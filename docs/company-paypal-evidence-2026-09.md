@@ -85,6 +85,8 @@ and the viewport is reset. No console errors observed. Existing owner wallet lin
 remain present; no company email, wallet or payment mutation was submitted.
 
 Real owner delivery/confirmation requires an intentional address request; no
-unsolicited verification email was sent during QA. Company wallet selection still
-needs a separate pass for eligible personal-wallet choices and genuine extension
-acceptance. Whole-app S1–S9 completion is not claimed by this scoped result.
+unsolicited verification email was sent during QA. Eligible company/personal
+wallet choices and stale selection protection are now deployed and verified in
+[the company wallet follow-up](company-wallet-evidence-2026-09.md). Genuine
+extension acceptance remains separate. Whole-app S1–S9 completion is not claimed
+by this scoped result.

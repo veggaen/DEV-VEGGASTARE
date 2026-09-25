@@ -4,6 +4,18 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company receiving wallets: **DONE for the scoped implementation/deployment;
+genuine extension/crypto-payment acceptance remains PARTIAL**. Runtime `e5feb4c`
+is promoted as `dpl_4R6K4gm5vduADBLBH8tx4uJgETrC`. Verified company and current-owner
+personal choices are returned by an owner-checked read; stale personal/company
+setters fail before issuing approval or writing a destination. Web3-off states,
+bounded loading, retry and unsaved email drafts are covered. 76 focused units,
+110 isolated PostgreSQL checks, strict builds and local/Preview/Live Playwright
+5/5 each pass, zero retries/skips. Real Chrome shows the retained live owner's
+two eligible personal wallets without selecting either; phone/footer and
+landscape drawer scrolling pass. No real email, wallet or payment changed.
+See [company wallet evidence](company-wallet-evidence-2026-09.md).
+
 Company PayPal settings: **DONE for the scoped implementation/deployment; real
 inbox-confirmation acceptance remains PARTIAL**. Runtime `2b1c540` is promoted as
 `dpl_D3pZ51WDfYmCamiWW2e8QNKjPic3`.
@@ -26,7 +38,8 @@ pages. 48 focused units, 37 rolled-back PostgreSQL checks, strict builds and loc
 confirms non-member denial and retained live owner access; Live health passes.
 The subsequent company PayPal release above resolves the permanent 26-character
 company ID rejection, atomic email-verification gap and oversized settings layout.
-Genuine inbox confirmation and company personal-wallet choices remain separate.
+Genuine inbox confirmation remains separate; company personal-wallet choices
+are now covered by the receiving-wallet release above.
 See [company access evidence](company-access-evidence-2026-09.md).
 
 Combined wallet release: **DONE for deployment and scoped acceptance; S6 remains
@@ -60,7 +73,7 @@ in a **12/12** focused browser run; final compact-UI follow-up recorded in
 the signed-in owner session with no wallet changes. Web3 enable/disable alignment
 is now verified and deployed (above); genuine extension acceptance remains.
 
-Receiving-wallet settings: **PARTIAL — deployed; company-page acceptance pending**.
+Receiving-wallet settings: **PARTIAL — deployed; genuine extension acceptance pending**.
 Personal/company setters now share ownership locks, host/action/current-choice
 codes, atomic destination writes and explicit clear confirmation. Wallet list and
 seller defaults stay consistent across families; company choices cannot alter a
@@ -69,7 +82,8 @@ Final **138 focused checks (49 isolated PostgreSQL)**, strict build, touched lin
 and local browser **10/10 (20.3s, no retries/skips)** pass. Eight screen sizes and
 real Chrome page/drawer/sidebar scrolling checked. No real payout/email/payment
 changes. Wallet login alignment and combined deployment now pass (above); company
-page browser acceptance remains separate. See [receiving-choice evidence](payout-choice-evidence-2026-09.md).
+page browser acceptance is covered by the newer company-wallet release above.
+See [receiving-choice evidence](payout-choice-evidence-2026-09.md).
 
 Wallet mutations: **PARTIAL — deployed; real extension acceptance pending**. Strict
 action parsing, action/host/wallet-scoped one-use codes, transactional receiving
