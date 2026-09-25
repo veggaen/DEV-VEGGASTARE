@@ -14,6 +14,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
 import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
+import EditEmployeeRoleModal from '@/components/uicustom/company/edit-employee-role-modal';
+import { canManageTeamTarget, TEAM_RANK, TEAM_ROLES, TEAM_PERMISSION_KEYS } from '@/lib/company-team-policy';
 import { FaBriefcase } from 'react-icons/fa';
 
 import { CompanyPaymentSettings } from '@/components/uicustom/settings/company-payment-settings';
@@ -253,7 +255,6 @@ const CompanySettingsClient = () => {
                         const updatedEmployees = [...prevCompany.employees, newEmployee];
                         return { ...prevCompany, employees: updatedEmployees };
                 });
-                console.log('Employee was added. Refreshing list...');
         };
 
         const sortedEmployeesRole = company.employees.slice().sort((a, b) => {
@@ -269,6 +270,9 @@ const CompanySettingsClient = () => {
         let website: string | null = null;
         try { const url = new URL(company.websiteUrl ?? ''); if (['https:', 'http:'].includes(url.protocol)) website = url.href; } catch { /* no public website */ }
         const canManageTeam = isOwner || isAdminUser;
+        const allowedRoles = TEAM_ROLES.filter(role => canManageTeam || (currentEmployee && TEAM_RANK[role] < TEAM_RANK[currentEmployee.role]));
+        const allowedPermissions = TEAM_PERMISSION_KEYS.filter(key => canManageTeam || currentUserPermissions?.[key] === true);
+        const canEditMember = (employee: CompanyDetailsResponse['employees'][number]) => canManageTeamTarget(clientUser?.id ?? '', company.ownerId, canManageTeam, currentEmployee, employee);
         const disclosure = "min-h-11 cursor-pointer rounded-md py-2 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
         return <section className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -382,6 +386,7 @@ const CompanySettingsClient = () => {
             </details>}
             <details className="rounded-xl border border-border bg-card p-4 sm:p-5">
                 <summary className={disclosure}>Team · {company.employees.length}</summary>
+                <Button variant="outline" className="mt-3 min-h-11" onClick={() => setChange(value => !value)}>Refresh team</Button>
                 <div className="grid gap-4 pt-3 md:grid-cols-2 xl:grid-cols-3">{sortedEmployeesRole.map(employee => <article key={employee.id} className="min-w-0 space-y-3 rounded-lg border border-border p-4">
                     <div className="flex min-w-0 items-center gap-3"><Image src={employee.user.image || '/users/avatar.webp'} width={40} height={40} className="size-10 shrink-0 rounded-full object-cover" alt="" />
                         <div className="min-w-0"><h2 className="break-words font-semibold">{employee.user.name || 'Team member'}</h2><p className="break-all text-sm text-muted-foreground">{employee.user.email}</p></div>
@@ -390,11 +395,12 @@ const CompanySettingsClient = () => {
                     <details><summary className={disclosure}>Permissions</summary><dl className="space-y-2 text-sm">{Object.entries(employee.permissions ?? {}).map(([key,value]) => <div key={key} className="flex items-start justify-between gap-3"><dt className="min-w-0 break-words text-muted-foreground">{tagReplacements[key]?.name || key.replaceAll('_',' ')}</dt><dd className="shrink-0 font-medium">{value === true ? 'Allowed' : 'Not allowed'}</dd></div>)}</dl></details>
                     {errorMessages[employee.userId] && <p role="alert" className="text-sm text-destructive">{errorMessages[employee.userId]}</p>}
                     <div className="flex flex-wrap gap-2">
-                        {(canManageTeam || currentUserPermissions?.CAN_EDIT_PERMISSION === true) && <EditEmployeePermissionsModal company={company} selectedEmployee={employee} setCompany={setCompany} />}
-                        {(canManageTeam || currentUserPermissions?.CAN_REMOVE_EMPLOYEE === true) && <RemoveEmployeeButton userId={employee.userId} companyId={company.id} onSuccess={handleSuccess} onError={message => updateErrorMessage(employee.userId, message)} />}
+                        {canEditMember(employee) && (canManageTeam || currentUserPermissions?.CAN_EDIT_PERMISSION === true) && <EditEmployeePermissionsModal key={'permissions-' + employee.updatedAt + change} company={company} selectedEmployee={employee} setCompany={setCompany} allowedPermissions={allowedPermissions} />}
+                        {canEditMember(employee) && (canManageTeam || currentUserPermissions?.CAN_EDIT_EMPLOYEE_ROLE === true) && <EditEmployeeRoleModal key={'role-' + employee.updatedAt + change} company={company} selectedEmployee={employee} setCompany={setCompany} allowedRoles={allowedRoles} />}
+                        {canEditMember(employee) && (canManageTeam || currentUserPermissions?.CAN_REMOVE_EMPLOYEE === true) && <RemoveEmployeeButton key={'remove-' + employee.updatedAt + change} userId={employee.userId} employeeId={employee.id} expectedUpdatedAt={employee.updatedAt} name={employee.user.name || 'This member'} companyId={company.id} onSuccess={handleSuccess} onError={message => updateErrorMessage(employee.userId, message)} />}
                     </div>
                 </article>)}</div>
-                {(canManageTeam || currentUserPermissions?.CAN_ADD_EMPLOYEE === true) && <div className="mt-5 border-t border-border pt-5"><h2 className="mb-4 text-lg font-semibold">Add an employee</h2><MyNewEmployeeForm companyId={company.id} handleNewEmployee={handleNewEmployee} change={change} setChange={setChange} /></div>}
+                {(canManageTeam || currentUserPermissions?.CAN_ADD_EMPLOYEE === true) && <div className="mt-5 border-t border-border pt-5"><h2 className="mb-4 text-lg font-semibold">Add an employee</h2><MyNewEmployeeForm key={String(change)} companyId={company.id} handleNewEmployee={handleNewEmployee} allowedRoles={allowedRoles} excludedUserIds={[company.ownerId, ...company.employees.map(member => member.userId)]} /></div>}
             </details>
             {isOwner && <details className="rounded-xl border border-border p-4 sm:p-5"><summary className={disclosure}>Delete company</summary><div className="pt-3"><DeleteCompanyBtn companyId={company.id} companyName={company.name} onCompanyDeleted={() => handleSuccess(company.id)} employeePermissions={currentUserPermissions as EmployeePermissions} /></div></details>}
             <Button asChild variant="ghost" className="min-h-11"><Link href="/companies">All companies</Link></Button>

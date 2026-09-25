@@ -1,102 +1,46 @@
 'use client';
-
-import { useState, useEffect } from 'react';
-import { EmployeeRole } from '@/generated/prisma/browser';
+import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogHeader, DialogContent, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { ExtendedCompany, ExtendedEmployee } from '@/lib/types/company-management';
-import { editEmployeeRoleAction } from '@/actions/edit-employee-role';
+import { TEAM_ROLES, teamRoleLabel } from '@/lib/company-team-policy';
+import { submitTeamChange, TeamClientError } from '@/lib/company-team-client';
 
-interface EditEmployeeRoleModalProps {
-  company: ExtendedCompany;
-  setCompany: React.Dispatch<React.SetStateAction<ExtendedCompany | null>>;
-  selectedEmployee: ExtendedEmployee;
-}
-
-const EditEmployeeRoleModal: React.FC<EditEmployeeRoleModalProps> = ({ selectedEmployee, company, setCompany }) => {
-  const [isShowing, setIsShowing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
-  const [newRole, setNewRole] = useState<EmployeeRole>('USER'); // Set a default value
-
-  useEffect(() => {
-    if (selectedEmployee) {
-      setNewRole(selectedEmployee.role as EmployeeRole);
-    }
-  }, [selectedEmployee]);
-
-  const handleOpenChange = () => {
-    setIsShowing(!isShowing);
+export default function EditEmployeeRoleModal({ selectedEmployee, company, setCompany, allowedRoles = [...TEAM_ROLES] }: {
+  company: ExtendedCompany; selectedEmployee: ExtendedEmployee; setCompany: React.Dispatch<React.SetStateAction<ExtendedCompany | null>>;
+  allowedRoles?: readonly string[];
+}) {
+  const id = useId(), lock = useRef(false);
+  const [open, setOpen] = useState(false), [pending, setPending] = useState(false), [blocked, setBlocked] = useState(false);
+  const [role, setRole] = useState(selectedEmployee.role), [error, setError] = useState('');
+  const reviewed = useRef(selectedEmployee.updatedAt);
+  const changeOpen = (value: boolean) => {
+    if (lock.current) return;
+    if (value) { setRole(selectedEmployee.role); reviewed.current = selectedEmployee.updatedAt; setError(''); }
+    setOpen(value);
   };
-
-  const handleSaveRole = async () => {
-    setIsLoading(true);
+  const save = async () => {
+    if (lock.current || blocked) return;
+    lock.current = true; setPending(true); setError('');
     try {
-      const response = await editEmployeeRoleAction({ employeeId: selectedEmployee.id, newRole, companyId: company.id });
-      if (response.success) {
-        setCompany((prevCompany) => {
-          if (!prevCompany) return null;
-          const updatedEmployees = prevCompany.employees.map((employee) =>
-            employee.id === selectedEmployee.id ? { ...employee, role: newRole } : employee
-          );
-          return { ...prevCompany, employees: updatedEmployees };
-        });
-        setSuccess(true);
-        setTimeout(() => {
-          setSuccess(false);
-          setError(null);
-        }, 5000);
-      } else {
-        setError(response.message ?? 'Unknown error');
-        setSuccess(false);
-      }
-    } catch (error) {
-      console.error('Error updating employee role:', error);
-      setError('Failed to update role');
-    } finally {
-      setIsLoading(false);
-    }
+      const row = await submitTeamChange({ kind: 'role', companyId: company.id, employeeId: selectedEmployee.id, expectedUpdatedAt: reviewed.current, newRole: role });
+      if (row) setCompany(previous => previous ? { ...previous, employees: previous.employees.map(member => member.id === row.id ? { ...row, user: { ...member.user, ...row.user } } : member) } : previous);
+      setOpen(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to save role.'); setBlocked(cause instanceof TeamClientError && cause.refreshRequired); }
+    finally { lock.current = false; setPending(false); }
   };
-
-  return (
-    <Dialog open={isShowing} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant='vegaNormalBtn' className='w-full bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700' onClick={handleOpenChange}>
-          Edit Role
-        </Button>
-      </DialogTrigger>
-      <DialogContent className='text-black dark:text-white bg-linear-to-tr dark:from-zinc-600 dark:to-zinc-800 from-blue-100 via-gray-200 to-blue-200 border-gray-700 dark:border-gray-700'>
-        <DialogHeader>
-          <DialogTitle className='flex gap-2'>
-            Edit Employee Role | <p className='text-purple-600 italic font-bold'> {selectedEmployee?.user?.name}</p>
-          </DialogTitle>
-          <DialogDescription>
-            Make changes to the employee role here. Click save when done.
-          </DialogDescription>
-        </DialogHeader>
-        <div>
-          <label htmlFor="role" className='text-black dark:text-white'>Role:</label>
-          <select id="role" value={newRole} onChange={(e) => setNewRole(e.target.value as EmployeeRole)} className='bg-gray-200 text-black dark:bg-gray-700 dark:text-white'>
-            <option value="OWNER">Owner</option>
-            <option value="MANAGER">Manager</option>
-            <option value="STAFF">Staff</option>
-            <option value="WAREHOUSE_MANAGER">Warehouse Manager</option>
-            <option value="WAREHOUSE_WORKER">Warehouse Worker</option>
-            <option value="ACCOUNTANT">Accountant</option>
-            <option value="USER">User</option>
-          </select>
-          {error && <div className='text-red-500'>{error}</div>}
-          {success && <div className='text-green-500'>Role saved successfully.</div>}
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSaveRole} disabled={isLoading} className='bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500'>
-            {isLoading ? 'Saving...' : 'Save Role'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default EditEmployeeRoleModal;
+  return <Dialog open={open} onOpenChange={changeOpen}>
+    <DialogTrigger asChild><Button variant="outline" className="min-h-11">Edit role</Button></DialogTrigger>
+    <DialogContent className="motion-reduce:animate-none! [&>button:last-child]:size-11 [&>button:last-child]:right-2 [&>button:last-child]:top-2 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-border bg-card text-card-foreground">
+      <DialogHeader><DialogTitle>Edit role</DialogTitle><DialogDescription>{selectedEmployee.user.name || 'Team member'}</DialogDescription></DialogHeader>
+      <label htmlFor={id} className="space-y-2 text-sm font-medium"><span>Role</span>
+        <select id={id} name="teamRole" value={role} onChange={event => setRole(event.target.value as typeof role)} disabled={pending || blocked} className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {!allowedRoles.includes(selectedEmployee.role) && <option value={selectedEmployee.role} disabled>{teamRoleLabel(selectedEmployee.role)}</option>}
+          {allowedRoles.map(value => <option key={value} value={value}>{teamRoleLabel(value)}</option>)}
+        </select>
+      </label>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <DialogFooter className="gap-2"><Button variant="outline" className="min-h-11" disabled={pending} onClick={() => changeOpen(false)}>Cancel</Button><Button className="min-h-11" onClick={save} disabled={pending || blocked || role === selectedEmployee.role}>{pending ? 'Saving…' : 'Save role'}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}

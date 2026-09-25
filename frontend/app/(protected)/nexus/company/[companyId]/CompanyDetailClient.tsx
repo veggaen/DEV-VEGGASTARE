@@ -14,6 +14,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd } from 'react-icons/md';
 import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
+import EditEmployeeRoleModal from '@/components/uicustom/company/edit-employee-role-modal';
+import { canManageTeamTarget, TEAM_RANK, TEAM_ROLES, TEAM_PERMISSION_KEYS } from '@/lib/company-team-policy';
 import { FaBriefcase } from 'react-icons/fa';
 import type { CompanyDetailsResponse } from '@/lib/types/company';
 
@@ -62,7 +64,6 @@ const CompanyDetails = () => {
         const [loading, setLoading] = useState(true);
         const [loadError, setLoadError] = useState<string | null>(null);
         const [errorMessages, setErrorMessages] = useState<{ [key: string]: string | null }>({});
-        const [selectedEmployee, setSelectedEmployee] = useState<CompanyDetailsResponse['employees'][number] | null>(null);
         const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
     // Optional company metadata (org type / org number / notice days)
@@ -244,9 +245,6 @@ const CompanyDetails = () => {
                 console.log('Employee was added. Refreshing list...');
         };
 
-        const handleEmployeeClick = (employee: CompanyDetailsResponse['employees'][number]) => {
-                setSelectedEmployee(employee);
-        };
 
         const sortedEmployees = company.employees.slice().sort((a, b) => {
                 return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -257,6 +255,9 @@ const CompanyDetails = () => {
         });
 
         const currentUserPermissions = currentEmployee?.permissions;
+        const canManageTeam = isOwner || isAdminUser;
+        const allowedRoles = TEAM_ROLES.filter(role => canManageTeam || (currentEmployee && TEAM_RANK[role] < TEAM_RANK[currentEmployee.role]));
+        const allowedPermissions = TEAM_PERMISSION_KEYS.filter(key => canManageTeam || currentUserPermissions?.[key] === true);
 
         const formatDate = (date: string) => {
                 return formatDistanceToNow(new Date(date), { addSuffix: true });
@@ -582,19 +583,24 @@ const CompanyDetails = () => {
                                                     {errorMessages[employee.userId] && (
                                                         <div className="text-red-500 dark:text-red-400">{errorMessages[employee.userId]}</div>
                                                     )}
-                                                    {clientUser && (
-                                                    <div className='flex gap-2 w-full' onClick={() => handleEmployeeClick(employee)}>
-                                                        <EditEmployeePermissionsModal 
+                                                    {clientUser?.id && canManageTeamTarget(clientUser.id, company.ownerId, canManageTeam, currentEmployee, employee) && (
+                                                    <div className='flex w-full flex-wrap gap-2'>
+                                                        {(canManageTeam || currentUserPermissions?.CAN_EDIT_PERMISSION === true) && <EditEmployeePermissionsModal
                                                             company={company} 
-                                                            selectedEmployee={selectedEmployee!!} 
+                                                            selectedEmployee={employee}
                                                             setCompany={setCompany} 
-                                                        />
-                                                        <RemoveEmployeeButton
+                                                            allowedPermissions={allowedPermissions}
+                                                        />}
+                                                        {(canManageTeam || currentUserPermissions?.CAN_EDIT_EMPLOYEE_ROLE === true) && <EditEmployeeRoleModal company={company} selectedEmployee={employee} setCompany={setCompany} allowedRoles={allowedRoles} />}
+                                                        {(canManageTeam || currentUserPermissions?.CAN_REMOVE_EMPLOYEE === true) && <RemoveEmployeeButton
                                                             userId={employee.userId}
+                                                            employeeId={employee.id}
+                                                            expectedUpdatedAt={employee.updatedAt}
+                                                            name={employee.user.name || 'This member'}
                                                             companyId={company.id}
                                                             onSuccess={handleSuccess}
                                                             onError={(message) => updateErrorMessage(employee.userId, message)}
-                                                        />
+                                                        />}
                                                     </div>
                                                     )}
                                                 </div>
@@ -603,14 +609,14 @@ const CompanyDetails = () => {
                                     </div>
                                 </div>
                             )}
-                            {hasInternalAccess && (
+                            {(canManageTeam || currentUserPermissions?.CAN_ADD_EMPLOYEE === true) && (
                                 <div className="border-t border-gray-200 dark:border-gray-700">
                                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>
                                     <MyNewEmployeeForm
                                         companyId={company.id}
                                         handleNewEmployee={handleNewEmployee}
-                                        change={change}
-                                        setChange={setChange}
+                                        allowedRoles={allowedRoles}
+                                        excludedUserIds={[company.ownerId, ...company.employees.map(member => member.userId)]}
                                     />
                                 </div>
                             )}

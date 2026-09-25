@@ -10,6 +10,140 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 team forms use reviewed versions, scoped roles and responsive dialogs', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; all team writes intercepted');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_TEAM_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.id).toMatch(/^demo_/);
+  const page = await context.newPage(), errors: string[] = [], writes: { path: string; body: Record<string, unknown> }[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const owner = { id: 'qa-owner', name: 'QA owner', image: null }, person = { id: 'qa-person', name: 'Alex Example', image: null };
+  const now = '2026-09-25T10:00:00.000Z'; let version = 0, failPermission = false;
+  let employees = [{ id: 'qa-member', userId: person.id, user: person, role: 'STAFF', permissions: { CAN_VIEW_TAX_REPORTS: true } as Record<string,boolean>, createdAt: now, updatedAt: now }];
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, ...owner, role: 'USER', isDemo: false } } }));
+  await page.route(`**/api/companies/${SHOWCASE_COMPANY_ID}`, route => route.fulfill({ json: {
+    id: SHOWCASE_COMPANY_ID, name: 'QA team studio', ownerId: owner.id, creatorId: owner.id, owner, creator: owner,
+    logo: [], bannerImage: [], usesShipping: false, orgType: 'ENK', orgNumber: '123456789', employmentNoticeDays: 14,
+    createdAt: now, updatedAt: now, employees, wallets: [], warehouseLocations: [],
+  } }));
+  await page.route(`**/companies/${SHOWCASE_COMPANY_ID}/settings`, route => route.request().method() === 'POST'
+    ? route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: { data: { paypalEmail: null, paypalEmailVerified: false, pendingPaypalEmail: null, receivingWallets: [], walletChangesAllowed: false } }, f: [], b: 'qa-only' })}\n` }) : route.continue());
+  await page.route('**/api/users', route => { errors.push('Unbounded admin user list requested'); return route.abort(); });
+  await page.route('**/api/users/search?**', route => route.fulfill({ json: { users: [{ id: 'qa-new', name: 'Taylor Example' }, { id: 'qa-other', name: 'Taylor Other' }] } }));
+  await page.route('**/api/companies/employees/**', async route => {
+    const path = new URL(route.request().url()).pathname, body = route.request().postDataJSON(); writes.push({ path, body });
+    expect(body).not.toHaveProperty('clientUser'); expect(body).not.toHaveProperty('company');
+    if (path.endsWith('/edit') && failPermission) return route.fulfill({ status: 409, json: { error: 'This member changed. Refresh the team and review again.' } });
+    if (path.endsWith('/add')) {
+      const row = { id: 'qa-new-row', userId: body.userId, user: { id: body.userId, name: 'Taylor Example', image: null }, role: body.role, permissions: {}, createdAt: now, updatedAt: now };
+      employees.push(row); return route.fulfill({ json: row });
+    }
+    if (path.endsWith('/remove')) { employees = employees.filter(row => row.id !== body.employeeId); return route.fulfill({ json: { message: 'Removed' } }); }
+    const row = employees.find(row => row.id === body.employeeId)!;
+    expect(body.expectedUpdatedAt).toBe(row.updatedAt);
+    row.updatedAt = new Date(Date.parse(now) + ++version).toISOString();
+    if (path.endsWith('/edit-role')) row.role = body.newRole; else row.permissions = { ...row.permissions, ...body.permissions };
+    return route.fulfill({ json: row });
+  });
+  try {
+    await page.goto(`/companies/${SHOWCASE_COMPANY_ID}/settings`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const refreshSession = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refreshSession;
+    await expect(page.getByRole('heading', { name: 'QA team studio', exact: true })).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByText('Team · 1', { exact: true }).click();
+    const member = page.getByRole('article').filter({ has: page.getByRole('heading', { name: person.name, exact: true }) });
+    await member.getByRole('button', { name: 'Edit permissions', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toHaveCSS('animation-name', 'none');
+    await expect(dialog).toHaveCSS('opacity', '1');
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[1024,1280],[2560,1440]]) {
+      await page.setViewportSize({ width,height });
+      await expect(dialog.getByRole('button', { name: 'Save changes', exact: true })).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect.poll(async () => (await dialog.boundingBox())!.height).toBeLessThanOrEqual(height);
+      await expect.poll(async () => (await dialog.boundingBox())!.width).toBeLessThanOrEqual(width);
+      await expect.poll(async () => {
+        const box = (await dialog.boundingBox())!;
+        return box.x >= -1 && box.y >= -1 && box.x + box.width <= width + 1 && box.y + box.height <= height + 1;
+      }).toBe(true);
+      await page.screenshot({ path: info.outputPath(`team-permissions-${width}.png`) });
+    }
+    await page.setViewportSize({ width:390,height:844 });
+    await page.mouse.move(240,400); await page.mouse.wheel(0,500);
+    await expect.poll(() => dialog.locator('.overflow-y-auto').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    await expect(dialog.getByRole('button',{name:'Save changes',exact:true})).toBeInViewport();
+    await dialog.getByRole('checkbox', { name:'View Sales', exact:true }).check();
+    await dialog.getByRole('button', { name:'Save changes',exact:true }).click(); await expect(dialog).toHaveCount(0);
+    expect(writes.at(-1)?.body).toEqual({ companyId: SHOWCASE_COMPANY_ID, employeeId:'qa-member',expectedUpdatedAt:now,permissions:{CAN_VIEW_SALES:true} });
+    await member.getByRole('button',{name:'Edit role',exact:true}).click();
+    const role = dialog.getByRole('combobox',{name:'Role',exact:true}); expect(await role.locator('option[value="OWNER"]').count()).toBe(0);
+    await role.selectOption('ACCOUNTANT'); await dialog.getByRole('button',{name:'Save role',exact:true}).click(); await expect(dialog).toHaveCount(0);
+    await expect(member.getByText('ACCOUNTANT',{exact:true})).toBeVisible();
+    await member.getByRole('button',{name:'Remove',exact:true}).click(); const beforeCancel = writes.length;
+    await dialog.getByRole('button',{name:'Keep member',exact:true}).click(); expect(writes).toHaveLength(beforeCancel);
+    const form = page.getByRole('form',{name:'Add team member',exact:true}), search = form.getByRole('combobox',{name:'Search user',exact:true});
+    await search.fill('Taylor'); await expect(page.getByRole('option',{name:'Taylor Example',exact:true})).toBeVisible();
+    await search.press('ArrowDown'); await search.press('Enter'); await expect(form.getByText('Selected: Taylor Example',{exact:true})).toBeVisible();
+    await search.fill('Different'); await form.getByRole('button',{name:'Add employee',exact:true}).click();
+    await expect(form.getByRole('alert')).toHaveText('Select a person from the search results.'); expect(writes).toHaveLength(beforeCancel);
+    await search.fill('Taylor'); await page.getByRole('option',{name:'Taylor Example',exact:true}).click();
+    await form.getByRole('button',{name:'Add employee',exact:true}).click(); await expect(page.getByText('Team · 2',{exact:true})).toBeVisible();
+    const added = page.getByRole('article').filter({ has: page.getByRole('heading',{name:'Taylor Example',exact:true}) });
+    await added.getByRole('button',{name:'Remove',exact:true}).click(); await dialog.getByRole('button',{name:'Remove member',exact:true}).click(); await expect(added).toHaveCount(0);
+    failPermission = true; await member.getByRole('button',{name:'Edit permissions',exact:true}).click();
+    await dialog.getByRole('checkbox',{name:'View Sales',exact:true}).uncheck(); await dialog.getByRole('button',{name:'Save changes',exact:true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Refresh the team'); await expect(dialog.getByRole('button',{name:'Save changes',exact:true})).toBeDisabled();
+    page.once('dialog', alert => alert.accept()); await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('[data-state="closed"].fixed.inset-0')).toHaveCount(0);
+    const scroller = page.locator('[data-app-scroll-container]:visible'); await scroller.evaluate(el => el.scrollTo(0,0));
+    await page.mouse.move(280,450); await page.mouse.wheel(0,700); await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  } finally { await page.unrouteAll({behavior:'wait'}); await context.close(); }
+});
+
+test('S8 delegated role-only managers get role controls without permission or owner controls', async ({browser,baseURL}) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained identity; read-only role fixture');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:1280,height:800}}), page=await context.newPage();
+  const session=await (await context.request.get('/api/auth/session')).json(); expect(session.user.id).toMatch(/^demo_/);
+  const actor={id:'qa-manager',name:'QA manager',image:null}, owner={id:'qa-owner',name:'QA owner',image:null}, staff={id:'qa-staff',name:'QA staff',image:null}, now=new Date().toISOString();
+  await page.route('**/api/auth/session',route=>route.fulfill({json:{...session,user:{...session.user,...actor,role:'USER',isDemo:false}}}));
+  await page.route(`**/api/companies/${SHOWCASE_COMPANY_ID}`,route=>route.fulfill({json:{id:SHOWCASE_COMPANY_ID,name:'Delegated team',ownerId:owner.id,creatorId:owner.id,owner,creator:owner,logo:[],bannerImage:[],usesShipping:false,createdAt:now,updatedAt:now,orgType:'ENK',orgNumber:'123456789',employmentNoticeDays:14,employees:[
+    {id:'owner-row',userId:owner.id,user:owner,role:'OWNER',permissions:{},createdAt:now,updatedAt:now},
+    {id:'manager-row',userId:actor.id,user:actor,role:'MANAGER',permissions:{CAN_EDIT_EMPLOYEE_ROLE:true},createdAt:now,updatedAt:now},
+    {id:'staff-row',userId:staff.id,user:staff,role:'STAFF',permissions:{},createdAt:now,updatedAt:now},
+  ]}}));
+  try {
+    await page.goto(`/companies/${SHOWCASE_COMPANY_ID}/settings`);
+    await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const refresh=page.waitForResponse(response=>response.url().includes('/api/auth/session')); await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await refresh;
+    await expect(page.getByRole('heading',{name:'Delegated team',exact:true})).toBeVisible();
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
+    await page.getByText('Team · 3',{exact:true}).click();
+    await expect(page.getByRole('button',{name:'Edit permissions',exact:true})).toHaveCount(0); await expect(page.getByRole('button',{name:'Remove',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('form',{name:'Add team member',exact:true})).toHaveCount(0); await expect(page.getByRole('button',{name:'Edit role',exact:true})).toHaveCount(1);
+    await page.getByRole('button',{name:'Edit role',exact:true}).click();
+    const select=page.getByRole('dialog').getByRole('combobox',{name:'Role',exact:true});
+    expect(await select.locator('option[value="MANAGER"], option[value="OWNER"]').count()).toBe(0);
+    await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+  } finally {await page.unrouteAll({behavior:'wait'}); await context.close();}
+});
+
+test('S8 real team mutation endpoints reject anonymous and demo writes', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained unrelated demo identity');
+  const anonymous = await browser.newContext({baseURL}), demo = await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try {
+    for (const [context,status] of [[anonymous,401],[demo,403]] as const) {
+      for (const [route,method] of [['add','POST'],['edit','PATCH'],['edit-role','POST'],['remove','DELETE']]) {
+        const response = await context.request.fetch('/api/companies/employees/' + route,{method,headers:{origin:baseURL!},data:{companyId:'qa-never-existing',employeeId:'qa-never-existing'}});
+        expect(response.status()).toBe(status);
+      }
+    }
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
 test('S8 company payment settings are compact, responsive and preserve the reviewed address', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session with browser-only owner and mail fixtures');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
@@ -168,13 +302,15 @@ test('S8 company access errors recover cleanly across screen sizes without fetch
       await page.goto(`/companies/${SHOWCASE_COMPANY_ID}/${route}`);
       const heading = page.getByRole('heading', { name: 'Company could not load', exact: true }); await expect(heading).toBeVisible();
       const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
-      const beforeRetry = attempts; await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      const beforeRetry = attempts;
+      const retryResponse = page.waitForResponse(response => response.url().endsWith(`/api/companies/${SHOWCASE_COMPANY_ID}`));
+      await page.getByRole('button', { name: 'Try again', exact: true }).click(); await retryResponse;
       await expect.poll(() => attempts).toBeGreaterThan(beforeRetry); await expect(heading).toBeVisible();
       for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
         await page.setViewportSize({ width,height });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        const retry = page.getByRole('button', { name: 'Try again', exact: true }); await retry.scrollIntoViewIfNeeded();
-        expect((await retry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        const retry = page.getByRole('button', { name: 'Try again', exact: true });
+        await expect(async () => { await retry.scrollIntoViewIfNeeded(); expect((await retry.boundingBox())!.height).toBeGreaterThanOrEqual(44); }).toPass({ timeout: 5000 });
         await page.screenshot({ path: info.outputPath(`company-${route}-${width}.png`) });
       }
       responseStatus = 404; await page.getByRole('button', { name: 'Try again', exact: true }).click();
