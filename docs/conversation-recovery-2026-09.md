@@ -41,6 +41,12 @@ inspection confirms phone/landscape bounds. The stale-response regression proves
 that leaving a held request aborts it and the next thread remains visible after
 the old transport response is released. All data are intercepted fixtures.
 
-Hosted acceptance and real populated conversations remain pending. This is not
+The exact production-safe candidate also passed 17/17 locally in 28.4 seconds
+and 17/17 on Live in 53.9 seconds, without retries/skips. Runtime `c630ef7`,
+deployment `dpl_7z5cuiKYqoFNUzch5neFSNVBYKNm`, is aliased to www.veggat.com.
+Real signed-in Chrome confirmed the unavailable state and Back to Messages
+returned to the populated inbox. Production keeps 54 migrations, none pending;
+payment logic, terms and prices are unchanged. Populated thread interactions
+and voice remain pending. This is not
 acceptance of all messaging/voice functions. Separate audit finding to reproduce:
 the inbox's Edit action links to a route not present in the current route tree.

@@ -4,11 +4,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Conversation detail recovery — 26 September 2026
 
-**PARTIAL; reproduced and corrected locally, hosted verification pending.** A 503
+**DONE for this scoped recovery and responsive-sheet change; full Messages QA remains PARTIAL.** A 503
 message read previously displayed “Conversation not found” without retry. Error
 and unavailable states are now distinct; obsolete reads are aborted and state
-resets across conversation/account changes. Build/TypeScript/lint and four local
-browser checks pass. See [scope and evidence](conversation-recovery-2026-09.md).
+resets across conversation/account changes. The members sheet no longer squeezes
+the phone composer. Build/TypeScript/lint pass; 17 browser checks pass both on the
+exact local candidate and Live `c630ef7`, deployment `dpl_7z5cuiKYqoFNUzch5neFSNVBYKNm`.
+Real Chrome confirms unavailable-state recovery to the populated inbox. No payment,
+schema, price or terms changes. See [scope and evidence](conversation-recovery-2026-09.md).
 
 ## Realtime loading follow-up — 26 September 2026
 
