@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import AppProviders from "@/components/providers/app-providers";
 import { auth } from "@/auth";
+import { headers } from "next/headers";
+import { CONSENT_VISIBILITY_SCRIPT } from "@/lib/consent-visibility";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -39,12 +41,20 @@ export default async function RootLayout({ children, modal }: { children: React.
   // auth() reads request headers: personalized HTML must never be shared-cached.
   // Route handlers/actions still perform their own authorization checks.
   const session = await auth();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.className} myanimation min-h-dvh flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
+      {/* Parser-time presentation check, like the theme bootstrap: returning
+          visitors never see a consent flash while the application JS downloads.
+          Nonce is inherited from the existing CSP; this does not enable tracking. */}
+      <script id="consent-visibility" nonce={nonce} dangerouslySetInnerHTML={{ __html: CONSENT_VISIBILITY_SCRIPT }} />
+      {/* With JS disabled no optional SDK can run, and an inert consent panel
+          must not cover the readable sales terms or other server content. */}
+      <noscript><style>{'[data-cookie-banner]{display:none}'}</style></noscript>
       <AppProviders session={session}>
         {children}
         {modal}

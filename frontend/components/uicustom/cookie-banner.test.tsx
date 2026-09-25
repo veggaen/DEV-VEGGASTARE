@@ -2,6 +2,7 @@
 /** @fileOverview Consent persistence, failure and immediate dismissal regressions. @stability stable */
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('next/link', () => ({ default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props}>{children}</a> }));
 import CookieBanner from './cookie-banner';
@@ -23,6 +24,19 @@ const render = async () => { await act(async () => root.render(<CookieBanner />)
 const button = (text: string) => [...host.querySelectorAll('button')].find(node => node.textContent === text)!;
 const click = async (text: string) => { await act(async () => button(text).click()); };
 const saved = () => JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY)!);
+it('includes a visible notice in server HTML, without an opacity entrance',()=>{
+  const html=renderToString(<CookieBanner/>);
+  expect(html).toContain('data-cookie-banner');expect(html).toContain('Essential Only');
+  expect(html).not.toContain('opacity:0');
+});
+it('hands saved presentation back to React before paint and can reopen preferences',async()=>{
+  document.documentElement.setAttribute('data-saved-consent','true');
+  localStorage.setItem(CONSENT_STORAGE_KEY,JSON.stringify({version:1,analytics:false}));await render();
+  expect(document.documentElement.hasAttribute('data-saved-consent')).toBe(false);
+  expect(host.querySelector('[data-cookie-banner]')).toBeNull();
+  await act(async()=>window.dispatchEvent(new Event('veggat:cookie-consent-open')));
+  expect(host.querySelector('[data-cookie-banner]')).not.toBeNull();
+});
 it('keeps analytics off until a saved choice and dismisses immediately', async () => {
   await render(); expect(localStorage.getItem(CONSENT_STORAGE_KEY)).toBeNull();
   await click('Essential Only');

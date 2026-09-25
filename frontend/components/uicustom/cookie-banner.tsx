@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { Cookie, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CONSENT_CHANGED_EVENT, CONSENT_STORAGE_KEY } from "@/lib/telemetry-policy";
@@ -26,11 +25,9 @@ function readConsent(): CookieConsent | null {
 }
 
 export default function CookieBanner() {
-  const reduceMotion = useReducedMotion();
-  const [mounted, setMounted] = React.useState(false);
   const [showCustomize, setShowCustomize] = React.useState(false);
   const [analytics, setAnalytics] = React.useState(false);
-  const [dismissed, setDismissed] = React.useState(true);
+  const [dismissed, setDismissed] = React.useState(false);
   const [saveError, setSaveError] = React.useState(false);
   const [focusPreferences, setFocusPreferences] = React.useState(false);
   const panel = React.useRef<HTMLElement>(null);
@@ -38,11 +35,13 @@ export default function CookieBanner() {
   const customize = React.useRef<HTMLButtonElement>(null);
   const returnFocus = React.useRef<HTMLElement | null>(null);
 
-  React.useEffect(() => {
-    setMounted(true);
+  React.useLayoutEffect(() => {
     const existing = readConsent();
     setAnalytics(existing?.analytics ?? false);
     setDismissed(Boolean(existing));
+    // The server and first client tree match. The tiny parser-time bootstrap
+    // hides saved choices until this synchronous pre-paint state handover.
+    document.documentElement.removeAttribute('data-saved-consent');
   }, []);
 
   React.useEffect(() => {
@@ -69,7 +68,7 @@ export default function CookieBanner() {
     };
   }, []);
 
-  const isVisible = mounted && !dismissed;
+  const isVisible = !dismissed;
   React.useLayoutEffect(() => {
     if (!isVisible || !panel.current) return;
     const element = panel.current;
@@ -125,13 +124,11 @@ export default function CookieBanner() {
   // wheel/click for 250ms after saving. The panel alone owns its hit area.
   if (!isVisible) return null;
   return (
-    <motion.section
+    <section
       ref={panel}
+      data-cookie-banner
       role="region"
       aria-labelledby="cookie-preferences-title"
-      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduceMotion ? 0 : 0.18 }}
       className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-85 flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl"
     >
       <div data-cookie-scroll className="min-h-0 overflow-y-auto overscroll-contain p-5">
@@ -172,6 +169,6 @@ export default function CookieBanner() {
           <Button ref={customize} type="button" variant="ghost" className="min-h-11 w-full gap-2" aria-expanded={false} aria-label="Customize cookie preferences" onClick={() => setShowCustomize(true)}><Settings2 aria-hidden="true" className="h-4 w-4" />Customize</Button>
         )}
       </div>
-    </motion.section>
+    </section>
   );
 }

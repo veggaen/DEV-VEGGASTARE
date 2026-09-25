@@ -3669,6 +3669,40 @@ test('S8 legacy inventory redirects on the server while keeping sign-in required
   }finally{await context.close();await anon.close();}
 });
 
+test('Platform consent paints before app bundles without flashing saved choices or granting tracking',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_CONSENT!=='1','Focused pre-hydration consent acceptance');
+  test.setTimeout(120000);
+  for(const choice of ['new','essential','analytics','invalid','blocked'] as const){
+    const context=await browser.newContext({baseURL,viewport:{width:390,height:844},reducedMotion:'reduce'});
+    await context.addInitScript(choice=>{
+      if(choice==='essential'||choice==='analytics')localStorage.setItem('veggat:cookieConsent',JSON.stringify({version:1,analytics:choice==='analytics'}));
+      if(choice==='invalid')localStorage.setItem('veggat:cookieConsent','{"version":2,"analytics":true}');
+      if(choice==='blocked'){const read=Storage.prototype.getItem;Storage.prototype.getItem=function(key){if(key==='veggat:cookieConsent')throw Error('Storage blocked');return read.call(this,key);};}
+    },choice);
+    const page=await context.newPage(),scripts:string[]=[],errors:string[]=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    let release=()=>{};const bundles=new Promise<void>(resolve=>{release=resolve;});
+    await page.route('**/_next/static/**/*.js',async route=>{await bundles;await route.continue();});
+    await page.route('**/_vercel/**',route=>{scripts.push(new URL(route.request().url()).pathname);return route.fulfill({contentType:'application/javascript',body:''});});
+    try{
+      await page.goto('/',{waitUntil:'commit'});
+      const panel=page.getByRole('region',{name:'Cookie Preferences',exact:true});
+      await expect(page.locator('[data-cookie-banner]')).toHaveCount(1);
+      expect(await page.locator('#consent-visibility').evaluate((element:HTMLScriptElement)=>Boolean(element.nonce))).toBe(true);
+      if(choice==='essential'||choice==='analytics')await expect(panel).toBeHidden();
+      else{await expect(panel).toBeVisible();await expect(panel).toHaveCSS('opacity','1');}
+      expect(scripts).toEqual([]);
+      release();await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+      expect(await page.locator('html').getAttribute('data-saved-consent')).toBeNull();
+      if(choice==='essential'||choice==='analytics')await expect(panel).toHaveCount(0);else await expect(panel).toBeVisible();
+      if(choice==='analytics')await expect.poll(()=>scripts.some(path=>path.includes('/insights/'))&&scripts.some(path=>path.includes('/speed-insights/'))).toBe(true);
+      else expect(scripts).toEqual([]);
+      expect(errors).toEqual([]);
+    }finally{release();await context.close();}
+  }
+});
+
 test('Platform consent controls fit every viewport and release scrolling immediately', async ({browser,baseURL},testInfo)=>{
   test.skip(process.env.E2E_CONSENT !== '1','Focused optional-telemetry and consent presentation acceptance');
   test.setTimeout(120_000);
@@ -3892,6 +3926,7 @@ test('S4 full terms are readable without JavaScript, navigable and downloadable 
   const page = await context.newPage();
   try {
     await page.goto('/terms', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-cookie-banner]')).toBeHidden();
     const article = page.getByRole('article', { name: 'Salgsvilkår' });
     await expect(article.getByRole('heading', { name: 'Salgsvilkår', exact: true })).toBeVisible();
     await expect(article).toHaveAttribute('lang', 'nb');
