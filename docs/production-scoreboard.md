@@ -4,6 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Wallet-display follow-up: **PARTIAL — local acceptance passes**. Removed
+email-based address/proof merging and automatic metadata POSTs during render.
+Local development-chain probes are cancellable and retain their prior status.
+Full touched-file lint now passes with no disabled rules, resolving the prior
+wallet lint gap. 22 units, final strict build and focused local browser **5/5**
+(14.2s) pass. The latter caught and fixed an 8px delayed-panel layout shift;
+both 360/390px scroll checks now pass. Live deployment pending. No wallet
+signature, transfer, account permission, payment or secret changed. See
+[wallet-display evidence](wallet-display-evidence-2026-09.md).
+
 Verification-evidence follow-up: **PARTIAL — implementation and 68 focused
 tests pass (55 units, 13 isolated PostgreSQL cases)**. Settings and Reach share
 current provider/wallet/Live-capture evidence. Refresh is read-only; pending

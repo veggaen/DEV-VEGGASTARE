@@ -7,6 +7,42 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S6 saved wallet addresses remain distinct without metadata writes', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained app-issued demo; browser-only wallet fixtures');
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('veggat_wallet_registry', JSON.stringify([1, 2].map(number => {
+      const key = `qa-saved-${number}`, address = '0x' + String(number).repeat(40);
+      return [key, { key, address, family: 'EVM', label: 'Saved social wallet', customLabel: `QA saved ${number}`,
+        connectorName: 'Auth', connectorType: 'AUTH', connectorUid: key, connectorId: 'auth',
+        authProvider: 'google', socialEmail: 'same@example.test', socialName: 'QA identity', addedAt: number }];
+    })));
+  });
+  const page = await context.newPage(), writes: string[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/(wallets|payments|auth\/wallet)/.test(new URL(request.url()).pathname)) writes.push(new URL(request.url()).pathname); });
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+    for (const width of [390, 1280, 360, 2560]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const number of [1, 2]) {
+        const card = menu.getByRole('group', { name: `QA saved ${number} wallet`, exact: true });
+        await expect(card).toHaveCount(1); await card.scrollIntoViewIfNeeded();
+        await expect(card).toHaveAttribute('data-wallet-active', 'false');
+        await expect(card.getByRole('button', { name: 'Set active', exact: true })).toBeEnabled();
+      }
+      expect(await menu.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`wallet-identity-${width}.png`) });
+    }
+    await page.keyboard.press('Escape'); await expect(menu).toBeHidden();
+    expect(writes).toEqual([]); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S2 verification refresh uses current read-only evidence at mobile and desktop sizes', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_VERIFICATION_EVIDENCE !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; no emails, identity changes or purchases');
   test.setTimeout(120_000);
@@ -4494,9 +4530,10 @@ test('S7 — quick settings work on touch and keyboard without a document reload
   } finally { await context.close(); }
 });
 
-test('S7 — delayed wallet controls do not move a scrolled navigation drawer', async ({ browser, baseURL }) => {
+for (const walletDrawerWidth of [360, 390]) {
+test(`S7 — delayed wallet controls do not move a scrolled navigation drawer (${walletDrawerWidth}px)`, async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Uses the retained isolated demo session');
-  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 }, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: walletDrawerWidth, height: 800 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   let release!: () => void;
   const pending = new Promise<void>(resolve => { release = resolve; });
@@ -4536,6 +4573,7 @@ test('S7 — delayed wallet controls do not move a scrolled navigation drawer', 
     await expect(trigger).toBeFocused();
   } finally { release(); await context.close(); }
 });
+}
 
 for (const width of [390, 1280]) {
 test(`S7 — deferred chunks cannot replace readable server content (${width}px)`, async ({ browser, baseURL }) => {

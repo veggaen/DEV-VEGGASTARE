@@ -662,7 +662,7 @@ const MyTopBar = () => {
 														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
 															{/* Reserve the disconnected panel's geometry while its
 															    optional bundle/data loads; do not move a scrolled drawer. */}
-															<div data-navigation-wallet-slot className="min-h-64">
+															<div data-navigation-wallet-slot className="min-h-66">
 															<SidebarWalletPanel
 																isLoggedIn={!!clientUser}
 																web3Enabled={effectiveWeb3ModeEnabled}

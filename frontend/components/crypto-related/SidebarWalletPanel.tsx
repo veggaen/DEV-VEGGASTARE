@@ -10,6 +10,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { reconcileWalletDisplay, walletAddressKey } from "@/lib/wallet-display";
+import { readLocalChainStatus } from "@/lib/local-chain-status";
 import Link from "next/link";
 import {
   useAccount,
@@ -388,13 +391,6 @@ function preferredAuthProvider(saved?: string, live?: string, socialEmail?: stri
   return undefined;
 }
 
-function authIdentityKey(provider?: string, socialEmail?: string, socialName?: string): string | null {
-  const providerPart = provider?.trim().toLowerCase();
-  const emailPart = socialEmail?.trim().toLowerCase();
-  const namePart = socialName?.trim().toLowerCase();
-  if (!providerPart && !emailPart && !namePart) return null;
-  return `${providerPart ?? ''}|${emailPart ?? ''}|${namePart ?? ''}`;
-}
 
 /**
  * Resolve a static icon URL for a connector by name/id.
@@ -852,46 +848,15 @@ function ConnectSection({
 type ChainStatus = 'checking' | 'online' | 'offline';
 
 function DevChainStatusIndicator() {
-  const [chains, setChains] = useState<Record<number, ChainStatus>>({
-    31337: 'checking',
-    1337: 'checking',
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ['local-chain-status', ...LOCAL_RPC_SOURCES.map(source => source.rpcUrl)],
+    queryFn: async ({ signal }) => Object.fromEntries(await Promise.all(
+      LOCAL_RPC_SOURCES.map(async source => [source.chainId, await readLocalChainStatus(source.chainId, source.rpcUrl, signal)]),
+    )) as Record<number, ChainStatus>,
+    refetchInterval: 15000, staleTime: 10000, retry: false, refetchOnWindowFocus: false,
   });
-
-  const checkChain = useCallback(async (chainId: number, rpcUrl: string): Promise<ChainStatus> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_chainId', params: [], id: 1 }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.result) return 'online';
-      }
-      return 'offline';
-    } catch {
-      return 'offline';
-    }
-  }, []);
-
-  const checkAll = useCallback(async () => {
-    setChains({ 31337: 'checking', 1337: 'checking' });
-    const [anvil, ganache] = await Promise.all([
-      checkChain(31337, process.env.NEXT_PUBLIC_ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'),
-      checkChain(1337, process.env.NEXT_PUBLIC_GANACHE_RPC_URL ?? 'http://127.0.0.1:7545'),
-    ]);
-    setChains({ 31337: anvil, 1337: ganache });
-  }, [checkChain]);
-
-  useEffect(() => {
-    checkAll();
-    const interval = setInterval(checkAll, 15000); // Re-check every 15s
-    return () => clearInterval(interval);
-  }, [checkAll]);
+  // Keep the last result during background refreshes instead of flashing dots.
+  const chains = data ?? { 31337: 'checking', 1337: 'checking' };
 
   const statusDot = (s: ChainStatus) => {
     if (s === 'checking') return 'bg-zinc-500 animate-pulse';
@@ -915,7 +880,9 @@ function DevChainStatusIndicator() {
         </span>
         <button
           type="button"
-          onClick={checkAll}
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          aria-label="Refresh chain status"
           className="p-0.5 rounded hover:bg-zinc-700/40 text-zinc-500 hover:text-zinc-300 transition-colors"
           title="Refresh chain status"
         >
@@ -2616,91 +2583,95 @@ export default function SidebarWalletPanel({
   // Also updates UIDs when connectors re-announce (EIP-6963 can change UIDs)
   // For AUTH wallets, we save the auth provider + social info at connect time
   // so each wallet remembers which social method created it (Google vs Discord etc.)
-  for (const conn of connections) {
-    const connUid = conn.connector.uid;
-    const connId = conn.connector.id;
-    const isAuthConnector = conn.connector.type === 'AUTH' || conn.connector.name === 'Auth';
-    const activeInConn = conn.accounts.find(
-      (a) => a.toLowerCase() === evmAddress?.toLowerCase(),
-    );
-    const account = activeInConn ?? conn.accounts[0];
-    if (!account) continue;
-    const addrLower = account.toLowerCase();
-    const regKey = `${connUid}::${addrLower}`;
+  function syncWalletRegistry() {
+    for (const conn of connections) {
+      const connUid = conn.connector.uid;
+      const connId = conn.connector.id;
+      const isAuthConnector = conn.connector.type === 'AUTH' || conn.connector.name === 'Auth';
+      const activeInConn = conn.accounts.find(
+        (a) => a.toLowerCase() === evmAddress?.toLowerCase(),
+      );
+      const account = activeInConn ?? conn.accounts[0];
+      if (!account) continue;
+      const addrLower = account.toLowerCase();
+      const regKey = `${connUid}::${addrLower}`;
 
-    // For AUTH connectors: save provider info ONLY if this address is the
-    // currently active AppKit address (that's the only one AppKit gives data for).
-    // For non-active AUTH addresses, keep the previously saved data.
-    const isCurrentAppKit = isAuthConnector && addrLower === appKitActiveAddress;
+      // For AUTH connectors: save provider info ONLY if this address is the
+      // currently active AppKit address (that's the only one AppKit gives data for).
+      // For non-active AUTH addresses, keep the previously saved data.
+      const isCurrentAppKit = isAuthConnector && addrLower === appKitActiveAddress;
 
-    // Check if we already have an entry for this address+connectorId but with a stale UID
-    const existingEntry = [...walletRegistryRef.current.entries()].find(
-      ([k, e]) =>
-        e.address.toLowerCase() === addrLower &&
-        e.connectorId === connId &&
-        k !== regKey,
-    );
-    if (existingEntry) {
-      // UID drifted — re-key the entry with the new UID
-      walletRegistryRef.current.delete(existingEntry[0]);
-      walletRegistryRef.current.set(regKey, {
-        ...existingEntry[1],
-        key: regKey,
-        connectorUid: connUid,
-        connectorName: conn.connector.name,
-        connectorType: conn.connector.type,
-        connectorIcon: (conn.connector as any).icon ?? existingEntry[1].connectorIcon,
-        // Update auth/social info only if this is the currently active AppKit address
-        // Don't overwrite a specific social provider with generic "email"
-        ...(isCurrentAppKit ? (() => {
-          const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
-          const existingIsSpecific = existingEntry[1].authProvider && KNOWN_SOCIALS.includes(existingEntry[1].authProvider);
-          const newIsGeneric = appKitAuthProvider === 'email';
-          return {
-            authProvider: (existingIsSpecific && newIsGeneric) ? existingEntry[1].authProvider : (appKitAuthProvider ?? existingEntry[1].authProvider),
-            socialName: appKitSocialName ?? existingEntry[1].socialName,
-            socialEmail: appKitSocialEmail ?? existingEntry[1].socialEmail,
-          };
-        })() : {}),
-      });
-    } else if (!walletRegistryRef.current.has(regKey)) {
-      walletRegistryRef.current.set(regKey, {
-        key: regKey,
-        label: connectorLabel(conn.connector.name),
-        family: "EVM",
-        address: account,
-        connectorName: conn.connector.name,
-        connectorType: conn.connector.type,
-        connectorUid: connUid,
-        connectorId: connId,
-        connectorIcon: (conn.connector as any).icon,
-        // Save auth provider + social info at connection time for AUTH wallets
-        ...(isCurrentAppKit ? {
-          authProvider: appKitAuthProvider,
-          socialName: appKitSocialName,
-          socialEmail: appKitSocialEmail,
-        } : {}),
-        addedAt: Date.now(),
-      });
-    } else if (isCurrentAppKit) {
-      // Entry already exists AND this is the active AppKit address — update social data
-      // (user might have reconnected or social session refreshed)
-      const entry = walletRegistryRef.current.get(regKey)!;
-      // Don't overwrite a specific social provider (google/discord/etc.) with generic "email".
-      // AppKit sometimes reports authProvider as "email" after reconnecting via social OAuth.
-      const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
-      const existingIsSpecific = entry.authProvider && KNOWN_SOCIALS.includes(entry.authProvider);
-      const newIsGeneric = appKitAuthProvider === 'email';
-      if (appKitAuthProvider && !(existingIsSpecific && newIsGeneric)) {
-        entry.authProvider = appKitAuthProvider;
+      // Check if we already have an entry for this address+connectorId but with a stale UID
+      const existingEntry = [...walletRegistryRef.current.entries()].find(
+        ([k, e]) =>
+          e.address.toLowerCase() === addrLower &&
+          e.connectorId === connId &&
+          k !== regKey,
+      );
+      if (existingEntry) {
+        // UID drifted — re-key the entry with the new UID
+        walletRegistryRef.current.delete(existingEntry[0]);
+        walletRegistryRef.current.set(regKey, {
+          ...existingEntry[1],
+          key: regKey,
+          connectorUid: connUid,
+          connectorName: conn.connector.name,
+          connectorType: conn.connector.type,
+          connectorIcon: (conn.connector as any).icon ?? existingEntry[1].connectorIcon,
+          // Update auth/social info only if this is the currently active AppKit address
+          // Don't overwrite a specific social provider with generic "email"
+          ...(isCurrentAppKit ? (() => {
+            const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
+            const existingIsSpecific = existingEntry[1].authProvider && KNOWN_SOCIALS.includes(existingEntry[1].authProvider);
+            const newIsGeneric = appKitAuthProvider === 'email';
+            return {
+              authProvider: (existingIsSpecific && newIsGeneric) ? existingEntry[1].authProvider : (appKitAuthProvider ?? existingEntry[1].authProvider),
+              socialName: appKitSocialName ?? existingEntry[1].socialName,
+              socialEmail: appKitSocialEmail ?? existingEntry[1].socialEmail,
+            };
+          })() : {}),
+        });
+      } else if (!walletRegistryRef.current.has(regKey)) {
+        walletRegistryRef.current.set(regKey, {
+          key: regKey,
+          label: connectorLabel(conn.connector.name),
+          family: "EVM",
+          address: account,
+          connectorName: conn.connector.name,
+          connectorType: conn.connector.type,
+          connectorUid: connUid,
+          connectorId: connId,
+          connectorIcon: (conn.connector as any).icon,
+          // Save auth provider + social info at connection time for AUTH wallets
+          ...(isCurrentAppKit ? {
+            authProvider: appKitAuthProvider,
+            socialName: appKitSocialName,
+            socialEmail: appKitSocialEmail,
+          } : {}),
+          addedAt: Date.now(),
+        });
+      } else if (isCurrentAppKit) {
+        // Entry already exists AND this is the active AppKit address — update social data
+        // (user might have reconnected or social session refreshed)
+        const entry = walletRegistryRef.current.get(regKey)!;
+        // Don't overwrite a specific social provider (google/discord/etc.) with generic "email".
+        // AppKit sometimes reports authProvider as "email" after reconnecting via social OAuth.
+        const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
+        const existingIsSpecific = entry.authProvider && KNOWN_SOCIALS.includes(entry.authProvider);
+        const newIsGeneric = appKitAuthProvider === 'email';
+        if (appKitAuthProvider && !(existingIsSpecific && newIsGeneric)) {
+          entry.authProvider = appKitAuthProvider;
+        }
+        if (appKitSocialName) entry.socialName = appKitSocialName;
+        if (appKitSocialEmail) entry.socialEmail = appKitSocialEmail;
       }
-      if (appKitSocialName) entry.socialName = appKitSocialName;
-      if (appKitSocialEmail) entry.socialEmail = appKitSocialEmail;
     }
-  }
 
-  // Persist registry to sessionStorage after every sync
-  saveRegistryToStorage(walletRegistryRef.current);
+    // Persist registry to sessionStorage after every sync
+    saveRegistryToStorage(walletRegistryRef.current);
+
+  }
+  syncWalletRegistry();
 
   // Build display list combining DB wallets + registry
   type DisplayWallet = {
@@ -2729,536 +2700,275 @@ export default function SidebarWalletPanel({
     canDisconnect: boolean;
   };
 
-  const displayWallets: DisplayWallet[] = [];
+  function collectDisplayWallets(): DisplayWallet[] {
+    const displayWallets: DisplayWallet[] = [];
 
-  // ─── 1. DB-linked wallets ────────────────────────────────────────
-  const linkedAddresses = new Set<string>();
-  const registryKeysUsedByLinked = new Set<string>();
-  for (const w of linkedWallets) {
-    linkedAddresses.add(w.address.toLowerCase());
-    const liveConn = connections.find((c) =>
-      c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-    );
-    if (liveConn) {
-      registryKeysUsedByLinked.add(
-        `${liveConn.connector.uid}::${w.address.toLowerCase()}`,
+    // ─── 1. DB-linked wallets ────────────────────────────────────────
+    const linkedAddresses = new Set<string>();
+    const registryKeysUsedByLinked = new Set<string>();
+    for (const w of linkedWallets) {
+      linkedAddresses.add(walletAddressKey(w.family, w.address));
+      const liveConn = connections.find((c) =>
+        c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
       );
-    }
-    // Also mark any registry entry that shares this address (regardless of UID)
-    for (const [rk, re] of walletRegistryRef.current) {
-      if (re.address.toLowerCase() === w.address.toLowerCase()) {
-        registryKeysUsedByLinked.add(rk);
-      }
-    }
-    // Also try matching by address if UID-based match failed
-    const liveByAddr = !liveConn
-      ? connections.find((c) =>
-          c.accounts.some(
-            (a) => a.toLowerCase() === w.address.toLowerCase(),
-          ),
-        )
-      : undefined;
-    const effectiveLiveConn = liveConn ?? liveByAddr;
-    const isLive =
-      (w.family === "EVM" && evmConnected && effectiveLiveConn !== undefined) ||
-      (w.family === "SOLANA" &&
-        solConnected &&
-        solAddress?.toLowerCase() === w.address.toLowerCase());
-    // Active = override takes priority: if a LOCAL_RPC override is set,
-    // ONLY that address is active. Otherwise fall back to wagmi.
-    const isActiveWallet = activeOverride
-      ? activeOverride.address?.toLowerCase() === w.address.toLowerCase()
-      : w.family === "EVM" &&
-        evmConnected &&
-        evmAddress?.toLowerCase() === w.address.toLowerCase();
-    const chain =
-      w.family === "EVM"
-        ? evmChains.find((c) => c.id === evmChainId)
-        : undefined;
-
-    // Look up saved per-wallet auth info from registry (preferred — saved at connect time)
-    // For non-live wallets: also search registry by address alone (UID may have changed)
-    const regEntry = effectiveLiveConn
-      ? walletRegistryRef.current.get(`${effectiveLiveConn.connector.uid}::${w.address.toLowerCase()}`)
-      : undefined;
-    // Fallback: search registry by address when no live connection (stale AUTH sessions)
-    const regEntryByAddr = !regEntry
-      ? [...walletRegistryRef.current.values()].find(
-          (e) => e.address.toLowerCase() === w.address.toLowerCase(),
-        )
-      : undefined;
-    const effectiveRegEntry = regEntry ?? regEntryByAddr;
-    const isAuthConn = effectiveLiveConn?.connector.type === 'AUTH';
-    // For non-live wallets, check if registry OR DB says it was an AUTH connector
-    const wasAuthConn = !isAuthConn && (
-      effectiveRegEntry?.connectorType === 'AUTH' || w.connectorType === 'AUTH'
-    );
-
-    // Backfill dbWalletId into registry so rename handler can persist to DB
-    if (effectiveRegEntry && !effectiveRegEntry.dbWalletId) {
-      effectiveRegEntry.dbWalletId = w.id;
-    }
-
-    displayWallets.push({
-      key: w.id,
-      dbWalletId: w.id,
-      label: w.label,
-      customLabel: effectiveRegEntry?.customLabel,
-      family: w.family,
-      address: w.address,
-      isLive,
-      isActive: !!isActiveWallet,
-      isDefault: w.isDefault,
-      verified: !!w.verifiedAt,
-      donationTotalUsd: w.donationTotalUsd ?? 0,
-      chainName: chain?.name,
-      chainId: w.family === "EVM" ? evmChainId : undefined,
-      connectorName: effectiveLiveConn?.connector.name ?? effectiveRegEntry?.connectorName,
-      connectorType: effectiveLiveConn?.connector.type ?? effectiveRegEntry?.connectorType ?? w.connectorType,
-      connectorUid: effectiveLiveConn?.connector.uid ?? effectiveRegEntry?.connectorUid,
-      connectorIcon: (effectiveLiveConn?.connector as any)?.icon ?? effectiveRegEntry?.connectorIcon,
-      // Show auth provider info even when NOT live — DB + registry preserve it.
-      // Priority: live AppKit > registry (saved at connect time) > DB (persisted)
-      authProvider: (isAuthConn || wasAuthConn)
-        ? preferredAuthProvider(
-            effectiveRegEntry?.authProvider ?? w.authProvider,
-            isAuthConn ? appKitAuthProvider : undefined,
-            effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined),
-          )
-        : undefined,
-      socialName: (isAuthConn || wasAuthConn)
-        ? (effectiveRegEntry?.socialName ?? (isAuthConn ? appKitSocialName : undefined))
-        : undefined,
-      socialEmail: (isAuthConn || wasAuthConn)
-        ? (effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined))
-        : undefined,
-      canDisconnect: !!effectiveLiveConn,
-    });
-  }
-
-  // ─── 2. Registry entries (persists across auto-disconnects) ──────
-  // Iterate in addedAt order so the first-connected wallet stays at top.
-  const registryEntries = [...walletRegistryRef.current.entries()].sort(
-    ([, a], [, b]) => a.addedAt - b.addedAt,
-  );
-  log.debug(`registry=${registryEntries.length}, linked=${linkedWallets.length}, conn=${connections.length}`);
-  for (const [regKey, entry] of registryEntries) {
-    // Already shown via DB-linked loop → skip
-    if (registryKeysUsedByLinked.has(regKey)) continue;
-    // Same address from the same connector already shown via linked → skip
-    if (linkedAddresses.has(entry.address.toLowerCase())) {
-      const sameConnLinked = linkedWallets.some(
-        (w) =>
-          w.address.toLowerCase() === entry.address.toLowerCase() &&
-          connections.find(
-            (c) =>
-              c.connector.uid === entry.connectorUid &&
-              c.accounts.some(
-                (a) => a.toLowerCase() === w.address.toLowerCase(),
-              ),
-          ),
-      );
-      if (sameConnLinked) continue;
-    }
-
-    // Check current live status — match by UID + address.
-    // For AUTH wallets, UID alone isn't enough because Google and Discord
-    // share the same AUTH connector but have different addresses.
-    const entryAddrLower = entry.address.toLowerCase();
-    const isAuthEntry = entry.connectorType === 'AUTH';
-    const liveConn = connections.find(
-      (c) =>
-        // UID match — but for AUTH connectors, also require address match
-        (c.connector.uid === entry.connectorUid &&
-          (!isAuthEntry || c.accounts.some((a) => a.toLowerCase() === entryAddrLower))) ||
-        // ID + address match
-        (c.connector.id === entry.connectorId &&
-          c.accounts.some((a) => a.toLowerCase() === entryAddrLower)),
-    );
-    // Also check if ANY connection owns this address (handles UID drift)
-    const liveByAddr = !liveConn
-      ? connections.find((c) =>
-          c.accounts.some(
-            (a) => a.toLowerCase() === entry.address.toLowerCase(),
-          ),
-        )
-      : undefined;
-    const effectiveLive = liveConn ?? liveByAddr;
-    const isLive = !!effectiveLive;
-    // Active = override takes priority: if a LOCAL_RPC override is set,
-    // ONLY that address is active. Otherwise fall back to wagmi.
-    const isActiveWallet = activeOverride
-      ? activeOverride.address?.toLowerCase() === entry.address.toLowerCase()
-      : evmConnected &&
-        evmAddress?.toLowerCase() === entry.address.toLowerCase();
-    const chain = evmChains.find((c) => c.id === evmChainId);
-    const entryLocalChainId = entry.connectorType === "LOCAL_RPC"
-      ? Number(entry.connectorUid.split(":")[1] ?? entry.connectorId.split(":")[1] ?? 0) || undefined
-      : undefined;
-    const entryLocalChainName = localChainName(entryLocalChainId);
-
-    // Update registry UID if we found the connection by address fallback
-    if (liveByAddr && !liveConn) {
-      entry.connectorUid = liveByAddr.connector.uid;
-      entry.connectorName = liveByAddr.connector.name;
-      entry.connectorType = liveByAddr.connector.type;
-    }
-
-    displayWallets.push({
-      key: regKey,
-      label: entry.label,
-      customLabel: entry.customLabel,
-      family: entry.family,
-      address: entry.address,
-      isLive,
-      isActive: !!isActiveWallet,
-      isDefault: false,
-      verified: false,
-      donationTotalUsd: 0,
-      chainName: isLive ? chain?.name : entryLocalChainName,
-      chainId: isLive ? evmChainId : entryLocalChainId,
-      connectorName: effectiveLive?.connector.name ?? entry.connectorName,
-      connectorType: effectiveLive?.connector.type ?? entry.connectorType,
-      connectorUid: effectiveLive?.connector.uid ?? entry.connectorUid,
-      connectorIcon: (effectiveLive?.connector as any)?.icon ?? entry.connectorIcon,
-      // Use registry-saved per-wallet auth info (saved at connect time)
-      authProvider: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH'
-        ? preferredAuthProvider(entry.authProvider, isActiveWallet ? appKitAuthProvider : undefined, entry.socialEmail)
-        : undefined,
-      socialName: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialName : undefined,
-      socialEmail: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialEmail : undefined,
-      canDisconnect: isLive,
-    });
-  }
-
-  // ─── 3. Live Solana (not linked) ────────────────────────────────
-  if (
-    solConnected &&
-    solAddress &&
-    !linkedAddresses.has(solAddress.toLowerCase())
-  ) {
-    displayWallets.push({
-      key: `live-sol-${solAddress}`,
-      label: "Solana (not linked)",
-      family: "SOLANA",
-      address: solAddress,
-      isLive: true,
-      isActive: false,
-      isDefault: false,
-      verified: false,
-      donationTotalUsd: 0,
-      canDisconnect: true,
-    });
-  }
-
-  // ─── Safety net: force active wallet if wagmi says connected ─────
-  // Even if connections array is empty (AppKit quirk), if useAccount()
-  // reports an address, find and promote that wallet in the display list.
-  if (!activeOverride && evmConnected && evmAddress) {
-    const activeAddrLower = evmAddress.toLowerCase();
-    let idx = displayWallets.findIndex(
-      (w) => w.address.toLowerCase() === activeAddrLower,
-    );
-    if (idx >= 0) {
-      displayWallets[idx].isActive = true;
-      displayWallets[idx].isLive = true;
-
-      // ── Stale drift cleanup ──────────────────────────────────
-      // When an AUTH wallet is active at address A, but the DB still has
-      // an old record at address B (address drift from Reown embedded wallets),
-      // both may appear as separate cards. Remove the stale one.
-      const activated = displayWallets[idx];
-      const isActivatedAuth = activated.connectorType === 'AUTH';
-      if (isActivatedAuth) {
-        for (let i = displayWallets.length - 1; i >= 0; i--) {
-          if (i === idx) continue;
-          const w = displayWallets[i];
-          if (w.address.toLowerCase() === activeAddrLower) continue; // same address → handled by dedup
-
-          // Case 1: Same social email = confirmed same identity, different address
-          if (activated.socialEmail && w.socialEmail
-            && activated.socialEmail.toLowerCase() === w.socialEmail.toLowerCase()
-            && w.address.toLowerCase() !== activeAddrLower) {
-            // Inherit DB info (dbWalletId, verified, donations) from the stale entry
-            if (w.dbWalletId && !activated.dbWalletId) displayWallets[idx].dbWalletId = w.dbWalletId;
-            if (w.verified) displayWallets[idx].verified = true;
-            if (w.isDefault) displayWallets[idx].isDefault = true;
-            if (w.donationTotalUsd > displayWallets[idx].donationTotalUsd) {
-              displayWallets[idx].donationTotalUsd = w.donationTotalUsd;
-            }
-            displayWallets.splice(i, 1);
-            if (i < idx) idx--;
-            log.info(`Removed stale drift card ${trimAddress(w.address)} — same email as active ${trimAddress(evmAddress)}`);
-
-            // Backfill DB if stale entry was a DB wallet
-            if (w.dbWalletId) {
-              fetch('/api/wallets/evm/backfill-meta', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  walletId: w.dbWalletId,
-                  connectorType: 'AUTH',
-                  authProvider: activated.authProvider ?? appKitAuthProvider,
-                  socialEmail: activated.socialEmail ?? appKitSocialEmail,
-                }),
-              }).catch((err) => log.warn('Backfill metadata failed:', err));
-            }
-            continue;
-          }
-
-          // Case 2: Old untyped DB wallet — no connectorType, not live, not verified.
-          // This catches pre-update records where we have no metadata to match by.
-          // Only safe when the old address has no active connection claiming it.
-          if (w.dbWalletId && !w.connectorType && !w.isLive && !w.verified) {
-            const claimedByOtherConn = connections.some((c) =>
-              c.connector.type !== 'AUTH' &&
-              c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-            );
-            if (!claimedByOtherConn) {
-              if (w.dbWalletId && !activated.dbWalletId) displayWallets[idx].dbWalletId = w.dbWalletId;
-              displayWallets.splice(i, 1);
-              if (i < idx) idx--;
-              log.info(`Removed old untyped wallet ${trimAddress(w.address)} — likely drifted AUTH`);
-
-              if (w.dbWalletId) {
-                fetch('/api/wallets/evm/backfill-meta', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    walletId: w.dbWalletId,
-                    connectorType: 'AUTH',
-                    authProvider: activated.authProvider ?? appKitAuthProvider,
-                    socialEmail: activated.socialEmail ?? appKitSocialEmail,
-                  }),
-                }).catch((err) => log.warn('Backfill metadata failed:', err));
-              }
-              continue;
-            }
-          }
-        }
-      }
-    } else {
-      // Check if this is an AUTH address that drifted from a DB-linked wallet.
-      // Reown embedded wallets can generate different addresses for the same
-      // social identity across sessions. Instead of adding a ghost 5th card,
-      // find the existing AUTH entry for this social identity and update it.
-      const activeConn = connections.find((c) =>
-        c.accounts.some((a) => a.toLowerCase() === activeAddrLower),
-      );
-      const isAuthActive = activeConn?.connector.type === 'AUTH';
-      let merged = false;
-
-      if (isAuthActive && appKitSocialEmail) {
-        // Look for a DB-linked AUTH wallet with the same social email
-        // but a stale/different address (address drift from Reown)
-        let staleIdx = displayWallets.findIndex(
-          (w) =>
-            w.connectorType === 'AUTH' &&
-            w.address.toLowerCase() !== activeAddrLower &&
-            w.socialEmail?.toLowerCase() === appKitSocialEmail?.toLowerCase(),
+      if (liveConn) {
+        registryKeysUsedByLinked.add(
+          `${liveConn.connector.uid}::${w.address.toLowerCase()}`,
         );
-
-        // Try 2: Old DB wallets created BEFORE we added connectorType/socialEmail.
-        // These have connectorType === undefined. When the active AUTH address
-        // doesn't match any display wallet and no socialEmail match was found,
-        // look for unverified DB wallets with unknown type. If exactly ONE
-        // candidate fits, it's almost certainly the same AUTH wallet that drifted.
-        if (staleIdx < 0) {
-          const candidates = displayWallets
-            .map((w, i) => ({ w, i }))
-            .filter(({ w }) =>
-              w.dbWalletId &&                                     // Must be DB-linked
-              !w.connectorType &&                                 // Unknown type (old record)
-              w.family === 'EVM' &&                               // Same family
-              w.address.toLowerCase() !== activeAddrLower &&      // Different address (drift)
-              // Exclude wallets that are currently live via a non-AUTH connector
-              // (e.g. MetaMask) — those are clearly NOT the drifted AUTH wallet
-              !connections.some((c) =>
-                c.connector.type !== 'AUTH' &&
-                c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-              ),
-            );
-          if (candidates.length === 1) {
-            staleIdx = candidates[0].i;
-            log.info(`Safety net: matched old untyped wallet ${trimAddress(candidates[0].w.address)} to active AUTH identity`);
-          }
-        }
-
-        if (staleIdx >= 0) {
-          // Merge: update the stale entry's address + make it active
-          const stale = displayWallets[staleIdx];
-          displayWallets[staleIdx] = {
-            ...stale,
-            address: evmAddress,
-            isLive: true,
-            isActive: true,
-            connectorName: activeConn?.connector.name ?? stale.connectorName,
-            connectorType: activeConn?.connector.type ?? stale.connectorType,
-            connectorUid: activeConn?.connector.uid ?? stale.connectorUid,
-            connectorIcon: (activeConn?.connector as any)?.icon ?? stale.connectorIcon,
-            authProvider: preferredAuthProvider(stale.authProvider, appKitAuthProvider, appKitSocialEmail ?? stale.socialEmail),
-            socialName: appKitSocialName ?? stale.socialName,
-            socialEmail: appKitSocialEmail ?? stale.socialEmail,
-          };
-          merged = true;
-          log.info(`Merged drifted AUTH address ${trimAddress(evmAddress)} into existing wallet (was ${trimAddress(stale.address)})`);
-
-          // Fire-and-forget: backfill the DB record with correct metadata
-          // so subsequent sessions don't hit the same drift issue.
-          if (stale.dbWalletId) {
-            fetch('/api/wallets/evm/backfill-meta', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                walletId: stale.dbWalletId,
-                connectorType: 'AUTH',
-                authProvider: appKitAuthProvider,
-                socialEmail: appKitSocialEmail,
-              }),
-            }).catch((err) => log.warn('Backfill metadata failed:', err));
-          }
+      }
+      // Also mark any registry entry that shares this address (regardless of UID)
+      for (const [rk, re] of walletRegistryRef.current) {
+        if (re.address.toLowerCase() === w.address.toLowerCase()) {
+          registryKeysUsedByLinked.add(rk);
         }
       }
+      // Also try matching by address if UID-based match failed
+      const liveByAddr = !liveConn
+        ? connections.find((c) =>
+            c.accounts.some(
+              (a) => a.toLowerCase() === w.address.toLowerCase(),
+            ),
+          )
+        : undefined;
+      const effectiveLiveConn = liveConn ?? liveByAddr;
+      const isLive =
+        (w.family === "EVM" && evmConnected && effectiveLiveConn !== undefined) ||
+        (w.family === "SOLANA" &&
+          solConnected &&
+          solAddress?.toLowerCase() === w.address.toLowerCase());
+      // Active = override takes priority: if a LOCAL_RPC override is set,
+      // ONLY that address is active. Otherwise fall back to wagmi.
+      const isActiveWallet = activeOverride
+        ? activeOverride.address?.toLowerCase() === w.address.toLowerCase()
+        : w.family === "EVM" &&
+          evmConnected &&
+          evmAddress?.toLowerCase() === w.address.toLowerCase();
+      const chain =
+        w.family === "EVM"
+          ? evmChains.find((c) => c.id === evmChainId)
+          : undefined;
 
-      if (!merged) {
-        // Truly new active address — add as live entry
-        const chain = evmChains.find((c) => c.id === evmChainId);
+      // Look up saved per-wallet auth info from registry (preferred — saved at connect time)
+      // For non-live wallets: also search registry by address alone (UID may have changed)
+      const regEntry = effectiveLiveConn
+        ? walletRegistryRef.current.get(`${effectiveLiveConn.connector.uid}::${w.address.toLowerCase()}`)
+        : undefined;
+      // Fallback: search registry by address when no live connection (stale AUTH sessions)
+      const regEntryByAddr = !regEntry
+        ? [...walletRegistryRef.current.values()].find(
+            (e) => e.address.toLowerCase() === w.address.toLowerCase(),
+          )
+        : undefined;
+      const effectiveRegEntry = regEntry ?? regEntryByAddr;
+      const isAuthConn = effectiveLiveConn?.connector.type === 'AUTH';
+      // For non-live wallets, check if registry OR DB says it was an AUTH connector
+      const wasAuthConn = !isAuthConn && (
+        effectiveRegEntry?.connectorType === 'AUTH' || w.connectorType === 'AUTH'
+      );
+
+      // Backfill dbWalletId into registry so rename handler can persist to DB
+      if (effectiveRegEntry && !effectiveRegEntry.dbWalletId) {
+        effectiveRegEntry.dbWalletId = w.id;
+      }
+
+      displayWallets.push({
+        key: w.id,
+        dbWalletId: w.id,
+        label: w.label,
+        customLabel: effectiveRegEntry?.customLabel,
+        family: w.family,
+        address: w.address,
+        isLive,
+        isActive: !!isActiveWallet,
+        isDefault: w.isDefault,
+        verified: !!w.verifiedAt,
+        donationTotalUsd: w.donationTotalUsd ?? 0,
+        chainName: chain?.name,
+        chainId: w.family === "EVM" ? evmChainId : undefined,
+        connectorName: effectiveLiveConn?.connector.name ?? effectiveRegEntry?.connectorName,
+        connectorType: effectiveLiveConn?.connector.type ?? effectiveRegEntry?.connectorType ?? w.connectorType,
+        connectorUid: effectiveLiveConn?.connector.uid ?? effectiveRegEntry?.connectorUid,
+        connectorIcon: (effectiveLiveConn?.connector as any)?.icon ?? effectiveRegEntry?.connectorIcon,
+        // Show auth provider info even when NOT live — DB + registry preserve it.
+        // Priority: live AppKit > registry (saved at connect time) > DB (persisted)
+        authProvider: (isAuthConn || wasAuthConn)
+          ? preferredAuthProvider(
+              effectiveRegEntry?.authProvider ?? w.authProvider,
+              isAuthConn ? appKitAuthProvider : undefined,
+              effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined),
+            )
+          : undefined,
+        socialName: (isAuthConn || wasAuthConn)
+          ? (effectiveRegEntry?.socialName ?? (isAuthConn ? appKitSocialName : undefined))
+          : undefined,
+        socialEmail: (isAuthConn || wasAuthConn)
+          ? (effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined))
+          : undefined,
+        canDisconnect: !!effectiveLiveConn,
+      });
+    }
+
+    // ─── 2. Registry entries (persists across auto-disconnects) ──────
+    // Iterate in addedAt order so the first-connected wallet stays at top.
+    const registryEntries = [...walletRegistryRef.current.entries()].sort(
+      ([, a], [, b]) => a.addedAt - b.addedAt,
+    );
+    log.debug(`registry=${registryEntries.length}, linked=${linkedWallets.length}, conn=${connections.length}`);
+    for (const [regKey, entry] of registryEntries) {
+      // Already shown via DB-linked loop → skip
+      if (registryKeysUsedByLinked.has(regKey)) continue;
+      // Same address from the same connector already shown via linked → skip
+      if (linkedAddresses.has(walletAddressKey(entry.family, entry.address))) {
+        const sameConnLinked = linkedWallets.some(
+          (w) =>
+            w.address.toLowerCase() === entry.address.toLowerCase() &&
+            connections.find(
+              (c) =>
+                c.connector.uid === entry.connectorUid &&
+                c.accounts.some(
+                  (a) => a.toLowerCase() === w.address.toLowerCase(),
+                ),
+            ),
+        );
+        if (sameConnLinked) continue;
+      }
+
+      // Check current live status — match by UID + address.
+      // For AUTH wallets, UID alone isn't enough because Google and Discord
+      // share the same AUTH connector but have different addresses.
+      const entryAddrLower = entry.address.toLowerCase();
+      const isAuthEntry = entry.connectorType === 'AUTH';
+      const liveConn = connections.find(
+        (c) =>
+          // UID match — but for AUTH connectors, also require address match
+          (c.connector.uid === entry.connectorUid &&
+            (!isAuthEntry || c.accounts.some((a) => a.toLowerCase() === entryAddrLower))) ||
+          // ID + address match
+          (c.connector.id === entry.connectorId &&
+            c.accounts.some((a) => a.toLowerCase() === entryAddrLower)),
+      );
+      // Also check if ANY connection owns this address (handles UID drift)
+      const liveByAddr = !liveConn
+        ? connections.find((c) =>
+            c.accounts.some(
+              (a) => a.toLowerCase() === entry.address.toLowerCase(),
+            ),
+          )
+        : undefined;
+      const effectiveLive = liveConn ?? liveByAddr;
+      const isLive = !!effectiveLive;
+      // Active = override takes priority: if a LOCAL_RPC override is set,
+      // ONLY that address is active. Otherwise fall back to wagmi.
+      const isActiveWallet = activeOverride
+        ? activeOverride.address?.toLowerCase() === entry.address.toLowerCase()
+        : evmConnected &&
+          evmAddress?.toLowerCase() === entry.address.toLowerCase();
+      const chain = evmChains.find((c) => c.id === evmChainId);
+      const entryLocalChainId = entry.connectorType === "LOCAL_RPC"
+        ? Number(entry.connectorUid.split(":")[1] ?? entry.connectorId.split(":")[1] ?? 0) || undefined
+        : undefined;
+      const entryLocalChainName = localChainName(entryLocalChainId);
+
+      // Update registry UID if we found the connection by address fallback
+      if (liveByAddr && !liveConn) {
+        entry.connectorUid = liveByAddr.connector.uid;
+        entry.connectorName = liveByAddr.connector.name;
+        entry.connectorType = liveByAddr.connector.type;
+      }
+
+      displayWallets.push({
+        key: regKey,
+        label: entry.label,
+        customLabel: entry.customLabel,
+        family: entry.family,
+        address: entry.address,
+        isLive,
+        isActive: !!isActiveWallet,
+        isDefault: false,
+        verified: false,
+        donationTotalUsd: 0,
+        chainName: isLive ? chain?.name : entryLocalChainName,
+        chainId: isLive ? evmChainId : entryLocalChainId,
+        connectorName: effectiveLive?.connector.name ?? entry.connectorName,
+        connectorType: effectiveLive?.connector.type ?? entry.connectorType,
+        connectorUid: effectiveLive?.connector.uid ?? entry.connectorUid,
+        connectorIcon: (effectiveLive?.connector as any)?.icon ?? entry.connectorIcon,
+        // Use registry-saved per-wallet auth info (saved at connect time)
+        authProvider: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH'
+          ? preferredAuthProvider(entry.authProvider, isActiveWallet ? appKitAuthProvider : undefined, entry.socialEmail)
+          : undefined,
+        socialName: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialName : undefined,
+        socialEmail: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialEmail : undefined,
+        canDisconnect: isLive,
+      });
+    }
+
+    // ─── 3. Live Solana (not linked) ────────────────────────────────
+    if (
+      solConnected &&
+      solAddress &&
+      !linkedAddresses.has(walletAddressKey("SOLANA", solAddress))
+    ) {
+      displayWallets.push({
+        key: `live-sol-${solAddress}`,
+        label: "Solana (not linked)",
+        family: "SOLANA",
+        address: solAddress,
+        isLive: true,
+        isActive: false,
+        isDefault: false,
+        verified: false,
+        donationTotalUsd: 0,
+        canDisconnect: true,
+      });
+    }
+
+    // A new active address stays separate from saved addresses, even when the
+    // social account/email is the same. Ownership proof belongs to an address.
+    if (!activeOverride && evmConnected && evmAddress) {
+      const existing = displayWallets.find(w => w.family === 'EVM' && w.address.toLowerCase() === evmAddress.toLowerCase());
+      if (existing) {
+        existing.isActive = true;
+        existing.isLive = true;
+      } else {
+        const connection = connections.find(c => c.accounts.some(address => address.toLowerCase() === evmAddress.toLowerCase()));
         displayWallets.push({
-          key: `active-${activeAddrLower}`,
-          label: activeConn
-            ? connectorLabel(activeConn.connector.name)
-            : "Wallet",
-          family: "EVM",
-          address: evmAddress,
-          isLive: true,
-          isActive: true,
-          isDefault: false,
-          verified: false,
-          donationTotalUsd: 0,
-          chainName: chain?.name,
-          chainId: evmChainId,
-          connectorName: activeConn?.connector.name,
-          connectorType: activeConn?.connector.type,
-          connectorUid: activeConn?.connector.uid,
-          connectorIcon: (activeConn?.connector as any)?.icon,
-          authProvider: isAuthActive ? preferredAuthProvider(undefined, appKitAuthProvider, appKitSocialEmail) : undefined,
-          socialName: isAuthActive ? appKitSocialName : undefined,
-          socialEmail: isAuthActive ? appKitSocialEmail : undefined,
-          canDisconnect: !!activeConn,
+          key: `active-${evmAddress.toLowerCase()}`, family: 'EVM', address: evmAddress,
+          label: connection ? connectorLabel(connection.connector.name) : 'Wallet',
+          isLive: true, isActive: true, isDefault: false, verified: false, donationTotalUsd: 0,
+          chainId: evmChainId, chainName: evmChains.find(chain => chain.id === evmChainId)?.name,
+          connectorName: connection?.connector.name, connectorType: connection?.connector.type,
+          connectorUid: connection?.connector.uid, canDisconnect: !!connection,
         });
       }
     }
-  }
 
-  // ─── Secondary safety net: if connections exist but nothing is active ───
-  // This handles the case where useAccount() doesn't report an address
-  // but wagmi still has live connections (e.g. after AUTH auto-disconnect).
-  if (!activeOverride && !displayWallets.some((w) => w.isActive) && connections.length > 0) {
-    const firstConn = connections[0];
-    const firstAddr = firstConn.accounts[0]?.toLowerCase();
-    if (firstAddr) {
-      const idx = displayWallets.findIndex(
-        (w) => w.address.toLowerCase() === firstAddr,
-      );
-      if (idx >= 0) {
-        displayWallets[idx].isActive = true;
-        displayWallets[idx].isLive = true;
-        // Secondary safety net: force-mark first connection as active
+    // ─── Secondary safety net: if connections exist but nothing is active ───
+    // This handles the case where useAccount() doesn't report an address
+    // but wagmi still has live connections (e.g. after AUTH auto-disconnect).
+    if (!activeOverride && !displayWallets.some((w) => w.isActive) && connections.length > 0) {
+      const firstConn = connections[0];
+      const firstAddr = firstConn.accounts[0]?.toLowerCase();
+      if (firstAddr) {
+        const idx = displayWallets.findIndex(
+          (w) => w.address.toLowerCase() === firstAddr,
+        );
+        if (idx >= 0) {
+          displayWallets[idx].isActive = true;
+          displayWallets[idx].isLive = true;
+          // Secondary safety net: force-mark first connection as active
+        }
       }
     }
-  }
 
-  // ─── Dedupe: collapse entries sharing the same address ──────────
-  // When MetaMask is connected via extension AND via AppKit, or when a
-  // registry ghost duplicates a live card, prefer the live/active entry.
-  // IMPORTANT: Always dedupe by address first. AUTH identity keys are an
-  // additional layer but must never bypass address-based deduplication.
-  // This prevents ghost cards when Reown generates different addresses
-  // for the same social identity (address drift).
-  const deduped: DisplayWallet[] = [];
-  const seenAddresses = new Map<string, number>(); // dedupeKey → index in deduped
-  const seenRawAddresses = new Map<string, number>(); // plain addr → index (secondary dedup)
-  for (const w of displayWallets) {
-    const addrKey = w.address.toLowerCase();
-    const identityKey =
-      w.connectorType === 'AUTH'
-        ? authIdentityKey(w.authProvider, w.socialEmail, w.socialName)
-        : null;
-    const localKey =
-      w.connectorType === "LOCAL_RPC" && w.chainId != null
-        ? localRpcEntryKey(w.chainId, w.address)
-        : null;
-    const dedupeKey = identityKey
-      ? `auth:${identityKey}`
-      : localKey
-        ? `local:${localKey}`
-        : `addr:${addrKey}`;
-    // Check BOTH identity-based key AND raw address to prevent duplicates
-    const existingIdx = seenAddresses.get(dedupeKey) ?? seenRawAddresses.get(addrKey);
-    if (existingIdx !== undefined) {
-      const existing = deduped[existingIdx];
-      // Keep the "better" entry: active > live > grey, has dbWalletId > not, extension > AUTH
-      const wScore = (w.isActive ? 8 : 0) + (w.isLive ? 4 : 0) + (w.dbWalletId ? 2 : 0) + (w.connectorType !== 'AUTH' ? 1 : 0);
-      const eScore = (existing.isActive ? 8 : 0) + (existing.isLive ? 4 : 0) + (existing.dbWalletId ? 2 : 0) + (existing.connectorType !== 'AUTH' ? 1 : 0);
-      if (wScore > eScore) {
-        // Replace with better entry, but inherit verified/default/db info
-        deduped[existingIdx] = {
-          ...w,
-          dbWalletId: w.dbWalletId || existing.dbWalletId,
-          verified: w.verified || existing.verified,
-          isDefault: w.isDefault || existing.isDefault,
-          donationTotalUsd: Math.max(w.donationTotalUsd, existing.donationTotalUsd),
-          // Prefer specific auth provider over undefined
-          authProvider: w.authProvider || existing.authProvider,
-          socialName: w.socialName || existing.socialName,
-          socialEmail: w.socialEmail || existing.socialEmail,
-        };
-      } else {
-        // Keep existing, but inherit verified/default/live from duplicate
-        deduped[existingIdx] = {
-          ...existing,
-          dbWalletId: existing.dbWalletId || w.dbWalletId,
-          verified: existing.verified || w.verified,
-          isDefault: existing.isDefault || w.isDefault,
-          isLive: existing.isLive || w.isLive,
-          isActive: existing.isActive || w.isActive,
-          donationTotalUsd: Math.max(existing.donationTotalUsd, w.donationTotalUsd),
-          authProvider: existing.authProvider || w.authProvider,
-          socialName: existing.socialName || w.socialName,
-          socialEmail: existing.socialEmail || w.socialEmail,
-        };
-      }
-    } else {
-      seenAddresses.set(dedupeKey, deduped.length);
-      seenRawAddresses.set(addrKey, deduped.length);
-      deduped.push(w);
-    }
+    // Only exact family/address matches can share verified display data.
+    const reconciled = reconcileWalletDisplay(displayWallets,
+      activeOverride?.address ?? (evmConnected ? evmAddress : undefined));
+    displayWallets.length = 0;
+    displayWallets.push(...reconciled);
+    return displayWallets;
   }
-
-  // Replace raw list with deduped
-  displayWallets.length = 0;
-  displayWallets.push(...deduped);
-
-  // Hard guarantee: max ONE active wallet.
-  const forcedActiveAddress = activeOverride?.address?.toLowerCase()
-    ?? (evmConnected && evmAddress ? evmAddress.toLowerCase() : undefined);
-  if (forcedActiveAddress) {
-    let activated = false;
-    for (const wallet of displayWallets) {
-      const matches = wallet.address.toLowerCase() === forcedActiveAddress;
-      wallet.isActive = !activated && matches;
-      if (wallet.isActive) activated = true;
-    }
-  } else {
-    let found = false;
-    for (const wallet of displayWallets) {
-      if (wallet.isActive && !found) {
-        found = true;
-      } else {
-        wallet.isActive = false;
-      }
-    }
-  }
+  const displayWallets = collectDisplayWallets();
 
   // No sort — wallets stay in connection order (addedAt).
   // Active wallet gets green styling but doesn't move.
@@ -3300,7 +3010,6 @@ export default function SidebarWalletPanel({
     })();
 
     return () => { alive = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localRpcAddrKey]);
 
   const handleAddLocalRpcWallet = async (opts?: { chainId?: number; addAll?: boolean; address?: string }) => {
