@@ -48,7 +48,14 @@ Initial focused acceptance: four tests passed locally in 39.8s. Final compact-he
 acceptance also passes all four tests in 39.1s, with the header spacing assertion
 and fresh visual review at 360px. Results are in the ignored
 `frontend/test-results-release-pulse-detail-local-header/` directory.
-Production acceptance is pending deployment.
+Production source `7a85020`, deployment `dpl_EmGgyr8xdfS2NNsTq2Gha7Zdsbrc`,
+is READY and promoted to www.veggat.com. All four focused Live checks pass
+(43.1s), using a fresh normal demo session after the retained one expired.
+Candidate and Live health checks report a healthy database.
+Results: `frontend/test-results-release-pulse-detail-live-session/`.
+Real Chrome also opened an existing public VeggaSystem post in the new dialog
+on Live and visually checked the compact 390px header. This did not publish,
+react, message, purchase or refund. The temporary viewport was reset.
 
 ### Reproduce
 
@@ -64,7 +71,7 @@ node node_modules/@playwright/test/cli.js test --project=no-auth --no-deps --gre
 
 The real Chrome local database currently has no public posts; its empty state and
 sorting were checked without publishing owner content. Fixture-based navigation
-is separate from real Live post verification. Physical phone keyboard behavior,
+is separate from the real Live post check above. Physical phone keyboard behavior,
 legacy `?open=` links, all mutating buttons and native 125% zoom are not proven by
 this slice. The overall production scoreboard remains partial.
 

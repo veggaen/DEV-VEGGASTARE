@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { SALES_TERMS_TEXT } from '../lib/legal/sales-terms';
 import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-terms-version';
 import { createHash } from 'node:crypto';
@@ -6,6 +6,77 @@ import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders'
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
+
+async function confirmFirstDownload(page: Page) {
+  const reminder = page.getByRole('dialog', { name: 'Before you download', exact: true });
+  if (await reminder.isVisible()) await reminder.getByRole('button', { name: 'Download file', exact: true }).click();
+}
+
+test('S4 first-download reminder cancels safely, handles retries and fits every viewport', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_DOWNLOAD_NOTICE !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'App-issued demo session; browser fixtures never contact private storage');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let attempts = 0, reject = true;
+  const file = { id: 'qa-download-reminder', token: 'qa-inert-reminder-token', maxUses: 10, usedCount: 0, expiresAt: null, isRevoked: false,
+    digitalAsset: { id: 'qa-asset', fileName: 'fjord-study-'.repeat(10) + 'notes.txt', fileSize: 15, mimeType: 'text/plain' },
+    order: { id: 'qa-order', createdAt: '2026-01-01T00:00:00Z' }, product: { id: 'qa-product', title: 'Fjord Study — Digital Artwork', image: [] } };
+  try {
+    expect((await (await context.request.get('/api/auth/session')).json())?.user?.isDemo, 'Use a current app-issued demo session').toBe(true);
+    await page.route('**/api/my-downloads', route => route.fulfill({ json: { downloads: [file] } }));
+    await page.route('**/api/download/**', route => {
+      expect(route.request().url()).toContain(file.token); attempts++;
+      return reject ? route.fulfill({ status: 502, json: { error: 'Controlled QA storage failure' } })
+        : route.fulfill({ status: 200, contentType: 'text/plain', body: 'QA private file' });
+    });
+    await page.goto('/my-downloads', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    const library = page.getByRole('list', { name: 'Your downloads', exact: true });
+    const trigger = library.getByRole('button', { name: 'Download file', exact: true });
+    const reminder = page.getByRole('dialog', { name: 'Before you download', exact: true });
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate(value => { localStorage.setItem('veggat:theme', value); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveClass(new RegExp(theme));
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+        { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 },
+        { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        await trigger.click(); await expect(reminder).toBeVisible();
+        await expect(reminder).toContainText('only if the required consent and confirmation are in place');
+        await expect(reminder).toContainText('Faulty or misdescribed files remain eligible for review');
+        await expect(reminder.getByRole('checkbox')).toHaveCount(0);
+        const cancel = reminder.getByRole('button', { name: 'Cancel', exact: true });
+        await expect(cancel).toBeFocused();
+        expect(await reminder.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        const box = (await reminder.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(15); expect(box.x + box.width).toBeLessThanOrEqual(size.width - 15);
+        expect(box.height).toBeLessThanOrEqual(size.height - 30);
+        for (const button of [cancel, reminder.getByRole('button', { name: 'Download file', exact: true })]) expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        await page.screenshot({ path: info.outputPath(`download-reminder-${theme}-${size.width}.png`) });
+        await cancel.click(); await expect(reminder).toHaveCount(0); await expect(trigger).toBeFocused();
+        expect(attempts).toBe(0);
+      }
+    }
+    await trigger.press('Enter'); await expect(reminder).toBeVisible();
+    await page.keyboard.press('Shift+Tab'); await expect(reminder.getByRole('button', { name: 'Download file', exact: true })).toBeFocused();
+    await page.keyboard.press('Escape'); await expect(reminder).toHaveCount(0); await expect(trigger).toBeFocused(); expect(attempts).toBe(0);
+    await trigger.click(); await confirmFirstDownload(page);
+    await expect(library.getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
+    await expect(trigger).toBeEnabled(); expect(attempts).toBe(1);
+    // A retry on this page does not make the buyer read the reminder again.
+    reject = false;
+    const completed = page.waitForEvent('download'); await trigger.click();
+    const result = await completed; expect(result.suggestedFilename()).toBe(file.digitalAsset.fileName); expect(await result.failure()).toBeNull();
+    await expect(reminder).toHaveCount(0); await expect(library.getByRole('status')).toContainText('File sent to your browser'); expect(attempts).toBe(2);
+    // The server's historical request count is UI convenience, never a waiver.
+    file.usedCount = 1; await page.reload({ waitUntil: 'domcontentloaded' });
+    const repeated = page.waitForEvent('download'); await trigger.click(); await repeated;
+    await expect(reminder).toHaveCount(0); expect(attempts).toBe(3);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
 
 test('S8 Pulse detail preserves feed history, scroll and keyboard navigation', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_PULSE_DETAIL !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session and browser data fixtures; no public posts are created');
@@ -16,7 +87,8 @@ test('S8 Pulse detail preserves feed history, scroll and keyboard navigation', a
     user: { id: 'qa-pulse-reader', name: 'Layout reviewer', email: '' }, createdAt: '2026-01-01T12:00:00.000Z', messageCount: 25, hasPoll: false }));
   try {
     const page = await context.newPage(), errors: string[] = [];
-    expect((await (await context.request.get('/api/auth/session')).json()).user?.isDemo).toBe(true);
+    expect((await (await context.request.get('/api/auth/session')).json())?.user?.isDemo,
+      'Use a current app-issued demo session').toBe(true);
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/conversations?**', route => route.fulfill({ json: { conversations: posts, nextCursor: null } }));
     await page.route('**/api/messages?**', route => {
@@ -310,6 +382,12 @@ test('S9 recorded showcase — public entry, free demo checkout and private down
     await scene('07-receipt', 7);
     const downloaded = page.waitForEvent('download');
     await files.getByRole('button', { name: /fjord-study\.jpg/ }).click();
+    const reminder = page.getByRole('dialog', { name: 'Before you download', exact: true });
+    await expect(reminder).toBeVisible();
+    await reminder.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(files.getByRole('button', { name: /fjord-study\.jpg/ })).toBeFocused();
+    await files.getByRole('button', { name: /fjord-study\.jpg/ }).click();
+    await confirmFirstDownload(page);
     const download = await downloaded;
     expect(download.suggestedFilename()).toBe('fjord-study.jpg');
     expect(await download.failure()).toBeNull();
@@ -3956,7 +4034,7 @@ test('S4 — retained demo receipts, private downloads and responsive order hist
     // File failures stay on the receipt, with a usable retry instead of a raw API/error navigation.
     const receiptNotes = page.getByRole('button', { name: /^Download .*\.txt$/ });
     await page.route('**/api/download/**', route => route.fulfill({ status: 502, json: { error: 'Controlled QA storage failure' } }));
-    await receiptNotes.click(); await expect(page.locator('main').getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
+    await receiptNotes.click(); await confirmFirstDownload(page); await expect(page.locator('main').getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
     await expect(page).toHaveURL('/checkout/receipt/' + order.id); await expect(receiptNotes).toBeEnabled();
     await page.unroute('**/api/download/**');
     // Old bookmarks must resolve to the same truthful receipt, not a dollar receipt.
@@ -3970,13 +4048,13 @@ test('S4 — retained demo receipts, private downloads and responsive order hist
     expect((await anonymous.request.get('/api/download/' + file.token)).status()).toBe(401);
     const notes = downloads.locator(':scope > li').filter({ hasText: file.digitalAsset.fileName });
     await page.route('**/api/download/**', route => route.fulfill({ status: 502, json: { error: 'Controlled QA storage failure' } }));
-    await notes.getByRole('button', { name: 'Download file' }).click(); await expect(notes.getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
+    await notes.getByRole('button', { name: 'Download file' }).click(); await confirmFirstDownload(page); await expect(notes.getByRole('alert')).toHaveText('The file could not be downloaded. Please try again.');
     await expect(notes.getByRole('button', { name: 'Download file' })).toBeEnabled(); await page.unroute('**/api/download/**');
     // Explicit opt-in consumes one remaining use of each existing file, never a new grant.
     if (process.env.E2E_DOWNLOADS === 'download') {
       for (const record of files) {
         const card = downloads.locator(':scope > li').filter({ hasText: record.digitalAsset.fileName });
-        const done = page.waitForEvent('download'); await card.getByRole('button', { name: 'Download file' }).click(); const result = await done;
+        const done = page.waitForEvent('download'); await card.getByRole('button', { name: 'Download file' }).click(); await confirmFirstDownload(page); const result = await done;
         expect(result.suggestedFilename()).toBe(record.digitalAsset.fileName); expect(await result.failure()).toBeNull();
         const stream = await result.createReadStream(); const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
         const bytes = Buffer.concat(chunks); expect(bytes.length).toBe(record.digitalAsset.fileSize);

@@ -8,6 +8,8 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import type { OrderDto } from '@/lib/types/orders';
 import { orderStatusLabel } from '@/lib/order-presentation';
 import PreferredMoney from '@/components/checkout/preferred-money';
+import PrivateDownloadButton from '@/components/checkout/private-download-button';
+import { usePrivateDownload } from '@/hooks/use-private-download';
 
 type PaymentNotice = 'failed' | 'cancelled' | null;
 
@@ -58,6 +60,7 @@ const OrderConfirmationPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
+  const { pending, transfer, download: startDownload } = usePrivateDownload();
 
   useEffect(() => {
     if (!user) {
@@ -233,12 +236,13 @@ const OrderConfirmationPage = () => {
                       {download.digitalAsset?.fileName ?? 'Attached file'} - {remaining} download{remaining === 1 ? '' : 's'} left
                     </p>
                   </div>
-                  <a
-                    href={`/api/download/${download.token}`}
-                    className="inline-flex justify-center rounded-lg bg-brand-accent px-4 py-2 text-sm font-semibold text-brand-accent-foreground transition-all hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px"
-                  >
-                    Download file
-                  </a>
+                  <div>
+                    <PrivateDownloadButton file={{ id: download.id, token: download.token, fileName: download.digitalAsset?.fileName ?? 'download', usedCount: download.usedCount }}
+                      className="min-h-11" disabled={!!pending || remaining === 0 || (!!download.expiresAt && Date.parse(download.expiresAt) <= Date.now())} onDownload={startDownload}>
+                      {pending === download.id ? 'Downloading…' : 'Download file'}
+                    </PrivateDownloadButton>
+                    {transfer?.id === download.id && <p role={transfer.failed ? 'alert' : 'status'} className="mt-2 text-sm text-muted-foreground">{transfer.message}</p>}
+                  </div>
                 </div>
               );
             })}

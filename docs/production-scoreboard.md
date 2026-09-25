@@ -4,6 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Pulse reading/navigation: **local and Live acceptance DONE for this slice**.
+Source `7a85020`, Production `dpl_EmGgyr8xdfS2NNsTq2Gha7Zdsbrc` is READY at
+www.veggat.com. Four focused checks pass locally (39.1s) and Live (43.1s),
+covering eight sizes, history, focus, internal scrolling and tag state.
+Strict build/TypeScript, touched lint and candidate/Live health pass.
+Real Chrome opened an actual public post and checked its mobile header.
+No payment, refund or public post was submitted. This does not prove all Pulse
+permissions, publishing or moderation behavior. See [Pulse evidence](pulse-navigation-2026-09.md).
+
 Homepage chat: **local and Live acceptance DONE for this layout fix**. The empty welcome
 no longer auto-scrolls above its panel; expanded chat uses the shared accessible
 dialog above the site header. Four focused tests pass at eight sizes in both
