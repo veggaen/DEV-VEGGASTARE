@@ -5,7 +5,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 ## Current integrated production release — 25 September 2026
 
 Receipt delivery evidence: **PARTIAL — authenticated provider evidence obtained;
-signed callback implementation passed local acceptance**. The real Resend dashboard
+signed callback implementation deployed and scoped local/Preview/Live checks pass**. The real Resend dashboard
 confirms receiving-server acceptance of the paid artwork's original receipt at
 01:13:45 UTC, before the recorded JPG/TXT requests. This is not proof of a human
 reading it or complete legal compliance. New signed callbacks preserve original
@@ -13,8 +13,15 @@ messages, serialize delivery/dispatch races and cannot grant/refund purchases.
 59 units, four isolated Postgres cases and touched lint pass; the optional real
 send test is deliberately skipped. Strict build/TypeScript and final local
 receipt/job checks pass 2/2 (5.1s) after a normal free-demo fixture checkout.
-Migration is Preview-only; production and
-the new provider signing secret are not yet configured. No paid purchase,
+Source `38d22c9` is READY on stable Preview as
+`dpl_2zizhKfbCZjAUbJ2KN3LFeD1JtGG`; the same two checks pass (6.8s), plus
+candidate health and missing-secret 503/no-store. Production
+`dpl_27aKdwxTHmwGc8oExXKhASRNReoi` is READY and promoted to www.veggat.com.
+Both environments have 53 additive migrations. Live receipt/job checks pass
+2/2 (7.8s, no retries/skips), after preparing a missing receipt through normal
+free-demo checkout; Live health and unconfigured-callback 503/no-store pass.
+Real Chrome confirms the paid receipt is unchanged. The provider signing secret
+is not yet configured; action-time owner confirmation has been requested. No paid purchase,
 refund or customer email resend occurred. See [delivery evidence](email-delivery-events-2026-09.md).
 
 First-download reminder: **local and Live acceptance DONE for this UI slice**.

@@ -61,8 +61,9 @@ eight concurrent events now yield one update and seven duplicates. Another real
 database case runs eight competing workers, receives delivery before the sending
 response, then fails that response: evidence survives and there is still one send.
 
-Touched-file lint passes. The additive migration is applied to the isolated
-Preview database only. The first strict build caught and corrected a test-only
+Touched-file lint passes. The additive migration is applied to both isolated
+Preview and Production (53 migrations); existing rows retain nullable evidence
+fields and historical values. The first strict build caught and corrected a test-only
 header-union type error; the final strict build/TypeScript passes with the
 shared-claim lock and the existing EdgeStore postinstall patch applied. Initial local browser acceptance found no completed
 order in the retained demo account. Normal free-demo checkout prepared that
@@ -73,10 +74,28 @@ original-record download and support-form cancellation, with no payment writes.
 An actual unsigned HTTP POST returns 503/no-store while the webhook is unconfigured.
 Real Chrome refreshed the paid Live receipt and confirms its unchanged completed
 purchase and truthful unconfirmed-email status; no extra file download occurred.
-Production deployment and provider registration are **not yet complete**.
+Source `38d22c9` is READY on isolated Preview as
+`dpl_2zizhKfbCZjAUbJ2KN3LFeD1JtGG`; candidate health passed before assigning
+the existing Sandbox alias. The same two browser checks pass there (6.8s,
+no retries/skips); its missing demo receipt was prepared through the normal
+free-demo flow. The unsigned endpoint probe returns 503/no-store as intended.
+Real Chrome also opened the retained local Sandbox order and its confirmed
+receipt; historical product names and amounts remain unchanged.
+Source `38d22c9` is READY in Production as
+`dpl_27aKdwxTHmwGc8oExXKhASRNReoi`. Candidate health passed before promotion
+to www.veggat.com; Live health is 200 (32 ms in this single warm observation,
+not a percentile). The first Live receipt test found no completed order in the
+retained demo account. A normal free-demo checkout prepared that fixture, without
+payment or generation requests; the two checks then passed (7.8s, no retries or
+skips). The unsigned callback returns 503/no-store as intended while unconfigured.
+Real Chrome reloaded the paid artwork receipt: Completed, original capture and
+unconfirmed-email status are unchanged. No additional private-file request,
+refund or resend was made. These scoped checks do not certify the entire app.
+Provider registration is **not yet complete**.
 The Resend form is prepared with five delivery-event types but remains unsaved.
 Creating its signing secret and sending metadata to the app requires action-time
-owner confirmation. The existing sending API key is not replaced or broadened.
+owner confirmation, requested on 25 September. The existing sending API key is
+not replaced or broadened. No new signing secret has been created or saved.
 
 ## Boundaries
 
