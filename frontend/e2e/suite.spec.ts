@@ -10,6 +10,110 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 audit log denies anonymous and demo reads without returning records', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
+  const anonymous = await browser.newContext({ baseURL });
+  const demo = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    for (const [context, status] of [[anonymous, 401], [demo, 403]] as const) {
+      await openDirectoryGate(context);
+      for (const query of ['limit=20', 'entry=qa-missing-audit']) {
+        const response = await context.request.get('/api/admin/audit-log?' + query);
+        expect(response.status()).toBe(status); expect(response.headers()['cache-control']).toContain('no-store');
+        expect(response.headers()['vary']).toContain('Cookie');
+        const body = await response.json(); expect(body).not.toHaveProperty('logs'); expect(body).not.toHaveProperty('entry');
+      }
+    }
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
+test('S8 audit log filters, on-demand details and recovery fit all screens', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only owner fixture; no real audit writes');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  await openDirectoryGate(context);
+  const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.id).toMatch(/^demo_/);
+  const page = await context.newPage(), errors: string[] = [], detailReads: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let failure = false, detailFailure = false, denied = false, revokeSession = false;
+  const row = {id:'qa-audit-entry',adminId:'qa-audit-owner',action:'EDIT',targetType:'USER',targetId:'long-record-'.repeat(10),reason:'Updated display name',createdAt:'2026-01-01T12:00:00Z',admin:{id:'qa-audit-owner',name:'ExampleAdministrator'.repeat(5),email:'owner@example.test',image:null}};
+  await page.route('**/api/auth/session', route => route.fulfill({json:revokeSession?session:{...session,user:{...session.user,id:'qa-audit-owner',role:'OWNER',isDemo:false}}}));
+  await page.route('**/api/admin/stats', route => route.fulfill({status:503,json:{error:'QA unavailable'}}));
+  await page.route('**/api/admin/audit-log?**', async route => {
+    expect(route.request().method()).toBe('GET');
+    const query = new URL(route.request().url()).searchParams;
+    if (denied) return route.fulfill({status:403,json:{error:'Access ended'}});
+    if (query.has('entry')) {
+      detailReads.push(query.get('entry')!);
+      return route.fulfill({status:detailFailure?503:200,json:detailFailure?{error:'Unavailable'}:{entry:{...row,previousData:{name:'Earlier'},newData:{name:row.admin.name,password:'[redacted]',long:'Long value '.repeat(100)},ipAddress:'192.0.2.1',userAgent:'Browser fixture '.repeat(30)}}});
+    }
+    if (failure) return route.fulfill({status:503,json:{error:'Unavailable'}});
+    if (query.get('action')==='VIEW') await new Promise(resolve=>setTimeout(resolve,900));
+    const rows = query.get('targetType')==='WAREHOUSE' ? [] : Array.from({length:query.get('page')==='2'?1:20},(_,index)=>({...row,id:index?row.id+'-'+index:row.id,reason:query.get('action')==='VIEW'?'Stale response':row.reason}));
+    return route.fulfill({json:{logs:rows,pagination:{page:Number(query.get('page')),limit:20,total:rows.length?21:0,totalPages:rows.length?2:0}}});
+  });
+  try {
+    await page.goto('/',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const refreshed=page.waitForResponse(response=>response.url().includes('/api/auth/session'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true}); if(await consent.isVisible()) await consent.click();
+    await page.getByRole('button',{name:'Open menu',exact:true}).click();
+    await page.getByRole('link',{name:'Admin',exact:true}).filter({visible:true}).click();
+    await page.getByRole('heading',{name:'Audit Log',exact:true}).click();
+    const audit=page.getByRole('region',{name:'Audit log',exact:true}), details=()=>audit.getByRole('button',{name:'Details qa-audit-entry',exact:true});
+    await expect(details()).toBeVisible(); expect(detailReads).toEqual([]);
+    const action=audit.getByRole('combobox',{name:'Action',exact:true}), target=audit.getByRole('combobox',{name:'Record type',exact:true});
+    await action.selectOption('IMPERSONATE'); await expect(page).toHaveURL(/action=IMPERSONATE/);
+    await target.selectOption('WAREHOUSE'); await expect(audit.getByRole('heading',{name:'No matching entries'})).toBeVisible();
+    await page.goBack(); await expect(target).toHaveValue('all'); await expect(details()).toBeVisible();
+    await audit.getByRole('button',{name:'Next',exact:true}).click(); await expect(audit.getByText('Page 2 of 2')).toBeVisible();
+    await audit.getByRole('button',{name:'Previous',exact:true}).click(); await expect(audit.getByText('Page 1 of 2')).toBeVisible();
+    const slow=page.waitForRequest(request=>request.url().includes('action=VIEW'));
+    await action.selectOption('VIEW'); await slow; await action.selectOption('EDIT');
+    await expect(audit.getByText('Page 1 of 2')).toBeVisible(); await page.waitForTimeout(1000); await expect(audit.getByText('Stale response')).toHaveCount(0);
+    failure=true; await audit.getByRole('button',{name:'Refresh',exact:true}).click();
+    await expect(audit.getByRole('alert')).toContainText('Showing the last loaded entries'); await expect(details()).toBeVisible();
+    failure=false; await audit.getByRole('button',{name:'Retry',exact:true}).click(); await expect(audit.getByRole('alert')).toHaveCount(0);
+    await audit.getByRole('button',{name:'Clear filters',exact:true}).click(); await expect(action).toHaveValue('all'); await expect(details()).toBeVisible();
+    detailFailure=true; await details().click(); const dialog=page.getByRole('dialog',{name:'Audit entry',exact:true});
+    await expect(dialog.getByRole('alert')).toContainText('Details could not be loaded'); expect(detailReads).toHaveLength(1);
+    detailFailure=false; await dialog.getByRole('button',{name:'Retry details'}).click(); await expect(dialog.getByText('[redacted]',{exact:false})).toBeVisible();
+    await dialog.getByRole('button',{name:'Close audit entry'}).press('Enter'); await expect(details()).toBeFocused();
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height}); await action.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      expect(await audit.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      for(const control of await audit.locator('select,button').all()) { const box=await control.boundingBox(); if(box) expect(box.height).toBeGreaterThanOrEqual(44); }
+      await page.screenshot({path:info.outputPath('audit-'+width+'.png')});
+      await details().click(); await expect(dialog.getByRole('heading',{name:'After',exact:true})).toBeVisible();
+      const box=await dialog.boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.y).toBeGreaterThanOrEqual(0); expect(box!.y+box!.height).toBeLessThanOrEqual(height);
+      expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      const scroll=dialog.locator('.overflow-y-auto'); const area=await scroll.boundingBox();
+      await page.mouse.move(area!.x+area!.width/2,area!.y+area!.height/2); await page.mouse.wheel(0,1800);
+      await dialog.getByText('Request metadata',{exact:true}).click(); await expect(dialog.getByText('192.0.2.1',{exact:true})).toBeVisible();
+      await page.screenshot({path:info.outputPath('audit-detail-'+width+'.png')});
+      await dialog.getByRole('button',{name:'Close audit entry'}).click(); await expect(dialog).toHaveCount(0);
+      if(width===390||width===1280) {
+        await page.mouse.move(width-30,height/2); await page.mouse.wheel(0,10000);
+        await expect(audit.getByRole('navigation',{name:'Audit pages'})).toBeInViewport();
+        await page.screenshot({path:info.outputPath('audit-bottom-'+width+'.png')});
+        await action.scrollIntoViewIfNeeded();
+      }
+    }
+    denied=true; await details().click(); await expect(page.getByRole('region',{name:'Audit access'}).getByRole('alert')).toContainText('Owner access');
+    await expect(audit).toHaveCount(0); await expect(dialog).toHaveCount(0);
+    denied=false; failure=true; await page.getByRole('button',{name:'Retry access'}).click();
+    await expect(audit.getByRole('alert')).toContainText('could not be loaded'); await expect(details()).toHaveCount(0);
+    failure=false; await audit.getByRole('button',{name:'Retry',exact:true}).click();
+    await expect(dialog).toHaveCount(0); await expect(page).not.toHaveURL(/entry=/);
+    await expect(details()).toBeVisible();
+    revokeSession=true; const revoked=page.waitForResponse(response=>response.url().includes('/api/auth/session'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await revoked;
+    await expect(audit).toHaveCount(0); await expect(page).toHaveURL(baseURL!+'/'); expect(errors).toEqual([]);
+  } finally { await page.unrouteAll({behavior:'wait'}); await context.close(); }
+});
+
 test('S8 admin detail real endpoint denies anonymous and demo operations', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
   const anonymous = await browser.newContext({ baseURL });
