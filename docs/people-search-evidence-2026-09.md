@@ -37,6 +37,24 @@ claim the entire social-data privacy surface is complete.
   the intercepted session. No message was sent to a real member.
 - Real Chrome local signed-in normal-account search returns results; hidden
   addresses stay omitted. Search cleared; no conversation created.
-- Preview/live deployment and acceptance: pending.
+- Final Preview browser **4/4, 26.6s**; Live **4/4, 27.7s**; zero retries/skips.
+  The same source is strictly built in both environments. A combined 58-test
+  unit regression run also passes (search plus team-entrypoint/private reads).
+- Runtime `026504e`, Preview `dpl_7tYqAr5s4PoKphodeazbAcsRgcmq`
+  (`https://dev-veggastare-3ygu962s3-v3ggas-projects.vercel.app`), production
+  `dpl_HL9N6CcyyuZimaX1K4XY6rW4iPhF`
+  (`https://dev-veggastare-3guafq0yl-v3ggas-projects.vercel.app`). Both READY and
+  healthy; stable Preview alias updated, production promoted, www alias verified.
+- First generic Preview deploy failed the callback-origin safety guard before
+  migrations. Retried only after terminal failure using the existing ignored
+  `deploy-checkout-preview.mjs` helper, which verifies the Sandbox webhook and
+  sets Preview-only origin/webhook overrides. No production settings changed.
+- Real Chrome Live: empty search settles correctly, positive search returns ten
+  bounded results, search cleared, no recipient selected or message submitted.
+  No captured console errors. Admin search still shows existing system/QA
+  identities; identifying retained test records for a safe directory cleanup
+  remains separate. Do not delete accounts based on names alone.
 
-Reports: `frontend/test-results-release-people-search-local-final/results.json`.
+Reports: `frontend/test-results-release-people-search-local-final/results.json`,
+`frontend/test-results-release-people-search-preview/results.json`,
+`frontend/test-results-release-people-search-live/results.json`.

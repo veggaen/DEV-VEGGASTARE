@@ -4,6 +4,18 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+People-search privacy: **DONE for this endpoint; the wider directory/social
+audit remains PARTIAL**. Runtime `026504e` is promoted as
+`dpl_HL9N6CcyyuZimaX1K4XY6rW4iPhF`. Demo searches return no real people, all
+responses are private/no-store, ordinary users do not receive platform roles or
+hidden emails, literal search is bounded and throttled. Independent follow
+queries run together; empty searches avoid them. 29 search unit/database checks,
+58 combined regression units, strict builds, touched lint and local/Preview/Live
+browser **4/4** each pass, zero retries/skips. Real Chrome positive/empty searches
+pass locally/live without sending messages. Existing QA/system directory entries
+need a separate evidence-based cleanup; no accounts were deleted. See
+[people-search evidence](people-search-evidence-2026-09.md).
+
 Company-team authorization and forms: **DONE for this scoped slice; full S8
 remains PARTIAL**. Runtime `73fbabe` is promoted as
 `dpl_GzBe9UhaKx73rXiVEFYBTGqMTPkp`. Both Server Actions and four mutation routes
