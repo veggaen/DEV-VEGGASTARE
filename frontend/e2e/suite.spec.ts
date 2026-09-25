@@ -590,6 +590,80 @@ test('S8 production chat preview stays unavailable without client render errors'
   } finally { await context.close(); }
 });
 
+test('S8 missing trade stays on page and transient failures can retry', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_DYNAMIC_MISSING !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo read-only trade error test');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 360, height: 800 } });
+  const page = await context.newPage();
+  let reads = 0;
+  await page.route('**/api/trades/cqaunavailablerecord0000001', route => {
+    reads++;
+    return route.fulfill({ status: reads === 1 ? 503 : 404, json: { error: reads === 1 ? 'Unavailable' : 'Not found' } });
+  });
+  try {
+    await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    await page.goto('/trade/cqaunavailablerecord0000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Could not load this trade' })).toBeVisible();
+    await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Trade unavailable', exact: true })).toBeVisible();
+    await page.waitForTimeout(3_500);
+    expect(reads).toBe(2); // An unavailable record must not start the three-second poll loop.
+    expect(new URL(page.url()).pathname).toBe('/trade/cqaunavailablerecord0000001');
+    await page.getByRole('button', { name: 'Back to trading', exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard\/trading$/);
+  } finally { await context.close(); }
+});
+
+test('S8 dynamic routes handle unavailable records without crashing', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_DYNAMIC_MISSING !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
+    'Read-only missing-record audit with a retained demo session');
+  test.setTimeout(600_000);
+  const files = readdirSync(path.resolve('app'), { recursive: true }).map(String)
+    .filter(file => /(^|[\\/])page\.tsx$/.test(file) && file.includes('['));
+  const routes = [...new Set(files.map(file => '/' + file.replaceAll('\\', '/').split('/')
+    .filter(segment => !/^\([^)]*\)$/.test(segment) && !segment.startsWith('@') && segment !== 'page.tsx')
+    .map(segment => segment.replace(/^\(\.\)/, '').replace(/\[.*\]/, 'cqaunavailablerecord0000001')).join('/')))];
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  const results: Record<string, unknown>[] = [];
+  try {
+    expect((await (await context.request.get('/api/auth/session')).json()).user?.isDemo).toBe(true);
+    for (const width of [360, 2560]) {
+      await page.setViewportSize({ width, height: width === 360 ? 800 : 1440 });
+      for (const route of routes) {
+        const errors: string[] = [];
+        const onError = (error: Error) => errors.push(error.message);
+        page.on('pageerror', onError);
+        try {
+          const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+          if (route.startsWith('/company/')) await page.waitForURL('**/companies/cqaunavailablerecord0000001');
+          const gatedAdmin = route.startsWith('/admin/') && new URL(page.url()).pathname === '/gate';
+          if (gatedAdmin) {
+            expect(new URL(page.url()).searchParams.get('redirect')).toBe(route);
+            await expect(page.getByLabel('Access Password')).toBeVisible();
+          } else await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+          if (route.startsWith('/trade/')) {
+            await expect(page.getByRole('heading', { name: 'Trade unavailable', exact: true })).toBeVisible();
+            expect(new URL(page.url()).pathname).toBe(route);
+          }
+          await page.waitForTimeout(750);
+          await page.mouse.move(width - 20, 400);
+          await page.mouse.wheel(0, 700);
+          const state = await page.evaluate(() => ({
+            overflow: document.documentElement.scrollWidth > innerWidth + 1,
+            headings: Array.from(document.querySelectorAll('h1, h2')).map(node => node.textContent),
+            mainPresent: !!document.querySelector('main, [role="main"]'),
+          }));
+          results.push({ route, width, status: response?.status(), finalPath: new URL(page.url()).pathname, ...state, gatedAdmin, errors });
+        } catch (error) {
+          results.push({ route, width, failure: String(error), errors });
+        } finally { page.off('pageerror', onError); }
+      }
+    }
+    await info.attach('missing-dynamic-records', { body: JSON.stringify(results, null, 2), contentType: 'application/json' });
+    expect(results.filter(row => row.failure || row.overflow || (!row.mainPresent && !row.gatedAdmin) || Number(row.status) >= 500 || (row.errors as string[]).length)).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S8 route inventory read-only rendering and scrolling audit', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_ROUTE_INVENTORY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE,
     'Opt-in read-only inventory; requires retained demo session');

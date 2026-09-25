@@ -9,9 +9,10 @@
 - **Live credit purchase verified:** one owner-approved 9 NOK / ten-credit
   starter capture, exactly one grant and subsequent funded AI use. This is not
   evidence of a 39 NOK purchase. See [Live evidence](receipt-layout-2026-09.md).
-- **Live artwork purchase and refund remain unverified.** One 29 NOK artwork
-  checkout is prepared in real Chrome; consent and payment await the owner.
-  No payment or refund has been submitted for that acceptance step.
+- **Live artwork purchase verified:** owner-paid 29 NOK, server-verified capture,
+  actual JPG/TXT downloads matching checksums and denied anonymous/other-account
+  access. **Live refund remains pending.** See
+  [Live digital evidence](live-digital-acceptance-2026-09.md).
 - **Unpaid recovery verified:** local and Preview real Sandbox approval links
   resume the same order; cancellation grants nothing. Live UI/API checks pass.
   See [recovery evidence](order-recovery-2026-09.md).

@@ -248,17 +248,27 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'unavailable' | 'failed' | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
   // ── Initial fetch ──
   useEffect(() => {
+    const controller = new AbortController();
     async function load() {
+      setLoading(true);
+      setLoadError(null);
+      setPartner(null);
       try {
-        const res = await fetch(`/api/trades/${tradeId}`);
-        if (!res.ok) { toast.error("Trade not found"); router.back(); return; }
+        const res = await fetch(`/api/trades/${tradeId}`, { signal: controller.signal });
+        if (!res.ok) {
+          setLoadError([401, 403, 404].includes(res.status) ? 'unavailable' : 'failed');
+          return;
+        }
         const data = await res.json();
+        if (controller.signal.aborted) return;
 
         if (data.expiresAt) setExpiresAt(data.expiresAt);
         const iAmInitiator = data.initiatorId === currentUser?.id;
@@ -269,18 +279,18 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
         else if (data.status === "COMPLETED") setPhase("complete");
         else if (data.status === "CONFIRMING") setPhase("confirm");
       } catch {
-        toast.error("Failed to load trade");
-        router.back();
+        if (!controller.signal.aborted) setLoadError('failed');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     if (currentUser?.id) load();
-  }, [tradeId, currentUser?.id, router]);
+    return () => controller.abort();
+  }, [tradeId, currentUser?.id, loadAttempt]);
 
   // ── Poll trade state ──
   useEffect(() => {
-    if (!tradeId || phase === "complete" || phase === "cancelled" || loading) return;
+    if (!tradeId || phase === "complete" || phase === "cancelled" || loading || loadError) return;
     let active = true;
 
     const poll = async () => {
@@ -334,7 +344,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
     const iv = setInterval(poll, 3000);
     poll();
     return () => { active = false; clearInterval(iv); };
-  }, [tradeId, phase, currentUser?.id, loading]);
+  }, [tradeId, phase, currentUser?.id, loading, loadError]);
 
   // ── Add/Remove items ──
   const addMyItem = useCallback((slot: InventorySlot) => {
@@ -519,7 +529,14 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   if (!partner) {
     return (
       <ModalWrapper isFullPage={isFullPage} onClose={handleClose} mounted={mounted}>
-        <div className="flex items-center justify-center py-20 text-zinc-500">Trade not found</div>
+        <div className="space-y-4 px-6 py-10 text-center" role="status">
+          <h1 className="text-xl font-semibold">{loadError === 'failed' ? 'Could not load this trade' : 'Trade unavailable'}</h1>
+          <p className="text-sm text-muted-foreground">{loadError === 'failed' ? 'Try again in a moment.' : 'It may have ended, or you may not have access.'}</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {loadError === 'failed' && <button type="button" className="min-h-11 rounded-lg border px-4 text-sm" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>}
+            <button type="button" className="min-h-11 rounded-lg border px-4 text-sm" onClick={() => isFullPage ? router.push('/dashboard/trading') : handleClose()}>{isFullPage ? 'Back to trading' : 'Close'}</button>
+          </div>
+        </div>
       </ModalWrapper>
     );
   }
