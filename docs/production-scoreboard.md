@@ -2,6 +2,14 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Conversation detail recovery — 26 September 2026
+
+**PARTIAL; reproduced and corrected locally, hosted verification pending.** A 503
+message read previously displayed “Conversation not found” without retry. Error
+and unavailable states are now distinct; obsolete reads are aborted and state
+resets across conversation/account changes. Build/TypeScript/lint and four local
+browser checks pass. See [scope and evidence](conversation-recovery-2026-09.md).
+
 ## Realtime loading follow-up — 26 September 2026
 
 **DONE for this scoped realtime change; full performance audit remains PARTIAL.** The shared

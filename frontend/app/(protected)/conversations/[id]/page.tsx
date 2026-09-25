@@ -49,6 +49,13 @@ const CONVERSATION_TYPE_LABEL: Record<string, string> = {
 };
 
 export default function ConversationPage() {
+  const params = useParams();
+  const user = useCurrentUser();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  return <ConversationThread key={`${user?.id ?? 'guest'}:${id ?? ''}`} />;
+}
+
+function ConversationThread() {
   const reduceMotion = useReducedMotion();
   const params = useParams();
   const router = useRouter();
@@ -58,6 +65,8 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readProblem, setReadProblem] = useState<'unavailable' | 'error' | null>(null);
+  const readRequest = useRef<AbortController | null>(null);
   const [conversation, setConversation] = useState<ConversationDetails | null>(null);
   const [isCancellingDeletion, setIsCancellingDeletion] = useState(false);
   const [hasPoll, setHasPoll] = useState(false);
@@ -68,12 +77,27 @@ export default function ConversationPage() {
 
   const currentUser = useCurrentUser();
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (showLoading = false) => {
     if (!conversationId) return;
-    
+    readRequest.current?.abort();
+    const request = new AbortController();
+    readRequest.current = request;
+    if (showLoading) setLoading(true);
+    setReadProblem(null);
     try {
-      const response = await fetch(`/api/messages?conversationId=${conversationId}`);
+      const response = await fetch(`/api/messages?conversationId=${encodeURIComponent(conversationId)}`, { signal: request.signal });
+      if (!response.ok) {
+        if (request.signal.aborted) return;
+        setReadProblem([401, 403, 404].includes(response.status) ? 'unavailable' : 'error');
+        setConversation(null);
+        setMessages([]);
+        setUsers([]);
+        setHasPoll(false);
+        return;
+      }
       const data = await response.json();
+      if (request.signal.aborted) return;
+      if (!data.conversation || data.conversation.id !== conversationId || !Array.isArray(data.messages) || !Array.isArray(data.users)) throw new Error('Invalid conversation response');
       
       if (data.messages) {
         setMessages(data.messages);
@@ -84,18 +108,22 @@ export default function ConversationPage() {
       if (data.conversation) {
         setConversation(data.conversation);
       }
-      if (data.hasPoll || data.poll) {
-        setHasPoll(true);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
+      setHasPoll(Boolean(data.hasPoll || data.poll));
+    } catch {
+      if (request.signal.aborted) return;
+      setReadProblem('error');
+      setConversation(null);
+      setMessages([]);
+      setUsers([]);
+      setHasPoll(false);
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
   }, [conversationId]);
 
   useEffect(() => {
-    fetchMessages();
+    void fetchMessages();
+    return () => readRequest.current?.abort();
   }, [fetchMessages]);
 
   // Redirect PUBLIC_THREAD to /pulse/[id] (clean URL with parallel route modal)
@@ -106,7 +134,7 @@ export default function ConversationPage() {
   }, [conversation?.type, conversationId, router]);
 
   // Pusher real-time updates via shared singleton
-  const channelName = conversationId ? `ConversationChannel_${conversationId}` : '';
+  const channelName = conversation && !readProblem && conversationId ? `ConversationChannel_${conversationId}` : '';
 
   usePusher<{ message?: any; conversationId?: string }>(channelName, 'new-message', useCallback((data: any) => {
     const newMessage = data.message || data;
@@ -124,6 +152,7 @@ export default function ConversationPage() {
   // other participants; auto-clears after a short idle so it never sticks.
   const [typingName, setTypingName] = useState<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); }, []);
   usePusher<{ userId: string; name?: string }>(channelName, 'typing', useCallback((data) => {
     if (data.userId && data.userId === currentUser?.id) return; // ignore self
     setTypingName(data.name || 'Someone');
@@ -198,8 +227,10 @@ export default function ConversationPage() {
 
   if (!conversation) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Conversation not found</h2>
+      <div role="alert" className="mx-auto flex min-h-[50dvh] max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-xl font-semibold text-foreground">{readProblem === 'error' ? 'Could not load conversation' : 'Conversation unavailable'}</h1>
+        <p className="text-sm text-muted-foreground">{readProblem === 'error' ? 'Please try again.' : 'This conversation is missing or you no longer have access.'}</p>
+        {readProblem === 'error' && <Button className="min-h-11" onClick={() => void fetchMessages(true)}>Try again</Button>}
         <Button onClick={() => router.push('/conversations')} variant="outline">
           Back to Messages
         </Button>
