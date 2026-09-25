@@ -10,6 +10,22 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 people search is private and demo-safe on the real endpoint', async ({browser,baseURL}) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained unrelated demo identity');
+  const anonymous=await browser.newContext({baseURL}), demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try {
+    const denied=await anonymous.request.get('/api/users/search?q=Veggat');
+    expect(denied.status()).toBe(401); expect(denied.headers()['cache-control']).toContain('no-store');
+    for (const query of ['q=Veggat','q=QA&excludeSelf=false','q=','q=A']) {
+      const response=await demo.request.get('/api/users/search?'+query);
+      expect(response.status()).toBe(200); expect(await response.json()).toEqual({users:[],count:0});
+      expect(response.headers()['cache-control']).toContain('private'); expect(response.headers()['cache-control']).toContain('no-store');
+    }
+    const invalid=await demo.request.get('/api/users/search?q=Veggat&excludeSelf=invalid');
+    expect(invalid.status()).toBe(400); expect(invalid.headers()['cache-control']).toContain('no-store');
+  } finally {await anonymous.close();await demo.close();}
+});
+
 test('S8 team forms use reviewed versions, scoped roles and responsive dialogs', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; all team writes intercepted');
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
@@ -7632,11 +7648,11 @@ test.describe("Layer 3 — Content", () => {
     page.on('pageerror', error => errors.push(error.message));
     // UI-only normal-account preview. The server session stays a demo; ALL
     // searches and message writes below are intercepted, never sent to members.
-    await page.route('**/api/auth/session', async route => {
-      const response = await route.fetch();
-      const session = await response.json();
-      await route.fulfill({ response, json: { ...session, user: { ...session.user, id: 'ui_fixture_only' } } });
-    });
+    const composerSession = await (await context.request.get('/api/auth/session')).json();
+    expect(composerSession.user.id).toMatch(/^demo_/);
+    await page.route('**/api/auth/session', route => route.fulfill({ json: {
+      ...composerSession, user: { ...composerSession.user, id: 'ui_fixture_only', isDemo: false },
+    } }));
     await page.route('**/api/users/search?*', route => new URL(route.request().url()).searchParams.get('q') === 'fail'
       ? route.fulfill({ status: 503, json: { error: 'Fixture error' } })
       : route.fulfill({ json: { users: [{ id: 'ui_recipient_only', name: 'QA Fixture Member', email: null, image: '',
@@ -7649,6 +7665,9 @@ test.describe("Layer 3 — Content", () => {
     });
     try {
       await page.goto('/conversations/new', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+      const refreshedComposerSession = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refreshedComposerSession;
       await page.getByLabel('Find someone', { exact: true }).fill('fail');
       await expect(page.getByRole('form', { name: 'New conversation' }).getByRole('alert')).toHaveText('People search is unavailable. Please try again in a moment.');
       await page.getByLabel('Find someone', { exact: true }).fill('QA');
