@@ -1,171 +1,56 @@
-"use server";
+'use server';
 
-/**
- * @fileOverview GDPR account deletion server actions (Art. 17 — right to erasure).
- * @stability active
- * @keyInvariants Schedules deletion 30 days out (grace period). User can cancel.
- *   Actual deletion cascades through all user-related data.
- *   Order data retained for 5 years per bokføringsloven.
- */
+/** Account-owned erasure requests. Execution requires a separate retention review;
+ * never expose a cascading user delete as a public Server Action. */
+import { headers } from 'next/headers';
+import { z } from 'zod';
+import { dbPrisma } from '@/lib/db';
+import { MyLibUserAuth } from '@/lib/user-auth';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 
-import { dbPrisma } from "@/lib/db";
-import { MyLibUserIDAuth } from "@/lib/user-auth";
+export interface AccountDeletionResult { success: boolean; error?: string; scheduledFor?: string; requestId?: string }
+class DeletionRequestError extends Error {}
 
-export interface AccountDeletionResult {
-  success: boolean;
-  error?: string;
-  scheduledFor?: string;
-  requestId?: string;
+async function requestActor() {
+  const user = await MyLibUserAuth();
+  if (!user?.id || user.isImpersonating || isDemoUserId(user.id)) throw new DeletionRequestError('Logg inn på din egen konto for å sende en forespørsel.');
+  const h = await headers(), value = h.get('origin');
+  let origin: URL;
+  try { origin = new URL(value ?? ''); } catch { throw new DeletionRequestError('Åpne innstillingene på dette nettstedet og prøv igjen.'); }
+  if (origin.origin !== value || !['https:', 'http:'].includes(origin.protocol) || origin.host !== (h.get('x-forwarded-host') ?? h.get('host'))) throw new DeletionRequestError('Åpne innstillingene på dette nettstedet og prøv igjen.');
+  if (!await allowAuthAttempt('account-deletion-request', user.id)) throw new DeletionRequestError('For mange forsøk. Prøv igjen om noen minutter.');
+  return user.id;
 }
 
-/**
- * Request account deletion. Creates a 30-day grace period request.
- * The user can cancel during this period.
- */
-export async function requestAccountDeletion(
-  reason?: string
-): Promise<AccountDeletionResult> {
-  const userId = await MyLibUserIDAuth();
-  if (!userId) return { success: false, error: "Ikke autentisert." };
-
+export async function requestAccountDeletion(reason?: string): Promise<AccountDeletionResult> {
   try {
-    // Check if there's already a pending request
-    const existing = await dbPrisma.accountDeletionRequest.findFirst({
-      where: {
-        userId,
-        status: { in: ["PENDING", "PROCESSING"] },
-        cancelledAt: null,
-      },
+    const userId = await requestActor();
+    const parsed = z.string().trim().max(1000).optional().safeParse(reason);
+    if (!parsed.success) return { success: false, error: 'Begrunnelsen må være tekst på høyst 1000 tegn.' };
+    return await dbPrisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      if (!await tx.user.findUnique({ where: { id: userId }, select: { id: true } })) throw new DeletionRequestError('Logg inn igjen.');
+      const existing = await tx.accountDeletionRequest.findFirst({ where: { userId, status: { in: ['PENDING', 'PROCESSING'] }, cancelledAt: null }, select: { id: true } });
+      if (existing) return { success: false, error: 'Du har allerede en åpen slettingsforespørsel.' };
+      const scheduledFor = new Date(Date.now() + 30 * 86_400_000);
+      const request = await tx.accountDeletionRequest.create({ data: { userId, reason: parsed.data || null, scheduledFor, status: 'PENDING' }, select: { id: true } });
+      return { success: true, scheduledFor: scheduledFor.toISOString(), requestId: request.id };
     });
-
-    if (existing) {
-      return {
-        success: false,
-        error: `Du har allerede en ventende slettingsforespørsel (planlagt ${existing.scheduledFor.toLocaleDateString("nb-NO")}).`,
-      };
-    }
-
-    const scheduledFor = new Date();
-    scheduledFor.setDate(scheduledFor.getDate() + 30);
-
-    const request = await dbPrisma.accountDeletionRequest.create({
-      data: {
-        userId,
-        reason: reason || null,
-        scheduledFor,
-        status: "PENDING",
-      },
-    });
-
-    return {
-      success: true,
-      scheduledFor: scheduledFor.toISOString(),
-      requestId: request.id,
-    };
   } catch (error) {
-    console.error("[requestAccountDeletion] Error:", error);
-    return { success: false, error: "Kunne ikke opprette slettingsforespørsel." };
+    return { success: false, error: error instanceof DeletionRequestError ? error.message : 'Forespørselen kunne ikke bekreftes. Oppdater siden før du prøver igjen.' };
   }
 }
 
-/**
- * Cancel a pending account deletion request during the grace period.
- */
-export async function cancelAccountDeletion(): Promise<{
-  success: boolean;
-  error?: string;
-}> {
-  const userId = await MyLibUserIDAuth();
-  if (!userId) return { success: false, error: "Ikke autentisert." };
-
+export async function cancelAccountDeletion(): Promise<AccountDeletionResult> {
   try {
-    const pending = await dbPrisma.accountDeletionRequest.findFirst({
-      where: {
-        userId,
-        status: "PENDING",
-        cancelledAt: null,
-      },
+    const userId = await requestActor();
+    return await dbPrisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      const changed = await tx.accountDeletionRequest.updateMany({ where: { userId, status: 'PENDING', cancelledAt: null }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
+      return changed.count > 0 ? { success: true } : { success: false, error: 'Ingen ventende forespørsel å avbryte. Kontakt oss hvis den allerede behandles.' };
     });
-
-    if (!pending) {
-      return { success: false, error: "Ingen ventende slettingsforespørsel funnet." };
-    }
-
-    await dbPrisma.accountDeletionRequest.update({
-      where: { id: pending.id },
-      data: {
-        status: "CANCELLED",
-        cancelledAt: new Date(),
-      },
-    });
-
-    return { success: true };
   } catch (error) {
-    console.error("[cancelAccountDeletion] Error:", error);
-    return { success: false, error: "Kunne ikke kansellere slettingsforespørselen." };
-  }
-}
-
-/**
- * Execute account deletion. Should only be called by a cron job or admin
- * after the 30-day grace period. Cascading delete removes most data.
- * Order data is anonymised (not deleted) to comply with bokføringsloven.
- */
-export async function executeAccountDeletion(
-  requestId: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const request = await dbPrisma.accountDeletionRequest.findUnique({
-      where: { id: requestId },
-      include: { User: { select: { id: true, email: true } } },
-    });
-
-    if (!request || request.status !== "PENDING") {
-      return { success: false, error: "Ugyldig eller allerede behandlet forespørsel." };
-    }
-
-    if (new Date() < request.scheduledFor) {
-      return { success: false, error: "Karensperioden er ikke utløpt ennå." };
-    }
-
-    const userId = request.userId;
-
-    await dbPrisma.$transaction(async (tx) => {
-      // 1. Anonymise orders (retain for bookkeeping, strip PII)
-      await tx.order.updateMany({
-        where: { userId },
-        data: {
-          shippingName: "[slettet]",
-          shippingAddress: "[slettet]",
-          shippingCity: "[slettet]",
-          shippingPostalCode: "[slettet]",
-          shippingPhone: "[slettet]",
-          // Keep: totalAmount, currency, status, items for bookkeeping
-        },
-      });
-
-      // 2. Delete user (cascading deletes handle most relations due to onDelete: Cascade)
-      await tx.user.delete({ where: { id: userId } });
-
-      // 3. Mark request as completed
-      await tx.accountDeletionRequest.update({
-        where: { id: requestId },
-        data: { status: "COMPLETED", completedAt: new Date() },
-      });
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("[executeAccountDeletion] Error:", error);
-
-    // Mark as failed
-    try {
-      await dbPrisma.accountDeletionRequest.update({
-        where: { id: requestId },
-        data: { status: "FAILED" },
-      });
-    } catch { /* noop */ }
-
-    return { success: false, error: "Sletting feilet. Kontakt support." };
+    return { success: false, error: error instanceof DeletionRequestError ? error.message : 'Avbrytelsen kunne ikke bekreftes. Oppdater siden før du prøver igjen.' };
   }
 }

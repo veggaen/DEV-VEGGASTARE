@@ -11,6 +11,72 @@ import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
 const directoryGateCookies = new Map<string, Awaited<ReturnType<BrowserContext['cookies']>>>();
+
+test('S2 account settings separate profile and security changes and confirm safely across screens', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity; all settings writes are browser-only fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_SETTINGS_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  const retained = await (await context.request.get('/api/auth/session')).json(); expect(retained.user.id).toMatch(/^demo_/);
+  await openDirectoryGate(context);
+  const page = await context.newPage(), changes: Record<string, unknown>[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ...retained, user: { ...retained.user, id: 'qa-settings-display', name: 'QA Settings', email: 'qa@example.test', role: 'USER', isDemo: false, isOAuth: false, isTwoFactorEnabled: true } } }));
+  await page.route('**/api/users/qa-settings-display', route => route.fulfill({ json: { user: { name: 'QA Settings' } } }));
+  await page.route('**/settings**', async route => {
+    if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.continue();
+    const [input] = JSON.parse(route.request().postData()!, (_key, value) => value === '$undefined' ? undefined : value);
+    changes.push(input);
+    const result = input.name ? { success: 'Settings saved.' } : !input.securityCode ? { twoFactor: true }
+      : input.securityCode !== '654321' ? { error: 'Incorrect or expired code. Request a new security code.' }
+      : { success: 'Security settings updated. Sign in again.', signInRequired: true };
+    return route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: result, f: [], b: 'qa-browser-only' })}\n` });
+  });
+  let signouts = 0;
+  await page.route('**/api/auth/signout', route => { signouts++; return route.fulfill({ json: { url: `${baseURL}/auth/login?callbackUrl=%2Fsettings%3Fsection%3Dsecurity` } }); });
+  try {
+    await page.goto('/settings?section=account', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const refresh = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refresh;
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    const account = page.getByRole('form', { name: 'Account details' }); await expect(account).toBeVisible();
+    await expect(account.getByLabel('Email Address', { exact: true })).toHaveAttribute('readonly', '');
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await account.getByLabel('Display Name', { exact: true }).fill('QA revised name');
+    await account.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(account.getByRole('status')).toHaveText('Settings saved.');
+    expect(changes[0]).toMatchObject({ name: 'QA revised name' });
+    for (const key of ['role','password','newPassword','isTwoFactorEnabled','securityCode']) expect(changes[0]).not.toHaveProperty(key);
+    // Use the real navigation controls, not a replacement page component.
+    await page.getByRole('button', { name: 'Settings sections: Account', exact: true }).click();
+    await page.getByRole('button', { name: /^Security/ }).filter({ visible: true }).click();
+    const security = page.getByRole('form', { name: 'Account security' }); await expect(security).toBeVisible();
+    await security.getByLabel('Current Password', { exact: true }).fill('qa-current-fixture');
+    await security.getByLabel('New Password', { exact: true }).fill('qa-new-fixture');
+    await security.getByRole('button', { name: 'Update Security Settings', exact: true }).click();
+    const code = security.getByRole('textbox', { name: 'Security code', exact: true }); await expect(code).toBeVisible();
+    expect(changes[1]).toMatchObject({ expectedTwoFactorEnabled: true, isTwoFactorEnabled: true }); expect(changes[1]).not.toHaveProperty('name');
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await security.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`account-security-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(security.getByRole('alert')).toContainText('Incorrect or expired code');
+    await expect(security.getByLabel('New Password', { exact: true })).toHaveValue('qa-new-fixture');
+    await security.getByRole('button', { name: 'Resend Code', exact: true }).click(); await expect(code).toHaveValue('');
+    expect(changes.at(-1)).not.toHaveProperty('securityCode', '123456');
+    // The fixture deliberately retains its real demo cookie; observe the
+    // requested reauthentication destination, not a fake logged-out identity.
+    const loginNavigation = page.waitForRequest(request => new URL(request.url()).pathname === '/auth/login');
+    await code.fill('654321'); await code.press('Enter');
+    expect(new URL((await loginNavigation).url()).searchParams.get('callbackUrl')).toBe('/settings?section=security');
+    expect(signouts).toBe(1); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 async function openDirectoryGate(context: BrowserContext) {
   const probe = await context.request.get('/api/admin/users?limit=20');
   const body = await probe.json();

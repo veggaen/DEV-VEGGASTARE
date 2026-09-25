@@ -23,6 +23,15 @@ async function sendEmailViaResend(payload: Parameters<typeof resend.emails.send>
 // Simplified environment detection (no trailing slash; callers add leading '/')
 const whatENV = authOrigin();
 
+export async function sendAccountSecurityCode(email: string, code: string): Promise<void> {
+  if (!/^\d{6}$/.test(code)) throw new Error('Invalid security code');
+  await sendEmailViaResend({
+    from: 'Veggat-Security@veggat.com', to: email,
+    subject: 'Confirm your Veggat security change',
+    text: `Your security confirmation code is ${code}. It expires in 5 minutes and approves only the change you requested in Settings. Never share it. If you did not request this, do not approve the change.`,
+  });
+}
+
 export const sendTwoFactorTokenEmail = async (email: string, token: string): Promise<void> => {
   await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',

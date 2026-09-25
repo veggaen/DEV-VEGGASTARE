@@ -1,42 +1,10 @@
-import { EmployeeRole, UserRole } from '@/generated/prisma/browser'
+import { EmployeeRole } from '@/generated/prisma/browser'
 import * as z from 'zod'
 
 /**
  * User related schemas
 */
-export const MyAuthSettingsSchema = z.object({
-    name: z.string(), // /* .min(6, { message: 'Minimum 6 characters required'}), */
-    isTwoFactorEnabled: z.optional(z.boolean()),
-    role: z.enum([UserRole.OWNER, UserRole.ADMIN, UserRole.USER]),
-    email: z.optional(z.string().email()),
-    identityNameSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
-    identityImageSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
-    emailDisplayMode: z.optional(z.enum(['PRIMARY', 'HIDE'])),
-    password: z.optional(z.string().min(6)),
-    newPassword: z.optional(z.string().min(6)),
-})
-
-// COOL FEATURE FROM ZOD REFINE, checks the data and makes 2 or 0 inputs be filled, so you can't just fill 1 of them and also has a message to give back if errors are encountered
-.refine((data) => {
-    if (data.password && !data.newPassword) {
-        return false;
-    }
-
-    return true;
-}, {
-    message: "New password is required!",
-    path: ["newPassword"]
-})
-.refine((data) => {
-    if (data.newPassword && !data.password) {
-        return false;
-    }
-
-    return true;
-}, {
-    message: "Password is required!",
-    path: ["password"]
-})
+export { accountSettingsSchema as MyAuthSettingsSchema } from '@/lib/account-settings-policy';
 
 // Reset schema for 'email'
 const authEmail = z.string().trim().email({ message: 'Enter a valid email address' }).max(254).transform(value => value.toLowerCase());

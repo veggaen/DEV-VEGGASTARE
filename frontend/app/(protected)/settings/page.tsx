@@ -14,7 +14,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 
 import { useRef, useState, useTransition, useEffect, useCallback, DragEvent, ClipboardEvent } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
@@ -69,12 +69,14 @@ const SECTION_IDS = ['profile', 'account', 'security', 'wallet', 'payments', 'no
 type SectionId = typeof SECTION_IDS[number];
 
 export default function SettingsPage() {
-  const user = useCurrentUser();
+  const { data: accountSession, status: accountStatus, update } = useSession();
+  // A session refresh temporarily has loading status but retains the same user.
+  // Keep this form mounted instead of erasing its draft and save confirmation.
+  const user = accountStatus === 'unauthenticated' ? null : accountSession?.user ?? null;
   const searchParams = useSearchParams();
   const router = useRouter();
   const { prefs, setPrefs, resetPrefs } = useUiPreferences();
   const formRef = useRef<HTMLFormElement>(null);
-  const { update } = useSession();
   const { edgestore } = useEdgeStore();
 
   const [error, setError] = useState<string | undefined>();
@@ -363,6 +365,7 @@ export default function SettingsPage() {
       newPassword: undefined,
       role: user?.role || undefined,
       isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+      expectedTwoFactorEnabled: user?.isTwoFactorEnabled ?? false,
       identityNameSource: user?.identityNameSource || 'AUTO',
       identityImageSource: user?.identityImageSource || 'AUTO',
       emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
@@ -374,18 +377,53 @@ export default function SettingsPage() {
     name: "newPassword",
   });
 
+  const [needsSecurityCode, setNeedsSecurityCode] = useState(false);
+  const settingsActor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (accountStatus === 'loading') return;
+    if (settingsActor.current === user?.id) return;
+    settingsActor.current = user?.id;
+    form.reset({ name: user?.name || undefined, email: user?.email || undefined,
+      isTwoFactorEnabled: user?.isTwoFactorEnabled ?? false, expectedTwoFactorEnabled: user?.isTwoFactorEnabled ?? false,
+      identityNameSource: user?.identityNameSource ?? 'AUTO', identityImageSource: user?.identityImageSource ?? 'AUTO',
+      emailDisplayMode: user?.emailDisplayMode ?? 'PRIMARY', password: '', newPassword: '', securityCode: '' });
+    setNeedsSecurityCode(false); setError(''); setSuccess(''); setIsEditing(false);
+  }, [user, form, accountStatus]);
   const onSubmit = (values: z.infer<typeof MyAuthSettingsSchema>) => {
-    startTransition(() => {
-      settings(values).then((data) => {
+    setError(''); setSuccess('');
+    // Account and Security are separate changes; never submit an old security
+    // toggle or a hidden password with a display-name edit.
+    const input = activeSection === 'security' ? {
+      password: values.password, newPassword: values.newPassword,
+      isTwoFactorEnabled: values.isTwoFactorEnabled ?? false,
+      expectedTwoFactorEnabled: values.expectedTwoFactorEnabled,
+      securityCode: values.securityCode,
+    } : {
+      name: values.name, email: values.email, identityNameSource: values.identityNameSource,
+      identityImageSource: values.identityImageSource, emailDisplayMode: values.emailDisplayMode,
+    };
+    startTransition(async () => {
+      try {
+        const data = await settings(input);
         if ('error' in data) {
           setError(data.error);
         }
+        if ('twoFactor' in data) {
+          setNeedsSecurityCode(true);
+          setSuccess('Enter the code sent to your account email. Nothing has changed yet.');
+          requestAnimationFrame(() => form.setFocus('securityCode'));
+        }
         if ('success' in data) {
-          update();
+          form.setValue('password', ''); form.setValue('newPassword', ''); form.setValue('securityCode', '');
+          setNeedsSecurityCode(false);
           setSuccess(data.success);
           setIsEditing(false);
+          if (data.signInRequired) await signOut({ callbackUrl: '/auth/login?callbackUrl=%2Fsettings%3Fsection%3Dsecurity' });
+          else await update();
         }
-      });
+      } catch {
+        setError('The save could not be confirmed. Reload Settings before trying again.');
+      }
     });
   };
 
@@ -398,6 +436,7 @@ export default function SettingsPage() {
         newPassword: undefined,
         role: user?.role || undefined,
         isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+        expectedTwoFactorEnabled: user?.isTwoFactorEnabled ?? false,
         identityNameSource: user?.identityNameSource || 'AUTO',
         identityImageSource: user?.identityImageSource || 'AUTO',
         emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
@@ -416,6 +455,7 @@ export default function SettingsPage() {
       newPassword: undefined,
       role: user?.role || undefined,
       isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
+      expectedTwoFactorEnabled: user?.isTwoFactorEnabled ?? false,
       identityNameSource: user?.identityNameSource || 'AUTO',
       identityImageSource: user?.identityImageSource || 'AUTO',
       emailDisplayMode: user?.emailDisplayMode || 'PRIMARY',
@@ -496,7 +536,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="relative flex-1 flex flex-col overflow-x-hidden">
+    <div className="relative flex-1 flex flex-col overflow-x-clip">
       {/* Conditional fancy background */}
       <FancyBackground
         gradient
@@ -512,11 +552,11 @@ export default function SettingsPage() {
             <p className="text-muted-foreground dark:text-white/60 text-sm">Manage your account settings and preferences</p>
           </header>
 
-          <div className="grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
+          <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
             <SettingsNavigation sections={sections} active={activeSection} onSelect={handleSectionChange} />
 
             {/* Main Content */}
-            <div data-settings-content className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <div data-settings-content className={`min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6 ${activeSection === 'account' || activeSection === 'security' ? 'w-full max-w-[38rem]' : ''}`}>
               {activeSection === 'profile' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
@@ -928,7 +968,7 @@ export default function SettingsPage() {
                   </div>
 
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} ref={formRef} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} ref={formRef} aria-label="Account details" className="space-y-6 [&_input]:min-h-12 [&_input]:text-base [&_button:not([role=switch])]:min-h-11">
                       <FormField
                         control={form.control}
                         name="name"
@@ -958,16 +998,15 @@ export default function SettingsPage() {
                               <Input
                                 {...field}
                                 type="email"
-                                disabled={isPending || !isEditing || user?.isOAuth}
+                                readOnly
+                                autoComplete="email"
+                                spellCheck={false}
                                 placeholder={user?.email || 'Enter your email'}
                                 className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
                               />
                             </FormControl>
                             <FormDescription className="text-muted-foreground dark:text-white/40">
-                              {user?.isOAuth 
-                                ? 'Email is managed by your sign-in provider (Google, etc.)'
-                                : 'This is the email used for notifications and login'
-                              }
+                              Your sign-in email. Verified email changes are not yet available here.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -1082,11 +1121,11 @@ export default function SettingsPage() {
                       </div>
 
                       {isEditing && (
-                        <div className="flex items-center gap-3 pt-4">
+                        <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 bg-card py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                           <Button
                             type="submit"
                             disabled={isPending}
-                            className="bg-blue-600 hover:bg-blue-500 text-white"
+                            variant="vegaEmeraldBtn"
                           >
                             {isPending ? 'Saving...' : 'Save Changes'}
                           </Button>
@@ -1116,7 +1155,7 @@ export default function SettingsPage() {
                   </div>
 
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} aria-label="Account security" className="space-y-6 [&_input]:min-h-12 [&_input]:text-base [&_button:not([role=switch])]:min-h-11">
                       <FormField
                         control={form.control}
                         name="password"
@@ -1127,6 +1166,7 @@ export default function SettingsPage() {
                               <Input
                                 {...field}
                                 type="password"
+                                autoComplete="current-password"
                                 disabled={isPending}
                                 placeholder="Enter current password"
                                 className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
@@ -1147,6 +1187,7 @@ export default function SettingsPage() {
                               <Input
                                 {...field}
                                 type="password"
+                                autoComplete="new-password"
                                 disabled={isPending}
                                 placeholder="Enter new password"
                                 className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
@@ -1169,7 +1210,7 @@ export default function SettingsPage() {
                               <div className="space-y-0.5">
                                 <FormLabel className="text-foreground/80 dark:text-white/80">Two-Factor Authentication</FormLabel>
                                 <FormDescription className="text-muted-foreground dark:text-white/40">
-                                  Add an extra layer of security to your account
+                                  Email code for password sign-in. Security changes require confirmation.
                                 </FormDescription>
                               </div>
                               <FormControl>
@@ -1177,6 +1218,7 @@ export default function SettingsPage() {
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
                                   disabled={isPending}
+                                  className="relative after:absolute after:inset-x-0 after:-inset-y-2.5"
                                 />
                               </FormControl>
                             </FormItem>
@@ -1184,13 +1226,27 @@ export default function SettingsPage() {
                         />
                       </div>
 
+                      {needsSecurityCode && (
+                        <FormField control={form.control} name="securityCode" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Security code</FormLabel>
+                            <FormControl><Input {...field} value={field.value ?? ''} inputMode="numeric" autoComplete="one-time-code" maxLength={6} disabled={isPending} className="h-12 text-base tracking-widest" /></FormControl>
+                            <FormDescription>Six digits from your account email. Expires in 5 minutes.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      )}
+                      <p className="text-sm text-muted-foreground">Changing security settings signs out existing sessions. Enter your current password if this account has one.</p>
+                      <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 bg-card py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                       <Button
                         type="submit"
                         disabled={isPending}
-                        className="bg-blue-600 hover:bg-blue-500 text-white"
+                        variant="vegaEmeraldBtn"
                       >
-                        {isPending ? 'Updating...' : 'Update Security Settings'}
+                        {isPending ? 'Updating…' : needsSecurityCode ? 'Confirm Security Change' : 'Update Security Settings'}
                       </Button>
+                      {needsSecurityCode && <Button type="button" variant="outline" disabled={isPending} onClick={() => { form.setValue('securityCode', ''); void form.handleSubmit(onSubmit)(); }}>Resend Code</Button>}
+                      </div>
 
                       <MyFormError message={error} />
                       <MyFormSuccess message={success} />
@@ -1719,9 +1775,9 @@ function AccountDeletionCard() {
     setIsRequesting(true);
     try {
       const result = await requestAccountDeletion();
-      if (result.success) {
+      if (result.success && result.scheduledFor) {
         toast.success('Slettingsforespørsel registrert. Du har 30 dager til å angre.');
-        setPendingDeletion({ scheduledFor: new Date(Date.now() + 30 * 86400000).toISOString() });
+        setPendingDeletion({ scheduledFor: result.scheduledFor });
         setShowConfirm(false);
         setConfirmText('');
       } else {
@@ -1762,11 +1818,11 @@ function AccountDeletionCard() {
             <FiAlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
           </div>
           <div className="flex-1">
-            <div className="font-medium text-red-600 dark:text-red-400">Kontoen din er planlagt for sletting</div>
+            <div className="font-medium text-red-600 dark:text-red-400">Slettingsforespørsel registrert</div>
             <div className="text-sm text-muted-foreground dark:text-white/40">
-              Kontoen og all personlig data slettes permanent{' '}
+              Forespørselen er satt til gjennomgang fra{' '}
               <strong className="text-foreground dark:text-white/80">{scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
-              Du kan angre innen denne fristen.
+              Du kan avbryte så lenge den venter på behandling.
             </div>
           </div>
         </div>
@@ -1792,8 +1848,7 @@ function AccountDeletionCard() {
         <div className="flex-1">
           <div className="font-medium text-foreground dark:text-white/90">Slett konto</div>
           <div className="text-sm text-muted-foreground dark:text-white/40">
-            Slett all personlig data permanent (GDPR Art. 17). Vi gir deg 30 dager til å angre.
-            Ordrehistorikk anonymiseres i henhold til bokføringsloven.
+            Be om sletting av kontoen. Vi gjennomgår forespørselen og hvilke opplysninger som må beholdes. Ingen data slettes når du sender forespørselen.
           </div>
         </div>
       </div>
