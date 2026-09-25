@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { encode } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
@@ -7,7 +8,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/auth-cookies';
 import { isDemoUserId } from '@/lib/demo-policy';
-import { IMPERSONATION_SECONDS, validImpersonation } from './impersonation-policy';
+import { IMPERSONATION_SECONDS, previewSessionId, validImpersonation } from './impersonation-policy';
 
 class SwitchError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -71,16 +72,36 @@ export async function switchAccount(request: Request, end = false) {
         if (target.updatedAt.toISOString() !== input!.expectedUpdatedAt) throw new SwitchError('This account changed. Reload its details before previewing.', 409);
       }
       const now = Math.floor(Date.now() / 1000), maxAge = end ? 30 * 24 * 60 * 60 : IMPERSONATION_SECONDS;
+      const sessionId = end ? previewSessionId({ impersonationSessionId: actor.impersonationSessionId }) : randomUUID();
+      if (!sessionId) throw new SwitchError('This preview expired or was revoked. Sign in again.', 401);
+      if (end) {
+        // Compare-and-set serializes simultaneous End requests. Audit failure
+        // rolls this back; a successful response irrevocably consumes the grant.
+        const consumed = await tx.accountPreviewSession.updateMany({ where: {
+          id: sessionId, ownerId: owner.id, targetId: target.id,
+          ownerVersion: owner.tokenVersion, targetVersion: target.tokenVersion, endedAt: null,
+          startedAt: new Date(actor.impersonationStartedAt! * 1000),
+          expiresAt: { equals: new Date(actor.impersonationExpiresAt! * 1000), gt: new Date() },
+        }, data: { endedAt: new Date() } });
+        if (consumed.count !== 1) throw new SwitchError('This preview expired or was revoked. Sign in again.', 401);
+      } else {
+        await tx.accountPreviewSession.create({ data: {
+          id: sessionId, ownerId: owner.id, targetId: target.id,
+          ownerVersion: owner.tokenVersion, targetVersion: target.tokenVersion,
+          startedAt: new Date(now * 1000), expiresAt: new Date((now + maxAge) * 1000),
+        }, select: { id: true } });
+      }
       const token = await encode({ secret, salt: SESSION_COOKIE_NAME, maxAge, token: end ? {
         sub: owner.id, tokenVersion: owner.tokenVersion, isImpersonating: false,
       } : {
         sub: target.id, tokenVersion: target.tokenVersion, isImpersonating: true, impersonatingFromId: owner.id,
+        impersonationSessionId: sessionId,
         impersonationOwnerVersion: owner.tokenVersion, impersonationStartedAt: now, impersonationExpiresAt: now + maxAge,
       } });
       // An unavailable audit store fails before a session cookie is issued.
       await tx.adminAuditLog.create({ data: { adminId: owner.id, action: 'IMPERSONATE', targetType: 'USER', targetId: target.id,
         reason: end ? 'Owner ended read-only preview' : input!.reason,
-        newData: { phase: end ? 'end' : 'start', readOnly: true, ...(end ? {} : { expiresAt: now + maxAge }) },
+        newData: { phase: end ? 'end' : 'start', readOnly: true, previewSessionId: sessionId, ...(end ? {} : { expiresAt: now + maxAge }) },
       }, select: { id: true } });
       return { token, maxAge };
     }, { timeout: 10_000, maxWait: 5_000 });

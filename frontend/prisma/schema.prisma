@@ -16,6 +16,24 @@ model AuthRateBucket {
   @@index([expiresAt])
 }
 
+// Durable revocation for read-only owner previews. Never stores a bearer token.
+model AccountPreviewSession {
+  id            String    @id @default(uuid())
+  ownerId       String
+  targetId      String
+  ownerVersion  Int
+  targetVersion Int
+  startedAt     DateTime
+  expiresAt     DateTime
+  endedAt       DateTime?
+  Owner         User      @relation("PreviewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  Target        User      @relation("PreviewTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, expiresAt])
+  @@index([targetId])
+  @@index([expiresAt])
+}
+
 // Immutable transactional copies, atomically queued with their source record.
 // Provider acceptance is not proof of delivery. No raw provider errors stored.
 model TransactionalEmail {
@@ -1184,6 +1202,8 @@ model RuntimeConfig {
 }
 
 model User {
+  OwnedPreviews                                                   AccountPreviewSession[]       @relation("PreviewOwner")
+  TargetPreviews                                                  AccountPreviewSession[]       @relation("PreviewTarget")
   id                                                              String                        @id @default(cuid())
   name                                                            String?
   email                                                           String?                       @unique

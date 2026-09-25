@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { isDemoUserId } from "@/lib/demo-policy"
-import { validImpersonation } from '@/lib/impersonation-policy';
+import { previewSessionId, validImpersonation, validPreviewSession } from '@/lib/impersonation-policy';
 
 import { dbPrisma } from "@/lib/db"
 import authConfig from "@/auth.config"
@@ -390,6 +390,7 @@ export const {
             session.user.impersonationOwnerVersion = token.impersonationOwnerVersion as number | undefined;
             session.user.impersonationStartedAt = token.impersonationStartedAt as number | undefined;
             session.user.impersonationExpiresAt = token.impersonationExpiresAt as number | undefined;
+            session.user.impersonationSessionId = token.impersonationSessionId as string | undefined;
           }
           
           //console.log(`${LOG_PREFIX} callbacks.session: `,{session, sessionToken: token})
@@ -411,15 +412,20 @@ export const {
           const previewOwnerId = token.isImpersonating === true && typeof token.impersonatingFromId === 'string'
             ? token.impersonatingFromId : null;
           if (token.isImpersonating === true && !previewOwnerId) return null;
+          const previewId = previewSessionId(token);
+          if (token.isImpersonating === true && !previewId) return null;
 
           // ── Normal flow ──────────────────────────────────────────────
           // Run both DB lookups in parallel to halve latency to remote DB
-          const [existingUser, existingAccount, previewOwner] = await Promise.all([
+          const [existingUser, existingAccount, previewOwner, previewSession] = await Promise.all([
             getUserById(token.sub),
             getAccountByUserId(token.sub),
             previewOwnerId ? getUserById(previewOwnerId) : Promise.resolve(null),
+            // No cache: End Preview must revoke every copy, not just this browser.
+            previewOwnerId && previewId ? dbPrisma.accountPreviewSession.findUnique({ where: { id: previewId } }) : Promise.resolve(null),
           ]);
-          if (token.isImpersonating === true && !validImpersonation(token, previewOwner, existingUser)) return null;
+          if (token.isImpersonating === true && (!validImpersonation(token, previewOwner, existingUser)
+            || !validPreviewSession(token, previewSession))) return null;
 
           // If user was deleted (e.g. DB wipe), invalidate the session
           if (!existingUser) {
@@ -479,6 +485,7 @@ export const {
             token.impersonationOwnerVersion = undefined;
             token.impersonationStartedAt = undefined;
             token.impersonationExpiresAt = undefined;
+            token.impersonationSessionId = undefined;
           }
           
           /* const logResponse = token.email // shortens the response, remove */

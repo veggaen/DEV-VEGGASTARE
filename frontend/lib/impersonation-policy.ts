@@ -4,6 +4,25 @@ export const IMPERSONATION_SECONDS = 60 * 60;
 type Principal = { id: string; role: string; tokenVersion: number };
 type Claims = Record<string, unknown>;
 
+export function previewSessionId(token: Claims): string | null {
+  return typeof token.impersonationSessionId === 'string'
+    && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(token.impersonationSessionId)
+    ? token.impersonationSessionId : null;
+}
+
+/** A copied or rolling-renewed cookie cannot outlive its server-owned grant. */
+export function validPreviewSession(token: Claims, record: {
+  id: string; ownerId: string; targetId: string; ownerVersion: number;
+  targetVersion: number; startedAt: Date; expiresAt: Date; endedAt: Date | null;
+} | null, now = Date.now()) {
+  return !!record && previewSessionId(token) === record.id && record.endedAt === null
+    && record.ownerId === token.impersonatingFromId && record.targetId === token.sub
+    && record.ownerVersion === token.impersonationOwnerVersion && record.targetVersion === token.tokenVersion
+    && record.startedAt.getTime() === Number(token.impersonationStartedAt) * 1000
+    && record.expiresAt.getTime() === Number(token.impersonationExpiresAt) * 1000
+    && record.startedAt.getTime() <= now && record.expiresAt.getTime() > now;
+}
+
 /** An absolute deadline survives Auth.js rolling JWT renewal. */
 export function validImpersonation(token: Claims, owner: Principal | null, target: Principal | null, now = Date.now()) {
   return !!owner && !!target && owner.role === 'OWNER' && target.role === 'USER'

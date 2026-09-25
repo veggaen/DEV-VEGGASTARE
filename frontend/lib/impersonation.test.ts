@@ -1,17 +1,18 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { SESSION_COOKIE_NAME } from './auth-cookies';
-const m = vi.hoisted(() => ({ auth: vi.fn(), allow: vi.fn(), read: vi.fn(), lock: vi.fn(), audit: vi.fn(), encode: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), allow: vi.fn(), read: vi.fn(), lock: vi.fn(), audit: vi.fn(), encode: vi.fn(), grant: vi.fn(), consume: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/user-auth', () => ({ MyLibUserAuth: m.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: m.allow }));
 vi.mock('next-auth/jwt', () => ({ encode: m.encode }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { $transaction: async (run: (tx: unknown) => unknown) => run({ $queryRaw: m.lock, user: { findUnique: m.read }, adminAuditLog: { create: m.audit } }) } }));
+vi.mock('@/lib/db', () => ({ dbPrisma: { $transaction: async (run: (tx: unknown) => unknown) => run({ $queryRaw: m.lock, user: { findUnique: m.read }, adminAuditLog: { create: m.audit }, accountPreviewSession: { create: m.grant, updateMany: m.consume } }) } }));
 import { POST as start } from '@/app/api/admin/impersonate/route';
 import { POST as end } from '@/app/api/admin/impersonate/end/route';
 const owner = { id: 'qa-owner', role: 'OWNER', tokenVersion: 3, name: 'Owner', updatedAt: new Date('2026-01-01') };
 const target = { ...owner, id: 'qa-member', role: 'USER', tokenVersion: 7 };
 const input = { targetUserId: target.id, expectedUpdatedAt: target.updatedAt.toISOString(), reason: 'Support investigation' };
 const preview = () => ({ id: target.id, role: 'USER', sessionVersion: 7, isImpersonating: true, impersonatingFromId: owner.id,
+  impersonationSessionId: '0ad8f0cc-ffb6-4171-8cd3-26c442ea9a78',
   impersonationOwnerVersion: 3, impersonationStartedAt: Math.floor(Date.now()/1000)-1, impersonationExpiresAt: Math.floor(Date.now()/1000)+3599 });
 const req = (body: unknown = input, headers: Record<string,string> = {}) => new Request('http://localhost:3000/api/admin/impersonate', {
   method: 'POST', headers: { origin: 'http://localhost:3000', 'content-type': 'application/json', ...headers }, body: JSON.stringify(body),
@@ -21,6 +22,7 @@ beforeEach(() => {
   m.auth.mockResolvedValue({ id: owner.id, role: 'OWNER', sessionVersion: 3 }); m.allow.mockResolvedValue(true);
   m.read.mockImplementation(({ where }: { where: { id: string } }) => where.id === owner.id ? owner : target);
   m.audit.mockResolvedValue({ id: 'audit' }); m.encode.mockResolvedValue('unit-only-encrypted-cookie');
+  m.grant.mockResolvedValue({ id: 'grant' }); m.consume.mockResolvedValue({ count: 1 });
 });
 afterEach(() => vi.unstubAllEnvs());
 describe('audited account preview issuance and restoration', () => {
@@ -56,11 +58,13 @@ describe('audited account preview issuance and restoration', () => {
     expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toContain('no-store');
     expect(m.encode.mock.calls[0][0]).toMatchObject({ maxAge:3600, salt:SESSION_COOKIE_NAME, token: { sub:target.id, tokenVersion:7, impersonationOwnerVersion:3, isImpersonating:true } });
     const claims = m.encode.mock.calls[0][0].token; expect(claims.impersonationExpiresAt-claims.impersonationStartedAt).toBe(3600); expect(claims).not.toHaveProperty('email');
+    expect(claims.impersonationSessionId).toMatch(/^[a-f0-9-]{36}$/);
+    expect(m.grant.mock.calls[0][0].data).toMatchObject({ id: claims.impersonationSessionId, ownerId: owner.id, targetId: target.id, ownerVersion: 3, targetVersion: 7 });
     expect(m.audit.mock.calls[0][0].data).toMatchObject({ adminId:owner.id, targetId:target.id, newData:{phase:'start',readOnly:true} });
     expect(response.headers.getSetCookie().some(cookie => cookie.startsWith(`${SESSION_COOKIE_NAME}.0=`) && cookie.includes('Max-Age=0'))).toBe(true);
     expect(response.headers.getSetCookie().some(cookie => cookie.startsWith(`${SESSION_COOKIE_NAME}=`) && cookie.includes('HttpOnly') && cookie.includes('Max-Age=3600'))).toBe(true);
   });
-  it.each(['auth','read','audit','encode'] as const)('does not issue any cookie or leak a %s failure', async source => {
+  it.each(['auth','read','audit','encode','grant'] as const)('does not issue any cookie or leak a %s failure', async source => {
     m[source].mockRejectedValue(new Error('private-error-marker')); const response = await start(req());
     expect(response.status).toBe(503); expect(response.headers.has('set-cookie')).toBe(false); expect(await response.text()).not.toContain('private-error-marker');
   });
@@ -68,9 +72,19 @@ describe('audited account preview issuance and restoration', () => {
     m.auth.mockResolvedValue(preview()); const response = await end(req()); expect(response.status).toBe(200);
     expect(m.encode.mock.calls[0][0].token).toEqual({sub:owner.id,tokenVersion:3,isImpersonating:false});
     expect(m.audit.mock.calls[0][0].data.newData.phase).toBe('end');
+    expect(m.consume.mock.calls[0][0].where).toMatchObject({ id: preview().impersonationSessionId, ownerId:owner.id, targetId:target.id, endedAt:null, ownerVersion:3, targetVersion:7 });
+    expect(m.grant).not.toHaveBeenCalled();
   });
-  it.each([{ impersonationOwnerVersion:2 }, { sessionVersion:6 }, { impersonationExpiresAt:0 }, { impersonationStartedAt:undefined }])('refuses revoked restoration %j', async changed => {
+  it.each([{ impersonationOwnerVersion:2 }, { sessionVersion:6 }, { impersonationExpiresAt:0 }, { impersonationStartedAt:undefined }, { impersonationSessionId:undefined }, { impersonationSessionId:'invalid' }])('refuses revoked restoration %j', async changed => {
     m.auth.mockResolvedValue({...preview(),...changed}); expect((await end(req())).status).toBe(401); expect(m.encode).not.toHaveBeenCalled();
+  });
+  it('refuses a missing, mismatched or already-consumed server grant without restoring owner access', async () => {
+    m.auth.mockResolvedValue(preview()); m.consume.mockResolvedValue({count:0});
+    const response=await end(req()); expect(response.status).toBe(401); expect(response.headers.has('set-cookie')).toBe(false); expect(m.encode).not.toHaveBeenCalled(); expect(m.audit).not.toHaveBeenCalled();
+  });
+  it('does not confirm End Preview on a revocation-store failure', async () => {
+    m.auth.mockResolvedValue(preview()); m.consume.mockRejectedValue(new Error('private-store-error'));
+    const response=await end(req()); expect(response.status).toBe(503); expect(response.headers.has('set-cookie')).toBe(false); expect(await response.text()).not.toContain('private-store-error');
   });
   it('cannot restore from untrusted legacy metadata cookies', async () => {
     m.auth.mockResolvedValue({id:target.id,role:'USER'}); expect((await end(req(input,{cookie:'x-impersonate-owner-id=qa-owner'}))).status).toBe(403); expect(m.encode).not.toHaveBeenCalled();

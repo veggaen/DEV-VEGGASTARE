@@ -5,13 +5,13 @@ import type { JWT } from 'next-auth/jwt';
 import { encode } from 'next-auth/jwt';
 import { Auth } from '@auth/core';
 
-const fixture = vi.hoisted(() => ({ config: null as NextAuthConfig | null, user: vi.fn(), account: vi.fn() }));
+const fixture = vi.hoisted(() => ({ config: null as NextAuthConfig | null, user: vi.fn(), account: vi.fn(), preview: vi.fn() }));
 vi.mock('next-auth', () => ({ default: (config: NextAuthConfig) => {
   fixture.config = config;
   return { handlers: {}, auth: vi.fn(), signIn: vi.fn(), signOut: vi.fn() };
 } }));
 vi.mock('@auth/prisma-adapter', () => ({ PrismaAdapter: () => ({}) }));
-vi.mock('@/lib/db', () => ({ dbPrisma: {} }));
+vi.mock('@/lib/db', () => ({ dbPrisma: { accountPreviewSession: { findUnique: fixture.preview } } }));
 vi.mock('@/auth.config', () => ({ default: { providers: [] } }));
 vi.mock('@/data/user', () => ({ getUserById: fixture.user }));
 vi.mock('@/lib/account', () => ({ getAccountByUserId: fixture.account }));
@@ -22,12 +22,15 @@ import './auth';
 const refresh = (token: JWT) => fixture.config!.callbacks!.jwt!({ token, user: { id: token.sub }, account: null });
 const user = { id: 'qa-existing-user', name: 'QA user', email: 'qa@example.test', role: 'USER',
   tokenVersion: 3, createdAt: new Date(), isTwoFactorEnabled: false, web3ModeEnabled: false };
-beforeEach(() => { fixture.user.mockReset(); fixture.account.mockReset(); fixture.account.mockResolvedValue(null); });
+beforeEach(() => { fixture.user.mockReset(); fixture.account.mockReset(); fixture.account.mockResolvedValue(null); fixture.preview.mockReset(); });
 
 describe('Invalid sessions are fully revoked', () => {
   const owner = { ...user, id: 'qa-owner', role: 'OWNER', tokenVersion: 8 };
   const preview = () => ({ sub: user.id, isImpersonating: true, impersonatingFromId: owner.id, tokenVersion:3,
+    impersonationSessionId:'0ad8f0cc-ffb6-4171-8cd3-26c442ea9a78',
     impersonationOwnerVersion:8, impersonationStartedAt: Math.floor(Date.now()/1000)-1, impersonationExpiresAt:Math.floor(Date.now()/1000)+3599 });
+  const grant = (token = preview()) => ({ id: token.impersonationSessionId, ownerId:owner.id, targetId:user.id,
+    ownerVersion:8, targetVersion:3, startedAt:new Date(token.impersonationStartedAt*1000), expiresAt:new Date(token.impersonationExpiresAt*1000), endedAt:null });
   it.each([{tokenVersion:2}, {impersonationOwnerVersion:7}, {impersonationOwnerVersion:undefined},
     {impersonationExpiresAt:0}, {impersonationStartedAt:0}, {impersonatingFromId:undefined}])('revokes invalid preview %j instead of treating it as a normal member', async changed => {
     fixture.user.mockImplementation(id => id === owner.id ? owner : user);
@@ -41,6 +44,7 @@ describe('Invalid sessions are fully revoked', () => {
   });
   it('keeps a valid preview read-only without renewing its absolute deadline', async () => {
     fixture.user.mockImplementation(id => id === owner.id ? owner : user); const token = preview();
+    fixture.preview.mockResolvedValue(grant(token));
     expect(await refresh(token)).toMatchObject({isImpersonating:true,tokenVersion:3,impersonationOwnerVersion:8,impersonationExpiresAt:token.impersonationExpiresAt});
   });
   it('does not fall back to a member session on a preview lookup exception', async () => {
@@ -69,6 +73,7 @@ describe('Invalid sessions are fully revoked', () => {
   it('preserves a valid user and current version', async () => {
     fixture.user.mockResolvedValue(user);
     expect(await refresh({ sub: user.id, tokenVersion: 3 })).toMatchObject({ sub: user.id, tokenVersion: 3, role: 'USER' });
+    expect(fixture.preview).not.toHaveBeenCalled();
   });
   it('preserves a fresh demo', async () => {
     fixture.user.mockResolvedValue({ ...user, id: 'demo_fresh' });
@@ -86,12 +91,13 @@ describe('Invalid sessions are fully revoked', () => {
     expect(await response.json()).toBeNull();
     expect(response.headers.getSetCookie().some(cookie => cookie.startsWith(`${name}=`) && /Max-Age=0/i.test(cookie))).toBe(true);
   });
-  it.each(['owner-version', 'target-version', 'deadline'] as const)('clears revoked preview cookies through Auth.js: %s', async cause => {
+  it.each(['owner-version', 'target-version', 'deadline', 'ended', 'missing', 'legacy'] as const)('clears revoked preview cookies through Auth.js: %s', async cause => {
     fixture.user.mockImplementation(id => id === owner.id
       ? { ...owner, tokenVersion: cause === 'owner-version' ? 9 : 8 }
       : { ...user, tokenVersion: cause === 'target-version' ? 4 : 3 });
     const secret = 'disposable-preview-handler-test-secret', name = 'authjs.session-token';
-    const claims = { ...preview(), ...(cause === 'deadline' ? { impersonationExpiresAt: 0 } : {}) };
+    const claims = { ...preview(), ...(cause === 'deadline' ? { impersonationExpiresAt: 0 } : {}), ...(cause === 'legacy' ? { impersonationSessionId: undefined } : {}) };
+    fixture.preview.mockResolvedValue(cause==='missing'?null:{...grant(),...(cause==='ended'?{endedAt:new Date()}: {})});
     const token = await encode({ token: claims, secret, salt: name });
     const response = await Auth(new Request('http://localhost:3000/api/auth/session', {
       headers: { Cookie: `${name}=${token}` },
@@ -99,5 +105,19 @@ describe('Invalid sessions are fully revoked', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toBeNull();
     expect(response.headers.getSetCookie().some(cookie => cookie.startsWith(`${name}=`) && /Max-Age=0/i.test(cookie))).toBe(true);
+  });
+  it.each([{ownerId:'another-owner'}, {targetId:'another-user'}, {ownerVersion:9}, {targetVersion:4},
+    {startedAt:new Date(0)}, {expiresAt:new Date(0)}, {endedAt:new Date()}])('rejects a changed server grant %j',async changed=>{
+    fixture.user.mockImplementation(id=>id===owner.id?owner:user);const token=preview();fixture.preview.mockResolvedValue({...grant(token),...changed});
+    expect(await refresh(token)).toBeNull();
+  });
+  it('checks the grant on every renewal so a previously valid copy stops after End',async()=>{
+    fixture.user.mockImplementation(id=>id===owner.id?owner:user);const token=preview();
+    fixture.preview.mockResolvedValueOnce(grant(token)).mockResolvedValueOnce({...grant(token),endedAt:new Date()});
+    expect(await refresh({...token})).not.toBeNull(); expect(await refresh({...token})).toBeNull(); expect(fixture.preview).toHaveBeenCalledTimes(2);
+  });
+  it('fails closed when the revocation store is unavailable',async()=>{
+    fixture.user.mockImplementation(id=>id===owner.id?owner:user);fixture.preview.mockRejectedValue(new Error('preview store unavailable'));
+    await expect(refresh(preview())).rejects.toThrow('preview store unavailable');
   });
 });
