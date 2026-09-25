@@ -59,13 +59,10 @@ slice, not a claim that every authentication method or wallet integration passes
 
 ## Remaining before combined deployment
 
-- `actions/security-action.ts` still uses the older Web3 enable/disable email
-  flow: padded code comparison, ordinary-login code scope and separate token /
-  setting writes. Harden and test that path, including recovery from disabling
-  Web3, before accepting the combined wallet security release.
-- Real Chrome reload also exposed a pre-hydration Web3 toggle briefly displaying
-  disabled mode before the signed-in account state arrived. Keep the control
-  disabled/neutral while resolving that state in the follow-up.
+- The older Web3 email mutation and pre-hydration false-off toggle discovered
+  here are resolved locally in the [Web3 mode follow-up](web3-mode-evidence-2026-09.md).
+  That slice adds explicit atomic changes, a last-sign-in-method guard and neutral
+  loading. Combined deployment/acceptance remains outstanding.
 - Preview then live deployment/acceptance of this slice and the two preceding
   wallet-mutation/payout commits; real-extension sign-in with owner consent;
   company settings browser acceptance. Do not equate dummy-signature UI tests

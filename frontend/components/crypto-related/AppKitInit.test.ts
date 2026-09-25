@@ -40,6 +40,11 @@ it('restores a previously opted-in account once without opening a modal', async 
   AppKitInitializer(); AppKitInitializer(); await globalThis.__veggatAppKitPromise;
   expect(sdk.create).toHaveBeenCalledTimes(1); expect(sdk.open).not.toHaveBeenCalled();
 });
+it('an old browser opt-in cannot override a disabled signed-in account', () => {
+  sdk.storage.mockReturnValue('true');
+  sdk.session = { status: 'authenticated', data: { user: { web3ModeEnabled: false } } };
+  AppKitInitializer(); expect(sdk.create).not.toHaveBeenCalled(); expect(sdk.storage).not.toHaveBeenCalled();
+});
 it('honors an explicit local opt-in but tolerates disabled browser storage', async () => {
   sdk.storage.mockImplementationOnce(() => { throw new Error('Storage blocked'); }); AppKitInitializer();
   expect(sdk.create).not.toHaveBeenCalled();

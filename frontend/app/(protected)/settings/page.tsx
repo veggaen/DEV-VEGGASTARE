@@ -44,6 +44,8 @@ import type { AddressLabel } from '@/generated/prisma/browser';
 import WalletConnectChooser from '@/components/crypto-related/WalletConnectChooser';
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import EvmWalletList from '@/components/crypto-related/EvmWalletList';
+import { Web3ModeControl } from '@/components/uicustom/settings/web3-mode-control';
+import { useWeb3Mode } from '@/hooks/use-web3-mode';
 import { 
   FiUser, FiLock, FiMail, FiBell, FiShield, FiSave, 
   FiEdit2, FiX, FiCheck, FiImage, FiChevronRight, FiCamera, FiUpload,
@@ -2106,7 +2108,7 @@ function AppearanceSettings() {
               <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
               <div className="text-sm text-muted-foreground dark:text-white/40">Enable advanced wallet controls and crypto features</div>
             </div>
-            <Web3ModeToggle />
+            <Web3ModeControl />
           </div>
           <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
             <div>
@@ -2143,26 +2145,10 @@ function AppearanceSettings() {
 function Web3WalletSettings() {
   const user = useCurrentUser();
   const demo = isDemoUserId(user?.id);
-  const [web3Enabled, setWeb3Enabled] = useState(false);
+  const web3State = useWeb3Mode();
+  const web3Enabled = web3State.data === true;
   const [walletRefresh, setWalletRefresh] = useState(0);
   const [linkingGuide, setLinkingGuide] = useState(false);
-
-  useEffect(() => {
-    if (user && (user as any).web3ModeEnabled !== undefined) {
-      const timeoutId = window.setTimeout(() => {
-        setWeb3Enabled(!!(user as any).web3ModeEnabled);
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
-    } else {
-      try {
-        const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
-        if (raw === "true") {
-          const timeoutId = window.setTimeout(() => setWeb3Enabled(true), 0);
-          return () => window.clearTimeout(timeoutId);
-        }
-      } catch { /* ignore */ }
-    }
-  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -2209,10 +2195,10 @@ function Web3WalletSettings() {
         <div className="min-w-0">
           <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
           <div className="text-sm text-muted-foreground dark:text-white/40">
-            Enable wallet connections, crypto payments, and on-chain features
+            Wallet sign-in and experimental tools. Saved payout addresses are separate.
           </div>
         </div>
-        <Web3ModeToggle />
+        <Web3ModeControl />
       </div>
 
       {/* Wallet Connection */}
@@ -2281,7 +2267,8 @@ function Web3WalletSettings() {
         </div>
       )}
 
-      {!web3Enabled && !demo && (
+      {web3State.data === undefined && !demo && <div role="status" className="min-h-40 rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">{web3State.isError ? 'Wallet settings unavailable. Retry above.' : 'Loading wallet settings…'}</div>}
+      {web3State.data === false && !demo && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <FiLock className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -2343,78 +2330,6 @@ function WalletSessionDisconnectButton() {
   );
 }
 
-// Web3 Mode Toggle Component
-function Web3ModeToggle() {
-  const user = useCurrentUser();
-  const { update } = useSession();
-  const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("veggastare:web3ModeEnabled");
-      if (raw === "true") setWeb3ModeEnabled(true);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Sync with user's server-side setting if logged in
-  useEffect(() => {
-    if (user && (user as any).web3ModeEnabled !== undefined) {
-      setWeb3ModeEnabled(!!(user as any).web3ModeEnabled);
-    }
-  }, [user]);
-
-  const handleToggle = async (checked: boolean) => {
-    if (user) {
-      // Logged in: toggle directly (no email verification needed)
-      // Email verification is only required for wallet LINKING, not mode toggle
-      setIsRequesting(true);
-      try {
-        const res = await fetch('/api/settings/web3-mode', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: checked }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          toast.error(data.error || 'Failed to update Web3 mode', { position: "top-center" });
-          return;
-        }
-        setWeb3ModeEnabled(checked);
-        // Sync to localStorage as well
-        try { window.localStorage.setItem("veggastare:web3ModeEnabled", String(checked)); } catch {}
-        // web3ModeEnabled is carried in the JWT — refresh the session so the rest
-        // of the app (sidebar, gates) sees the new value, not the stale token.
-        try { await update(); } catch { /* ignore */ }
-        toast.success(checked ? 'Web3 mode enabled!' : 'Web3 mode disabled.', { position: "top-center" });
-      } catch {
-        toast.error("Something went wrong!", { position: "top-center" });
-      } finally {
-        setIsRequesting(false);
-      }
-    } else {
-      // Logged out: store locally
-      setWeb3ModeEnabled(checked);
-      try {
-        window.localStorage.setItem("veggastare:web3ModeEnabled", String(checked));
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  return (
-    <Switch
-      checked={web3ModeEnabled}
-      disabled={isRequesting || isDemoUserId(user?.id)}
-      onCheckedChange={handleToggle}
-      aria-label="Toggle Web3 mode"
-    />
-  );
-}
 
 // Notification Settings Section Component
 function NotificationSettingsSection() {

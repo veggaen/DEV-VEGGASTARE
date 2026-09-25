@@ -192,7 +192,9 @@ export function AppKitInitializer() {
   useEffect(() => {
     if (status === 'loading' || !projectId) return;
     let optedIn = session?.user?.web3ModeEnabled === true;
-    try { optedIn ||= localStorage.getItem('veggastare:web3ModeEnabled') === 'true'; } catch { /* Storage is optional. */ }
+    if (status === 'unauthenticated') {
+      try { optedIn = localStorage.getItem('veggastare:web3ModeEnabled') === 'true'; } catch { /* Storage is optional. */ }
+    }
     if (optedIn) void ensureAppKit().catch(() => {
       // Keep the marketplace usable. Explicit wallet actions offer a retry and
       // a direct-extension fallback instead of an unhandled page exception.

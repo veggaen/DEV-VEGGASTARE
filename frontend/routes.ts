@@ -17,6 +17,7 @@ export const publicRoutes = [
   "/terms", // ✅ Sales terms page (required for Vipps)
   "/contact",
   "/auth/new-verification",
+  "/auth/security-action", // Retired email-link notice; never reads or consumes a token.
   "/api/bring-shipping",
   "/api/bring-shipping-suggest-postcode",
   // Note: Employee routes removed - they have internal auth checks

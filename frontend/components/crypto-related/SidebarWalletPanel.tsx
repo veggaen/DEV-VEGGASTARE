@@ -894,73 +894,12 @@ function DevChainStatusIndicator() {
 /*  Web3EnablePrompt — shown when web3 mode is disabled                */
 /* ------------------------------------------------------------------ */
 function Web3EnablePrompt() {
-  const [enabling, setEnabling] = useState(false);
-  const [done, setDone] = useState(false);
-  const [authError, setAuthError] = useState(false);
-  const { update: updateSession } = useSession();
-
-  const handleEnable = async () => {
-    setEnabling(true);
-    setAuthError(false);
-    try {
-      const res = await fetch('/api/settings/web3-mode', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: true }),
-      });
-      if (res.status === 401 || res.status === 403) {
-        setAuthError(true);
-        setEnabling(false);
-        return;
-      }
-      if (res.ok) {
-        try { localStorage.setItem('veggastare:web3ModeEnabled', 'true'); } catch { /* ok */ }
-        setDone(true);
-        // web3ModeEnabled lives in the JWT — a plain reload keeps the STALE token,
-        // so the toggle appeared to do nothing. Force a NextAuth session update
-        // (re-runs the jwt callback → re-reads web3ModeEnabled from the DB), THEN
-        // reload so the fresh value is in the cookie.
-        try { await updateSession(); } catch { /* ignore */ }
-        setTimeout(() => window.location.reload(), 400);
-      }
-    } catch { /* ignore */ }
-    setEnabling(false);
-  };
-
-  if (done) {
-    return (
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-center">
-        <p className="text-[11px] text-emerald-400 font-medium">Web3 enabled! Refreshing…</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/60 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-2">
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-        Advanced Web3 tools are disabled. Enable them to explore the experimental trading tools. Wallet connection is available separately.
-      </p>
-      {authError && (
-        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-          Session expired — please sign in again to enable Web3.
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={handleEnable}
-        disabled={enabling}
-        className="w-full rounded-lg bg-sky-500 dark:bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-sky-600 dark:hover:bg-emerald-500 transition-colors disabled:opacity-50"
-      >
-        {enabling ? 'Enabling…' : 'Enable Web3'}
-      </button>
-      <Link
-        href="/settings?section=wallet"
-        className="block text-center text-[10px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
-      >
-        or go to Settings →
-      </Link>
-    </div>
-  );
+  return <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+    <p className="text-sm text-muted-foreground">Experimental Web3 tools are off.</p>
+    <Link href="/settings?section=wallet" className="flex min-h-11 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      Review Web3 settings
+    </Link>
+  </div>;
 }
 
 function LocalDevTools({

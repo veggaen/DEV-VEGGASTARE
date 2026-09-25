@@ -9,6 +9,71 @@ import path from 'node:path';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 
+test('S6 Web3 mode loads neutrally and requires responsive explicit approval', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Demo session, browser-only setting and mail fixtures');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), changes: Record<string, unknown>[] = [], errors: string[] = [];
+  let enabled = true, release!: () => void;
+  const ready = new Promise<void>(resolve => { release = resolve; });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/auth/session', async route => {
+    const response = await route.fetch(), session = await response.json();
+    await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
+  });
+  await page.route('**/api/settings/web3-mode', async route => {
+    if (route.request().method() === 'GET') { await ready; return route.fulfill({ json: { web3ModeEnabled: enabled } }).catch(() => {}); }
+    const data = route.request().postDataJSON(); changes.push(data);
+    if (!data.code) return route.fulfill({ json: { twoFactor: true } });
+    if (data.code !== '654321') return route.fulfill({ status: 400, json: { error: 'Incorrect code. Use the six digits for this wallet action.' } });
+    enabled = data.enabled; return route.fulfill({ json: { success: true, web3ModeEnabled: enabled } });
+  });
+  await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets: [] } }));
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const session = page.waitForResponse(r => r.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await session;
+    await expect(page.getByText('Loading wallet settings…', { exact: true })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Toggle Web3 mode' })).toHaveCount(0);
+    await expect(page.getByText('Enable Web3 Mode above to connect and manage wallets')).toHaveCount(0);
+    release();
+    const toggle = page.getByRole('switch', { name: 'Toggle Web3 mode', includeHidden: true }); await expect(toggle).toBeChecked();
+    await expect(toggle).toHaveAttribute('data-state', 'checked');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await toggle.click(); const dialog = page.getByRole('dialog', { name: 'Disable Web3?', exact: true });
+    await expect(dialog).toBeVisible(); expect(changes).toHaveLength(0);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(toggle).toBeFocused();
+    await toggle.click(); await dialog.getByRole('button', { name: 'Confirm disable', exact: true }).click();
+    const code = dialog.getByRole('textbox', { name: 'Email code', exact: true }); await expect(code).toBeVisible(); await expect(toggle).toBeChecked();
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const submit = dialog.getByRole('button', { name: 'Confirm disable', exact: true }); await submit.scrollIntoViewIfNeeded(); await expect(submit).toBeInViewport();
+      await page.screenshot({ path: info.outputPath(`web3-approval-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(dialog.getByRole('alert')).toContainText('Incorrect code');
+    await code.fill('654321'); await code.press('Enter'); await expect(dialog).toBeHidden(); await expect(toggle).not.toBeChecked();
+    expect(changes).toEqual([{ enabled: false, expectedEnabled: true }, { enabled: false, expectedEnabled: true, code: '123456' }, { enabled: false, expectedEnabled: true, code: '654321' }]);
+    await expect(page.getByText('Enable Web3 Mode above to connect and manage wallets')).toBeVisible(); expect(errors).toEqual([]);
+  } finally { release(); await context.close(); }
+});
+
+test('S6 old Web3 email links are read-only and anonymous changes are rejected', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL }); const page = await context.newPage(); const posts: string[] = [];
+  page.on('request', request => { if (request.method() === 'POST' || request.method() === 'PATCH') posts.push(request.url()); });
+  try {
+    await page.goto('/auth/security-action?token=old-qa-token');
+    await expect(page.getByText('This email link has been retired. Your settings have not changed.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open Web3 settings', exact: true })).toHaveAttribute('href', '/settings?section=wallet');
+    expect(posts.filter(url => /security-action|web3-mode/.test(url))).toEqual([]);
+    expect((await context.request.patch('/api/settings/web3-mode', { headers: { origin: baseURL! }, data: { enabled: true, expectedEnabled: false } })).status()).toBe(401);
+    expect((await context.request.patch('/api/settings/web3-mode', { headers: { origin: 'https://attacker.example' }, data: { enabled: true, expectedEnabled: false } })).status()).toBe(403);
+  } finally { await context.close(); }
+});
+
 test('S2 wallet login proves a disposable wallet through the real local auth handler', async ({ browser, baseURL }, info) => {
   test.skip(baseURL !== 'http://localhost:3000', 'Creates one disposable wallet-only user in the isolated local test database, never live');
   const account = privateKeyToAccount(generatePrivateKey());
@@ -48,6 +113,9 @@ test('S2 wallet login proves a disposable wallet through the real local auth han
     await expect(page).toHaveURL(/\/products$/);
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user.id).toBeTruthy(); expect(session.user.email).toBeFalsy();
+    const blockedModeChange = await context.request.patch('/api/settings/web3-mode', { headers: { origin: baseURL! }, data: { enabled: false, expectedEnabled: true } });
+    expect(blockedModeChange.status()).toBe(409); expect((await blockedModeChange.json()).error).toContain('sign-in method');
+    expect(await (await context.request.get('/api/settings/web3-mode')).json()).toEqual({ web3ModeEnabled: true });
     expect(signatures).toBe(1); expect(transactions).toBe(0); expect(errors).toEqual([]);
     await info.attach('isolated-wallet-result', { body: JSON.stringify({ userId: session.user.id, address: account.address, environment: 'localhost / isolated Preview database' }), contentType: 'application/json' });
     const csrf = await (await context.request.get('/api/auth/csrf')).json();
@@ -124,6 +192,7 @@ test('S6 seller receiving choices require explicit confirmation and fit each scr
     const response = await route.fetch(), session = await response.json();
     await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
   });
+  await page.route('**/api/settings/web3-mode', route => route.fulfill({ json: { web3ModeEnabled: true } }));
   await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets } }));
   await page.route('**/settings**', async route => {
     if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.continue();
@@ -184,6 +253,7 @@ test('S6 saved wallet actions stay explicit, cancellable and responsive', async 
     await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
   });
   await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets } }));
+  await page.route('**/api/settings/web3-mode', route => route.fulfill({ json: { web3ModeEnabled: true } }));
   await page.route('**/api/wallets/evm/qa-action-*', route => {
     const method = route.request().method(), data = route.request().postDataJSON(); requests.push({ method, data });
     if (!data.code) return route.fulfill({ json: { twoFactor: true } });
@@ -274,6 +344,7 @@ for (const surface of ['sidebar', 'settings'] as const) test(`S6 server-challeng
     const response = await route.fetch(), session = await response.json();
     await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
   });
+  await page.route('**/api/settings/web3-mode', route => route.fulfill({ json: { web3ModeEnabled: true } }));
   await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets: [] } }));
   await page.route('**/api/wallets/evm/challenge', route => {
     const data = route.request().postDataJSON(); requests.push({ path: 'challenge', data });
@@ -359,7 +430,7 @@ for (const corrupt of ['object', 'null', 'mixed'] as const) test(`S6 corrupt wal
     const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
     await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
-    const connect = menu.getByRole('button', { name: /^(?:\+ )?Connect a wallet$|^Enable Web3$/ });
+    const connect = menu.getByRole('button', { name: /^(?:\+ )?Connect a wallet$/ }).or(menu.getByRole('link', { name: 'Review Web3 settings', exact: true }));
     await expect(connect).toBeVisible(); await connect.scrollIntoViewIfNeeded();
     if (corrupt === 'mixed') await expect(menu.getByRole('group', { name: 'QA valid cached wallet', exact: true })).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Web3 mode: **PARTIAL — local verification complete, not deployed**. One guarded
+API now requires explicit confirmation, fresh account state, a remaining sign-in
+method when disabling, scoped one-use 2FA and atomic writes. Obsolete email links
+are read-only; neutral loading replaces the false-off flash. Server preference
+overrides stale browser opt-ins. **266 focused checks (89 isolated PostgreSQL)**,
+strict build, touched lint and final local browser **14/14 (31.9s, no retries/skips)**
+pass. Eight screen sizes plus real Chrome desktop/phone/landscape, page/drawer
+scrolling and Cancel/focus checked. No owner mode, wallet, payout, email or payment
+changed. Combined wallet release still requires Preview/live acceptance.
+See [Web3 mode evidence](web3-mode-evidence-2026-09.md).
+
 Wallet sign-in: **PARTIAL — local implementation, not deployed**. Browser/host-
 bound one-use EOA proof, verified personal-wallet identity resolution, atomic
 signup/2FA, shared address locks and last-wallet recovery checks replace the old
@@ -11,8 +22,8 @@ address-only path. **214 focused checks (73 isolated PostgreSQL)** pass. Local
 real-signature sign-in/logout/replay and responsive code-form acceptance passed
 in a **12/12** focused browser run; final compact-UI follow-up recorded in
 [wallet sign-in evidence](wallet-login-evidence-2026-09.md). Real Chrome retained
-the signed-in owner session with no wallet changes. Web3 enable/disable security
-actions need alignment next, followed by combined Preview/live acceptance.
+the signed-in owner session with no wallet changes. Web3 enable/disable alignment
+is now verified locally (above); combined Preview/live acceptance remains.
 
 Receiving-wallet settings: **PARTIAL — local verification complete, not deployed**.
 Personal/company setters now share ownership locks, host/action/current-choice

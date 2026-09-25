@@ -1,5 +1,4 @@
 import { Resend } from 'resend';
-import { SecurityActionType } from '@/generated/prisma/browser';
 import { authOrigin } from '@/lib/auth-navigation';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -96,31 +95,6 @@ export const sendVerificationEmail = async (email: string, token: string): Promi
   });
 }
 
-export const sendSecurityActionEmail = async (
-  email: string,
-  token: string,
-  action: SecurityActionType
-): Promise<void> => {
-  const actionLabel =
-    action === "WEB3_MODE_ENABLE" ? "Enable Web3 Mode" : "Disable Web3 Mode";
-  const confirmLink = `${whatENV}/auth/security-action?token=${token}`;
-
-  await resend.emails.send({
-    from: "Veggat-Security@veggat.com",
-    to: email,
-    subject: `Confirm: ${actionLabel}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Security Action Required</h2>
-        <p>You requested to <strong>${actionLabel.toLowerCase()}</strong> on your Veggat account.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmLink}" style="background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">${actionLabel}</a>
-        </div>
-        <p style="color: #666; font-size: 14px;">This link expires in 15 minutes. If you didn't request this, please secure your account immediately.</p>
-      </div>
-    `,
-  });
-};
 
 // ─── OAuth Link Confirmation Email (pending → verified) ─────────────────────
 

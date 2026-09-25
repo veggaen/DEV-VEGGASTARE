@@ -22,12 +22,14 @@ import { changePayoutWallet } from '@/lib/payout-wallet';
 import { createWalletLoginChallenge, prepareWalletLogin, authenticateWalletLogin } from '@/lib/wallet-login';
 import { PATCH as patchRoute, DELETE as deleteRoute } from '@/app/api/wallets/evm/[walletId]/route';
 import { POST as createRoute } from '@/app/api/wallets/route';
+import { changeWeb3Mode } from '@/lib/web3-mode';
 
 describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking in isolated PostgreSQL', () => {
   const schema = `qa_wallet_link_${randomUUID().replaceAll('-', '')}`;
   let admin: Client, db: PrismaClient;
   const account = privateKeyToAccount(generatePrivateKey()); // disposable, no funds
   const input = { userId: 'qa-owner', origin: 'http://localhost:3000', address: account.address, chainId: 1 };
+  const mode = (enabled: boolean, extra = {}) => changeWeb3Mode({ userId: input.userId, origin: input.origin, enabled, expectedEnabled: !enabled, ...extra });
   beforeAll(async () => {
     const url = new URL(previewDatabaseUrl({ DATABASE_URL_MAINPREVIEW: process.env.DATABASE_URL_MAINPREVIEW, DATABASE_URL_MAINLIVE: process.env.DATABASE_URL_MAINLIVE }));
     url.hostname = url.hostname.replace('-pooler.', '.'); url.searchParams.set('sslmode', 'verify-full');
@@ -73,6 +75,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     }
   });
   beforeEach(async () => {
+    vi.unstubAllEnvs();
     state.codeMail.mockReset().mockResolvedValue(undefined); state.linkedMail.mockReset().mockResolvedValue(undefined);
     await admin.query(`TRUNCATE "Product","ProductAcceptedToken","Company","Donation","WalletVerificationChallenge","WalletLoginNonce","Account","Wallet","TwoFactorToken","User";
       INSERT INTO "User" ("id") VALUES ('qa-owner'), ('qa-other');`);
@@ -82,6 +85,69 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     if (!challenge.challengeId) throw new Error('Unexpected code gate');
     return challenge;
   };
+  it('Web3 enable preserves wallet, payout and verification state', async () => {
+    await admin.query(`UPDATE "User" SET "web3ModeEnabled"=FALSE,"defaultReceivingWalletId"='keep' WHERE "id"='qa-owner'`);
+    expect(await mode(true)).toEqual({ success: true, web3ModeEnabled: true });
+    expect((await db.user.findUnique({ where: { id: input.userId }, select: { defaultReceivingWalletId: true } }))?.defaultReceivingWalletId).toBe('keep');
+    expect(await db.wallet.count()).toBe(0); expect(await db.walletVerificationChallenge.count()).toBe(0);
+  });
+  it.each(['wallet-only','unverified-password','email-only','unconfigured-oauth'])('Web3 disable rejects %s without locking the owner out', async kind => {
+    vi.stubEnv('AUTH_GOOGLE_ID', ''); vi.stubEnv('GOOGLE_CLIENT_ID', '');
+    if (kind === 'unverified-password') await admin.query(`UPDATE "User" SET "password"='hash' WHERE "id"='qa-owner'`);
+    if (kind === 'email-only') await admin.query(`UPDATE "User" SET "emailVerified"=now() WHERE "id"='qa-owner'`);
+    if (kind === 'unconfigured-oauth') await admin.query(`INSERT INTO "Account" ("id","userId","provider") VALUES ('qa-google','qa-owner','google')`);
+    await expect(mode(false)).rejects.toThrow('sign-in method');
+    expect((await db.user.findUnique({ where: { id: input.userId }, select: { web3ModeEnabled: true } }))?.web3ModeEnabled).toBe(true);
+    expect(await db.twoFactorToken.count()).toBe(0);
+  });
+  it.each(['password','google'])('Web3 disable retains %s access and saved receiving wallets', async kind => {
+    if (kind === 'password') await admin.query(`UPDATE "User" SET "password"='hash',"emailVerified"=now() WHERE "id"='qa-owner'`);
+    else {
+      vi.stubEnv('AUTH_GOOGLE_ID', 'qa-id'); vi.stubEnv('AUTH_GOOGLE_SECRET', 'qa-secret');
+      await admin.query(`INSERT INTO "Account" ("id","userId","provider") VALUES ('qa-google','qa-owner','google')`);
+    }
+    await db.wallet.create({ data: { id: 'qa-keep', label: 'Saved wallet', address: account.address, family: 'EVM', ownerUserId: input.userId, verifiedAt: new Date() } });
+    const before = await db.wallet.findUnique({ where: { id: 'qa-keep' } });
+    expect(await mode(false)).toEqual({ success: true, web3ModeEnabled: false });
+    expect(await db.wallet.findUnique({ where: { id: 'qa-keep' } })).toEqual(before);
+  });
+  it('Web3 changes serialize concurrent attempts and reject stale expected state', async () => {
+    await admin.query(`UPDATE "User" SET "web3ModeEnabled"=FALSE WHERE "id"='qa-owner'`);
+    const results = await Promise.allSettled([mode(true), mode(true), mode(true)]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(r => r.status === 'rejected')).toHaveLength(2);
+    await expect(mode(false, { expectedEnabled: false })).rejects.toThrow('different');
+  });
+  it('Web3 changes reject demo, missing and unverified 2FA identities', async () => {
+    await expect(mode(true, { userId: 'demo_fixture' })).rejects.toThrow('demo');
+    await expect(mode(true, { userId: 'missing' })).rejects.toThrow('Sign in');
+    await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"web3ModeEnabled"=FALSE WHERE "id"='qa-owner'`);
+    await expect(mode(true)).rejects.toThrow('Verify your email'); expect(await db.twoFactorToken.count()).toBe(0);
+  });
+  it('Web3 uses an exact single-use code, commits atomically and rejects replay', async () => {
+    await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"emailVerified"=now(),"web3ModeEnabled"=FALSE WHERE "id"='qa-owner'`);
+    const gate = await mode(true); if (!('code' in gate)) throw new Error('Expected code');
+    expect((await db.twoFactorToken.findFirst())?.token).not.toBe(gate.code);
+    await expect(mode(true, { code: gate.code + '0' })).rejects.toThrow('Incorrect');
+    await admin.query(`ALTER TABLE "User" ADD CONSTRAINT qa_web3_failure CHECK ("id" <> 'qa-owner' OR "web3ModeEnabled"=FALSE)`);
+    try { await expect(mode(true, { code: gate.code })).rejects.toThrow(); }
+    finally { await admin.query(`ALTER TABLE "User" DROP CONSTRAINT qa_web3_failure`); }
+    expect(await db.twoFactorToken.count()).toBe(1);
+    const results = await Promise.allSettled([mode(true, { code: gate.code }), mode(true, { code: gate.code })]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1); expect(await db.twoFactorToken.count()).toBe(0);
+  });
+  it.each(['host','account','email','login-code','expired','opposite-action'])('Web3 rejects %s code reuse', async fault => {
+    await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"emailVerified"=now(),"password"='hash',"web3ModeEnabled"=FALSE`);
+    const gate = await mode(true); if (!('code' in gate)) throw new Error('Expected code');
+    let proof: Record<string, unknown> = { code: gate.code };
+    if (fault === 'host') proof.origin = 'https://www.veggat.com';
+    if (fault === 'account') proof.userId = 'qa-other';
+    if (fault === 'email') await admin.query(`UPDATE "User" SET "email"='changed@example.test' WHERE "id"='qa-owner'`);
+    if (fault === 'login-code') { await db.twoFactorToken.create({ data: { email: 'qa@example.test', token: '123456', expires: new Date(Date.now()+300000) } }); proof.code = '123456'; }
+    if (fault === 'expired') await db.twoFactorToken.updateMany({ data: { expires: new Date(0) } });
+    if (fault === 'opposite-action') { await admin.query(`UPDATE "User" SET "web3ModeEnabled"=TRUE WHERE "id"='qa-owner'`); proof = { ...proof, enabled: false, expectedEnabled: true }; }
+    await expect(mode(true, proof)).rejects.toThrow();
+  });
   const signed = async (overrides = {}) => {
     const challenge = await issue(overrides);
     return { userId: input.userId, origin: input.origin, challengeId: challenge.challengeId,
