@@ -35,6 +35,11 @@ test('S8 people discovery offers responsive search, retry and confirmed follow s
   page.on('pageerror',error=>errors.push(error.message));
   let demoSession=false, suggestionFailure=true, followFailure=true, followWrites=0, suggestionReads=0;
   const row={id:'qa-person',name:'Alex Example',email:null,image:'/users/avatar.webp',bio:null,followerCount:2,isFollowing:false};
+  const posts=Array.from({length:12},(_,index)=>({id:'qa-discovery-post-'+index,title:'Discovery layout '+index,
+    description:'Public reading sample '+index+'. The people panel must stay reachable above a populated mobile feed.',
+    type:'PUBLIC_THREAD',tags:['layout'],userId:'qa-author',user:{id:'qa-author',name:'Layout sample',email:''},createdAt:'2026-01-01T12:00:00.000Z',messageCount:1,hasPoll:false}));
+  await page.route('**/api/conversations?**',route=>route.fulfill({json:{conversations:posts,nextCursor:null}}));
+  await page.route('**/api/conversations/*/view',route=>route.fulfill({json:{success:true}}));
   await page.route('**/api/auth/session',route=>route.fulfill({json:demoSession?session:{...session,user:{...session.user,id:'qa-viewer',isDemo:false,role:'USER'}}}));
   await page.route('**/api/users/suggestions?**',route=>{suggestionReads++;return route.fulfill(suggestionFailure?{status:503,json:{error:'Unavailable'}}:{json:{suggestions:[{...row,reason:'Recent chat',priority:1}]}});});
   await page.route('**/api/users/search?**',async route=>{
@@ -54,6 +59,10 @@ test('S8 people discovery offers responsive search, retry and confirmed follow s
     const refreshed=page.waitForResponse(r=>r.url().includes('/api/auth/session'));
     await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await refreshed;
     expect(suggestionReads).toBe(0);
+    await expect(page.getByRole('feed',{name:'Pulse feed'}).getByRole('article')).toHaveCount(12);
+    const disclosure=page.locator('details > summary').filter({hasText:'Find people'});
+    const disclosureBox=await disclosure.boundingBox(), feedBox=await page.getByRole('feed',{name:'Pulse feed'}).boundingBox();
+    expect(disclosureBox!.y+disclosureBox!.height).toBeLessThanOrEqual(feedBox!.y);
     await page.locator('details > summary').filter({hasText:'Find people'}).click();
     const panel=page.getByRole('region',{name:'Find people',exact:true}).filter({visible:true});
     await expect(panel.getByText('People could not be loaded. Try again.')).toBeVisible();
@@ -86,6 +95,14 @@ test('S8 people discovery offers responsive search, retry and confirmed follow s
       const button=shown.getByRole('button',{name:'Follow Taylor Example'});await expect(button).toHaveCSS('opacity','1');expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await page.screenshot({path:info.outputPath('people-'+width+'.png')});
     }
+    await page.setViewportSize({width:1280,height:800});
+    const explore=page.locator('[data-pulse-explore-scroll]');await explore.scrollIntoViewIfNeeded();
+    const site=page.locator('[data-site-scroll]'),position=await site.evaluate(element=>element.scrollTop);
+    const exploreBox=(await explore.boundingBox())!;await page.mouse.move(exploreBox.x+exploreBox.width-15,Math.max(150,exploreBox.y+200));await page.mouse.wheel(0,600);
+    await expect.poll(()=>explore.evaluate(element=>element.scrollTop)).toBeGreaterThan(0);
+    expect(await site.evaluate(element=>element.scrollTop)).toBe(position);
+    await expect(page.getByRole('feed',{name:'Pulse feed'}).getByRole('article').first()).toHaveCSS('backdrop-filter','none');
+    await page.screenshot({path:info.outputPath('feed-after-sidebar-wheel.png')});
     // Account transition clears private UI instead of retaining the previous person's list.
     demoSession=true;const reset=page.waitForResponse(r=>r.url().includes('/api/auth/session'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await reset;
     await expect(panel.getByText('People search is off in the demo.')).toBeVisible();await expect(panel.getByRole('searchbox')).toHaveCount(0);

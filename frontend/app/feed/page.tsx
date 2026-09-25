@@ -1827,6 +1827,11 @@ const FeedPage: React.FC = () => {
             </div>
           )}
 
+          {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card lg:hidden">
+            <summary className="min-h-11 cursor-pointer rounded-2xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">Find people</summary>
+            <div className="[&_section]:border-0 [&_section]:bg-transparent [&_section]:pt-1 [&_h2]:sr-only"><DiscoverPeople /></div>
+          </details>}
+
           {/* Feed - unified feed for all content types */}
           <div role="feed" aria-label="Pulse feed" aria-busy={loading}
             data-feed-footer-pending={loading || hasMore || isFetchingMore || !!feedError} className="space-y-3">
@@ -2199,11 +2204,6 @@ const FeedPage: React.FC = () => {
             }}
           /></Suspense>}
         </div>
-
-        {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card lg:hidden">
-          <summary className="min-h-11 cursor-pointer rounded-2xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">Find people</summary>
-          <div className="[&_section]:border-0 [&_section]:bg-transparent [&_section]:pt-1 [&_h2]:sr-only"><DiscoverPeople /></div>
-        </details>}
 
         {/* Explore sidebar */}
         <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
@@ -2800,7 +2800,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     <article
       ref={viewTrackingRef}
       className={cn(
-        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 backdrop-blur-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
         isPinnedToFeed
           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
           : "border-border/50 bg-card/60 dark:bg-card/40 hover:border-brand-accent/30 hover:bg-card/80 dark:hover:bg-card/60"

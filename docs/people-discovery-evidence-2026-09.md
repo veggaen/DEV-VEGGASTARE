@@ -55,3 +55,24 @@ This does not claim completion of the wider admin/profile/social audit.
   Follow controls were not clicked. The mobile panel has one visible heading.
 
 Deployment and remote acceptance are recorded below after verification.
+
+## Populated-feed follow-up
+
+The first Live revision passed 3/3 checks (18.4s), following Preview 3/3 (17.3s).
+Real Chrome then exposed a weakness in the empty-feed UI fixture: the mobile
+disclosure was below all posts. It is moved above the feed, and the fixture now
+contains 12 posts with an explicit disclosure-before-feed assertion.
+
+Real Chrome at 1280x800 also showed a paint problem while scrolling the Explore
+panel: feed-card contents disappeared while the DOM text remained, then repainted
+when scrolling over the main feed. Card backdrop blur is removed as a targeted
+paint/performance simplification. The regression fixture now exercises independent
+sidebar scrolling, unchanged main scroll position and blur-free cards. Final real
+Chrome acceptance must repeat this interaction; a DOM visibility assertion alone
+does not prove the paint issue is resolved on the owner's GPU/browser.
+
+Remaining separate audit: `/api/admin/users` needs strict sort/pagination bounds
+and honest handling of its placeholder bulk-action response. The legacy admin
+`/api/users` list is unbounded and is still consumed by company creation. The admin
+directory Edit action points to `/admin/users/[id]/edit`, while the route inventory
+only contains `/admin/users/[userId]`. These paths have not been changed here.
