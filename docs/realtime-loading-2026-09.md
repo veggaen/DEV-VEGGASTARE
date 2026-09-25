@@ -34,10 +34,12 @@ $env:E2E_DEMO_STORAGE_STATE='.private-showcase/release-local-demo.json'
 npx playwright test --config=playwright.realtime.config.ts --reporter=list
 ```
 
-Preview and Live verification remain pending. Do not promote the integrated
-native-currency/schema changes as part of this small loading correction.
+Live verification remains pending. Do not promote the integrated native-currency/
+schema changes as part of this small loading correction.
 
-Candidate `7af0798` was submitted to isolated Preview as
+Candidate `7af0798` is READY on isolated Preview as
 `https://dev-veggastare-ao5xv68kb-v3ggas-projects.vercel.app`. Build compilation
-passed and the isolated database reported 55 migrations with none pending;
-readiness and hosted tests must still be checked before alias promotion.
+and TypeScript passed; the isolated database reported 55 migrations with none
+pending. Deployment `dpl_6yS7nvLZcxTQxRtk1EiijMcvC8pH` is assigned to the existing
+stable Sandbox Preview alias. The same three realtime browser tests passed there
+in 27.2 seconds, zero retries/skips, using the retained demo session. No new grant.

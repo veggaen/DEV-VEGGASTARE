@@ -4,10 +4,11 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Realtime loading follow-up — 26 September 2026
 
-**PARTIAL; local acceptance complete, hosted verification pending.** The shared
+**PARTIAL; local and isolated Preview acceptance complete, Live pending.** The shared
 realtime SDK is lazy-loaded for active subscribers, with per-listener cleanup so
 one component cannot unsubscribe its siblings. Build/TypeScript/lint, nine units,
-and three focused browser checks pass. Guest homepage JS fell about 17.8KB in one
+and three focused browser checks pass both locally and on READY Preview `7af0798`.
+Guest homepage JS fell about 17.8KB in one
 local lab sample; this is not an all-route speed claim. See
 [realtime evidence](realtime-loading-2026-09.md).
 
