@@ -6,6 +6,10 @@ Veggat is a trust-first marketplace for digital products: discover a file, check
 
 ## Try it in 90 seconds
 
+[![Watch the 76-second Veggat walkthrough](frontend/public/showcase/veggat-walkthrough-poster.png)](https://www.veggat.com/showcase/walkthrough.html)
+
+[Watch the 76-second walkthrough](https://www.veggat.com/showcase/walkthrough.html) — real Live demo, free checkout and private download. Captions and a text alternative are included; no payment or AI generation is simulated.
+
 Open the public homepage and choose **Try the demo — no payment**. No password or card is needed: each visitor gets an isolated, temporary account, not shared credentials.
 
 1. Open **Fjord Study — Digital Artwork**, inspect its gallery, and add it to the cart.

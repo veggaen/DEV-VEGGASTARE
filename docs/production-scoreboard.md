@@ -4,6 +4,13 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Interview walkthrough: **recorded and verified locally/Live; player release pending**.
+A 75.72-second real Live recording follows public home → isolated demo → artwork →
+free checkout → actual protected JPG download → automatic credit quote → AI workspace.
+The new demo order has no payment/capture. No PayPal or generation requests occurred.
+The opt-in browser test passes locally and Live; no paid refund was submitted.
+See [recording evidence and reproduction](showcase-walkthrough-2026-09.md).
+
 Dynamic failure paths: **DONE for scoped missing-record acceptance**. App source
 `77ab6ba`, Production `dpl_5zJCViodSCcBuwHXdqA2qeBnDVqz`, stable Preview
 `dpl_D4CRjRXxv5Qkn9tBRnoXXSyHL8J6`. An unavailable trade no longer sends the user
@@ -1322,12 +1329,12 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | Register, reset/verify, logout | DONE — current local/live UI round trips and token replay protection; human inbox delivery not independently confirmed |
 | Auth | Google | PARTIAL — owner completed normal Chrome locally; automated browser blocked by Google |
 | Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
-| Shop | List, PDP, images | DONE — both reviewer products and actual images verified locally/live |
+| Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
-| Shop | Checkout | PARTIAL — custom-credit demo, quote editing/retries and request follow-up deployed and verified local/Preview/live; owner Live money acceptance remains |
-| Shop | Live PayPal, sandbox PayPal | PARTIAL — Sandbox capture, delivery, refund and replay pass; original refund-webhook Failure corrected to Success. Owner's 9 NOK Live credit purchase and one +10 grant are verified. Live digital purchase/refund acceptance remains |
-| Shop | Confirmation, signed download | PARTIAL — local/live demo and actual Sandbox JPG/TXT downloads verified; anonymous 401 and replay pass. Live paid download still pending |
-| Shop | Cheap JPG+TXT product, credits SKU | PARTIAL — fixed/custom mixed Sandbox purchases verified. Custom credits plus 10-credit/9 NOK starter supported; fresh starter capture/grant verified in Sandbox and Live. Permanent product copy and new private setup guide prepared; final Live UI rollout recorded above |
+| Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |
+| Shop | Live PayPal, sandbox PayPal | PARTIAL — Sandbox capture/refund/replay and Live 9 NOK credits plus 29 NOK artwork capture/fulfillment pass. Live refund is BLOCKED on separate owner approval and merchant funding/hold resolution; no refund submitted |
+| Shop | Confirmation, signed download | DONE for scoped purchase/access checks — actual Live JPG/TXT downloads match stored checksums; raw 403, anonymous signed 401 and unrelated account 403. Human email delivery remains unverified |
+| Shop | Cheap JPG+TXT product, credits SKU | DONE — permanent products deployed; fixed/custom mixed Sandbox captures and Live starter/artwork purchases verified. Historical SKU IDs and order copies retained |
 | Shop | Buyer notices / seller review | DONE for scoped local/Preview/live flows — private originals, retained drafts, whole-order permissions and revision checks; not an automatic refund or legal-compliance certification |
 | AI | Chat, selector, streaming | DONE for tested OpenAI Luna/Groq demo and Sandbox-funded OpenAI Luna/Astra/Grok paths; other unconfigured models remain disabled |
 | AI | Credit debit, zero balance, no overcharge | PARTIAL — demo server 402, Sandbox spending/denial and actual Live purchased balance 10→8→0 verified. Atomic ledger/fuse tests pass. Provider-project hard caps/alerts still require acceptance; no absolute overcharge guarantee |
@@ -1340,7 +1347,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | BLOCKED — workflow implemented and local demo/retry/replay passes; GitHub rejects execution due to account billing lock. Provider transport mocked in unit tests |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
-| Interview | Root README | PARTIAL — human product story, demo, architecture, decisions, current payment status and CI scope documented; recording and Live payment evidence remain pending |
+| Interview | Root README | PARTIAL — human story, architecture, decisions, setup and actual payment evidence documented; 76-second real Live walkthrough recorded, public player release being verified |
 
 ## S7 — Shared navigation alignment (local/live verified)
 

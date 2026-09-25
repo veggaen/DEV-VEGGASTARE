@@ -7,6 +7,142 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S9 public walkthrough player is responsive, captioned and starts only on request', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_WALKTHROUGH_PLAYER !== '1', 'Opt-in static video acceptance; no account or payment');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
+  try {
+    const page = await context.newPage(), mediaRequests: string[] = [], errors: string[] = [];
+    page.on('request', request => { if (new URL(request.url()).pathname.endsWith('.webm')) mediaRequests.push(request.url()); });
+    page.on('pageerror', error => errors.push(error.message));
+    const response = await page.goto('/showcase/walkthrough.html', { waitUntil: 'load' });
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: 'Veggat, in 76 seconds', exact: true })).toBeVisible();
+    const video = page.locator('video');
+    expect(mediaRequests).toEqual([]);
+    await expect(video).toHaveAttribute('preload', 'none');
+    for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const rect = await video.boundingBox();
+      expect(rect!.width).toBeLessThanOrEqual(Math.min(size.width, 1280));
+      await page.screenshot({ path: info.outputPath(`player-${size.width}.png`) });
+    }
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await video.focus();
+    await page.keyboard.press('Space');
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime), { timeout: 20_000 }).toBeGreaterThan(1);
+    const metadata = await video.evaluate((element: HTMLVideoElement) => ({ duration: element.duration,
+      width: element.videoWidth, height: element.videoHeight, captionMode: element.textTracks[0]?.mode }));
+    expect(metadata).toMatchObject({ width: 1280, height: 800, captionMode: 'showing' });
+    expect(metadata.duration).toBeGreaterThan(60); expect(metadata.duration).toBeLessThan(90);
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.textTracks[0]?.cues?.length ?? 0)).toBe(9);
+    await page.screenshot({ path: info.outputPath('playing-with-captions.png') });
+    await page.getByText('Read the walkthrough', { exact: true }).click();
+    await expect(page.getByText('No provider response is simulated.', { exact: false })).toBeVisible();
+    // Let the real codec decode the complete recording; no timeline jumping.
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.ended), { timeout: 90_000, intervals: [5000] }).toBe(true);
+    expect(await video.evaluate((element: HTMLVideoElement) => element.error?.message ?? null)).toBeNull();
+    expect(mediaRequests.length).toBeGreaterThan(0); expect(errors).toEqual([]);
+    await info.attach('video-metadata', { body: JSON.stringify(metadata), contentType: 'application/json' });
+  } finally { await context.close(); }
+});
+
+test('S9 recorded showcase — public entry, free demo checkout and private download', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_RECORD_SHOWCASE !== '1', 'Explicit, new disposable demo only; no real payment or AI generation');
+  test.setTimeout(180_000);
+  expect(['http://localhost:3000', 'https://www.veggat.com']).toContain(baseURL);
+  const paced = process.env.E2E_RECORD_SHOWCASE_PACED === '1';
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 },
+    reducedMotion: 'reduce', colorScheme: 'dark', recordVideo: { dir: info.outputPath('recording'), size: { width: 1280, height: 800 } } });
+  const page = await context.newPage();
+  const video = page.video();
+  const errors: string[] = [], forbiddenRequests: string[] = [], scenes: { name: string; seconds: number }[] = [];
+  const started = Date.now();
+  const scene = async (name: string, seconds: number) => {
+    scenes.push({ name, seconds: Math.round((Date.now() - started) / 1000) });
+    console.log(`Walkthrough: ${name}`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`${name}.png`) });
+    // Presentation dwell, not an application-readiness wait. Assertions above
+    // and below establish readiness; the fast rehearsal skips this pacing.
+    if (paced) await page.waitForTimeout(seconds * 1000);
+  };
+  page.on('pageerror', error => errors.push(error.message));
+  await context.route(/https:\/\/[^/]*paypal\.com\//, route => {
+    forbiddenRequests.push('PayPal'); return route.abort();
+  });
+  await context.route(/\/api\/(checkout(?:\/|$)|ai-chat$|ai-media$)/, route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    forbiddenRequests.push(new URL(route.request().url()).pathname); return route.abort();
+  });
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const demoButton = page.getByRole('button', { name: 'Try the demo — no payment', exact: true });
+    await expect(demoButton).toBeEnabled();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+    if (await consent.isVisible()) await consent.click();
+    await scene('01-public-home', 6);
+    await demoButton.click();
+    await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user).toMatchObject({ isDemo: true, role: 'USER' });
+    await expect(page.getByText('Fjord Study — Digital Artwork', { exact: true }).first()).toBeVisible();
+    await scene('02-isolated-demo', 4);
+    await page.getByText('Fjord Study — Digital Artwork', { exact: true }).first().click();
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true, level: 1 })).toBeVisible();
+    const image = page.getByRole('img', { name: 'Fjord Study — Digital Artwork — image 1', exact: true });
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    await scene('03-artwork', 6);
+    await page.getByRole('button', { name: 'Next product image', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'View product image 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await scene('04-gallery', 4);
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    await expect(page.getByRole('button', { name: '1 item in basket', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'View basket', exact: true }).click();
+    await page.waitForURL('**/cart', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Your cart', exact: true })).toBeVisible();
+    await scene('05-cart', 5);
+    await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Secure checkout', exact: true })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Payment summary', exact: true })).toContainText('Free demonstration');
+    await scene('06-free-checkout', 6);
+    await page.getByRole('button', { name: 'Complete free demo order', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Your demo order is ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Payment details', exact: true })).toContainText(/ChargedUSD\s*0\.00/);
+    const files = page.getByRole('region', { name: 'Your downloads', exact: true });
+    await expect(files.getByRole('button', { name: /fjord-study\.jpg/ })).toBeVisible();
+    await scene('07-receipt', 7);
+    const downloaded = page.waitForEvent('download');
+    await files.getByRole('button', { name: /fjord-study\.jpg/ }).click();
+    const download = await downloaded;
+    expect(download.suggestedFilename()).toBe('fjord-study.jpg');
+    expect(await download.failure()).toBeNull();
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    expect(orders).toHaveLength(1);
+    expect(orders[0]).toMatchObject({ checkout: { environment: 'DEMO', state: 'COMPLETED', captureId: null }, payment: null });
+    await scene('08-private-download', 5);
+    await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'Products', exact: true }).click();
+    await page.getByText('Veggat AI Credits', { exact: true }).first().click();
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true, level: 1 })).toBeVisible();
+    await scene('09-prepaid-credits', 4);
+    await page.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('1000');
+    await expect(page.locator('[data-credit-preview]')).toHaveText('1,000');
+    await scene('10-auto-updating-quote', 7);
+    await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'AI Chat', exact: true }).click();
+    await page.waitForURL('**/ai', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /what's on your mind|Welcome back/i, level: 1 })).toBeVisible();
+    await scene('11-ai-workspace', 6);
+    expect(forbiddenRequests).toEqual([]);
+    expect(errors).toEqual([]);
+    await info.attach('walkthrough-scenes', { body: JSON.stringify({ origin: baseURL, paced, scenes, noRealPayment: true, noGeneration: true }), contentType: 'application/json' });
+  } finally {
+    await context.close();
+    if (video) await video.saveAs(info.outputPath('veggat-walkthrough.webm'));
+  }
+});
+
 test('real Sandbox order resumption preserves the provider order and cancels without capture', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_REAL_RECOVERY !== '1', 'Explicit isolated Sandbox acceptance only; never approves payment');
   test.setTimeout(150_000);
