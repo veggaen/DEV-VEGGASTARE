@@ -4,15 +4,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Account administration: **PARTIAL — local safeguards and editor verification
-pass; deployment acceptance pending**. Strict field policy, current-role/version
+Account administration: **DONE for scoped audited edits and responsive recovery;
+wider account management remains PARTIAL**. Runtime `f4e1343` is promoted as
+`dpl_J7GwrYcX1EG2GcZPrPByyRewQFJb`; production health and strict builds pass.
+Strict field policy, current-role/version
 checks, optimistic concurrency and transactional audits replace the unsafe
 privileged update. USER/ADMIN role changes revoke existing target sessions;
 email and verification cannot be fabricated. Cascading deletion is refused, not
 reported as completed erasure. The responsive editor preserves drafts and handles
 conflicts explicitly. 85 units, four isolated PostgreSQL checks, actual local
-HTTP/UI acceptance and light/dark browser 2/2 pass. Real Chrome needs the existing
-admin gate sign-in. See [admin detail evidence](admin-user-detail-evidence-2026-09.md).
+HTTP/UI acceptance and local/Preview/Live light/dark browser **2/2 each** pass.
+Real Chrome used the owner's signed-in session to inspect their read-only record
+at 390/1280/2560, scroll to the phone footer, and scroll the desktop sidebar
+independently. No Live profile or role was changed. Remote edit cases use browser
+fixtures; real writes use disposable isolated local principals. Hosted upload,
+role-management step-up, ownership transfer and retention-safe erasure remain
+unfinished. See [admin detail evidence](admin-user-detail-evidence-2026-09.md).
 
 Account preview: **DONE for scoped session/perimeter safeguards and local
 synthetic-principal UI acceptance; wider account management remains PARTIAL**.
@@ -1687,7 +1694,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | Google | DONE for existing-account local/Live real-Chrome sign-in and logout; automated-browser restriction remains, not bypassed |
 | Auth | GitHub | DONE for existing-account local/Live real-Chrome sign-in and logout; separate email/trust-badge confirmation is not claimed |
 | Auth | Discord | PARTIAL — correct Live callback/S256 consent screen and safe cancellation observed; positive local/Live callback/link requires explicit owner consent |
-| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted writes, atomic confirmation, safe request/cancel, preview version/deadline revocation and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review, privileged user-detail writes and per-preview server revocation remain |
+| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted personal and audited privileged edits, atomic confirmation, safe request/cancel, preview version/deadline revocation and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review, role-management step-up, ownership transfer and per-preview server revocation remain |
 | Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |

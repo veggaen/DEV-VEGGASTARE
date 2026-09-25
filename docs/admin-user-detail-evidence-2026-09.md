@@ -53,18 +53,40 @@ and [OWASP authorization guidance](https://cheatsheetseries.owasp.org/cheatsheet
   DELETE does not remove the account. Exact EDIT/ROLE_CHANGE audit entries and
   390/1280 layout are verified. Both QA accounts and their audit rows are removed;
   no customer, payment, provider generation or email is affected.
-- A final small UI adjustment keeps the phone Discard/Save actions on one row;
-  final build and post-deploy reruns are pending below.
+- Final adjustments keep phone Discard/Save on one row and focus/scroll save
+  errors into view. The strict final build and local light/dark 2/2 reruns pass.
+  Actual local UI/HTTP acceptance and the earlier account-preview start/end,
+  read-only denial and revocation integration also rerun successfully.
 
 Artifacts (ignored): `frontend/test-results-release-admin-detail-*` and
 `frontend/test-results-release-admin-detail-http`.
 
 ## Deployment / remaining acceptance
 
-Preview and Live deployment verification pending. Real Chrome reached the
-retained admin access gate on both localhost and Live; owner sign-in was requested
-in the retained Live tab. No gate, role or authentication protection was weakened.
-Real-Chrome privileged acceptance, actual hosted image-upload acceptance,
-ownership transfer, verified email replacement, security-change step-up for role
-management and retention-safe erasure remain separate follow-ups. This scoped
-slice does not certify all admin routes or the full app.
+Runtime is `f4e1343` (main implementation `77acd2a`). Isolated Preview deployment
+`dpl_Dcsxv4EtRVKx9n5z2tZPET2WYvA3` is healthy and assigned to the existing Sandbox
+Preview alias. Its final light and dark browser runs each pass 2/2, without skips
+or retries. Production deployment `dpl_J7GwrYcX1EG2GcZPrPByyRewQFJb` passed its
+strict remote build and authenticated health check, then was promoted to
+`www.veggat.com`. Live light and dark browser runs each pass 2/2, without skips
+or retries. All 53 migrations were already applied; this slice needed no migration.
+
+Real Chrome initially reached the retained admin gate. After the owner signed
+in, the existing live directory correctly filtered to the OWNER record and opened
+the owner's own details. No gate, role or authentication protection was weakened.
+After deployment, real Chrome showed the new editor with the owner's own fields
+read-only, no Save/Preview action, and a Settings link. The record's update time
+remained unchanged. Screenshots and DOM bounds at 390, 1280 and 2560 pixels show
+no horizontal overflow. Phone scrolling reached the complete footer without
+covering the companies card. At 1280 the sidebar scrolled independently to its
+last admin link while the account page stayed at the top. The temporary viewport
+override was reset and the updated page left open. No customer profile or role
+was edited on Live; remote mutation cases use browser fixtures, while actual
+transaction/write acceptance uses disposable local test principals as above.
+
+Actual hosted image-upload acceptance, ownership transfer, verified email
+replacement, security-change step-up for role management and retention-safe
+erasure remain separate follow-ups. Two smaller image-editor follow-ups are
+unverified: reopening a closed disclosure for an invalid URL, and showing a
+draft avatar before saving. This scoped slice does not certify all admin routes
+or the full app.
