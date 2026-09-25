@@ -23,7 +23,17 @@ Design review used the [Web Interface Guidelines](https://raw.githubusercontent.
 - Local browser acceptance: **2/2 pass, no retries/skips**, 10.5 seconds. Read-only real endpoint refuses anonymous/demo identities; browser-only owner/20-row fixtures cover filters, pagination, empty/error/retry, rapid input, obsolete responses and role loss. No real account receives an admin role.
 - Layout checks cover 360×800, 390×844, 844×390, 768×1024, 1024×1280, 1280×800, 1920×1080 and 2560×1440. Long names/emails do not create horizontal overflow; controls are at least 44px. Screenshots at 390/1280/2560 were visually inspected. Other screenshot captures are supporting evidence, not an assertion every pixel was reviewed.
 - Initial runs identified missing gate-cache headers, test setup's demo write refusal, the gate rate limit and an ambiguous screen-reader text selector. Setup now obtains/reuses an actual gate cookie anonymously without weakening demo restrictions. The subsequent rapid-input failure prompted the History API fix above.
-- Preview/Live acceptance is pending. Real Chrome's local tab requires the existing admin gate password; an exact owner action was requested. No secrets were copied into browser tool output.
+- Local dark-mode browser run also passes **2/2**, no retries/skips, 10.3 seconds; the 1280px dark screenshot was visually inspected.
+- Preview browser run passes **2/2**, no retries/skips, 19.5 seconds. Live browser run passes **2/2**, no retries/skips, 22.0 seconds. These use the same real denial checks and browser-only privileged fixtures described above, not a genuine admin account mutation.
+- Real Chrome's local and Live tabs require the existing admin gate password. The local exact owner action was requested; positive real-Chrome admin-session acceptance remains **PARTIAL**. No secrets were copied into browser tool output.
+
+## Deployed runtime
+
+- Commit `02a0771cb252aaead22c484004e8427c082f4856`; staged redacted secret scan: no findings. This does not clear the separate historical repository exposure.
+- Isolated Preview: `dpl_6qCh4JdwCdHpgXVtDRCHcDtQqw8R`, `https://dev-veggastare-p7m6hxj9c-v3ggas-projects.vercel.app`, assigned to the stable Sandbox Preview alias. Health healthy at `2026-09-25T13:07:34.100Z`.
+- Production: `dpl_ANzfTB8VgGnV61MXiqbVeZGYUo4H`, `https://dev-veggastare-63mu3f9uk-v3ggas-projects.vercel.app`. Health healthy at `2026-09-25T13:08:04.653Z`; promoted after Preview acceptance; `www.veggat.com` inspection resolves to this deployment.
+- Both remote strict builds passed; 53 migrations present with none pending. No new database migration or billing change.
+- Reports stay local/ignored: `frontend/test-results-release-admin-directory-{local,local-dark,preview,live}/results.json` and per-viewport screenshots.
 
 ## Remaining scope
 

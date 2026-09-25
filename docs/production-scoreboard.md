@@ -4,6 +4,21 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Admin directory: **DONE for deployed list/read fixes and scoped automated checks;
+real-Chrome privileged-session acceptance and wider account management remain
+PARTIAL**. Runtime `02a0771` is promoted as
+`dpl_ANzfTB8VgGnV61MXiqbVeZGYUo4H`. Strict query bounds, stable ordering,
+private/no-store responses, demo denial and truthful bulk-write refusal are
+covered. Labelled touch-sized filters replace the broken role picker; debounced
+search handles rapid changes without late URL navigations overwriting drafts.
+Dead Edit/Delete actions were removed, not simulated. 60 focused units,
+touched lint, strict local/remote builds and local/Preview/Live browser **2/2**
+each pass without retries/skips; local dark mode **2/2** also passes. Eight
+viewport sizes include 360 and 2560px. Real Chrome requires the existing admin
+gate password; no real member, role, payment or email changed. Legacy `/api/users`
+and privileged user-detail mutations remain the next audit targets. See
+[admin directory evidence](admin-directory-evidence-2026-09.md).
+
 People discovery: **DONE for scoped endpoint privacy/mobile placement;
 desktop paint acceptance remains PARTIAL**. Runtime `60e99a9` is promoted as
 `dpl_5ZcQot1hG9J4bGZMX7WE8brdiggo`. Exact lookup filters email visibility in the
