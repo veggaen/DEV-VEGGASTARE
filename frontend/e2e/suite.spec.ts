@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, request as apiRequest, type Page, type BrowserContext } from "@playwright/test";
 import { SALES_TERMS_TEXT } from '../lib/legal/sales-terms';
 import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '../lib/legal/sales-terms-version';
 import { createHash } from 'node:crypto';
@@ -9,6 +9,132 @@ import path from 'node:path';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
+
+const directoryGateCookies = new Map<string, Awaited<ReturnType<BrowserContext['cookies']>>>();
+async function openDirectoryGate(context: BrowserContext) {
+  const probe = await context.request.get('/api/admin/users?limit=20');
+  const body = await probe.json();
+  if (body.error === 'Access Gate: authentication required') {
+    expect(probe.headers()['cache-control']).toContain('no-store');
+    const origin = new URL(probe.url()).origin;
+    const retained = directoryGateCookies.get(origin);
+    if (retained) { await context.addCookies(retained); return; }
+    expect(process.env.GATE_PASSWORD, 'Existing admin gate password is required; never disable the gate for this test').toBeTruthy();
+    // Demo users cannot perform writes, including gate sign-in. Obtain only the
+    // gate cookie in a separate anonymous context; never mint an auth session.
+    const gate = await apiRequest.newContext({ baseURL: origin });
+    try {
+      const access = await gate.post('/api/access-gate', { data: { password: process.env.GATE_PASSWORD } });
+      expect(access.status()).toBe(200);
+      const cookies = (await gate.storageState()).cookies.filter(cookie => cookie.name === 'veggastare_access');
+      directoryGateCookies.set(origin, cookies);
+      await context.addCookies(cookies);
+    } finally { await gate.dispose(); }
+  }
+}
+
+test('S8 admin directory real endpoint denies anonymous and demo reads', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
+  const anonymous = await browser.newContext({ baseURL });
+  const demo = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    for (const [context, status] of [[anonymous, 401], [demo, 403]] as const) {
+      await openDirectoryGate(context);
+      const response = await context.request.get('/api/admin/users?limit=20');
+      expect(response.status()).toBe(status);
+      expect(response.headers()['cache-control']).toContain('no-store');
+      expect(response.headers()['vary']).toContain('Cookie');
+      expect(await response.json()).not.toHaveProperty('users');
+    }
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
+test('S8 admin directory filters, recovery, navigation and responsive layout', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Browser-only admin fixture; no real account edits');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  const session = await (await context.request.get('/api/auth/session')).json();
+  expect(session.user.id).toMatch(/^demo_/);
+  await openDirectoryGate(context);
+  const page = await context.newPage(), errors: string[] = [], reads: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let fail = false, denied = false;
+  const row = { id: 'qa-directory-person', name: 'Alex Example', email: 'alex@example.test', image: null, role: 'USER', createdAt: '2026-01-01T12:00:00.000Z', emailVerified: null, _count: { Company_Company_ownerIdToUser: 1, Employee: 2, Order: 3 } };
+  await page.route('**/api/auth/session', route => route.fulfill({ json: denied ? session : { ...session, user: { ...session.user, id: 'qa-directory-owner', role: 'OWNER', isDemo: false } } }));
+  await page.route('**/api/admin/users?**', async route => {
+    expect(route.request().method()).toBe('GET');
+    const query = new URL(route.request().url()).searchParams;
+    reads.push(query.toString());
+    if (fail) return route.fulfill({ status: 503, json: { error: 'Unavailable' } });
+    const term = query.get('search');
+    if (term === 'slow') await new Promise(resolve => setTimeout(resolve, 1000));
+    const users = term === 'nobody' ? [] : Array.from({ length: query.get('page') === '2' ? 1 : 20 }, (_, index) => ({ ...row,
+      id: index === 0 ? row.id : row.id + '-' + index,
+      name: index === 0 ? (term === 'slow' ? 'Stale user' : row.name) : 'Directory member ' + index,
+      email: index === 0 ? row.email : 'member' + index + '@example.test',
+    }));
+    return route.fulfill({ json: { users, pagination: { page: Number(query.get('page')), limit: 20, total: users.length ? 21 : 0, totalPages: users.length ? 2 : 0 } } });
+  });
+  try {
+    // Establish a browser-only owner session on a public route before entering admin.
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const refreshed = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await page.getByRole('link', { name: 'Users', exact: true }).filter({ visible: true }).click();
+    const directory = page.getByRole('region', { name: 'User management', exact: true });
+    await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toBeVisible();
+    await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toHaveAttribute('href', '/admin/users/qa-directory-person');
+    await expect(directory.getByRole('link', { name: 'Profile Alex Example' })).toHaveAttribute('href', '/profile/qa-directory-person');
+    await expect(directory.getByRole('button', { name: /Delete|Edit/ })).toHaveCount(0);
+    await directory.getByRole('combobox', { name: 'Role', exact: true }).selectOption('ADMIN');
+    await expect(page).toHaveURL(/role=ADMIN/);
+    await directory.getByRole('combobox', { name: 'Role', exact: true }).selectOption('all');
+    await expect(page).not.toHaveURL(/role=/);
+    await directory.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('name');
+    await directory.getByRole('combobox', { name: 'Order', exact: true }).selectOption('asc');
+    await expect(page).toHaveURL(/sortOrder=asc/);
+    await directory.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(directory.getByText('Page 2 of 2')).toBeVisible();
+    const search = directory.getByRole('searchbox', { name: 'Search users' });
+    const count = reads.length;
+    await search.fill('Alex');
+    await expect(page).toHaveURL(/search=Alex/);
+    await expect(directory.getByText('Page 1 of 2')).toBeVisible();
+    expect(reads.slice(count).filter(query => !query.includes('search=Alex'))).toEqual([]);
+    const slow = page.waitForRequest(request => request.url().includes('search=slow'));
+    await search.fill('slow'); await slow;
+    await search.fill('Alex'); await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toBeVisible();
+    await page.waitForTimeout(1100); await expect(directory.getByText('Stale user')).toHaveCount(0);
+    fail = true; await directory.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(directory.getByRole('alert')).toContainText('Users could not be loaded');
+    await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toHaveCount(0);
+    fail = false; await directory.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toBeVisible();
+    await search.fill('nobody'); await expect(directory.getByRole('heading', { name: 'No users found' })).toBeVisible();
+    await directory.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(search).toHaveValue(''); await expect(directory.getByRole('link', { name: 'Manage Alex Example' })).toBeVisible();
+    row.name = 'LongDisplayName'.repeat(6); row.email = 'long.email.'.repeat(8) + '@example.test';
+    await directory.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(directory.getByText(row.email, { exact: true })).toBeVisible();
+    for (const [width, height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width, height }); await search.scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await directory.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      for (const control of await directory.locator('input,select,button,a').all()) {
+        const box = await control.boundingBox(); if (box) expect(box.height).toBeGreaterThanOrEqual(44);
+      }
+      await page.screenshot({ path: info.outputPath('admin-directory-' + width + '.png') });
+    }
+    denied = true;
+    const reset = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await reset;
+    await expect(directory).toHaveCount(0); await expect(page).toHaveURL(baseURL! + '/');
+    expect(errors).toEqual([]);
+  } finally { await page.unrouteAll({ behavior: 'wait' }); await context.close(); }
+});
 
 test('S8 people discovery endpoints do not expose real members to anonymous or demo readers', async ({browser,baseURL}) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo identity');

@@ -242,7 +242,7 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   if (pathname.startsWith('/api') || pathname.startsWith('/trpc')) {
     return NextResponse.json(
       { error: 'Access Gate: authentication required' },
-      { status: 401 }
+      { status: 401, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } }
     );
   }
 
@@ -250,7 +250,10 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   const gateUrl = new URL('/gate', req.url);
   gateUrl.searchParams.set('redirect', pathname);
   
-  return NextResponse.redirect(gateUrl);
+  const response = NextResponse.redirect(gateUrl);
+  response.headers.set('Cache-Control', 'private, no-store');
+  response.headers.set('Vary', 'Cookie');
+  return response;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,125 +1,71 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { NextRequest, NextResponse } from 'next/server';
-import { isAdmin, logAdminAction, ADMIN_USER_EDITABLE_FIELDS, sanitizeFields } from '@/lib/admin';
-import { AdminAction, AdminTargetType } from '@/generated/prisma/browser';
+import { NextResponse } from 'next/server';
+import { isAdmin } from '@/lib/admin';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
-const AdminBulkActionSchema = z.object({
-  action: z.string().min(1).max(100),
-  userIds: z.array(z.string().min(1)).min(1).max(500),
-  reason: z.string().max(500).optional(),
-});
+const querySchema = z.object({
+  search: z.string().trim().max(100).default(''),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  role: z.enum(['OWNER', 'ADMIN', 'USER']).optional(),
+  sortBy: z.enum(['createdAt', 'name', 'email']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+}).strict();
 
-const LOG_PREFIX = '[api/admin/users]';
+function reply(body: unknown, status = 200, extra: Record<string, string> = {}) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', ...extra } });
+}
 
-// GET /api/admin/users - List all users with search/filter
-export async function GET(request: NextRequest) {
-  const session = await MyLibUserAuth();
-  
-  if (!session?.id || !isAdmin(session.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const search = searchParams.get('search') || '';
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
-  const role = searchParams.get('role');
-  const sortBy = searchParams.get('sortBy') || 'createdAt';
-  const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
-
+export async function GET(request: Request) {
   try {
+    const actor = await MyLibUserAuth();
+    if (!actor?.id) return reply({ error: 'Sign in to manage users.' }, 401);
+    if (isDemoUserId(actor.id) || !isAdmin(actor.role)) return reply({ error: 'Admin access is required.' }, 403);
+    const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+    if (!parsed.success) return reply({ error: 'Invalid directory filters.' }, 400);
+    const rate = await checkRateLimit('admin-users:' + actor.id, 'read');
+    if (!rate.success) return reply({ error: 'Please wait before refreshing users.' }, 429, { 'Retry-After': String(Math.max(1, rate.resetIn)) });
+    const { search, page, limit, role, sortBy, sortOrder } = parsed.data;
+    // PostgreSQL contains/ILIKE treats % and _ as wildcards unless escaped.
+    const literal = search.replace(/[\\%_]/g, '\\$&');
     const where = {
-      AND: [
-        search ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { id: { contains: search } },
-          ],
-        } : {},
-        role ? { role: role as 'OWNER' | 'ADMIN' | 'USER' } : {},
-      ],
+      ...(role ? { role } : {}),
+      ...(literal ? { OR: [
+        { name: { contains: literal, mode: 'insensitive' as const } },
+        { email: { contains: literal, mode: 'insensitive' as const } },
+        { id: { contains: literal } },
+      ] } : {}),
     };
-
     const [users, total] = await Promise.all([
       dbPrisma.user.findMany({
-        where,
+        where, orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }], skip: (page - 1) * limit, take: limit,
         select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          role: true,
-          verificationTier: true,
-          verificationScore: true,
-          createdAt: true,
-          emailVerified: true,
-          _count: {
-            select: {
-              Company_Company_ownerIdToUser: true,
-              Employee: true,
-              Order: true,
-            },
-          },
+          id: true, name: true, email: true, image: true, role: true,
+          verificationTier: true, verificationScore: true, createdAt: true, emailVerified: true,
+          _count: { select: { Company_Company_ownerIdToUser: true, Employee: true, Order: true } },
         },
-        orderBy: { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
       }),
       dbPrisma.user.count({ where }),
     ]);
-
-    return NextResponse.json({
-      users,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error(`${LOG_PREFIX} Error listing users:`, error);
-    return NextResponse.json({ error: 'Failed to list users' }, { status: 500 });
+    return reply({ users, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+  } catch {
+    console.error('[api/admin/users] Directory read failed');
+    return reply({ error: 'Users could not be loaded. Try again.' }, 500);
   }
 }
 
-// POST /api/admin/users - Bulk actions (future use)
-export async function POST(request: NextRequest) {
-  const session = await MyLibUserAuth();
-  
-  if (!session?.id || !isAdmin(session.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
+/** No bulk mutation is implemented. Never report a fictitious edit or audit it. */
+export async function POST(_request: Request) {
   try {
-    const json = await request.json();
-    const parsed = AdminBulkActionSchema.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
-    }
-    const { action, userIds, reason } = parsed.data;
-
-    // Log the bulk action attempt
-    await logAdminAction({
-      adminId: session.id,
-      action: AdminAction.EDIT,
-      targetType: AdminTargetType.USER,
-      targetId: userIds.join(','),
-      newData: { action, userCount: userIds.length },
-      reason,
-    });
-
-    // Placeholder for bulk actions - implement as needed
-    return NextResponse.json({ 
-      message: 'Bulk action received',
-      action,
-      userCount: userIds.length,
-    });
-  } catch (error) {
-    console.error(`${LOG_PREFIX} Error processing bulk action:`, error);
-    return NextResponse.json({ error: 'Failed to process bulk action' }, { status: 500 });
+    const actor = await MyLibUserAuth();
+    if (!actor?.id) return reply({ error: 'Sign in to manage users.' }, 401);
+    if (isDemoUserId(actor.id) || !isAdmin(actor.role)) return reply({ error: 'Admin access is required.' }, 403);
+    return reply({ error: 'Bulk user actions are not available.' }, 405, { Allow: 'GET' });
+  } catch {
+    console.error('[api/admin/users] Access check failed');
+    return reply({ error: 'User access could not be checked. Try again.' }, 500);
   }
 }
