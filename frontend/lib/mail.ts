@@ -126,9 +126,8 @@ export const sendSecurityActionEmail = async (
 
 /**
  * Sent when a user links a new OAuth provider.
- * They must click the button to actually confirm the link — the flag stays
- * false (yellow in UI) until they do. This prevents a rogue session from
- * silently linking an attacker's account.
+ * They must review and confirm the email link before it counts toward their
+ * verification score. Account linking itself is handled separately by Auth.js.
  */
 export const sendOauthLinkConfirmationEmail = async (
   email: string,
@@ -146,6 +145,7 @@ export const sendOauthLinkConfirmationEmail = async (
 
   const confirmUrl = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}`;
   const denyUrl   = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}&deny=1`;
+  const safeName = data.userName?.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 
   await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',
@@ -158,25 +158,25 @@ export const sendOauthLinkConfirmationEmail = async (
         </div>
 
         <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-          <p style="color: #333;">Hi${data.userName ? ` ${data.userName}` : ''},</p>
+          <p style="color: #333;">Hi${safeName ? ` ${safeName}` : ''},</p>
 
           <p style="color: #555;">
             Someone just linked a <strong>${providerLabel}</strong> account to your Veggat profile.
-            <br/>Before this takes effect, you need to confirm it was you.
+            <br/>Confirm it was you before it counts toward your verification score.
           </p>
 
           <div style="background: #fef9c3; border: 1px solid #fde047; padding: 14px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 600;">⚠️ If this wasn't you, click "Deny &amp; Secure" below immediately.</p>
+            <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 600;">If this wasn't you, review the link below and secure your account.</p>
           </div>
 
           <div style="text-align: center; margin: 28px 0;">
             <a href="${confirmUrl}"
                style="background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
-              ✅ Yes, confirm this link
+              Review and confirm
             </a>
             <a href="${denyUrl}"
                style="background: #dc2626; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; margin-left: 12px;">
-              ❌ Deny &amp; Secure
+              Review removal
             </a>
           </div>
 

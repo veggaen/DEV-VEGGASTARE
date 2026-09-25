@@ -4,6 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Account-verification follow-up: **PARTIAL, candidate ready for deployment**.
+Truthful pending/expired badges, real resend action, scanner-safe confirmation,
+atomic token use and last-login preservation are implemented. **55 units + 2
+isolated PostgreSQL concurrency tests pass**; final local browser batch **3/3**
+passes, including five widths in both themes. Final strict build and lint pass;
+Live deployment/acceptance remains pending.
+No real confirmation email or account unlink was performed. See
+[account-link evidence](oauth-link-verification-2026-09.md).
+
 Live Google and GitHub: **DONE for the existing-account login round trips**.
 Real Chrome logout → provider button → signed-in app succeeds for both on
 `38d22c9`; the restored GitHub session can still read the existing paid receipt.

@@ -7,6 +7,65 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S2 linked-account states and confirmation review are honest and responsive', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_OAUTH_LINKS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'App-issued demo with read-only state fixtures; no OAuth links or emails created');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const flags = { emailVerified: true, hasGoogleAuth: true, hasGithubAuth: false, hasDiscordAuth: false,
+    hasVerifiedWallet: false, hasWeb2Payment: false, hasWeb3Payment: false, phoneVerified: false, isTwoFactorEnabled: false };
+  let attemptedWrites = 0;
+  try {
+    expect((await (await context.request.get('/api/auth/session')).json()).user?.isDemo).toBe(true);
+    await page.route('**/api/users/verification', route => route.fulfill({ json: { flags, linkedProviders: ['google', 'github', 'discord'], pendingProviders: ['discord'], tier: 'WEB2_BASIC', score: 10, multiplier: .2, phoneNumber: null } }));
+    // Intercept server actions: test failure/retry UX without sending mail or changing any account.
+    await page.route('**/settings?**', route => {
+      if (route.request().method() === 'POST') { attemptedWrites++; return route.fulfill({ status: 503, body: 'Controlled test failure' }); }
+      return route.continue();
+    });
+    for (const theme of ['light', 'dark']) {
+      await page.goto('/settings?section=verification', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(value => localStorage.setItem('veggat:theme', value), theme);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+      for (const [width, height] of [[360,800],[390,844],[844,390],[1280,800],[2560,1440]]) {
+        await page.setViewportSize({ width, height });
+        await expect(page.getByLabel('Google: Verified', { exact: true })).toBeVisible();
+        await expect(page.getByLabel('GitHub: Connected · not verified', { exact: true })).toBeVisible();
+        await expect(page.getByLabel('Discord: Confirmation required', { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Send GitHub confirmation email', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Send Discord confirmation email', exact: true })).toBeEnabled();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.getByRole('heading', { name: 'Verification & Trust', exact: true }).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: info.outputPath(`verification-${theme}-${width}.png`) });
+      }
+    }
+    await page.goto('/settings?section=verification&oauthConfirm=github', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('status').filter({ hasText: 'GitHub is connected but not verified.' })).toBeVisible();
+    await page.goto('/settings?section=verification&oauthError=private-provider-secret', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('status').filter({ hasText: 'Sign-in did not finish.' })).toBeVisible();
+    await expect(page.getByRole('main')).not.toContainText('private-provider-secret');
+    await page.getByRole('button', { name: 'Send GitHub confirmation email', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'The confirmation email could not be sent.' })).toBeVisible();
+    expect(attemptedWrites).toBe(1);
+    await expect(page.getByRole('button', { name: 'Send GitHub confirmation email', exact: true })).toBeEnabled();
+    // Demo policy deliberately blocks the old mutating URL. Check the new
+    // scanner-safe GET anonymously, then render its review destination as demo.
+    const anonymous = await browser.newContext({ baseURL });
+    const emailLink = await anonymous.request.get('/api/auth/confirm-oauth-link?token=cdisposablebrowserreview01&deny=1', { maxRedirects: 0 });
+    expect(emailLink.status()).toBe(303);
+    const reviewUrl = emailLink.headers().location;
+    await anonymous.close();
+    await page.goto(reviewUrl, { waitUntil: 'domcontentloaded' });
+    const review = page.getByRole('region', { name: 'Review account link', exact: true });
+    await expect(review.getByRole('button', { name: 'Remove account link', exact: true })).toBeVisible();
+    expect(attemptedWrites).toBe(1);
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(review).toHaveCount(0);
+    expect(attemptedWrites).toBe(1); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 for (const colorScheme of ['light', 'dark'] as const) test(`S2 provider cancellation and callback errors explain recovery without leaking details (${colorScheme})`, async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_AUTH_FEEDBACK !== '1', 'Public error-state checks; no OAuth consent or account changes');
   test.setTimeout(120_000);
