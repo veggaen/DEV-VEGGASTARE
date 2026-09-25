@@ -9,7 +9,7 @@ const PREFIX = 'veggat-settlement-quote-v1';
 const MAX_TOKEN_BYTES = 16_384;
 const Scope = z.object({
   userId: z.string().min(1).max(128), environment: z.enum(['LIVE', 'SANDBOX', 'DEMO']),
-  // The future cart integration must hash canonical SERVER-READ items/revision.
+  // Cart integration hashes canonical SERVER-READ items/revision.
   // A browser-generated fingerprint cannot attest the current cart.
   cartFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();

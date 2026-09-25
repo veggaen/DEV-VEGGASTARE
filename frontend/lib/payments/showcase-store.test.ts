@@ -71,6 +71,19 @@ describe('transactional checkout fulfillment', () => {
     await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('ORDER_CHANGED');
     expect(m.capture).not.toHaveBeenCalled();
   });
+  it('returns an already committed result when fulfillment beats a concurrent capture claim', async () => {
+    m.find.mockResolvedValueOnce(attempt()).mockResolvedValueOnce({ ...attempt(),state:'COMPLETED',captureId:'CAPTURE1',completedAt:new Date() });
+    m.claim.mockResolvedValue({ count:0 });
+    expect(await completeShowcaseCheckout('order1','buyer1')).toEqual({orderId:'order1',alreadyCompleted:true});
+    expect(m.capture).not.toHaveBeenCalled(); expect(m.transaction).not.toHaveBeenCalled(); expect(m.email).not.toHaveBeenCalled();
+  });
+  it.each([{userId:'other'},{environment:'LIVE'},{paypalOrderId:'OTHER'},{merchantId:'OTHER'},
+    {captureId:null},{completedAt:null},{state:'REFUNDED'},{state:'CANCELLED'}])('does not accept an unsafe claim-race result %j', async patch => {
+    m.find.mockResolvedValueOnce(attempt()).mockResolvedValueOnce({...attempt(),state:'COMPLETED',captureId:'CAPTURE1',completedAt:new Date(),...patch});
+    m.claim.mockResolvedValue({count:0});
+    await expect(completeShowcaseCheckout('order1','buyer1')).rejects.toThrow('ORDER_CHANGED');
+    expect(m.capture).not.toHaveBeenCalled(); expect(m.entry).not.toHaveBeenCalled();
+  });
   it('leaves uncertain capture outcomes protected against cancellation', async () => {
     m.capture.mockRejectedValue(new Error('network interrupted'));
     await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('network interrupted');

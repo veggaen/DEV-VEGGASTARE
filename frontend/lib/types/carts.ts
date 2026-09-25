@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isPurchasableCreditAmount } from '@/lib/ai-credit-purchase';
+import { MinorUnits, SettlementCurrency } from '@/lib/payments/settlement-money';
 
 export const CartItemProductDtoSchema = z
   .object({
@@ -21,9 +22,12 @@ export const CartItemDtoSchema = z
     quantity: z.number().int().min(1),
     creditAmount: z.number().int().refine(isPurchasableCreditAmount).optional(),
     creditDiscountOre: z.number().int().nonnegative().optional(),
+    creditSpendMinor: MinorUnits.positive().nullable().optional(),
+    creditSpendCurrency: SettlementCurrency.nullable().optional(),
+    updatedAt: z.string().datetime().optional(),
     product: CartItemProductDtoSchema,
   })
-  .strict();
+  .strict().refine(item => (item.creditSpendMinor == null) === (item.creditSpendCurrency == null), 'Incomplete credit spend');
 
 export const CartResponseSchema = z
   .object({

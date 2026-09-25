@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { creditCartData, cartItemDto, cartCreditAmountSchema } from './cart-credit-policy';
 import { SHOWCASE_PRODUCTS } from './showcase-catalog';
+import { CartItemDtoSchema } from './types/carts';
 const creditId = SHOWCASE_PRODUCTS.credits.id;
 describe('custom credit cart', () => {
   it.each([10, 122, 555, 1000, 2815, 10000])('stores %i credits as one line', amount => {
@@ -20,5 +21,18 @@ describe('custom credit cart', () => {
     expect(cartItemDto(item)).toMatchObject({ creditAmount: 555, creditDiscountOre: 994, product: { price: 206.51, priceCurrency: 'NOK' } });
     expect(cartItemDto({ ...item, creditAmount: null })).toMatchObject({ creditAmount: 100, product: { price: 39 } });
     expect(cartItemDto({ ...item, creditAmount: 10 })).toMatchObject({ creditAmount: 10, product: { price: 9, priceCurrency: 'NOK' } });
+  });
+  it('preserves an exact USD 100 spend and server revision instead of re-pricing whole credits in NOK', () => {
+    const item = { id:'row', quantity:1, creditAmount:2500, creditSpendMinor:10000, creditSpendCurrency:'USD',
+      updatedAt:new Date('2026-09-25T12:00:00Z'), Product:{id:creditId,title:'AI credits',price:39,priceCurrency:'NOK',image:[]} };
+    const dto = cartItemDto(item);
+    expect(dto).toMatchObject({ creditSpendMinor:10000,creditSpendCurrency:'USD',creditAmount:2500,
+      updatedAt:'2026-09-25T12:00:00.000Z',product:{price:100,priceCurrency:'USD'} });
+    expect(dto).not.toHaveProperty('creditDiscountOre'); expect(CartItemDtoSchema.parse(dto)).toEqual(dto);
+    for (const patch of [{creditSpendCurrency:null},{creditSpendMinor:null},{creditSpendMinor:0},{creditAmount:10},{quantity:2}]) {
+      expect(() => cartItemDto({...item,...patch})).toThrow();
+    }
+    expect(CartItemDtoSchema.safeParse({...dto,creditSpendCurrency:null}).success).toBe(false);
+    expect(CartItemDtoSchema.safeParse({...dto,creditSpendMinor:null}).success).toBe(false);
   });
 });

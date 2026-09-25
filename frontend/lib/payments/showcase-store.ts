@@ -115,7 +115,19 @@ async function completeCheckout({ db, provider, clock }: {
     if (canCapture) {
       const claimed = await db.checkoutAttempt.updateMany({ where: { orderId, userId, captureId: null,
         state: { in: ['PREPARED', 'APPROVAL_PENDING', 'CAPTURE_PENDING'] } }, data: { state: 'CAPTURE_PENDING' } });
-      if (claimed.count !== 1) throw new CheckoutError('ORDER_CHANGED', 409);
+      if (claimed.count !== 1) {
+        // Another request may have committed fulfillment after our initial
+        // read but before this claim. Return that result without another
+        // provider request; cancellation/refund/scope changes still fail closed.
+        const latest = await db.checkoutAttempt.findUnique({ where: { orderId }, include: includeOrder });
+        if (latest?.state === 'COMPLETED' && latest.userId === userId && latest.environment === attempt.environment &&
+            latest.paypalOrderId === attempt.paypalOrderId && latest.merchantId === attempt.merchantId &&
+            latest.captureId && latest.completedAt) {
+          assertCheckoutOrder(latest);
+          return { orderId, alreadyCompleted: true };
+        }
+        throw new CheckoutError('ORDER_CHANGED', 409);
+      }
     }
     try {
       providerOrder = canCapture ? await provider.capturePayPalOrder(attempt.paypalOrderId, attempt.captureRequestId) : await provider.readPayPalOrder(attempt.paypalOrderId);

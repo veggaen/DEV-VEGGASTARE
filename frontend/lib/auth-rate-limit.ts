@@ -14,6 +14,11 @@ export async function allowAdminDetailRead(identity: string, request: Request): 
   return allowAttempt('admin-user-detail-read', identity, request, 120, 60);
 }
 
+/** Debounced price/cart edits never share or relax the payment creation budget. */
+export async function allowSettlementEdit(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('settlement-quote-edit', identity, request, 120, 60);
+}
+
 async function allowAttempt(operation: string, identity: string, request: Request | undefined, ipLimit: number, identityLimit: number): Promise<boolean> {
   try {
     const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;

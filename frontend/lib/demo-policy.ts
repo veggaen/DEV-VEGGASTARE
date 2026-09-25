@@ -9,6 +9,8 @@ export function isDemoUserId(id: unknown): id is string {
 export function allowsDemoMutation(path: string): boolean {
   return path === "/api/auth/signout" || path === "/api/auth/callback/demo" ||
     path === "/api/demo/checkout" || path === "/api/ai-chat" || path === '/api/ai-chat/sessions' ||
+    // Price previews and the demo's own cart intent cannot create a paid order.
+    path === '/api/checkout/estimate' || path === '/api/checkout/quote' || path === '/api/checkout/credit-intent' ||
     // Buyer notices are scoped to their own unpaid order by the route. Seller
     // review and all payment endpoints remain denied (no /returns/* allowance).
     path === '/api/returns' ||

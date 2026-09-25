@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ query: vi.fn(), execute: vi.fn() }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { $queryRaw: mocks.query, $executeRaw: mocks.execute } }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
-import { allowAuthAttempt, allowAdminDetailRead } from './auth-rate-limit';
+import { allowAuthAttempt, allowAdminDetailRead, allowSettlementEdit } from './auth-rate-limit';
 
 describe('durable auth throttling', () => {
   beforeEach(() => { vi.resetAllMocks(); vi.stubEnv('AUTH_SECRET', 'unit-test-only-secret'); mocks.query.mockResolvedValue([{ count: 1 }]); mocks.execute.mockResolvedValue(0); });
@@ -34,5 +34,17 @@ describe('durable auth throttling', () => {
     mocks.query.mockResolvedValue([{ count: 1 }]);
     expect(await allowAuthAttempt('admin-user-edit', 'qa-admin', request)).toBe(true);
     expect(mocks.query.mock.calls.at(-1)![1]).not.toBe(readKey);
+  });
+  it('bounds auto-edit traffic without consuming or weakening checkout attempt limits', async () => {
+    const request = new Request('http://localhost:3000');
+    mocks.query.mockResolvedValueOnce([{count:120}]).mockResolvedValueOnce([{count:60}]);
+    expect(await allowSettlementEdit('buyer',request)).toBe(true);
+    const editKey = mocks.query.mock.calls[1][1];
+    mocks.query.mockResolvedValueOnce([{count:121}]); expect(await allowSettlementEdit('',request)).toBe(false);
+    mocks.query.mockResolvedValueOnce([{count:1}]).mockResolvedValueOnce([{count:61}]);
+    expect(await allowSettlementEdit('buyer',request)).toBe(false);
+    mocks.query.mockResolvedValueOnce([{count:1}]).mockResolvedValueOnce([{count:6}]);
+    expect(await allowAuthAttempt('checkout','buyer',request)).toBe(false);
+    expect(mocks.query.mock.calls.at(-1)![1]).not.toBe(editKey);
   });
 });

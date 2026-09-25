@@ -70,13 +70,19 @@ claim that the customer journey is complete.
   helper that clears old spend intent. This follows PostgreSQL's documented
   [row-lock semantics](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS).
 
-The new store is not connected to any HTTP route. Its future callers must enforce
-authentication, ownership, same-origin checks, durable rate limits and private
-response headers. It does not contact PayPal, send email or grant entitlements.
-The migration has been applied only to disposable empty test schemas, not the
-Preview public schema or production. Prisma's generated client and the updated
-cart helper require the additive migration before running a new application
-build; do not deploy this intermediate commit against the old public schema.
+The store is connected to bounded HTTP routes in the local build. Public price
+estimates are unsigned; authenticated cart quotes read the actor's own cart and
+return a short-lived attestation. Credit-intent edits require the current item
+revision. Strict input schemas reject caller prices, rates and owner IDs. All
+three routes enforce same-origin checks, durable edit limits and private/no-store
+responses; edits do not consume the separate payment-attempt bucket. Impersonated
+sessions cannot write. Demo sessions can edit their own cart, not create paid orders.
+
+The additive migration is now applied to the **isolated Preview public schema**,
+after a preflight verified that it was the only pending migration and existing
+legacy rows were compatible. Production is unchanged. New builds still require
+this migration before their first application run; do not deploy this intermediate
+commit against the old production schema.
 
 ## Payment and receipt integration (not deployed)
 
@@ -111,8 +117,8 @@ build; do not deploy this intermediate commit against the old public schema.
   not NOK exposure. Server-rendered tests cover USD 100.00 and its USD refund
   with ETH parentheses. The receipt layout itself is unchanged in this slice.
 
-Actual quote/input routes and storefront/cart UI remain incomplete. Connect and
-verify those before enabling any v2 customer purchase. This
+Quote/input routes are locally verified; storefront/cart UI remains incomplete.
+Connect and verify that UI before enabling any v2 customer purchase. This
 integration is not evidence of a real PayPal native-currency Sandbox capture.
 The transport/proof contracts were rechecked against PayPal's
 [capture-order reference](https://developer.paypal.com/api/orders/v2/orders-capture),
@@ -141,8 +147,8 @@ and [refund-details reference](https://developer.paypal.com/api/payments/v2/refu
 - Real disposable-schema tests cover mixed/legacy/native amounts, all six
   currencies, partial/full/reversed payments, owner mismatches, corrupt money and
   missing proof. These tests use synthetic records, never production customer rows.
-  Existing Playwright report fixtures now include all six currencies; their new
-  browser run remains pending the migrated local application build.
+  Playwright report fixtures include all six currencies. Their local light/dark
+  browser runs pass; hosted acceptance is pending a complete compatible release.
 
 ## Draft commercial policy (not Live pricing)
 
@@ -214,16 +220,37 @@ The fee policy expires with the existing 24 October review deadline.
   and touched ESLint pass; updated browser fixtures are not yet executed.
   After tightening stored quote-ID/fingerprint shape checks, the report/company/
   verification follow-up also passes **138/138 across six files**, no skips.
-- No Live payment, refund, credit, email, secret, billing or deployment change.
-  No new browser acceptance is claimed: the store is not imported by an active
-  route yet. Existing production remains `92c5ac7`.
+- The HTTP integration's combined run passes **725/725 across thirty-one files**,
+  no skips. Its first wider run exposed a genuine concurrent-capture retry race:
+  another request could finish before a delayed claim and incorrectly receive
+  `ORDER_CHANGED`. The response now accepts only an already-completed record with
+  matching owner/environment/provider bindings and valid order/proof. A deterministic
+  delayed-claim database test confirms one provider call and one ledger grant.
+- After applying the migration to isolated Preview, the disposable-schema suite
+  passes **42/42** again. It reconstructs only its own empty private test schema's
+  legacy shape before testing the migration; it never drops public columns.
+- Actual local HTTP acceptance passes **2/2**, zero retries/skips: fresh public FX
+  quotes in all six currencies, exact USD 100.00/NOK 1000.00, malformed/forged input,
+  anonymous and cross-origin denial, own-cart spend persistence, signed quote,
+  stale-revision rejection and currency-change rejection. The retained demo's
+  original cart intent is restored afterward. No order or payment is submitted.
+- Local report UI passes light **2/2** and dark **2/2**, zero retries/skips, with
+  six-currency browser-only owner fixtures, actual non-owner API denial, refresh/
+  identity-loss recovery, scrolling and widths 360 through 2560. Real Chrome also
+  confirms the unchanged legacy receipt at 1280 and 390, scrolling to its footer,
+  and no captured console errors. The temporary viewport is restored. This is not
+  native-currency checkout UI or real Sandbox capture acceptance.
+- Strict production build, touched ESLint and full TypeScript pass. The Python
+  runtime is absent, so browser checks use the repository's existing Playwright
+  runner. No Live payment, refund, credit, email, secret, billing or deployment
+  change. Existing production remains `92c5ac7` and settles in NOK.
 
 ## Next implementation and activation gates
 
-1. Persistence and isolated PostgreSQL verification are implemented. Keep them
-   inactive until the dependent payment, receipt and report paths below are
-   currency-aware; then apply the additive migration to isolated Preview before
-   building/running the new Prisma client. Apply to production only with the
+1. Persistence and isolated PostgreSQL verification are implemented; the additive
+   migration and production-mode local build are verified against isolated Preview.
+   Keep the feature undeployed until the dependent UI is complete. Apply the
+   migration to production only with the
    verified compatible release. Never backfill/reprice old NOK orders.
 2. Create/capture/refund, native Payment amounts, receipt/confirmation, grouped
    owner financial reports, company checkout counts and verification evidence

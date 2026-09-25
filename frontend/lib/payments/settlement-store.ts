@@ -1,27 +1,24 @@
-/** @fileOverview Transactional exact-price cart intent and immutable checkout preparation. Not activated by a route yet. */
+/** @fileOverview Transactional exact-price cart intent and immutable checkout preparation behind authenticated quote routes. */
 import 'server-only';
 import { isDeepStrictEqual } from 'node:util';
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { z } from 'zod';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
-import { DEFAULT_PURCHASE_CREDITS, DAILY_PURCHASE_CAP_ORE, isPurchasableCreditAmount } from '@/lib/ai-credit-purchase';
+import { DEFAULT_PURCHASE_CREDITS, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
 import { productPurchaseState } from '@/lib/product-purchase-state';
 import { CheckoutError } from './showcase-policy';
 import { recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
 import { SettlementCurrency, SettlementError, formatMinor } from './settlement-money';
 import { quoteSettlementCart, readStoredSettlementQuote, settlementCreditEconomics, type SettlementFx, type SettlementSelection } from './settlement-quote';
 import { issueSettlementQuoteToken, readSignedSettlementQuoteToken, settlementCartFingerprint, verifySettlementQuoteToken } from './settlement-quote-token';
+import { CreditIntent } from './settlement-input';
 
 const cartInclude = { CartItem: { include: { Product: { select: {
   id: true, productType: true, visibility: true, downloadsEnabled: true,
   Files: { select: { DigitalAsset: { select: { isActive: true, mimeType: true } } } },
 } } } } } as const;
 type StoredCart = Prisma.CartGetPayload<{ include: typeof cartInclude }>;
-const Intent = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('spend'), currency: SettlementCurrency, amount: z.string().max(32) }).strict(),
-  z.object({ type: z.literal('credits'), currency: SettlementCurrency, credits: z.number().refine(isPurchasableCreditAmount) }).strict(),
-]);
 
 function selectionForCart(cart: StoredCart, currency: SettlementCurrency): SettlementSelection {
   return { currency, items: cart.CartItem.map(item => {
@@ -86,7 +83,7 @@ export function createSettlementStore(db: PrismaClient, config: {
     /** Save a selected spend, not a client price or credit grant. The cached whole
      * count is recomputed by the server; a later checkout quotes fresh FX again. */
     async saveCreditIntent(userId: string, itemId: string, expectedUpdatedAt: string, input: unknown) {
-      const intent = Intent.parse(input);
+      const intent = CreditIntent.parse(input);
       if (!z.string().datetime().safeParse(expectedUpdatedAt).success) throw new SettlementError('INVALID_CART_REVISION');
       const fx = await config.readFx(intent.currency);
       const credits = intent.type === 'spend' ? { type: 'spend' as const, amount: intent.amount } : { type: 'credits' as const, credits: intent.credits };

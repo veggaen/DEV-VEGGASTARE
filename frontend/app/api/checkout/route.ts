@@ -1,16 +1,26 @@
-/** @fileOverview Begin a server-priced checkout; the browser supplies only an idempotency key. @stability experimental */
+/** @fileOverview Begin server-priced checkout from a signed cart quote or a legacy idempotency key. @stability experimental */
 import { z } from 'zod';
-import { NextResponse } from 'next/server';
-import { checkoutUser, checkoutErrorResponse } from '@/lib/payments/checkout-request';
+import { checkoutUser } from '@/lib/payments/checkout-request';
 import { beginShowcaseCheckout } from '@/lib/payments/showcase-store';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { DeliveryConsentInput } from '@/lib/payments/checkout-agreement';
+import { settlementStore } from '@/lib/payments/settlement-runtime';
+import { QuoteToken } from '@/lib/payments/settlement-input';
+import { readSettlementJson, settlementErrorResponse, settlementJson } from '@/lib/payments/settlement-request';
+const Body = z.union([
+  z.object({ quoteToken: QuoteToken, consent: DeliveryConsentInput }).strict(),
+  z.object({ requestKey: z.string().uuid(), expectedQuote: z.string().max(4096).optional(), consent: DeliveryConsentInput }).strict(),
+]);
 export async function POST(request: Request) {
   try {
     const user = await checkoutUser(request);
-    if (isDemoUserId(user.id)) return NextResponse.json({ error: 'USE_DEMO_CHECKOUT' }, { status: 403 });
-    const parsed = z.object({ requestKey: z.string().uuid(), expectedQuote: z.string().max(4096).optional(), consent: DeliveryConsentInput }).strict().safeParse(await request.json());
-    if (!parsed.success) return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 });
-    return NextResponse.json(await beginShowcaseCheckout(user.id!, parsed.data.requestKey, parsed.data.expectedQuote, parsed.data.consent));
-  } catch (error) { return checkoutErrorResponse(error); }
+    if (isDemoUserId(user.id)) return settlementJson({ error: 'USE_DEMO_CHECKOUT' }, 403);
+    const body = Body.parse(await readSettlementJson(request));
+    if ('quoteToken' in body) {
+      const attempt = await settlementStore().prepare(user.id!, body.quoteToken, body.consent);
+      // Reuse the existing provider creation/recovery path and immutable request ID.
+      return settlementJson(await beginShowcaseCheckout(user.id!, attempt.requestKey));
+    }
+    return settlementJson(await beginShowcaseCheckout(user.id!, body.requestKey, body.expectedQuote, body.consent));
+  } catch (error) { return settlementErrorResponse(error); }
 }

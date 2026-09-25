@@ -12,12 +12,18 @@ empty schemas on isolated Preview. Version-aware PayPal transport/capture,
 refund reconciliation, native Payment records and original receipts/confirmations
 are integrated in code. Owner reporting now separates original cash by currency;
 company counts and payment trust use version-aware refund/proof guards. The report
-UI keeps totals compact with details disclosed on demand; new browser acceptance
-is pending the migrated local build. Combined regressions pass **607/607 across twenty-six files**,
+UI keeps totals compact with details disclosed on demand; local light/dark browser
+acceptance passes **2/2 each** across 360–2560 widths. Bounded quote/edit routes
+now enforce authentication, same origin, durable edit limits and optimistic revisions.
+Combined regressions pass **725/725 across thirty-one files**,
 including real isolated transaction tests with mocked PayPal for all six currencies,
 fresh public FX, legacy NOK compatibility and receipt rendering; lint and TypeScript
-pass. No public database migration, real capture or browser-flow acceptance is claimed.
-Next: quote/input routes and UI,
+pass. The additive migration is applied to isolated Preview only; its post-migration
+database tests pass **42/42**. Actual local HTTP tests pass **2/2**, covering exact
+quotes, own-cart spend persistence and denied stale/forged requests, with the demo
+cart restored. Real Chrome verifies legacy receipt reflow and footer scrolling.
+No native-currency customer UI or real capture acceptance is claimed.
+Next: connect auto-updating purchase inputs to the quote APIs,
 then local and real Sandbox browser
 acceptance before activation. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping

@@ -10,6 +10,99 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S4 exact settlement HTTP quotes use real local runtime and reject forged inputs', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || baseURL !== 'http://localhost:3000', 'Opt-in local quotes only; no payment or email');
+  const context = await browser.newContext({ baseURL });
+  try {
+    await openDirectoryGate(context);
+    const headers = { origin: baseURL! };
+    for (const currency of ['NOK', 'USD', 'EUR', 'GBP', 'SEK', 'DKK']) {
+      const amount = currency === 'NOK' ? '1000.00' : '100.00';
+      const response = await context.request.post('/api/checkout/estimate', { headers, data: { currency,
+        items: [{ productId: 'cveggatinterviewcredits01', quantity: 1, credits: { type: 'spend', amount } }] } });
+      expect(response.status(), `${currency} estimate status`).toBe(200);
+      expect(response.headers()['cache-control']).toContain('no-store');
+      const body = await response.json();
+      expect(body.quote).toMatchObject({ currency, totalMinor: currency === 'NOK' ? 100000 : 10000 });
+      expect(body.quote.lines[0].credits).toBeGreaterThanOrEqual(100);
+      expect(body).not.toHaveProperty('token');
+    }
+    for (const input of [
+      { currency: 'USD', items: [{ productId: 'cveggatinterviewcredits01', quantity: 1, credits: { type: 'spend', amount: '1e2' } }] },
+      { currency: 'USD', totalMinor: 1, items: [{ productId: 'cveggatinterviewcredits01', quantity: 1, credits: { type: 'credits', credits: 100 } }] },
+    ]) {
+      const response = await context.request.post('/api/checkout/estimate', { headers, data: input });
+      expect(response.status()).toBe(400); expect(response.headers()['cache-control']).toContain('no-store');
+    }
+    for (const origin of [undefined, 'https://untrusted.invalid']) {
+      const response = await context.request.post('/api/checkout/quote', { headers: origin ? { origin } : {}, data: { currency: 'USD' } });
+      expect(response.status()).toBe(403);
+    }
+    const unauthenticated = await context.request.post('/api/checkout/quote', { headers, data: { currency: 'USD' } });
+    expect(unauthenticated.status()).toBe(401);
+    expect(unauthenticated.headers()['cache-control']).toContain('no-store');
+  } finally { await context.close(); }
+});
+
+test('S4 exact settlement HTTP saves spend intent and rejects stale cart revisions', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || baseURL !== 'http://localhost:3000',
+    'Opt-in retained disposable demo cart; restored afterward, no order or payment');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  type CreditItem = { id: string; updatedAt: string; creditAmount: number; creditSpendMinor?: number | null;
+    creditSpendCurrency?: string | null; product: { id: string; price: number; priceCurrency: string } };
+  let item: CreditItem | undefined, original: CreditItem | undefined, cartUrl = '', added = false;
+  const headers = { origin: baseURL! };
+  try {
+    await openDirectoryGate(context);
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.isDemo).toBe(true);
+    cartUrl = `/api/cart/${session.user.id}`;
+    const cart = await context.request.get(cartUrl); expect(cart.status()).toBe(200);
+    original = (await cart.json()).items.find((row: CreditItem) => row.product.id === 'cveggatinterviewcredits01');
+    item = original;
+    if (!item) {
+      const response = await context.request.post(cartUrl, { headers, data: { productId: 'cveggatinterviewcredits01', quantity: 1, creditAmount: 100 } });
+      expect(response.ok()).toBe(true); added = true;
+      item = (await (await context.request.get(cartUrl)).json()).items.find((row: CreditItem) => row.product.id === 'cveggatinterviewcredits01');
+    }
+    expect(item?.updatedAt).toBeTruthy();
+    const revision = item!.updatedAt;
+    const edited = await context.request.patch('/api/checkout/credit-intent', { headers, data: { itemId: item!.id,
+      expectedUpdatedAt: revision, intent: { type: 'spend', currency: 'USD', amount: '100.00' } } });
+    expect(edited.status()).toBe(200); expect(edited.headers()['cache-control']).toContain('no-store');
+    const saved = await edited.json(); expect(saved).toMatchObject({ creditSpendMinor: 10000, creditSpendCurrency: 'USD' });
+    const quoteResponse = await context.request.post('/api/checkout/quote', { headers, data: { currency: 'USD' } });
+    expect(quoteResponse.status()).toBe(200);
+    const quoted = await quoteResponse.json();
+    expect(quoted.quote.lines.find((line: { kind: string }) => line.kind === 'AI_CREDITS')).toMatchObject({ amountMinor: 10000, credits: saved.creditAmount });
+    // Signed body stays in process memory: never a URL, trace, screenshot or log.
+    expect(typeof quoted.token).toBe('string'); expect(Boolean(quoted.token)).toBe(true);
+    const stale = await context.request.patch('/api/checkout/credit-intent', { headers, data: { itemId: item!.id,
+      expectedUpdatedAt: revision, intent: { type: 'credits', currency: 'USD', credits: 555 } } });
+    expect(stale.status()).toBe(409); expect(await stale.json()).toMatchObject({ error: 'CART_CHANGED' });
+    const changedCurrency = await context.request.post('/api/checkout/quote', { headers, data: { currency: 'NOK' } });
+    expect(changedCurrency.status()).toBe(409); expect(await changedCurrency.json()).toMatchObject({ error: 'SPEND_CURRENCY_CHANGED' });
+    const updated = (await (await context.request.get(cartUrl)).json()).items.find((row: CreditItem) => row.id === item!.id);
+    expect(updated).toMatchObject({ creditSpendMinor: 10000, creditSpendCurrency: 'USD', product: { price: 100, priceCurrency: 'USD' } });
+  } finally {
+    try {
+      if (item) {
+        if (added) {
+          expect((await context.request.delete(`${cartUrl}/items/${item.id}`, { headers })).ok()).toBe(true);
+        } else if (original) {
+          const current = (await (await context.request.get(cartUrl)).json()).items.find((row: CreditItem) => row.id === item!.id);
+          const intent = original.creditSpendMinor != null
+            ? { type: 'spend', currency: original.creditSpendCurrency, amount: (original.creditSpendMinor / 100).toFixed(2) }
+            : { type: 'credits', currency: 'NOK', credits: original.creditAmount };
+          const restored = await context.request.patch('/api/checkout/credit-intent', { headers, data: {
+            itemId: item.id, expectedUpdatedAt: current.updatedAt, intent } });
+          expect(restored.status(), 'Restore original disposable demo cart intent').toBe(200);
+        }
+      }
+    } finally { await context.close(); }
+  }
+});
+
 test('S8 company admin denies anonymous and demo reads and edits', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo identity required');
   for (const authenticated of [false, true]) {

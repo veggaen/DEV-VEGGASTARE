@@ -20,6 +20,9 @@ interface CartItem {
   quantity: number;
   creditAmount?: number;
   creditDiscountOre?: number;
+  creditSpendMinor?: number | null;
+  creditSpendCurrency?: string | null;
+  updatedAt?: string;
 }
 
 interface CartContextType {

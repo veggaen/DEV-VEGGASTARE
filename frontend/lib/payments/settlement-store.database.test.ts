@@ -63,6 +63,18 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
     const tables = ['Cart', 'CartItem', 'Product', 'DigitalProductFile', 'DigitalAsset', 'Order', 'OrderItem', 'CheckoutAttempt',
       'AiCreditAccount', 'AiCreditEntry', 'Payment', 'PaymentWebhookEvent', 'DownloadToken', 'TransactionalEmail'];
     for (const table of tables) await admin.query(`CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`);
+    // After Preview is migrated, reconstruct only this EMPTY private fixture's
+    // previous shape so the additive migration remains tested from v1. Never
+    // drop columns or constraints in public or copy real checkout rows.
+    const migratedShape = (await admin.query(`SELECT 1 FROM information_schema.columns
+      WHERE table_schema=$1 AND table_name='CheckoutAttempt' AND column_name='totalMinor'`, [schema])).rowCount;
+    if (migratedShape) {
+      await admin.query(`ALTER TABLE "${schema}"."CheckoutAttempt" DROP CONSTRAINT "CheckoutAttempt_settlement_money_check",
+        DROP COLUMN "totalMinor", DROP COLUMN "refundedMinor", DROP COLUMN "settlementQuoteId", DROP COLUMN "cartFingerprint";
+        ALTER TABLE "${schema}"."CheckoutAttempt" ADD CONSTRAINT "CheckoutAttempt_currency_check" CHECK (currency='NOK'),
+          ADD CONSTRAINT "CheckoutAttempt_totalOre_check" CHECK ("totalOre" BETWEEN 1 AND 355070);
+        ALTER TABLE "${schema}"."CartItem" DROP CONSTRAINT "CartItem_credit_spend_check", DROP COLUMN "creditSpendMinor", DROP COLUMN "creditSpendCurrency";`);
+    }
     // LIKE copies shape/defaults/checks/indexes only. It copies NO customer data,
     // FKs or triggers. Recreate enum types locally so Prisma casts stay isolated.
     const enums = ['OrderStatus', 'FulfilmentStatus', 'FiatCurrency', 'ProductCondition', 'ProductType', 'ProductVisibility', 'StorageProvider', 'PaymentMethod', 'PaymentStatus', 'ChainFamily'];
@@ -416,6 +428,21 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
     await data.complete(data.attempt.orderId, data.current.userId);
     expect(await db.cartItem.findUnique({ where: { id: next.id } })).not.toBeNull();
   });
+  it('returns a committed payment when another request finishes before a delayed capture claim', async () => {
+    const data = await prepared(false), reached = latch(), proceed = latch();
+    const delayedDb = db.$extends({ query: { checkoutAttempt: { async updateMany({args,query}) {
+      reached.release(); await proceed.promise; return query(args);
+    } } } }) as unknown as PrismaClient;
+    const delayedComplete = createCheckoutCompletion(delayedDb,data.provider,()=>initialNow+1000);
+    const delayed = delayedComplete(data.attempt.orderId,data.current.userId);
+    try {
+      await Promise.race([reached.promise,delayed.then(()=>{throw new Error('Expected capture barrier');})]);
+      await data.complete(data.attempt.orderId,data.current.userId);
+    } finally {proceed.release();}
+    expect(await delayed).toMatchObject({alreadyCompleted:true});
+    expect(data.provider.capturePayPalOrder).toHaveBeenCalledTimes(1);
+    expect(await db.aiCreditEntry.count({where:{sourceKey:`checkout:${data.attempt.orderId}`}})).toBe(1);
+  },20000);
   it.each(['NOK', 'USD', 'EUR', 'GBP', 'SEK', 'DKK'] as const)('retains %s 100.00 through native capture, confirmation, reports and full refund', async currency => {
     const readTotals = () => db.$transaction(tx => readCapturedPaymentTotals(tx, 'SANDBOX'));
     const before = (await readTotals()).currencies.find(row => row.currency === currency);
