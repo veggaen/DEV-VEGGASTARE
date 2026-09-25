@@ -43,8 +43,19 @@ light mode, retaining red-400 in dark mode; its decorative icon is hidden from
 assistive technology. Two focused browser checks pass locally (9.9s, no retries
 or skips), covering seven error codes at 390x844 and 1280x800 in both themes,
 rendered contrast >=4.5:1, no horizontal overflow, retry/reset navigation and no
-page exceptions. Screenshots were visually inspected. Live acceptance remains
-pending deployment. Authentication and permission logic is unchanged.
+page exceptions. Screenshots were visually inspected. Authentication and
+permission logic is unchanged.
+
+Source `399cb29` is READY in Production as
+`dpl_DXpBMhmCt4Rf5AP7acyCjCHJhGxE`. Candidate health passed before promotion
+to www.veggat.com. Four focused Live checks pass (34.3s, no retries/skips):
+both auth themes, the eight-size/two-theme compact receipt and protected email
+job authentication. Real Chrome repeated actual logout, Discord initiation and
+Cancel: the returned login page now visibly explains recovery. Existing GitHub
+sign-in then restored the account; its paid artwork receipt remains Completed
+with the same capture, zero credit balance and unchanged delivery record. No
+new Discord consent, account link, payment, refund, private-file download or
+customer email was triggered.
 
 ## Separate findings
 

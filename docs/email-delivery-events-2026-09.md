@@ -98,10 +98,26 @@ complained, delivered, failed and suppressed events. Its new signing secret was
 transferred through the real Chrome UI into Vercel as `RESEND_WEBHOOK_SECRET`,
 type Secret, **Production only**; Preview and Development were visibly unchecked.
 The value was never printed or written into local configuration, and transient
-secret variables were cleared. Vercel confirms saving succeeded and requires a
-new deployment. The existing sending API key is unchanged. No email was sent or
-resent. Runtime activation and a provider-originated callback remain pending;
-configuration alone is not end-to-end acceptance.
+secret variables were cleared. The existing sending API key is unchanged. No
+email was sent or resent.
+
+Source `399cb29` was then deployed READY as
+`dpl_DXpBMhmCt4Rf5AP7acyCjCHJhGxE`, with no pending migrations. Candidate
+health and configured signature rejection passed before promotion to
+www.veggat.com. Live health is 200; unsigned events return 401
+`INVALID_SIGNATURE_OR_EVENT`, and a 65,537-byte payload returns 413
+`PAYLOAD_TOO_LARGE`, both with no-store. This replaces the previous 503
+missing-configuration response and confirms runtime activation. Four focused
+Live browser checks pass (34.3s, no retries/skips), including compact receipts
+and protected email-job requests. Real Chrome confirms the existing paid
+receipt still truthfully reports unavailable delivery confirmation; no
+historical status was backfilled.
+
+The new Resend endpoint has no events yet. Its available actions do not expose
+a no-email test; replay requires an existing webhook event. A genuine
+provider-originated delivery callback and replay remain unverified. A future
+ordinary email or a separately approved synthetic test can supply that evidence;
+configuration and rejection checks are not end-to-end delivery acceptance.
 
 ## Boundaries
 

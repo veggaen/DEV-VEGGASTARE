@@ -12,7 +12,11 @@ new permission was not granted. Cancellation exposed missing login feedback.
 The shared allowlisted error-message fix has 36 passing units, touched lint and
 a passing strict build. Two local browser checks pass (9.9s): seven error codes,
 390/1280 widths, both themes, rendered contrast >=4.5:1 and recovery navigation.
-Live acceptance is pending deployment. No account link, payment,
+Production `399cb29` is READY and promoted as
+`dpl_DXpBMhmCt4Rf5AP7acyCjCHJhGxE`. Four focused Live checks pass (34.3s,
+no retries/skips): both auth themes, compact receipt and protected email job.
+Real Chrome Discord cancellation now shows guidance; GitHub recovers the same
+account and paid receipt. No new account link, payment,
 refund or extra download was performed. See [OAuth evidence](oauth-feedback-2026-09.md).
 
 Receipt delivery evidence: **PARTIAL — authenticated provider evidence obtained;
@@ -33,8 +37,10 @@ Both environments have 53 additive migrations. Live receipt/job checks pass
 free-demo checkout; Live health and unconfigured-callback 503/no-store pass.
 Real Chrome confirms the paid receipt is unchanged. Following explicit owner
 confirmation, the five-event Resend webhook is enabled and its signing secret
-is saved as a Vercel Secret for Production only. Runtime deployment and a
-provider-originated callback remain pending. No paid purchase,
+is saved as a Vercel Secret for Production only. Runtime activation is verified
+on `399cb29`: unsigned callbacks return 401 and oversized payloads 413, both
+no-store. The new endpoint has no events; genuine provider callback/replay
+acceptance remains pending. No paid purchase,
 refund or customer email resend occurred. See [delivery evidence](email-delivery-events-2026-09.md).
 
 First-download reminder: **local and Live acceptance DONE for this UI slice**.
