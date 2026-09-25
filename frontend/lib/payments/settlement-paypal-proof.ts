@@ -15,6 +15,13 @@ const CaptureDetails = z.object({ id: Id, status: z.enum(['COMPLETED', 'DECLINED
   amount: Amount, invoice_id: z.string().min(1), payee: Merchant,
   supplementary_data: z.object({ related_ids: z.object({ order_id: Id }) }),
 });
+/** Used only to locate an attempt from a server-authenticated provider read.
+ * This does not authorize a refund; verify the complete stored binding next. */
+export function readSettlementCaptureDetails(input: unknown) {
+  const parsed = CaptureDetails.safeParse(input);
+  if (!parsed.success) throw new SettlementError('CAPTURE_PROOF_INVALID');
+  return parsed.data;
+}
 const Refund = z.object({ id: Id, status: z.literal('COMPLETED'), amount: Amount,
   seller_payable_breakdown: z.object({ total_refunded_amount: Amount.optional() }).optional(),
   links: z.array(z.object({ rel: z.string(), method: z.string(), href: z.string().url() })).max(20),

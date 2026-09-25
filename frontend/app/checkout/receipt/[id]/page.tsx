@@ -4,7 +4,8 @@ import { dbPrisma } from '@/lib/db';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Check, Clock3, CircleAlert, ArrowUpRight, Download, Sparkles } from 'lucide-react';
-import { moneyString, type ShowcaseQuote } from '@/lib/payments/showcase-policy';
+import { checkoutMoney } from '@/lib/payments/checkout-money';
+import { formatMinor } from '@/lib/payments/settlement-money';
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
 import ReceiptDownloads from '@/components/checkout/receipt-downloads';
 import PreferredMoney from '@/components/checkout/preferred-money';
@@ -28,7 +29,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const demo = receipt.environment === 'DEMO', complete = receipt.state === 'COMPLETED', refunded = receipt.state === 'REFUNDED';
   const reversed = receipt.state === 'REVERSED', review = receipt.state === 'PAYMENT_REVIEW';
   const availableFiles = receipt.Order.DownloadToken.filter(file => file.usedCount < file.maxUses);
-  const lines = (receipt.quote as unknown as ShowcaseQuote)?.lines ?? [];
+  const pricing = checkoutMoney(receipt), lines = pricing.lines;
   const purchasedCredits = lines.reduce((sum, line) => sum + line.credits, 0);
   const hasDigitalFiles = lines.some(line => line.kind === 'DIGITAL_FILES') || receipt.Order.DownloadToken.length > 0;
   const balance = await dbPrisma.aiCreditAccount.findUnique({ where: { id: `${receipt.environment}:${session.user.id}` }, select: { balance: true, refundAdjustment: true } });
@@ -60,25 +61,25 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         {complete && availableFiles.length > 0 && <section aria-label="Your downloads" className="rounded-2xl border border-border bg-card p-5 sm:p-6"><h2 className="text-lg font-semibold">Your downloads</h2><p className="mt-1 text-sm text-muted-foreground">Private links · 24 hours · Sign-in required</p><ReceiptDownloads files={availableFiles.map(file => ({ id: file.id, token: file.token, fileName: file.DigitalAsset.fileName, usedCount: file.usedCount }))} /></section>}
         <section aria-label="Order items" className="rounded-2xl border border-border bg-card px-5 sm:px-6">
           <h2 className="pt-5 text-sm font-semibold sm:pt-6">Your purchase</h2>
-          <ul aria-label="Receipt items" className="divide-y divide-border">{receipt.Order.OrderItem.map(item => <li key={item.id} className="grid min-w-0 gap-x-4 gap-y-2 py-4 text-sm sm:flex sm:flex-wrap sm:justify-between"><span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{item.title}<span className="mt-1 block text-xs text-muted-foreground">Quantity {item.quantity}</span></span><span className="max-w-full font-medium tabular-nums"><PreferredMoney context="history" amount={Math.round(item.priceAtTime * item.quantity * 100) / 100} /></span></li>)}</ul>
+          <ul aria-label="Receipt items" className="divide-y divide-border">{lines.map(item => <li key={item.productId} className="grid min-w-0 gap-x-4 gap-y-2 py-4 text-sm sm:flex sm:flex-wrap sm:justify-between"><span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{item.title}<span className="mt-1 block text-xs text-muted-foreground">Quantity {item.quantity}</span></span><span className="max-w-full font-medium tabular-nums"><PreferredMoney context="history" amount={item.amountMinor / 100} currency={pricing.money.currency} /></span></li>)}</ul>
           {demo && <p className="pb-5 text-xs text-muted-foreground">Catalog value only. Demo checkout does not purchase additional AI credits.</p>}
         </section>
         {(balance?.refundAdjustment ?? 0) > 0 && <CreditRefundNotice adjustment={balance!.refundAdjustment} />}
       </div>
       <aside aria-label="Payment details" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm text-muted-foreground">{demo ? 'Charged' : complete ? 'Paid' : 'Order total'}</h2><strong className="max-w-full text-2xl tabular-nums"><PreferredMoney context="history" amount={demo ? 0 : receipt.totalOre / 100} /></strong></div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm text-muted-foreground">{demo ? 'Charged' : complete ? 'Paid' : 'Order total'}</h2><strong className="max-w-full text-2xl tabular-nums"><PreferredMoney context="history" amount={demo ? 0 : pricing.money.minor / 100} currency={pricing.money.currency} /></strong></div>
         <dl className="mt-5 space-y-4 border-t border-border pt-5 text-sm">
           <div className="flex flex-wrap justify-between gap-2"><dt className="text-muted-foreground">AI credit balance</dt><dd data-testid="receipt-ai-credit-balance" className="font-medium tabular-nums">{display.available}{demo ? ' demo credits' : sandbox ? ' test credits' : ' credits'}</dd></div>
           <div className="flex flex-wrap justify-between gap-2"><dt className="text-muted-foreground">Status</dt><dd className="capitalize">{receipt.state.toLowerCase().replaceAll('_', ' ')}</dd></div>
           <div><dt className="text-muted-foreground">Receipt ID</dt><dd className="mt-1 break-all font-mono text-xs">{receipt.captureId ?? receipt.orderId}</dd></div>
-          {receipt.refundedOre > 0 && <div className="flex flex-wrap justify-between gap-2"><dt className="text-muted-foreground">Verified refund amount</dt><dd className="font-medium"><PreferredMoney context="history" amount={receipt.refundedOre / 100} /></dd></div>}
+          {pricing.refundedMinor > 0 && <div className="flex flex-wrap justify-between gap-2"><dt className="text-muted-foreground">Verified refund amount</dt><dd className="font-medium"><PreferredMoney context="history" amount={pricing.refundedMinor / 100} currency={pricing.money.currency} /></dd></div>}
           {receipt.refundReference && <div><dt className="text-muted-foreground">Payment adjustment reference</dt><dd className="mt-1 break-all font-mono text-xs">{receipt.refundReference}</dd></div>}
         </dl>
         {confirmationReady && <a href={`/api/checkout/${encodeURIComponent(receipt.orderId)}/confirmation`} download className={`mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-center text-sm font-medium [@media(hover:hover)]:hover:bg-muted ${focus}`}><Download aria-hidden className="size-4 shrink-0" />Download order confirmation (.txt)</a>}
         <details className="mt-3 text-sm text-muted-foreground">
           <summary className={`min-h-11 cursor-pointer py-3 underline underline-offset-4 ${focus}`}>Original payment details</summary>
           <div className="space-y-3 pb-1 text-xs leading-relaxed">
-            <p>{demo ? 'Recorded catalog value (not charged)' : 'Recorded PayPal amount'}: {moneyString(receipt.totalOre)} NOK.{receipt.refundedOre > 0 ? ` Recorded refund: ${moneyString(receipt.refundedOre)} NOK.` : ''}</p>
+            <p>{demo ? 'Recorded catalog value (not charged)' : 'Recorded PayPal amount'}: {formatMinor(pricing.money.minor)} {pricing.money.currency}.{pricing.refundedMinor > 0 ? ` Recorded refund: ${formatMinor(pricing.refundedMinor)} ${pricing.money.currency}.` : ''}</p>
             <HistoricalPriceNote />
             {display.unclaimedDemoAllowance > 0 && <p>Your free demo allowance activates on your first supported message. This order did not buy credits.</p>}
           </div>

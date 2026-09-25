@@ -16,9 +16,10 @@ import { CHECKOUT_AGREEMENT_VERSION, recordCheckoutAgreement } from './checkout-
 
 const quote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1 }]);
 afterEach(() => vi.unstubAllEnvs());
-const attempt = () => ({ orderId: 'order1', userId: 'buyer1', environment: 'SANDBOX', state: 'APPROVAL_PENDING',
-  paypalOrderId: 'PAYPAL1', merchantId: 'MERCHANT1', captureRequestId: 'stable', totalOre: 3900, quote, createdAt: new Date(),
-  Order: { OrderItem: [{ id: 'line1', productId: SHOWCASE_PRODUCTS.credits.id }] } });
+const attempt = (priced = quote, userId = 'buyer1') => ({ orderId: 'order1', userId, environment: 'SANDBOX', state: 'APPROVAL_PENDING',
+  paypalOrderId: 'PAYPAL1', merchantId: 'MERCHANT1', captureRequestId: 'stable', totalOre: priced.totalOre, quote: priced, createdAt: new Date(),
+  Order: { userId, currency: 'NOK', totalAmount: priced.totalOre / 100,
+    OrderItem: priced.lines.map(line => ({ id: 'line1', productId: line.productId, title: line.title, quantity: 1, priceAtTime: line.amountOre / 100 })) } });
 const proof = () => ({ id: 'PAYPAL1', status: 'COMPLETED', purchase_units: [{ reference_id: 'order1', invoice_id: 'order1', custom_id: 'order1',
   amount: { currency_code: 'NOK', value: '39.00' }, payee: { merchant_id: 'MERCHANT1' },
   payments: { captures: [{ id: 'CAPTURE1', status: 'COMPLETED', final_capture: true, amount: { currency_code: 'NOK', value: '39.00' } }] },
@@ -88,9 +89,9 @@ describe('transactional checkout fulfillment', () => {
     expect(m.capture).not.toHaveBeenCalled(); expect(m.read).toHaveBeenCalledWith('PAYPAL1'); expect(m.entry).toHaveBeenCalledOnce();
   });
   it('grants exactly 10 credits for the small pack and never doubles it on replay', async () => {
-    const small = { ...attempt(), totalOre: 900, quote: quoteShowcaseCart([
+    const small = attempt(quoteShowcaseCart([
       { productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 10 },
-    ]) };
+    ]));
     m.find.mockResolvedValue(small); m.fresh.mockResolvedValue(small);
     const p = proof(); p.purchase_units[0].amount.value = '9.00';
     p.purchase_units[0].payments.captures[0].amount.value = '9.00';
@@ -104,13 +105,14 @@ describe('transactional checkout fulfillment', () => {
   });
   it('grants the immutable custom amount after exact capture, not the current catalog pack', async () => {
     const customQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 122 }]);
-    const custom = { ...attempt(), totalOre: 4716, quote: customQuote };
+    const custom = attempt(customQuote);
     m.find.mockResolvedValue(custom); m.fresh.mockResolvedValue(custom);
     const p = proof(); p.purchase_units[0].amount.value = '47.16'; p.purchase_units[0].payments.captures[0].amount.value = '47.16';
     m.capture.mockResolvedValue(p); m.cart.mockResolvedValue({ id: 'cart1' });
     await completeShowcaseCheckout('order1', 'buyer1');
     expect(m.adjust).toHaveBeenCalledWith(expect.anything(), 'SANDBOX:buyer1', 122);
-    expect(m.remove).toHaveBeenCalledWith({ where: { cartId: 'cart1', productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, OR: [{ creditAmount: 122 }] } });
+    expect(m.remove).toHaveBeenCalledWith({ where: { cartId: 'cart1', productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1,
+      creditSpendMinor: null, creditSpendCurrency: null, OR: [{ creditAmount: 122 }] } });
   });
   it('does not fulfill or capture another user’s order', async () => {
     await expect(completeShowcaseCheckout('order1', 'other')).rejects.toThrow('ORDER_NOT_FOUND');
@@ -120,6 +122,11 @@ describe('transactional checkout fulfillment', () => {
     m.fresh.mockResolvedValue({ ...attempt(), state: 'COMPLETED' });
     expect(await completeShowcaseCheckout('order1', 'buyer1')).toHaveProperty('alreadyCompleted', true);
     expect(m.account).not.toHaveBeenCalled(); expect(m.token).not.toHaveBeenCalled();
+  });
+  it.each([{ userId: 'another-buyer', code: 'ORDER_NOT_FOUND' }, { environment: 'LIVE', code: 'WRONG_PAYMENT_ENVIRONMENT' }])('rechecks the stored scope under the fulfillment lock: $code', async ({ code, ...changed }) => {
+    m.fresh.mockResolvedValue({ ...attempt(), ...changed });
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow(code);
+    expect(m.account).not.toHaveBeenCalled(); expect(m.token).not.toHaveBeenCalled(); expect(m.order).not.toHaveBeenCalled();
   });
   it('propagates duplicate capture constraint failure before granting anything', async () => {
     m.update.mockRejectedValue(new Error('unique captureId'));
@@ -132,7 +139,7 @@ describe('transactional checkout fulfillment', () => {
     expect(m.capture).not.toHaveBeenCalled(); expect(m.read).toHaveBeenCalledWith('PAYPAL1');
   });
   it('does not mint paid credits for a demo preview', async () => {
-    const demo = { ...attempt(), userId: 'demo_visitor', environment: 'DEMO' };
+    const demo = { ...attempt(quote, 'demo_visitor'), environment: 'DEMO' };
     m.find.mockResolvedValue(demo); m.fresh.mockResolvedValue(demo);
     await completeShowcaseCheckout('order1', 'demo_visitor');
     expect(m.capture).not.toHaveBeenCalled(); expect(m.account).not.toHaveBeenCalled();

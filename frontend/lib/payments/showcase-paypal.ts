@@ -3,6 +3,8 @@ import 'server-only';
 import { z } from 'zod';
 import { authOrigin } from '@/lib/auth-navigation';
 import { CheckoutError, moneyString, paypalEnvironment, validateApprovalUrl, type ShowcaseQuote } from './showcase-policy';
+import { settlementPurchaseUnit } from './settlement-paypal-proof';
+import type { SettlementQuote } from './settlement-quote';
 
 const Id = z.string().regex(/^[A-Z0-9]{1,36}$/);
 const Token = z.object({ access_token: z.string().min(1) });
@@ -35,10 +37,10 @@ async function request(path: string, options: { method?: 'GET' | 'POST'; body?: 
   return response.json();
 }
 
-export async function createPayPalOrder(orderId: string, quote: ShowcaseQuote, requestId: string) {
+export async function createPayPalOrder(orderId: string, quote: ShowcaseQuote | SettlementQuote, requestId: string) {
   const origin = authOrigin();
   const body = await request('/v2/checkout/orders', { method: 'POST', requestId, body: {
-    intent: 'CAPTURE', purchase_units: [{ reference_id: orderId, invoice_id: orderId, custom_id: orderId,
+    intent: 'CAPTURE', purchase_units: ['version' in quote ? settlementPurchaseUnit(orderId, quote) : { reference_id: orderId, invoice_id: orderId, custom_id: orderId,
       description: 'Veggat Studio digital order',
       amount: { currency_code: 'NOK', value: moneyString(quote.totalOre), breakdown: {
         item_total: { currency_code: 'NOK', value: moneyString(quote.totalOre) },

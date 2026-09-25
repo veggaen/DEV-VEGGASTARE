@@ -1,6 +1,6 @@
 # Exact-currency credit purchases — implementation in progress
 
-Status: **PARTIAL, not connected to checkout or deployed**. Production still
+Status: **PARTIAL, exact-price entry not activated or deployed**. Production still
 charges server-priced NOK and treats a typed budget as a maximum. Keeping `100`
 in that input did not fulfill the request to actually buy for USD 100.00.
 The new policy is the first implementation step toward that requirement, not a
@@ -78,6 +78,49 @@ Preview public schema or production. Prisma's generated client and the updated
 cart helper require the additive migration before running a new application
 build; do not deploy this intermediate commit against the old public schema.
 
+## Payment and receipt integration (not deployed)
+
+- `checkout-money.ts` validates each original v1 NOK or v2 exact-currency record
+  and returns native cash separately from exposure. It does not reprice old
+  products, change their names or refresh historical FX. Half-upgraded or
+  internally inconsistent records fail closed.
+- The existing PayPal transport now serializes v2 purchase units in the quoted
+  currency. Capture verifies native amount/currency and all order/merchant
+  bindings before fulfillment, then verifies the fresh record again under the
+  fulfillment lock. Existing recovery still reuses the original request/capture
+  identities and original capture window; it never makes a replacement purchase.
+- Before capture and fulfillment, order owner, currency, total and exact line
+  contents must match the paid quote. An extra/substituted order line cannot gain
+  access to another private file. File availability failure rolls back grants,
+  tokens, payment and confirmation; later reconciliation can complete once the
+  original files are available, without charging again.
+- Grants, native `Payment` fields, download tokens and immutable confirmation
+  outbox records share the existing transaction. V2 cart cleanup matches the
+  original row ID, revision, count and spend; a re-added next cart remains intact.
+  V1 cleanup will not erase a newly selected exact-spend budget. The old creation
+  endpoint refuses a cart with exact-spend intent instead of silently charging
+  a derived NOK count price.
+- The verified-webhook adjustment reconciler binds both legacy and v2 refunds
+  to their original currency. V2 writes `refundedMinor`, never `refundedOre`.
+  Partial refunds still hold the entire entitlement for review; replay/full
+  follow-up revokes once. Already-spent credits become a credit adjustment, not
+  a negative available balance or another card charge. No new refund is initiated.
+- The receipt reads native amounts/lines from the original quote and supplies
+  their currency to the existing fiat/crypto formatter. Its original-payment
+  disclosure, downloadable confirmation and email attachment retain native cash,
+  not NOK exposure. Server-rendered tests cover USD 100.00 and its USD refund
+  with ETH parentheses. The receipt layout itself is unchanged in this slice.
+
+Still incomplete: owner-credit financial reports aggregate `totalOre` as NOK
+cash; company checkout counts exclude foreign currencies; verification-evidence
+queries need explicit v1/v2 refund guards. Update these, plus actual quote/input
+routes and storefront/cart UI, before enabling any v2 customer purchase. This
+integration is not evidence of a real PayPal native-currency Sandbox capture.
+The transport/proof contracts were rechecked against PayPal's
+[capture-order reference](https://developer.paypal.com/api/orders/v2/orders-capture),
+[capture-details reference](https://developer.paypal.com/api/payments/v2/captures-get)
+and [refund-details reference](https://developer.paypal.com/api/payments/v2/refunds-get).
+
 ## Draft commercial policy (not Live pricing)
 
 NOK prices and the 9 NOK starter stay unchanged. Foreign-currency quote prices
@@ -123,6 +166,23 @@ The fee policy expires with the existing 24 October review deadline.
 - Touched ESLint and full TypeScript pass. A widened test-consent literal was
   fixed before the final typecheck; the initial margin failures remain documented
   above, not counted as passes.
+- The payment integration's final combined invocation passes **468/468 across
+  twenty files**, no skips. This includes the fresh public FX check and real
+  isolated PostgreSQL transactions with injected PayPal responses for all six
+  native currencies: capture, original confirmation and refund. Mixed-cart
+  concurrent captures create one purchase grant, two private file tokens and
+  one skipped-outbox packet; idempotency keys stay identical. Tests cover wrong
+  currency/amount, substituted lines, missing-file rollback, cart preservation,
+  concurrent refund replay, partial/full refunds, refund-before-completion,
+  spent-credit adjustment and complete legacy NOK capture/refund compatibility.
+  `.invalid` fixture recipients are `SKIPPED`; no message is sent. Table shapes
+  are cloned without customer rows; the fixture User table contains only the
+  minimal recipient fields, not credentials or real identities.
+- The first wider run found stale receipt fixtures without stored quote money
+  and an eager factory default incompatible with prepare-only mocks. Fixtures
+  now reflect real stored records, and the runtime wrapper creates dependencies
+  only when completion is called. Touched lint and full TypeScript pass after
+  these fixes; the failed intermediate run is not counted as a pass.
 - No Live payment, refund, credit, email, secret, billing or deployment change.
   No new browser acceptance is claimed: the store is not imported by an active
   route yet. Existing production remains `92c5ac7`.
@@ -134,11 +194,11 @@ The fee policy expires with the existing 24 October review deadline.
    currency-aware; then apply the additive migration to isolated Preview before
    building/running the new Prisma client. Apply to production only with the
    verified compatible release. Never backfill/reprice old NOK orders.
-2. Route v2 create/capture/refund through the new proof boundary while preserving
-   v1 NOK orders. Continue signature verification and idempotent grants/revocation.
-   Record native Order/OrderItem/Payment amounts. Original receipts, confirmation
-   attachments, seller/admin reports and refunds must group by currency rather
-   than label converted values as cash. An exposure valuation is not revenue.
+2. Create/capture/refund, native Payment amounts, receipt and confirmation
+   integration are implemented with v1 compatibility tests. Next update owner
+   financial reports to group actual cash by currency, company checkout counts
+   and verification evidence. An exposure valuation is not revenue. Retain
+   verified webhook signatures, unique capture grants and revocation locks.
 3. Connect product/basket/cart/checkout auto inputs to the server quote. Persist
    spend intent; currency changes require a new quote. Show one native fiat total
    plus optional crypto estimate, retain editable drafts and lock payment during

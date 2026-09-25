@@ -8,10 +8,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 FX, actor/cart/environment-bound attestations and currency-aware PayPal proofs
 are implemented. Cart spend intent and immutable, serialized order preparation
 now pass real PostgreSQL migration, replay and cross-tab race tests in disposable
-empty schemas on isolated Preview. Combined regressions pass **316/316 across
-eleven files**, including fresh public FX; touched lint and TypeScript pass.
-No public database migration, new capture or browser-flow acceptance is claimed.
-Next: wire payment/refund/receipt/report paths, then local and Sandbox browser
+empty schemas on isolated Preview. Version-aware PayPal transport/capture,
+refund reconciliation, native Payment records and original receipts/confirmations
+are integrated in code. Combined regressions pass **468/468 across twenty files**,
+including real isolated transaction tests with mocked PayPal for all six currencies,
+fresh public FX, legacy NOK compatibility and receipt rendering; lint and TypeScript
+pass. No public database migration, real capture or browser-flow acceptance is claimed.
+Next: currency-grouped reporting, verification/count queries and quote/input UI,
+then local and real Sandbox browser
 acceptance before activation. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping
 the draft input at `100` does not yet make a USD 100 charge. See

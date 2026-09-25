@@ -22,13 +22,19 @@ vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => React.crea
 import ReceiptPage from '@/app/checkout/receipt/[id]/page';
 import CheckoutPage from '@/app/checkout/page';
 import CreditRefundNotice from '@/components/checkout/credit-refund-notice';
+import { randomUUID } from 'node:crypto';
+import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
+import { quoteShowcaseCart } from './showcase-policy';
+import { quoteSettlementCart } from './settlement-quote';
+
+const creditQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1 }]);
 
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('VERCEL', '0');
   m.auth.mockResolvedValue({ user: { id: 'buyer' } });
   m.account.mockResolvedValue({ balance: 0, refundAdjustment: 7 });
   m.receipt.mockResolvedValue({ orderId: 'order', userId: 'buyer', environment: 'SANDBOX', state: 'REFUNDED', totalOre: 3900,
-    refundedOre: 3900, refundReference: 'REFUND1', captureId: 'CAPTURE1', Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [
+    quote: creditQuote, refundedOre: 3900, refundReference: 'REFUND1', captureId: 'CAPTURE1', Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [
       { id: 'file', token: 'must-not-be-shown', usedCount: 0, maxUses: 3, DigitalAsset: { fileName: 'interview.jpg' } },
     ] } });
   m.cart.mockResolvedValue({ CartItem: [{ id: 'cart-item', productId: 'cveggatinterviewcredits01', quantity: 1, Product: { id: 'cveggatinterviewcredits01', title: 'Interviewer AI Credits', productType: 'DIGITAL', visibility: 'PUBLIC', downloadsEnabled: true, image: ['/fixture.jpg'] } }] });
@@ -69,7 +75,7 @@ it('does not display an adjustment notice for an unaffected account', () => {
 it('gives credit-only buyers a useful next action without suggesting a file download', async () => {
   const fixture = await m.receipt();
   m.receipt.mockResolvedValue({ ...fixture, state: 'COMPLETED', refundedOre: 0, refundReference: null,
-    quote: { lines: [{ kind: 'AI_CREDITS', credits: 100 }] }, Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [] } });
+    quote: creditQuote, Order: { OrderItem: [], ReturnRequest: [], DownloadToken: [] } });
   m.account.mockResolvedValue({ balance: 100, refundAdjustment: 0 });
   const html = renderToStaticMarkup(await ReceiptPage({ params: Promise.resolve({ id: 'order' }) }));
   expect(html).toContain('100 test credits purchased');
@@ -81,7 +87,8 @@ it('gives credit-only buyers a useful next action without suggesting a file down
 });
 it('keeps receipt file transfers on the page with accessible download buttons', async () => {
   const fixture = await m.receipt();
-  m.receipt.mockResolvedValue({ ...fixture, state: 'COMPLETED', quote: { lines: [{ kind: 'DIGITAL_FILES', credits: 0 }] } });
+  const fileQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.interviewPack.id, quantity: 1 }]);
+  m.receipt.mockResolvedValue({ ...fixture, state: 'COMPLETED', quote: fileQuote, totalOre: fileQuote.totalOre, refundedOre: 0 });
   const html = renderToStaticMarkup(await ReceiptPage({ params: Promise.resolve({ id: 'order' }) }));
   expect(html).toContain('Download interview.jpg');
   expect(html).not.toContain('href="/api/download/');
@@ -91,4 +98,17 @@ it('treats the cancellation query only as navigation feedback, never payment pro
   expect(html).toContain('Returning here does not confirm a payment or add credits');
   expect(html).toContain('My orders');
   expect(html).toContain('Continue to PayPal');
+});
+it('renders native USD money and crypto, never the NOK exposure as the paid total', async () => {
+  const fixture = await m.receipt(), now = Date.parse('2026-09-25T12:00:00Z');
+  const quote = quoteSettlementCart({ currency: 'USD', items: [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, credits: { type: 'spend', amount: '100' } }] },
+    { now, fx: { source: 'ECB_VIA_FRANKFURTER', base: 'NOK', currency: 'USD', rate: '0.105', publishedOn: '2026-09-25', fetchedAt: new Date(now).toISOString() },
+      models: [{ credits: 1, reserveMicroUsd: 10000 }], modelCostReviewBy: '2026-10-24T00:00:00Z' });
+  m.receipt.mockResolvedValue({ ...fixture, quote: { settlement: quote }, currency: 'USD', totalMinor: 10000, totalOre: quote.exposureNokOre,
+    refundedMinor: 2500, refundedOre: 0, settlementQuoteId: randomUUID() });
+  const html = renderToStaticMarkup(await ReceiptPage({ params: Promise.resolve({ id: 'order' }) }));
+  expect(html).toMatch(/USD\s*100\.00/); expect(html).toContain('(0.05 ETH)');
+  expect(html).toMatch(/USD\s*25\.00/);
+  expect(html).toContain('100.00'); expect(html).toContain('USD.');
+  expect(html).not.toContain('952.39'); expect(html).not.toContain('952.38');
 });

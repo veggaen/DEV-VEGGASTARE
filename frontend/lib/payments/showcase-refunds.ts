@@ -5,7 +5,9 @@ import { dbPrisma } from '@/lib/db';
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 import { CheckoutError, paypalEnvironment } from './showcase-policy';
 import { readPayPalCapture, readPayPalRefund } from './showcase-paypal';
-import { captureAdjustmentDetails, completedRefundProof, PayPalAdjustmentEvent, verifyPaymentAdjustment, type AdjustmentEvent } from './showcase-refund-policy';
+import { PayPalAdjustmentEvent, type AdjustmentEvent } from './showcase-refund-policy';
+import { readSettlementCaptureDetails, readSettlementRefundProof, verifySettlementAdjustment } from './settlement-paypal-proof';
+import { checkoutMoney, checkoutPaymentBinding } from './checkout-money';
 
 export function createPayPalAdjustmentReconciler(db: PrismaClient, provider = { readPayPalCapture, readPayPalRefund }) {
   /** The route MUST verify the exact webhook signature before calling this.
@@ -16,13 +18,13 @@ export function createPayPalAdjustmentReconciler(db: PrismaClient, provider = { 
     const delivery = { provider: eventProvider, deliveryId: event.id };
     if (await db.paymentWebhookEvent.findUnique({ where: { provider_deliveryId: delivery }, select: { id: true } })) return { duplicate: true };
     const refund = event.event_type === 'PAYMENT.CAPTURE.REFUNDED'
-      ? completedRefundProof(await provider.readPayPalRefund(event.resource.id), event.resource.id) : undefined;
+      ? readSettlementRefundProof(await provider.readPayPalRefund(event.resource.id), event.resource.id, environment) : undefined;
     const captureId = refund?.captureId ?? event.resource.id;
-    const capture = captureAdjustmentDetails(await provider.readPayPalCapture(captureId));
+    const capture = readSettlementCaptureDetails(await provider.readPayPalCapture(captureId));
     const attempt = await db.checkoutAttempt.findUnique({ where: { paypalOrderId: capture.supplementary_data.related_ids.order_id } });
     if (!attempt) return { ignored: true }; // Not this app's server-priced checkout.
     if (attempt.environment !== environment) throw new CheckoutError('WRONG_PAYMENT_ENVIRONMENT', 409);
-    verifyPaymentAdjustment(capture, attempt, captureId, refund);
+    verifySettlementAdjustment(capture, { ...checkoutPaymentBinding(attempt), captureId: attempt.captureId }, captureId, refund);
 
     return db.$transaction(async tx => {
       // Same lock as verified fulfillment: refund-before-completion and duplicate
@@ -31,7 +33,8 @@ export function createPayPalAdjustmentReconciler(db: PrismaClient, provider = { 
       if (await tx.paymentWebhookEvent.findUnique({ where: { provider_deliveryId: delivery }, select: { id: true } })) return { duplicate: true };
       const fresh = await tx.checkoutAttempt.findUniqueOrThrow({ where: { orderId: attempt.orderId } });
       if (fresh.environment !== environment) throw new CheckoutError('WRONG_PAYMENT_ENVIRONMENT', 409);
-      const proof = verifyPaymentAdjustment(capture, fresh, captureId, refund);
+      const pricing = checkoutMoney(fresh);
+      const proof = verifySettlementAdjustment(capture, { ...checkoutPaymentBinding(fresh), captureId: fresh.captureId }, captureId, refund);
       const terminal = fresh.state === 'REFUNDED' || fresh.state === 'REVERSED';
       const state = terminal ? fresh.state : proof.state;
       const sourceKey = `paypal-revoke:${fresh.orderId}`;
@@ -45,7 +48,9 @@ export function createPayPalAdjustmentReconciler(db: PrismaClient, provider = { 
       }
       const now = new Date();
       await tx.checkoutAttempt.update({ where: { orderId: fresh.orderId }, data: {
-        state, captureId, refundedOre: Math.max(fresh.refundedOre, proof.refundedOre),
+        state, captureId,
+        ...(pricing.version === 'exact' ? { refundedMinor: Math.max(pricing.refundedMinor, proof.money.minor) } :
+          { refundedOre: Math.max(pricing.refundedMinor, proof.money.minor) }),
         refundReference: terminal ? fresh.refundReference ?? proof.reference : proof.reference,
         paymentAdjustedAt: now,
       }, select: { orderId: true } });
@@ -56,7 +61,7 @@ export function createPayPalAdjustmentReconciler(db: PrismaClient, provider = { 
       // Minimal proof only: no payer identities, raw webhook body or auth headers.
       await tx.paymentWebhookEvent.create({ data: { ...delivery, eventType: event.event_type, signatureVerified: true,
         orderId: fresh.orderId, orderStatus: state, httpStatus: 200,
-        rawPayload: { captureId, reference: proof.reference, amountOre: proof.refundedOre, currency: 'NOK' },
+        rawPayload: { captureId, reference: proof.reference, amountMinor: proof.money.minor, currency: proof.money.currency },
       }, select: { id: true } });
       return { orderId: fresh.orderId, state };
     }, { maxWait: 10_000, timeout: 15_000 });

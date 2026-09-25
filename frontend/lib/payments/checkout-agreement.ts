@@ -1,6 +1,8 @@
 /** @fileOverview Versioned, server-owned delivery requests and retainable purchase records. @stability experimental */
 import { z } from 'zod';
-import { CheckoutError, moneyString, type ShowcaseQuote } from './showcase-policy';
+import { CheckoutError } from './showcase-policy';
+import { checkoutMoney, type StoredCheckoutPricing } from './checkout-money';
+import { formatMinor } from './settlement-money';
 import { SALES_TERMS_TEXT } from '@/lib/legal/sales-terms';
 import { SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 
@@ -41,14 +43,14 @@ export function storedCheckoutAgreement(quote: unknown) {
 
 /** Original confirmation stays identical after refund or a future terms change.
  * It is a purchase record, NOT a fresh grant, tax invoice or refund certificate. */
-export function purchaseConfirmation(attempt: {
-  orderId: string; userId: string; quote: unknown; totalOre: number; environment: string;
+export function purchaseConfirmation(attempt: StoredCheckoutPricing & {
+  orderId: string; userId: string; environment: string;
   captureId: string | null; completedAt: Date | null;
 }) {
   const agreement = storedCheckoutAgreement(attempt.quote);
   if (!agreement || !attempt.completedAt || (!attempt.captureId && attempt.environment !== 'DEMO')) return null;
-  const quote = attempt.quote as ShowcaseQuote;
-  const lines = quote.lines.map(line => `${line.title} × ${line.quantity}: ${moneyString(line.amountOre)} NOK`).join('\n');
+  const pricing = checkoutMoney(attempt);
+  const lines = pricing.lines.map(line => `${line.title} × ${line.quantity}: ${formatMinor(line.amountMinor)} ${pricing.money.currency}`).join('\n');
   return `VEGGAT — ORIGINAL ORDER CONFIRMATION\n
 Order: ${attempt.orderId}
 Purchasing account: ${attempt.userId}
@@ -56,8 +58,8 @@ Payment environment: ${attempt.environment}${attempt.environment === 'LIVE' ? ' 
 Confirmed at (UTC): ${attempt.completedAt.toISOString()}
 Receipt: ${attempt.captureId ?? 'Demo — no payment collected'}
 ${lines}
-${attempt.environment === 'DEMO' ? 'Catalog value' : 'Confirmed total'}: ${moneyString(attempt.totalOre)} NOK
-${attempt.environment === 'DEMO' ? 'Actually charged: 0.00 NOK. No purchased AI credits were granted.\n' : ''}
+${attempt.environment === 'DEMO' ? 'Catalog value' : 'Confirmed total'}: ${formatMinor(pricing.money.minor)} ${pricing.money.currency}
+${attempt.environment === 'DEMO' ? `Actually charged: 0.00 ${pricing.money.currency}. No purchased AI credits were granted.\n` : ''}
 Delivery request record (${agreement.version}), recorded at (UTC): ${agreement.recordedAt}
 ${agreement.demo ? 'Free demo; no paid delivery consent was collected.' : agreement.requests.join('\n\n')}
 

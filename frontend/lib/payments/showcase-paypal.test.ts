@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}));
 import { createPayPalOrder, capturePayPalOrder, readPayPalCapture, readPayPalRefund, paypalConfigured } from './showcase-paypal';
 import { quoteShowcaseCart } from './showcase-policy';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
+import { quoteSettlementCart } from './settlement-quote';
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 function setup() {
@@ -42,6 +43,24 @@ describe('PayPal transport', () => {
     const network = setup(); network.mockResolvedValueOnce(Response.json({ access_token: 'unit-token' })).mockResolvedValueOnce(Response.json({ status: 'COMPLETED' }));
     expect(await capturePayPalOrder('ORDER1', 'stable')).toEqual({ status: 'COMPLETED' });
     expect(network).toHaveBeenCalledTimes(2);
+  });
+  it('creates an exact USD order with native line/total money and the original idempotency key', async () => {
+    const network = setup();
+    network.mockResolvedValueOnce(Response.json({ access_token: 'unit-token' })).mockResolvedValueOnce(Response.json({
+      id: 'ORDER1', purchase_units: [{ payee: { merchant_id: 'MERCHANT1' } }], links: [{ rel: 'payer-action', href: 'https://www.sandbox.paypal.com/checkoutnow?token=ORDER1' }],
+    }));
+    const now = Date.parse('2026-09-25T12:00:00Z');
+    const quote = quoteSettlementCart({ currency: 'USD', items: [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, credits: { type: 'spend', amount: '100' } }] },
+      { now, fx: { source: 'ECB_VIA_FRANKFURTER', base: 'NOK', currency: 'USD', rate: '0.105', publishedOn: '2026-09-25', fetchedAt: new Date(now).toISOString() },
+        models: [{ credits: 1, reserveMicroUsd: 10000 }], modelCostReviewBy: '2026-10-24T00:00:00Z' });
+    await createPayPalOrder('internal-usd', quote, 'same-native-idempotency');
+    const [url, options] = network.mock.calls[1], unit = JSON.parse(options.body).purchase_units[0];
+    expect(url).toBe('https://api-m.sandbox.paypal.com/v2/checkout/orders');
+    expect(options.headers['PayPal-Request-Id']).toBe('same-native-idempotency');
+    expect(unit.amount).toMatchObject({ value: '100.00', currency_code: 'USD' });
+    expect(unit.items[0].unit_amount).toEqual({ value: '100.00', currency_code: 'USD' });
+    expect(unit.amount.breakdown.item_total).toEqual(unit.items[0].unit_amount);
+    expect(unit).not.toHaveProperty('exposureNokOre');
   });
   it('fails closed without secrets before making network requests', async () => {
     const network = setup(); vi.stubEnv('PAYPAL_CLIENT_SECRET', '');
