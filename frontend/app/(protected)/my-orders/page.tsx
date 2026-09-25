@@ -9,6 +9,7 @@ import { OrdersListResponseSchema, type OrderDto } from '@/lib/types/orders';
 import { orderReceiptHref, orderStatusLabel, orderMoney } from '@/lib/order-presentation';
 import PreferredMoney from '@/components/checkout/preferred-money';
 import HistoricalPriceNote from '@/components/checkout/historical-price-note';
+import OrderRecoveryActions from '@/components/checkout/order-recovery-actions';
 import { FiChevronDown, FiDownload, FiPackage, FiRefreshCw } from 'react-icons/fi';
 
 export default function MyOrdersPage() {
@@ -38,11 +39,12 @@ export default function MyOrdersPage() {
           <Button variant="outline" asChild className="h-11 flex-1 gap-2 sm:flex-none"><Link href="/my-downloads"><FiDownload aria-hidden />Downloads</Link></Button>
         </div>
       </div>
-      <div className="mb-5"><HistoricalPriceNote /></div>
+      <details className="mb-4 text-xs text-muted-foreground"><summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4 focus-visible:outline-2">About displayed prices</summary><HistoricalPriceNote /></details>
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>{error instanceof Error && error.name !== 'TimeoutError' ? error.message : 'The request timed out. Please try again.'}</p><Button variant="outline" className="mt-3 h-11" onClick={() => void mutate()}>Try again</Button></div>}
       {loading ? <div role="status" aria-label="Loading orders" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="min-h-36 rounded-xl border border-border p-4 sm:min-h-28 sm:p-5"><div className="h-4 w-36 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-3 h-3 w-44 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-6 w-24 rounded bg-muted motion-safe:animate-pulse" /></div>)}</div>
         : orders?.length ? <ul aria-label="Your orders" className="space-y-3">{orders.map(order => {
           const open = expanded === order.id, demo = order.checkout?.environment === 'DEMO', sandbox = order.checkout?.environment === 'SANDBOX';
+          const paid = order.checkout?.state === 'COMPLETED' || (!order.checkout && order.payment?.status === 'COMPLETED');
           return <li key={order.id} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
             <h2><button type="button" aria-expanded={open} aria-controls={'details-' + order.id} onClick={() => toggle(order.id)} className="flex w-full min-w-0 items-start justify-between gap-3 rounded-xl p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted/40 sm:items-center sm:p-5">
               <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -50,12 +52,15 @@ export default function MyOrdersPage() {
                 <span className="min-w-0 sm:text-right"><span className="block text-sm font-semibold tabular-nums"><PreferredMoney context="history" amount={demo ? 0 : order.totalAmount} currency={order.currency ?? null} /></span><span className="mt-1 block text-xs text-muted-foreground">{demo ? 'No payment collected' : sandbox ? 'Test amount · no real money' : 'Order total'}</span></span>
               </span><FiChevronDown aria-hidden className={'mt-1 h-5 w-5 shrink-0 text-muted-foreground motion-safe:transition-transform motion-safe:duration-150 ' + (open ? 'rotate-180' : '')} />
             </button></h2>
+            {(order.checkout?.recovery?.canResume || order.checkout?.recovery?.canCancel) && <div className="px-4 pb-4 sm:px-5 sm:pb-5"><OrderRecoveryActions order={order} refresh={mutate} /></div>}
+            {order.checkout?.recovery?.expired && <p className="px-4 pb-4 text-sm text-muted-foreground sm:px-5">Payment link expired. <Link href="/cart" className="underline underline-offset-4">Return to cart</Link> to review a new purchase.</p>}
             {open && <div id={'details-' + order.id} className="space-y-4 border-t border-border p-4 sm:p-5">
               {(demo || sandbox) && <p className="text-sm leading-relaxed text-muted-foreground">{demo ? 'This is a free demonstration, not a paid order. The prices below show catalog value only. Demo checkout does not purchase additional AI credits.' : 'PayPal Sandbox is a test environment. No real money was collected.'}</p>}
               {!!order.items?.length && <ul aria-label="Order items" className="divide-y divide-border">{order.items.map(item => <li key={item.id} className="flex min-w-0 flex-wrap items-start justify-between gap-4 py-3 text-sm"><span className="min-w-0 break-words [overflow-wrap:anywhere]">{item.title}<span className="mt-1 block text-xs text-muted-foreground">Quantity {item.quantity}</span></span><span className="max-w-full tabular-nums"><PreferredMoney context="history" amount={item.priceAtTime * item.quantity} currency={order.currency ?? null} /></span></li>)}</ul>}
               <p className="text-sm text-muted-foreground">Recorded {demo ? 'catalog value (not charged)' : 'order amount'}: <span className="font-medium tabular-nums text-foreground">{orderMoney(order.totalAmount, order.currency)}</span>. This record does not by itself prove payment.</p>
               <dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Order status</dt><dd className="mt-1 font-medium">{orderStatusLabel(order)}</dd></div>{order.fulfilmentStatus && <div><dt className="text-muted-foreground">Delivery</dt><dd className="mt-1 capitalize">{order.fulfilmentStatus.toLowerCase().replaceAll('_', ' ')}</dd></div>}</dl>
-              <div className="flex flex-col gap-2 sm:flex-row"><Button asChild variant="outline" className="h-11"><Link href={orderReceiptHref(order)}>View receipt</Link></Button><Button asChild variant="outline" className="h-11 gap-2"><Link href="/my-downloads"><FiDownload aria-hidden />View downloads</Link></Button></div>
+              {paid && <div className="flex flex-col gap-2 sm:flex-row"><Button asChild variant="outline" className="h-11"><Link href={orderReceiptHref(order)}>View receipt</Link></Button>{order.hasDownloads && <Button asChild variant="outline" className="h-11 gap-2"><Link href="/my-downloads"><FiDownload aria-hidden />View downloads</Link></Button>}</div>}
+              {['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(order.checkout?.state ?? '') && <Button asChild variant="outline" className="min-h-11"><Link href={orderReceiptHref(order)}>Payment details & support</Link></Button>}
             </div>}
           </li>;
         })}</ul> : !error && <div className="rounded-2xl border border-dashed border-border p-8 text-center"><FiPackage aria-hidden className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h2 className="text-lg font-semibold">No orders yet</h2><p className="mt-2 text-sm text-muted-foreground">Your purchases and demo receipts will appear here.</p><Button asChild className="mt-5 h-11"><Link href="/products">Browse products</Link></Button></div>}

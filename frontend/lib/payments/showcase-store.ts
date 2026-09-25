@@ -12,6 +12,7 @@ import { MEDIA_MODELS } from '@/lib/ai-media/policy';
 import { purchaseConfirmation, recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
 import { queueTransactionEmail } from './email-outbox';
 import { productPurchaseState } from '@/lib/product-purchase-state';
+import { checkoutExpiresAt } from './checkout-recovery-policy';
 
 const includeOrder = { Order: { include: { OrderItem: true } } } as const;
 function filesReady(files: { DigitalAsset: { isActive: boolean; mimeType: string } }[]) {
@@ -68,13 +69,16 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
 export async function beginShowcaseCheckout(userId: string, requestKey: string, expectedQuote?: string, consent?: DeliveryConsent) {
   const attempt = await prepareShowcaseCheckout(userId, requestKey, expectedQuote, consent);
   if (attempt.state === 'COMPLETED') return { orderId: attempt.orderId, completed: true };
+  if (['CANCELLED', 'CANCEL_PENDING'].includes(attempt.state)) throw new CheckoutError('ORDER_CANCELLED', 409);
+  if (attempt.state === 'CAPTURE_PENDING') throw new CheckoutError('PAYMENT_STATUS_UNCERTAIN', 409);
   if (['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(attempt.state)) throw new CheckoutError('ORDER_PAYMENT_ADJUSTED', 409);
   if (attempt.environment === 'DEMO') return { orderId: attempt.orderId, demo: true };
   // Never retry creation outside PayPal's shortest idempotency retention window.
-  if (Date.now() - attempt.createdAt.getTime() > 3_600_000) throw new CheckoutError('CHECKOUT_EXPIRED', 409);
+  if (Date.now() >= checkoutExpiresAt(attempt.createdAt).getTime()) throw new CheckoutError('CHECKOUT_EXPIRED', 409);
   if (attempt.approvalUrl) return { orderId: attempt.orderId, approvalUrl: attempt.approvalUrl };
   const created = await createPayPalOrder(attempt.orderId, attempt.quote as unknown as ShowcaseQuote, attempt.createRequestId);
-  await dbPrisma.checkoutAttempt.updateMany({ where: { orderId: attempt.orderId, state: 'PREPARED' }, data: { ...created, state: 'APPROVAL_PENDING' } });
+  const saved = await dbPrisma.checkoutAttempt.updateMany({ where: { orderId: attempt.orderId, state: 'PREPARED' }, data: { ...created, state: 'APPROVAL_PENDING' } });
+  if (saved.count !== 1) throw new CheckoutError('ORDER_CHANGED', 409);
   return { orderId: attempt.orderId, approvalUrl: created.approvalUrl };
 }
 
@@ -87,15 +91,30 @@ export async function completeShowcaseCheckout(orderId: string, userId: string, 
   const demo = attempt.environment === 'DEMO';
   if (demo !== isDemoUserId(userId) || (!demo && attempt.environment !== paypalEnvironment().mode)) throw new CheckoutError('WRONG_PAYMENT_ENVIRONMENT', 409);
   if (attempt.state === 'COMPLETED') return { orderId, alreadyCompleted: true };
+  if (capture && ['CANCELLED', 'CANCEL_PENDING'].includes(attempt.state)) throw new CheckoutError('ORDER_CANCELLED', 409);
   let proof: ReturnType<typeof verifyCapturedOrder> | undefined;
   if (!demo) {
     if (!attempt.paypalOrderId || !attempt.merchantId) throw new CheckoutError('PAYMENT_NOT_READY', 409);
     // Expired attempts may reconcile an existing capture, but never initiate a
     // new charge. Requiring same UTC date also preserves the daily purchase cap.
     const now = new Date();
-    const canCapture = capture && now.getTime() - attempt.createdAt.getTime() <= 3_600_000 &&
-      now.toISOString().slice(0, 10) === attempt.createdAt.toISOString().slice(0, 10);
-    const providerOrder = canCapture ? await capturePayPalOrder(attempt.paypalOrderId, attempt.captureRequestId) : await readPayPalOrder(attempt.paypalOrderId);
+    const canCapture = capture && now.getTime() < checkoutExpiresAt(attempt.createdAt).getTime();
+    if (canCapture) {
+      const claimed = await dbPrisma.checkoutAttempt.updateMany({ where: { orderId, userId, captureId: null,
+        state: { in: ['PREPARED', 'APPROVAL_PENDING', 'CAPTURE_PENDING'] } }, data: { state: 'CAPTURE_PENDING' } });
+      if (claimed.count !== 1) throw new CheckoutError('ORDER_CHANGED', 409);
+    }
+    let providerOrder;
+    try {
+      providerOrder = canCapture ? await capturePayPalOrder(attempt.paypalOrderId, attempt.captureRequestId) : await readPayPalOrder(attempt.paypalOrderId);
+    } catch (error) {
+      // This specific response proves capture was not attempted. Ambiguous
+      // network failures stay guarded until the same payment is reconciled.
+      if (canCapture && error instanceof CheckoutError && error.code === 'PAYMENT_NOT_APPROVED') {
+        await dbPrisma.checkoutAttempt.updateMany({ where: { orderId, state: 'CAPTURE_PENDING', captureId: null }, data: { state: 'APPROVAL_PENDING' } });
+      }
+      throw error;
+    }
     proof = verifyCapturedOrder(providerOrder, { paypalOrderId: attempt.paypalOrderId, merchantId: attempt.merchantId, orderId, totalOre: attempt.totalOre });
   }
   return dbPrisma.$transaction(async tx => {

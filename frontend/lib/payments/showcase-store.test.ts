@@ -3,15 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('./email-outbox', () => ({ queueTransactionEmail: m.email }));
 const m = vi.hoisted(() => ({ find: vi.fn(), fresh: vi.fn(), update: vi.fn(), lock: vi.fn(), account: vi.fn(), entry: vi.fn(),
-  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn(), adjust: vi.fn(), email: vi.fn() }));
+  files: vi.fn(), token: vi.fn(), order: vi.fn(), cart: vi.fn(), remove: vi.fn(), capture: vi.fn(), read: vi.fn(), transaction: vi.fn(), adjust: vi.fn(), email: vi.fn(), claim: vi.fn() }));
 vi.mock('@/lib/ai-credit-adjustment', () => ({ applyAiCreditDelta: m.adjust }));
 vi.mock('@/lib/db', () => ({ dbPrisma: {
-  checkoutAttempt: { findUnique: m.find }, $transaction: m.transaction,
+  checkoutAttempt: { findUnique: m.find, updateMany: m.claim }, $transaction: m.transaction,
 } }));
 vi.mock('./showcase-paypal', () => ({ capturePayPalOrder: m.capture, readPayPalOrder: m.read, paypalConfigured: () => true, createPayPalOrder: vi.fn() }));
 import { completeShowcaseCheckout } from './showcase-store';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
-import { quoteShowcaseCart } from './showcase-policy';
+import { CheckoutError, quoteShowcaseCart } from './showcase-policy';
 import { CHECKOUT_AGREEMENT_VERSION, recordCheckoutAgreement } from './checkout-agreement';
 
 const quote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1 }]);
@@ -29,6 +29,7 @@ describe('transactional checkout fulfillment', () => {
     vi.resetAllMocks(); vi.stubEnv('VERCEL', ''); vi.stubEnv('VERCEL_ENV', '');
     m.find.mockResolvedValue(attempt()); m.fresh.mockResolvedValue(attempt()); m.capture.mockResolvedValue(proof()); m.read.mockResolvedValue(proof());
     m.files.mockResolvedValue([]); m.cart.mockResolvedValue(null);
+    m.claim.mockResolvedValue({ count: 1 });
     m.transaction.mockImplementation(async callback => callback({
       $executeRaw: m.lock, checkoutAttempt: { findUniqueOrThrow: m.fresh, update: m.update },
       aiCreditAccount: { upsert: m.account }, aiCreditEntry: { create: m.entry }, digitalProductFile: { findMany: m.files },
@@ -58,6 +59,33 @@ describe('transactional checkout fulfillment', () => {
     const p = proof(); p.purchase_units[0].payments.captures[0].amount.value = '0.01'; m.capture.mockResolvedValue(p);
     await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('PAYMENT_BINDING_MISMATCH');
     expect(m.transaction).not.toHaveBeenCalled();
+  });
+  it.each(['CANCELLED', 'CANCEL_PENDING'])('never starts a capture after %s', async state => {
+    m.find.mockResolvedValue({ ...attempt(), state });
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('ORDER_CANCELLED');
+    expect(m.capture).not.toHaveBeenCalled(); expect(m.entry).not.toHaveBeenCalled();
+  });
+  it('does not capture if cancellation won the atomic state claim', async () => {
+    m.claim.mockResolvedValue({ count: 0 });
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('ORDER_CHANGED');
+    expect(m.capture).not.toHaveBeenCalled();
+  });
+  it('leaves uncertain capture outcomes protected against cancellation', async () => {
+    m.capture.mockRejectedValue(new Error('network interrupted'));
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('network interrupted');
+    expect(m.claim).toHaveBeenCalledOnce();
+    expect(m.claim.mock.calls[0][0].data.state).toBe('CAPTURE_PENDING');
+    expect(m.entry).not.toHaveBeenCalled();
+  });
+  it('releases the capture claim only when PayPal confirms no approval', async () => {
+    m.capture.mockRejectedValue(new CheckoutError('PAYMENT_NOT_APPROVED', 409));
+    await expect(completeShowcaseCheckout('order1', 'buyer1')).rejects.toThrow('PAYMENT_NOT_APPROVED');
+    expect(m.claim).toHaveBeenLastCalledWith({ where: { orderId: 'order1', state: 'CAPTURE_PENDING', captureId: null }, data: { state: 'APPROVAL_PENDING' } });
+  });
+  it('still reconciles independently verified funds after local cancellation without charging again', async () => {
+    m.find.mockResolvedValue({ ...attempt(), state: 'CANCELLED' }); m.fresh.mockResolvedValue({ ...attempt(), state: 'CANCELLED' });
+    await completeShowcaseCheckout('order1', 'buyer1', false);
+    expect(m.capture).not.toHaveBeenCalled(); expect(m.read).toHaveBeenCalledWith('PAYPAL1'); expect(m.entry).toHaveBeenCalledOnce();
   });
   it('grants exactly 10 credits for the small pack and never doubles it on replay', async () => {
     const small = { ...attempt(), totalOre: 900, quote: quoteShowcaseCart([

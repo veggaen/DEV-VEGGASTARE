@@ -40,11 +40,13 @@ export const OrderDtoSchema = z
     currency: z.string().nullable().optional(),
     status: z.nativeEnum(OrderStatus),
     fulfilmentStatus: z.string().optional(),
+    hasDownloads: z.boolean().optional(),
     // Read-only payment provenance. Never expose provider credentials or approval URLs.
     checkout: z.object({
       environment: z.enum(['DEMO', 'SANDBOX', 'LIVE']),
       state: z.string(),
       captureId: z.string().nullable(),
+      recovery: z.object({ canResume: z.boolean(), canCancel: z.boolean(), expired: z.boolean(), expiresAt: z.string() }).optional(),
     }).nullable().optional(),
     items: z.array(z.object({
       id: z.string(), title: z.string(), quantity: z.number().int(), priceAtTime: z.number().finite(),

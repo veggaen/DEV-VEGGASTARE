@@ -7,6 +7,10 @@ export function orderReceiptHref(order: Pick<OrderDto, 'id' | 'checkout'>) {
 
 export function orderStatusLabel(order: Pick<OrderDto, 'status' | 'checkout' | 'payment'>) {
   const checkout = order.checkout;
+  if (checkout?.state === 'CANCELLED') return 'Cancelled';
+  if (checkout?.state === 'CANCEL_PENDING') return 'Cancellation pending';
+  if (checkout?.state === 'CAPTURE_PENDING') return 'Checking payment';
+  if (checkout?.recovery?.expired) return 'Payment expired';
   if (checkout?.state === 'REFUNDED') return 'Refunded';
   if (checkout?.state === 'REVERSED') return 'Payment reversed';
   if (checkout?.state === 'PAYMENT_REVIEW') return 'Payment under review';

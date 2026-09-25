@@ -7,6 +7,59 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('unpaid order recovery confirms cancellation and resumes the same purchase', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_ORDER_RECOVERY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Focused recovery audit; all payment mutations mocked');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [], actions: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const order = { id: 'qa-recovery-order', userId: 'qa', totalAmount: 9, currency: 'NOK', status: 'PENDING',
+    fulfilmentStatus: 'UNFULFILLED', transactionId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    checkout: { environment: 'SANDBOX', state: 'APPROVAL_PENDING', captureId: null,
+      recovery: { canResume: true, canCancel: true, expired: false, expiresAt: new Date(Date.now() + 3_600_000).toISOString() } },
+    items: [{ id: 'line', title: 'Veggat AI Credits · 10 credits', quantity: 1, priceAtTime: 9 }], hasDownloads: false };
+  let failCancellation = true;
+  await page.route('**/api/orders/user/*', route => route.fulfill({ json: [order] }));
+  await page.route('**/api/checkout/qa-recovery-order/recovery', async route => {
+    const { action } = route.request().postDataJSON(); actions.push(action);
+    if (action === 'resume') return route.fulfill({ json: { nextUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=QA' } });
+    if (failCancellation) { failCancellation = false; return route.fulfill({ status: 409, json: { error: 'PAYMENT_STATUS_UNCERTAIN' } }); }
+    order.status = 'CANCELLED'; order.checkout.state = 'CANCELLED';
+    order.checkout.recovery.canResume = false; order.checkout.recovery.canCancel = false;
+    return route.fulfill({ json: { cancelled: true } });
+  });
+  await page.route('https://www.sandbox.paypal.com/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>Mock PayPal approval</h1>' }));
+  try {
+    await page.goto('/my-orders', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Continue payment', exact: true })).toBeVisible();
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    for (const [width, height] of [[360,800],[390,844],[844,390],[1024,1600],[1280,800],[2560,1440]]) {
+      await page.setViewportSize({ width, height });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const button = await page.getByRole('button', { name: 'Continue payment', exact: true }).boundingBox();
+      expect(button!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: info.outputPath(`orders-${width}.png`) });
+    }
+    await page.getByRole('button', { name: 'Continue payment', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Mock PayPal approval' })).toBeVisible();
+    expect(actions).toEqual(['resume']);
+    await page.goto('/my-orders', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Cancel unpaid order', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep order', exact: true }).click();
+    expect(actions).toEqual(['resume']);
+    await page.getByRole('button', { name: 'Cancel unpaid order', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm cancellation', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'PayPal has not confirmed' })).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm cancellation', exact: true }).click();
+    await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue payment', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: /Order #/ }).click();
+    await expect(page.getByRole('link', { name: 'View receipt', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'View downloads', exact: true })).toHaveCount(0);
+    expect(actions).toEqual(['resume', 'cancel', 'cancel']); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('media Studio adapts across screens and preserves one request through network recovery', async ({browser,baseURL},info)=>{
   test.skip(process.env.E2E_MEDIA!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Focused Studio audit; paid providers always mocked');
   test.setTimeout(180_000);

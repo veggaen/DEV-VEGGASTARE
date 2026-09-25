@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 import { OrdersListResponseSchema } from '@/lib/types/orders';
+import { checkoutRecovery } from '@/lib/payments/checkout-recovery-policy';
+import { paypalEnvironment } from '@/lib/payments/showcase-policy';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -47,7 +49,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         },
         include: {
           Payment: true,
-          CheckoutAttempt: { select: { environment: true, state: true, captureId: true } },
+          CheckoutAttempt: { select: { environment: true, state: true, captureId: true, createdAt: true } },
+          _count: { select: { DownloadToken: true } },
           OrderItem: { select: { id: true, title: true, quantity: true, priceAtTime: true } },
         },
         take: 100, // Pagination limit for safety
@@ -80,7 +83,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
           totalAmount: o.totalAmount,
           currency: o.currency ?? null,
           fulfilmentStatus: o.fulfilmentStatus,
-          checkout: o.CheckoutAttempt ?? null,
+          checkout: o.CheckoutAttempt ? {
+            environment: o.CheckoutAttempt.environment, state: o.CheckoutAttempt.state, captureId: o.CheckoutAttempt.captureId,
+            recovery: checkoutRecovery(o.CheckoutAttempt, paypalEnvironment().mode),
+          } : null,
+          hasDownloads: o._count.DownloadToken > 0 && o.CheckoutAttempt?.state === 'COMPLETED',
           items: o.OrderItem,
           status: o.status,
           transactionId: o.transactionId ?? null,
