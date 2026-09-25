@@ -113,11 +113,24 @@ and protected email-job requests. Real Chrome confirms the existing paid
 receipt still truthfully reports unavailable delivery confirmation; no
 historical status was backfilled.
 
-The new Resend endpoint has no events yet. Its available actions do not expose
-a no-email test; replay requires an existing webhook event. A genuine
-provider-originated delivery callback and replay remain unverified. A future
-ordinary email or a separately approved synthetic test can supply that evidence;
-configuration and rejection checks are not end-to-end delivery acceptance.
+## First genuine callback and replay
+
+A later read of the authenticated Resend dashboard found a genuine
+`email.bounced` event, received at 04:30:35.900 UTC on 25 September. It concerns
+an older registration test addressed to an invalid test domain, not the owner's
+Gmail address or a paid receipt. The endpoint returned HTTP 200 with
+`{"received":true}`. Replaying that existing event once increased attempts from
+one to two, again HTTP 200. This action sent webhook metadata only; it did not
+send/resend an email, modify the webhook or expose its secret.
+
+A scoped production query enforced `BEGIN READ ONLY` and
+`default_transaction_read_only=on`: the registration provider ID matches zero
+transactional receipt rows. The paid artwork receipt still has one send attempt,
+`ACCEPTED_UNCONFIRMED` and null delivery-event fields. The unrelated event was
+therefore not misapplied to a receipt. This verifies genuine signed-event
+transport and safe unmatched replay, **not** matched receipt delivery or its
+duplicate-update path. Those remain pending a relevant ordinary email or an
+explicitly approved test; historical SMTP evidence is not backfilled.
 
 ## Boundaries
 

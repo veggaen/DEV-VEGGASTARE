@@ -38,6 +38,14 @@
   visually inspected. The testing skill informed the focused regression
   workflow instead of a full unrelated E2E run.
 
-Live deployment and acceptance pending. This does not prove real wallet
-signing or production crypto checkout. Challenge, account-binding and mutation
-security acceptance remains a separate next slice.
+Source `33cf187` is READY and promoted to `https://www.veggat.com` as
+`dpl_FcLbY8X9CWFBrbqA7e9hE5MpwDc8`. Remote build/TypeScript passes, with
+53 migrations and none pending. Candidate and Live health pass. The identical
+Live batch **9/9 passes**, 39.4s, no retries/skips. Real Chrome verifies the
+owner's two saved verified wallets and unchanged primary selection before
+and after Refresh. No wallet signing, metadata/payout edit or transfer was
+performed. Separate standalone TypeScript checking passes after the test edits.
+
+This does not prove real wallet signing or production crypto checkout.
+Challenge, account-binding and mutation security acceptance remains a separate
+next slice.

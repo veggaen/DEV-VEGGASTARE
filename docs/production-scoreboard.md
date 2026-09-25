@@ -4,12 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Wallet read/cache safety: **PARTIAL — local acceptance passes**. Wallet listing
+Wallet read/cache safety: **DONE for this focused local/Live slice**. Wallet listing
 no longer assigns a primary/payout destination; the unused automatic metadata
 writer is retired. Malformed browser cache entries no longer crash navigation,
 and cached database IDs/proof are discarded. 50 units, one isolated PostgreSQL
 concurrency check, strict build and touched lint pass. Focused local browser
-**9/9** passes (17.9s, no retries/skips). Live acceptance pending. No customer
+**9/9** passes (17.9s, no retries/skips). Source `33cf187` is READY and promoted
+as `dpl_FcLbY8X9CWFBrbqA7e9hE5MpwDc8`; Live **9/9** passes (39.4s,
+no retries/skips). Real Chrome Refresh preserves both owner wallets and the
+primary choice; candidate and Live health pass. No customer
 wallet, payout destination, email or payment changed. Challenge/account-binding
 and mutation security remain to audit; real crypto checkout is not accepted.
 See [wallet read/cache evidence](wallet-read-cache-evidence-2026-09.md).
@@ -90,8 +93,10 @@ Real Chrome confirms the paid receipt is unchanged. Following explicit owner
 confirmation, the five-event Resend webhook is enabled and its signing secret
 is saved as a Vercel Secret for Production only. Runtime activation is verified
 on `399cb29`: unsigned callbacks return 401 and oversized payloads 413, both
-no-store. The new endpoint has no events; genuine provider callback/replay
-acceptance remains pending. No paid purchase,
+no-store. A subsequent genuine registration-bounce event and one replay both
+return HTTP 200; its unrelated provider ID matches no transactional receipt.
+Read-only production inspection confirms the paid receipt remains unchanged.
+Matched receipt-delivery/replay acceptance remains pending. No paid purchase,
 refund or customer email resend occurred. See [delivery evidence](email-delivery-events-2026-09.md).
 
 First-download reminder: **local and Live acceptance DONE for this UI slice**.
