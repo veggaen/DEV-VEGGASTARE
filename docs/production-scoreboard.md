@@ -4,6 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Personal payment loading: **DONE for this scoped slice; full S6 remains PARTIAL**.
+Runtime `0a9372f` is promoted as `dpl_3BBG14nUjk62GL6WksePop6uQ1Tv`. One
+owner-checked snapshot replaces the separate EVM-only request; eligible families,
+Web3-off state, bounded loading/retry and unsaved email drafts are handled together.
+Five failures reproduced before the fix; final **86/86** focused units, strict
+builds, touched lint and local/Preview/Live browser **5/5** each pass with no
+retries/skips. Real Chrome verifies unchanged owner payout details and phone
+scrolling/layout. No email or wallet change submitted. See
+[personal payment evidence](personal-payment-read-evidence-2026-09.md).
+
 Company receiving wallets: **DONE for the scoped implementation/deployment;
 genuine extension/crypto-payment acceptance remains PARTIAL**. Runtime `e5feb4c`
 is promoted as `dpl_4R6K4gm5vduADBLBH8tx4uJgETrC`. Verified company and current-owner
