@@ -22,13 +22,13 @@ const WalletConnectChooser = dynamic(() => import('@/components/crypto-related/W
 const AppKitSignInBridge = dynamic(() => import('@/components/crypto-related/AppKitSignInBridge'), { ssr: false });
 
 import { useClientReady } from '@/hooks/use-client-ready';
+import { authErrorMessage } from '@/lib/auth-errors';
 
 export default function LoginPage() {
   const ready = useClientReady();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
-  const urlError = searchParams.get('error') === 'OAuthAccountNotLinked'
-    ? 'This email uses a different sign-in method. Sign in using the method you originally chose, then manage linked accounts in Settings.' : '';
+  const urlError = authErrorMessage(searchParams.get('error'));
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [error, setError] = useState<string | undefined>('');
   const [success, setSuccess] = useState<string | undefined>('');
@@ -52,6 +52,7 @@ export default function LoginPage() {
 
   return <AuthPageShell title="Sign in to Veggat" description={<>New here? <Link href="/auth/register" className="font-medium text-foreground underline underline-offset-4">Create an account</Link></>}>
     {IS_WEB3_CONFIGURED && <AppKitSignInBridge />}
+    {urlError && !error && !success && !showTwoFactor && <div className="mb-4"><MyFormError message={urlError} /></div>}
     {!showTwoFactor && <><MySocialAuth /><div className="my-6 flex items-center gap-3 text-sm text-muted-foreground"><span className="h-px flex-1 bg-border" />or continue with email<span className="h-px flex-1 bg-border" /></div></>}
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" aria-busy={!ready || isPending}>
@@ -69,7 +70,7 @@ export default function LoginPage() {
           </FormItem>} />
           <Link href="/auth/reset" className="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring">Forgot password?</Link>
         </>}
-        <MyFormError message={error || urlError} /><MyFormSuccess message={success} />
+        <MyFormError message={error} /><MyFormSuccess message={success} />
         <div className="sticky bottom-0 z-10 bg-background py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <Button type="submit" disabled={!ready || isPending || Boolean(success)} className="h-12 w-full text-base" variant="vegaEmeraldBtn">
             {isPending ? (showTwoFactor ? 'Verifying…' : 'Signing in…') : (showTwoFactor ? 'Verify Code' : 'Sign in')}

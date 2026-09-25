@@ -91,11 +91,17 @@ skips). The unsigned callback returns 503/no-store as intended while unconfigure
 Real Chrome reloaded the paid artwork receipt: Completed, original capture and
 unconfirmed-email status are unchanged. No additional private-file request,
 refund or resend was made. These scoped checks do not certify the entire app.
-Provider registration is **not yet complete**.
-The Resend form is prepared with five delivery-event types but remains unsaved.
-Creating its signing secret and sending metadata to the app requires action-time
-owner confirmation, requested on 25 September. The existing sending API key is
-not replaced or broadened. No new signing secret has been created or saved.
+The owner explicitly confirmed provider registration on 25 September. Resend
+webhook `f983b0a1-1e95-4949-9329-611914681e23` is now enabled for
+`https://www.veggat.com/api/webhooks/resend`, listening only for bounced,
+complained, delivered, failed and suppressed events. Its new signing secret was
+transferred through the real Chrome UI into Vercel as `RESEND_WEBHOOK_SECRET`,
+type Secret, **Production only**; Preview and Development were visibly unchecked.
+The value was never printed or written into local configuration, and transient
+secret variables were cleared. Vercel confirms saving succeeded and requires a
+new deployment. The existing sending API key is unchanged. No email was sent or
+resent. Runtime activation and a provider-originated callback remain pending;
+configuration alone is not end-to-end acceptance.
 
 ## Boundaries
 

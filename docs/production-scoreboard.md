@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Live Google and GitHub: **DONE for the existing-account login round trips**.
+Real Chrome logout → provider button → signed-in app succeeds for both on
+`38d22c9`; the restored GitHub session can still read the existing paid receipt.
+Discord initiation reaches the correct Live callback/S256 consent screen;
+new permission was not granted. Cancellation exposed missing login feedback.
+The shared allowlisted error-message fix has 36 passing units, touched lint and
+a passing strict build. Two local browser checks pass (9.9s): seven error codes,
+390/1280 widths, both themes, rendered contrast >=4.5:1 and recovery navigation.
+Live acceptance is pending deployment. No account link, payment,
+refund or extra download was performed. See [OAuth evidence](oauth-feedback-2026-09.md).
+
 Receipt delivery evidence: **PARTIAL — authenticated provider evidence obtained;
 signed callback implementation deployed and scoped local/Preview/Live checks pass**. The real Resend dashboard
 confirms receiving-server acceptance of the paid artwork's original receipt at
@@ -20,8 +31,10 @@ candidate health and missing-secret 503/no-store. Production
 Both environments have 53 additive migrations. Live receipt/job checks pass
 2/2 (7.8s, no retries/skips), after preparing a missing receipt through normal
 free-demo checkout; Live health and unconfigured-callback 503/no-store pass.
-Real Chrome confirms the paid receipt is unchanged. The provider signing secret
-is not yet configured; action-time owner confirmation has been requested. No paid purchase,
+Real Chrome confirms the paid receipt is unchanged. Following explicit owner
+confirmation, the five-event Resend webhook is enabled and its signing secret
+is saved as a Vercel Secret for Production only. Runtime deployment and a
+provider-originated callback remain pending. No paid purchase,
 refund or customer email resend occurred. See [delivery evidence](email-delivery-events-2026-09.md).
 
 First-download reminder: **local and Live acceptance DONE for this UI slice**.
@@ -1385,8 +1398,9 @@ member-to-member delivery remains separate from the mocked error test.
 | --- | --- | --- |
 | Auth | Email login, session | DONE — current local/live browser round trips, revoked sessions rejected |
 | Auth | Register, reset/verify, logout | DONE — current local/live UI round trips and token replay protection; human inbox delivery not independently confirmed |
-| Auth | Google | PARTIAL — owner completed normal Chrome locally; automated browser blocked by Google |
-| Auth | GitHub, Discord | PARTIAL — initiation checked, full consent/callback pending |
+| Auth | Google | DONE for existing-account local/Live real-Chrome sign-in and logout; automated-browser restriction remains, not bypassed |
+| Auth | GitHub | DONE for existing-account local/Live real-Chrome sign-in and logout; separate email/trust-badge confirmation is not claimed |
+| Auth | Discord | PARTIAL — correct Live callback/S256 consent screen and safe cancellation observed; positive local/Live callback/link requires explicit owner consent |
 | Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |

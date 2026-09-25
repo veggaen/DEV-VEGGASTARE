@@ -7,6 +7,70 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+for (const colorScheme of ['light', 'dark'] as const) test(`S2 provider cancellation and callback errors explain recovery without leaking details (${colorScheme})`, async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_AUTH_FEEDBACK !== '1', 'Public error-state checks; no OAuth consent or account changes');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, reducedMotion: 'reduce', colorScheme });
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    for (const [width, height] of [[390,844], [1280,800]]) {
+      await page.setViewportSize({ width, height });
+      for (const [code, message] of [
+        ['OAuthCallbackError', 'Sign-in did not finish. Try again or choose another method.'],
+        ['AccessDenied', 'Sign-in was cancelled or access was not granted. Choose a method to try again.'],
+        ['InvalidCheck', 'Your sign-in session expired. Please start again.'],
+        ['Configuration', 'This sign-in method is temporarily unavailable. Please choose another method.'],
+        ['OAuthAccountNotLinked', 'This email uses a different sign-in method.'],
+        ['__proto__', 'Sign-in did not finish. Try again or choose another method.'],
+        ['private-provider-detail', 'Sign-in did not finish. Try again or choose another method.'],
+      ]) {
+        await page.goto(`/auth/login?error=${encodeURIComponent(code)}`, { waitUntil: 'domcontentloaded' });
+        if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) {
+          await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+        }
+        const alert = page.getByRole('main').getByRole('alert');
+        await expect(alert).toHaveCount(1); await expect(alert).toContainText(message);
+        await expect(alert).toHaveAttribute('aria-live', 'polite');
+        const contrast = await alert.evaluate(element => {
+          // Composite translucent backgrounds; canvas resolves CSS Color 4 into sRGB.
+          const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+          const ctx = canvas.getContext('2d')!;
+          ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1);
+          const ancestors: Element[] = [];
+          for (let node: Element | null = element; node; node = node.parentElement) ancestors.unshift(node);
+          for (const node of ancestors) { ctx.fillStyle = getComputedStyle(node).backgroundColor; ctx.fillRect(0, 0, 1, 1); }
+          const background = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+          ctx.fillStyle = getComputedStyle(element).color; ctx.fillRect(0, 0, 1, 1);
+          const foreground = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+          const luminance = (values: number[]) => values.map(v => v / 255)
+            .map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
+            .reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+          const a = luminance(background), b = luminance(foreground);
+          return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+        });
+        expect(contrast).toBeGreaterThanOrEqual(4.5);
+        const google = page.getByRole('button', { name: 'Continue with Google', exact: true });
+        for (const provider of ['Google', 'GitHub', 'Discord']) {
+          await expect(page.getByRole('button', { name: `Continue with ${provider}`, exact: true })).toBeEnabled();
+        }
+        const messageBox = (await alert.boundingBox())!, providerBox = (await google.boundingBox())!;
+        expect(messageBox.y + messageBox.height).toBeLessThanOrEqual(providerBox.y);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (code === 'OAuthCallbackError') await page.screenshot({ path: info.outputPath(`auth-feedback-${width}.png`) });
+        if (code === 'private-provider-detail') await expect(page.getByRole('main')).not.toContainText(code);
+      }
+      await page.getByRole('link', { name: 'Forgot password?', exact: true }).click();
+      await expect(page).toHaveURL(/\/auth\/reset$/);
+    }
+    await page.goto('/auth/error?error=__proto__', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('Sign-in did not finish. Try again or choose another method.', { exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Back to login', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login$/); await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 async function confirmFirstDownload(page: Page) {
   const reminder = page.getByRole('dialog', { name: 'Before you download', exact: true });
   if (await reminder.isVisible()) await reminder.getByRole('button', { name: 'Download file', exact: true }).click();
