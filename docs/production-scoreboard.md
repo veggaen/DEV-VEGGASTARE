@@ -16,11 +16,17 @@ resumed from history on local and Preview, then cancelled with no captures,
 credits or downloads granted. The five-minute throttle was respected, not reset.
 See [order recovery evidence](order-recovery-2026-09.md).
 
-Permanent purchase copy: **local verified; deployment pending**. Purchase record
+Permanent purchase copy: **local, Live and Preview verified**. Purchase record
 version `2026-09-25.1` removes stale reviewer/test-product descriptions, identifies
 Fjord Study and Veggat AI Credits, and includes the shipped image/video allowance.
 Published consumer-rights clauses are unchanged; historical records retain their
-original text. 81 focused tests, lint, strict build and public terms browser check pass.
+original text. 81 focused tests, lint and strict builds pass. Source `210660a` is
+promoted to Production `dpl_HYFrgsVnPvkNwHZdnvcZFbP4zDUj` and stable Preview
+`dpl_F8jw2vSa7wh9VAxF7Ze3E76LunkH`; both candidate health checks passed.
+The public terms browser check passes locally, Live and Preview: eight viewport
+sizes, no JavaScript required, current downloadable terms and stale-version rejection.
+Artifacts: `test-results-release-product-terms-{local,live,preview}`. No extra
+payment, credit grant or provider generation was made during these release checks.
 
 AI Studio: **DONE for bounded image/video generation locally and Live**.
 Source `2579e7e`, deployment `dpl_CXhgmxsb5YnFy3Jofmk9YqD691uH`.
