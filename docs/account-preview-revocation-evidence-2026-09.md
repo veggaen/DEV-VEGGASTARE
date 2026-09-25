@@ -44,8 +44,34 @@ This follows the server-side invalidation principle in the
   denial, browser-only preview recovery, keyboard return and account/settings
   regression at eight sizes. Real Chrome still renders the existing signed-in
   local Account Settings; no setting was changed.
-- Migration applied only to the isolated Preview database so far. Production
-  deployment is pending. No customer preview or provider/payment call was made.
+- Both Preview and production remote builds pass. The additive migration is
+  applied in both databases, bringing the migration count to 54. No customer
+  preview, provider generation, payment or email was triggered.
+
+## Deployed acceptance
+
+Runtime `bd0b5ad`:
+
+- Isolated Preview `dpl_DNE14atBGx9dJrX3PbAie3jQAhCb`, immutable
+  `https://dev-veggastare-anukbsuu6-v3ggas-projects.vercel.app`, is assigned to
+  the existing Sandbox alias. Health reports healthy. Light 3/3 and dark 3/3
+  pass, zero skips/retries. An initial runner launch used the repository root
+  instead of frontend and executed no tests; the corrected runs are these results.
+- Production `dpl_fb63nooZX4SXo5c4EMVeK4cLewZt`, immutable
+  `https://dev-veggastare-pvmmbj8q3-v3ggas-projects.vercel.app`, passed its health
+  check before promotion. CLI inspection confirms `www.veggat.com` resolves to
+  this release. Live light 3/3 and dark 3/3 pass, zero skips/retries.
+- Connected real Chrome reloads the existing Live OWNER account detail page
+  successfully, preserving its read-only controls. No customer account was
+  impersonated or edited. No viewport override was left active.
+- Hosted tests exercise actual anonymous/demo denial and browser-only recovery
+  fixtures. Positive replay/revocation acceptance uses actual local HTTP/Auth.js
+  with disposable principals, not a production customer.
+- Staged redacted secret scan passes for these changes only. No public GitHub
+  push was made; historical repository remediation remains separate.
+
+Ignored artifacts: `frontend/test-results-release-preview-revocation-*` and
+`frontend/test-results-release-impersonation-http`.
 
 ## Limits
 

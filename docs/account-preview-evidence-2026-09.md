@@ -107,12 +107,14 @@ This is a scoped security improvement, not completion of the full account audit.
 Real customer owner-to-member UI acceptance remains unperformed; the actual UI
 flow is covered locally with disposable test principals. Known side-effectful GET
 paths are denied; the remaining read handlers still need broader review.
-Ending preview replaces the current cookie; a copied encrypted preview token is
-not individually revoked by that action and remains bounded by the absolute
-deadline and both credential versions. Per-preview server-side revocation is a
-separate enhancement. Old preview cookies without the new proof fields expire
-on validation; ordinary sessions are not intentionally invalidated.
+The original release only replaced the current cookie on End Preview. That
+copied-token gap is now closed by a durable server grant in runtime `bd0b5ad`;
+see [follow-up revocation evidence](account-preview-revocation-evidence-2026-09.md).
+Ordinary Sign Out is not covered by that stronger End transaction. Old preview
+cookies without the current proof fields expire on validation; ordinary sessions
+are not intentionally invalidated.
 
-Privileged user-detail edits/deletion, verified email replacement and retention-
-safe erasure remain separate unfinished work. No production customer was
-impersonated, deleted, emailed or charged by these checks.
+Privileged profile/role edits were subsequently hardened in `f4e1343`; see
+[admin detail evidence](admin-user-detail-evidence-2026-09.md). Verified email
+replacement and retention-safe erasure remain unfinished. No production customer
+was impersonated, deleted, emailed or charged by these checks.
