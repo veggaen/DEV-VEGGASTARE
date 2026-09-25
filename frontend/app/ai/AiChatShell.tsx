@@ -42,11 +42,12 @@ export function AiChatShell({
   const { prefs } = useUiPreferences();
   const overlay = prefs.aiChatLayout === "overlay";
   const pathname = usePathname();
+  const studio = pathname === '/ai/studio';
   const router = useRouter();
   const confirm = useConfirm();
 
   const [query, setQuery] = React.useState("");
-  const list = useAiSessionList(isLoggedIn, query);
+  const list = useAiSessionList(isLoggedIn && !studio, query);
   const { refresh, update } = list;
   const [creating, setCreating] = React.useState(false);
   // Drawer open state (used in overlay mode + on mobile).
@@ -131,6 +132,8 @@ export function AiChatShell({
   // Persistent (desktop): rail docked. Overlay or mobile: rail is a drawer.
   const docked = !overlay;
 
+  if (studio) return <div className="mx-auto h-[calc(100dvh-var(--app-header-offset,64px)-var(--demo-notice-height,0px))] w-full max-w-[1280px] min-w-0">{children}</div>;
+
   return (
     <div className="relative mx-auto flex h-[calc(100dvh-var(--app-header-offset,64px)-var(--demo-notice-height,0px))] w-full max-w-[1280px] min-h-0 min-w-0 overflow-hidden">
       {docked && <aside className="hidden shrink-0 flex-col border-r border-border bg-background/60 lg:flex" style={{ width: RAIL_W }}>{rail}</aside>}
@@ -179,6 +182,7 @@ function AiChatRail({
 }) {
   return (
     <nav aria-label="AI conversations" className="flex flex-col h-full min-h-0">
+      <Link href="/ai/studio" className="mx-3 mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline">Images & video</Link>
       {/* Header: New chat */}
       <div className="flex gap-2 p-3 pb-2">
         <button

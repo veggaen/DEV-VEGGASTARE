@@ -128,8 +128,35 @@ model AiGenerationReservation {
   createdAt        DateTime @default(now())
   settledAt        DateTime?
   Account          AiCreditAccount? @relation(fields: [accountId], references: [id])
+  MediaJob         AiMediaJob?
 
   @@index([accountId, state, createdAt])
+}
+
+// Durable media state. Provider/storage URLs never leave authenticated server routes.
+model AiMediaJob {
+  id               String   @id
+  reservationId    String   @unique
+  userId           String
+  environment      String
+  kind             String
+  model            String
+  prompt           String
+  state            String   @default("CREATING")
+  providerId       String?  @unique
+  storageKey       String?
+  mimeType         String?
+  byteSize         Int?
+  actualMicroUsd   Int?
+  errorCode        String?
+  pollAfter        DateTime @default(now())
+  deadline         DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  Reservation      AiGenerationReservation @relation(fields: [reservationId], references: [id])
+
+  @@index([userId, environment, createdAt])
+  @@index([state, pollAfter])
 }
 
 model Account {

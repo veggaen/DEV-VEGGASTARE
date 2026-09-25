@@ -8,6 +8,7 @@ import { capturePayPalOrder, createPayPalOrder, paypalConfigured, readPayPalOrde
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
 import { creditSaleEconomics, DAILY_PURCHASE_CAP_ORE } from '@/lib/ai-credit-purchase';
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
+import { MEDIA_MODELS } from '@/lib/ai-media/policy';
 import { purchaseConfirmation, recordCheckoutAgreement, type DeliveryConsent } from './checkout-agreement';
 import { queueTransactionEmail } from './email-outbox';
 import { productPurchaseState } from '@/lib/product-purchase-state';
@@ -41,7 +42,7 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
     if (expectedQuote !== undefined && expectedQuote !== JSON.stringify(quote)) throw new CheckoutError('CART_CHANGED', 409);
     const agreement = recordCheckoutAgreement(quote, consent, environment === 'DEMO');
     for (const line of quote.lines) {
-      if (line.credits && (!pricingIsReviewed() || !creditSaleEconomics(line.credits, FUNDED_AI_MODELS).eligible)) {
+      if (line.credits && (!pricingIsReviewed() || !creditSaleEconomics(line.credits, [...FUNDED_AI_MODELS, ...Object.values(MEDIA_MODELS)]).eligible)) {
         throw new CheckoutError('CREDIT_SALES_PAUSED', 503);
       }
     }

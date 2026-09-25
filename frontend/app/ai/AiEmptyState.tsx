@@ -11,6 +11,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
+import Link from 'next/link';
 
 const STARTERS = [
   { icon: "✎", label: "Draft & rewrite", prompt: "Help me draft a clear, friendly product announcement." },
@@ -89,6 +90,7 @@ export function AiEmptyState({ userName }: { userName: string | null }) {
         >
           {busy ? "Starting…" : "Start a blank chat"}
         </button>
+        <Link href="/ai/studio" className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline">Create images & video</Link>
       </motion.div>
     </div>
   );

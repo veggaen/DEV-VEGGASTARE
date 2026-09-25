@@ -25,7 +25,7 @@ const products = [
   },
   {
     id: 'cveggatinterviewcredits01', title: 'Veggat AI Credits', price: 39, category: 'AI credits',
-    description: 'Prepaid text chat for questions, writing, and coding inside Veggat. Choose credits or enter a budget; the amount updates automatically. Model availability and the credit cost are shown before each message. No subscription or automatic top-ups. Image and video generation are not included.',
+    description: 'One prepaid balance for AI chat, image generation, and short videos inside Veggat. Ask questions, refine writing, work through code, or create in AI Studio. Choose credits or enter a budget; the amount updates automatically. Availability and credit costs are shown before generation. No subscription or automatic top-ups.',
     images: ['/showcase/credits-cover-v2.jpg'],
     features: [{ text: 'Choose credits or a spending budget' }, { text: 'No subscription or automatic top-ups' }, { text: 'Usage is bounded by your available balance' }],
     specifications: [{ key: 'Included', value: 'Your selected credit amount' }, { key: 'Billing', value: 'One-time, no auto-renewal' }, { key: 'Price', value: 'Calculated from your selection' }],

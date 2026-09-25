@@ -7,6 +7,69 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('media Studio adapts across screens and preserves one request through network recovery', async ({browser,baseURL},info)=>{
+  test.skip(process.env.E2E_MEDIA!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Focused Studio audit; paid providers always mocked');
+  test.setTimeout(180_000);
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,reducedMotion:'reduce'});
+  const page=await context.newPage(),errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  type MediaFixture={id:string;kind:string;state:string;prompt:string;credits:number;createdAt:string;errorCode:string|null;contentUrl:string|null};
+  const workspace={balance:90,isDemo:false,jobs:[] as MediaFixture[],options:[{kind:'IMAGE',available:true},{kind:'VIDEO',available:true}]};
+  const requests:Array<{requestId:string;kind:string;prompt:string}>=[];
+  await page.route('**/api/ai-media',async route=>{
+    if(route.request().method()==='GET')return route.fulfill({json:workspace});
+    const input=route.request().postDataJSON();requests.push(input);
+    if(requests.length===1)return route.abort('failed');
+    workspace.jobs=[{id:input.requestId,kind:input.kind,state:'PROCESSING',prompt:input.prompt,credits:6,createdAt:new Date().toISOString(),errorCode:null,contentUrl:null}];
+    workspace.balance=84;return route.fulfill({status:202,json:{job:workspace.jobs[0]}});
+  });
+  try {
+    await page.goto('/ai/studio',{waitUntil:'domcontentloaded'});
+    if(!await page.evaluate(()=>localStorage.getItem('veggat:cookieConsent')))await page.getByRole('button',{name:'Essential Only',exact:true}).click();
+    await expect(page.getByRole('link',{name:'90 credits',exact:true})).toBeVisible();
+    const idea=page.getByRole('textbox',{name:'Your idea',exact:true});await idea.fill('A quiet lake at sunrise');
+    for(const theme of ['dark','light'] as const){
+      await page.emulateMedia({colorScheme:theme});
+      for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1600],[1280,800],[1920,1080],[2560,1440]]){
+        await page.setViewportSize({width,height});await page.locator('[data-media-studio]').evaluate(e=>e.scrollTo({top:0,behavior:'instant'}));
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&[...document.querySelectorAll('[data-media-studio]')].every(e=>e.scrollWidth<=e.clientWidth))).toBe(true);
+        const form=(await page.getByRole('form',{name:'Create media'}).boundingBox())!;
+        const preview=(await page.getByRole('region',{name:'Generation result'}).boundingBox())!;
+        if(width>=1280){expect(preview.x).toBeGreaterThan(form.x);expect(form.width).toBeGreaterThan(390);await expect(page.getByRole('button',{name:'Generate image',exact:true})).toBeInViewport();}
+        else expect(preview.y).toBeGreaterThan(form.y);
+        if([390,1024,1280,2560].includes(width))await page.screenshot({path:info.outputPath(`media-${theme}-${width}.png`)});
+      }
+    }
+    await page.setViewportSize({width:1280,height:800});
+    await page.getByRole('button',{name:'Generate image',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:/fetch|connect|network/i})).toBeVisible();
+    await page.getByRole('button',{name:'Generate image',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Creating your image…',exact:true})).toBeVisible();
+    expect(requests).toHaveLength(2);expect(requests[0].requestId).toBe(requests[1].requestId);
+    expect(Object.keys(requests[1]).sort()).toEqual(['kind','prompt','requestId']);
+    workspace.jobs[0].state='FAILED';workspace.jobs[0].errorCode='MEDIA_PROVIDER_FAILED';workspace.balance=90;
+    await page.getByRole('button',{name:'Refresh generations',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Couldn’t finish this generation',exact:true})).toBeVisible();
+    await expect(page.getByRole('link',{name:'90 credits',exact:true})).toBeVisible();
+    workspace.balance=0;await page.getByRole('button',{name:'Refresh generations',exact:true}).click();
+    await expect(page.getByRole('link',{name:'Buy credits',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Generate image',exact:true})).toHaveCount(0);
+    await page.getByRole('radio',{name:'Video',exact:true}).check();await expect(page.getByText('80 credits',{exact:true})).toBeVisible();
+    expect(requests).toHaveLength(2);expect(errors).toEqual([]);
+  } finally {await context.close();}
+});
+
+test('media endpoints reject anonymous access and another account cannot download generated files',async({browser,baseURL})=>{
+  test.skip(process.env.E2E_MEDIA!=='1'||!process.env.E2E_DEMO_STORAGE_STATE,'Focused Studio access audit');
+  const anonymous=await browser.newContext({baseURL});const demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try{
+    expect((await anonymous.request.get('/api/ai-media')).status()).toBe(401);
+    const id='36c12b80-5705-454e-a5df-199d8dd1fc38';
+    expect((await anonymous.request.get(`/api/ai-media/${id}/content`)).status()).toBe(401);
+    expect((await demo.request.get(`/api/ai-media/${id}/content`)).status()).toBe(404);
+    const workspace=await(await demo.request.get('/api/ai-media')).json();expect(workspace.isDemo).toBe(true);
+    expect(workspace.jobs.every((job:{id:string})=>job.id!==id)).toBe(true);
+  }finally{await anonymous.close();await demo.close();}
+});
+
 test('permanent credit product auto-updates and keeps exact budget drafts at every viewport', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_PRODUCT_POLISH !== '1', 'Focused permanent-product audit');
   test.setTimeout(180_000);
@@ -53,7 +116,7 @@ test('permanent credit product auto-updates and keeps exact budget drafts at eve
       }
     }
     await page.getByText('Usage & delivery',{exact:true}).click();
-    await expect(page.getByText(/Image and video generation are not included/)).toBeVisible();
+    await expect(page.getByText(/Studio offers 1024px draft images and silent 480p clips/)).toBeVisible();
     await page.goto('/products/cveggatinterviewpack000001',{waitUntil:'domcontentloaded'});
     await expect(page.getByRole('heading',{name:'Fjord Study — Digital Artwork',exact:true,level:1})).toBeVisible();
     await expect(page.getByText(/AI-generated artwork, not a photograph/)).toBeVisible();

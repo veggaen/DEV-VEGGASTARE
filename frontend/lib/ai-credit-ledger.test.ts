@@ -80,6 +80,7 @@ describe.skipIf(process.env.TEST_AI_LEDGER_DATABASE !== '1')('AI ledger: real Po
     await admin.query(await readFile(new URL('../prisma/migrations/20260924000200_ai_reservations/migration.sql', import.meta.url), 'utf8'));
     await admin.query(await readFile(new URL('../prisma/migrations/20260924000300_credit_refund_adjustment/migration.sql', import.meta.url), 'utf8'));
     await admin.query(await readFile(new URL('../prisma/migrations/20260924000400_checkout_payment_reconciliation/migration.sql', import.meta.url), 'utf8'));
+    await admin.query(await readFile(new URL('../prisma/migrations/20260925020000_ai_media_jobs/migration.sql', import.meta.url), 'utf8'));
     await admin.query(`CREATE TABLE "DailyAiUsage" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id"),
       "date" DATE NOT NULL, "count" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL, UNIQUE ("userId", "date"))`);
@@ -152,6 +153,33 @@ describe.skipIf(process.env.TEST_AI_LEDGER_DATABASE !== '1')('AI ledger: real Po
     expect(await db.aiPlatformSpendDay.findMany()).toEqual(before);
     await expect(ledger.reserve(input)).rejects.toMatchObject({ code: 'AI_REQUEST_ALREADY_USED' });
   }, 30_000);
+
+  it('atomically creates a media job with its reservation and does not expire it on the text lease', async () => {
+    await buyer('media-lease', 100);
+    const input = request('media-lease', { credits: 80, reservedMicroUsd: 800_000 });
+    const mediaId = randomUUID();
+    const reservation = await ledger.reserve(input, async (tx, reservationId) => {
+      await tx.aiMediaJob.create({ data: { id: mediaId, reservationId, userId: 'media-lease', environment: 'SANDBOX',
+        kind: 'VIDEO', model: 'grok-imagine-video-1.5', prompt: 'Test fixture only', deadline: new Date(Date.now() + 1_800_000) } });
+    });
+    await db.aiGenerationReservation.update({ where: { id: reservation.id }, data: { createdAt: new Date(Date.now()-180_000) } });
+    expect(await ledger.balance('media-lease')).toBe(20);
+    const results = await Promise.all(Array.from({ length: 5 }, () => ledger.settle(reservation.id, false, async tx => {
+      await tx.aiMediaJob.update({ where: { id: mediaId }, data: { state: 'FAILED' } });
+    })));
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await ledger.balance('media-lease')).toBe(100);
+    expect((await db.aiMediaJob.findUniqueOrThrow({ where: { id: mediaId } })).state).toBe('FAILED');
+  }, 30_000);
+
+  it('rolls back the debit and budget if durable job creation fails', async () => {
+    await buyer('media-rollback', 10);
+    const before = await db.aiPlatformSpendDay.findMany();
+    await expect(ledger.reserve(request('media-rollback'), async () => { throw new Error('fixture database failure'); })).rejects.toThrow();
+    expect(await ledger.balance('media-rollback')).toBe(10);
+    expect(await db.aiGenerationReservation.count({ where: { accountId: 'SANDBOX:media-rollback' } })).toBe(0);
+    expect(await db.aiPlatformSpendDay.findMany()).toEqual(before);
+  });
 
   it('cannot refund a successfully completed generation', async () => {
     await buyer('complete', 3);

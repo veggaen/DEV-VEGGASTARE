@@ -47,7 +47,7 @@ describe('buyer history', () => {
     expect(await readBuyerCreditHistory('buyer')).toMatchObject({ available: 0, unclaimedDemoAllowance: 0 });
   });
   it('labels reservation and reversal entries without claiming they are new charges', () => {
-    expect(creditEntryLabels.RESERVE).toBe('Message reservation');
+    expect(creditEntryLabels.RESERVE).toBe('Generation reservation');
     expect(creditEntryLabels.PAYMENT_REVERSAL).toBe('Purchase refunded or reversed');
   });
 });

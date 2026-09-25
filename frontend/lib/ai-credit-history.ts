@@ -21,6 +21,6 @@ export async function readBuyerCreditHistory(userId: string) {
 }
 
 export const creditEntryLabels: Record<string, string> = {
-  PURCHASE: 'Credits purchased', DEMO_GRANT: 'Demo allowance', RESERVE: 'Message reservation',
-  REFUND: 'Message credits returned', PAYMENT_REVERSAL: 'Purchase refunded or reversed',
+  PURCHASE: 'Credits purchased', DEMO_GRANT: 'Demo allowance', QA_GRANT: 'One-time QA allowance', RESERVE: 'Generation reservation',
+  REFUND: 'Generation credits returned', PAYMENT_REVERSAL: 'Purchase refunded or reversed',
 };

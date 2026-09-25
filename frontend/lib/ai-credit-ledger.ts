@@ -3,7 +3,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { dbPrisma } from '@/lib/db';
-import type { PrismaClient } from '@/generated/prisma/client';
+import type { PrismaClient, Prisma } from '@/generated/prisma/client';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { paypalEnvironment } from '@/lib/payments/showcase-policy';
 import { applyAiCreditDelta } from '@/lib/ai-credit-adjustment';
@@ -55,11 +55,12 @@ type ReservationRequest = z.input<typeof ReservationInput>;
 /** Factory permits real Postgres concurrency tests in a disposable schema.
  * Runtime uses the existing shared Prisma client, not a second connection pool. */
 export function createAiCreditLedger(db: PrismaClient) {
-  async function settle(id: string, succeeded: boolean) {
+  async function settle(id: string, succeeded: boolean, onSettled?: (tx: Prisma.TransactionClient) => Promise<void>) {
     return db.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`ai-settle:${id}`}, 0))`;
       const reservation = await tx.aiGenerationReservation.findUnique({ where: { id } });
       if (!reservation || reservation.state !== 'RESERVED') return false;
+      if (onSettled) await onSettled(tx);
       await tx.aiGenerationReservation.update({ where: { id }, data: {
         state: succeeded ? 'COMPLETED' : 'REFUNDED', settledAt: new Date(),
       } });
@@ -77,7 +78,7 @@ export function createAiCreditLedger(db: PrismaClient) {
   async function recoverExpired(userId: string) {
     const accountId = `${aiCreditEnvironment(userId)}:${userId}`;
     const expired = await db.aiGenerationReservation.findMany({ where: {
-      accountId, state: 'RESERVED', createdAt: { lt: new Date(Date.now() - AI_RESERVATION_LEASE_MS) },
+      accountId, state: 'RESERVED', MediaJob: { is: null }, createdAt: { lt: new Date(Date.now() - AI_RESERVATION_LEASE_MS) },
     }, select: { id: true }, take: 20 });
     for (const item of expired) await settle(item.id, false);
   }
@@ -105,7 +106,7 @@ export function createAiCreditLedger(db: PrismaClient) {
     }, { maxWait: 10_000, timeout: 15_000 });
   }
 
-  async function reserve(raw: ReservationRequest) {
+  async function reserve(raw: ReservationRequest, onReserved?: (tx: Prisma.TransactionClient, id: string) => Promise<void>) {
     const input = ReservationInput.parse(raw);
     if (input.userId) await recoverExpired(input.userId);
     const environment = aiCreditEnvironment(input.userId);
@@ -149,6 +150,7 @@ export function createAiCreditLedger(db: PrismaClient) {
       const reservation = await tx.aiGenerationReservation.create({ data: {
         requestKey, accountId, provider: input.provider, model: input.model, credits: input.credits, reservedMicroUsd: input.reservedMicroUsd,
       } });
+      if (onReserved) await onReserved(tx, reservation.id);
       if (input.credits > 0 && accountId) await tx.aiCreditEntry.create({ data: {
         accountId, delta: -input.credits, kind: 'RESERVE', sourceKey: `ai-reserve:${reservation.id}`,
       } });

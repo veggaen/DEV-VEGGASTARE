@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * @fileOverview Full GDPR Art. 13/14 compliant privacy policy for Veggat.
+ * @fileOverview Published privacy information for Veggat; legal review remains a separate release gate.
  * @stability active
  * @keyInvariants Must list all data categories, legal bases, retention periods,
  *   third-party recipients, and data subject rights per GDPR Art. 13/14.
@@ -219,6 +219,12 @@ export default function PrivacyPage() {
           </Section>
 
           {/* ──────────── 7. Dine rettigheter ──────────── */}
+          <Section title="AI Studio: bilder og korte videoer">
+            <p>Når du genererer et bilde, sendes beskrivelsen til OpenAI. For video sendes den til xAI. Ikke legg inn sensitive personopplysninger i beskrivelsen.</p>
+            <p>Beskrivelsen, genereringsstatusen og resultatet lagres i historikken din. Resultatfiler lagres privat hos EdgeStore og leveres bare til den innloggede eieren gjennom Veggat. Kredittforbruk registreres separat for kontroll av saldo og feil.</p>
+            <p>Studio bruker Veggat-kreditter, ikke dine lagrede personlige API-nøkler. Kontakt <a href={`mailto:${BUSINESS.dpa}`} className="underline">{BUSINESS.dpa}</a> hvis du vil be om innsyn eller sletting av Studio-data.</p>
+          </Section>
+
           <Section title="7. Dine rettigheter">
             <p>Du har følgende rettigheter i henhold til GDPR:</p>
             <ul className="space-y-2 pl-4">

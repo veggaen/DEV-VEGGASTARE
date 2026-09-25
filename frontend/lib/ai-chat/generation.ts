@@ -91,6 +91,9 @@ export async function generateMeteredText(input: GenerateInput) {
 export function aiErrorResponse(error: unknown) {
   const code = error instanceof AiCreditError ? error.code : 'AI_TEMPORARILY_UNAVAILABLE';
   const messages: Record<string, string> = {
+    MEDIA_PERSONAL_ACCOUNT: 'Use a personal account for image and video generation. The demo includes text chat.',
+    MEDIA_NOT_FOUND: 'This generation is not available to your account.',
+    MEDIA_UNAVAILABLE: 'Media generation is temporarily unavailable. No credits were used.',
     INVALID_REQUEST: 'Check your message and try again.',
     INVALID_ORIGIN: 'Please reload Veggat before sending another message.',
     LAST_MESSAGE_MUST_BE_USER: 'Write a message before sending.',
