@@ -9,8 +9,13 @@ tests pass (55 units, 13 isolated PostgreSQL cases)**. Settings and Reach share
 current provider/wallet/Live-capture evidence. Refresh is read-only; pending
 donation claims cannot increase verified totals. The PostgreSQL race found and
 fixed a Prisma raw-query retry gap. Final strict build and local browser **2/2**
-pass (16.2s). Focused lint passes; the wallet/E2E lint process is still running.
-Live deployment/acceptance is pending. No email, purchase, refund or credit grant occurred. See
+pass (16.2s). Source `32fa4c5` is promoted as
+`dpl_5fpyQNqjNq1PdN1Y2k84qZgaCkRb`; Live browser **2/2** passes (28.6s).
+Real Chrome confirms 60 points / four current checks and working read-only
+Refresh. Focused source/E2E lint passes, but full wallet lint is not green:
+an isolated rules-of-hooks slowdown and pre-existing synchronous effect error
+remain. No lint configuration was weakened. No email, purchase, refund or
+credit grant occurred. Genuine email callback acceptance remains separate. See
 [verification-evidence notes](verification-evidence-2026-09.md).
 
 Account-verification follow-up: **PARTIAL, guarded link fix deployed**.
@@ -21,8 +26,8 @@ passes, including five widths in both themes. Final strict build and lint pass.
 Source `b7b1b16` is live as `dpl_9pAddYnAJ6pKB1ncFTBSu6F7Sq8u`;
 Live focused browser **3/3** passes (38.4s), health 200, scanner-safe redirect
 303/no-store and cross-origin unlink 403. Real Chrome confirms the actual
-Google/GitHub badge distinction. A stale saved Reach tier was separately
-observed against the current wallet flag and needs reconciliation next.
+Google/GitHub badge distinction. The stale saved Reach/checklist contradiction
+was subsequently addressed by the current-evidence reader recorded above.
 No real confirmation email or account unlink was performed. See
 [account-link evidence](oauth-link-verification-2026-09.md).
 

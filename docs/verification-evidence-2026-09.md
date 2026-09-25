@@ -45,8 +45,14 @@ always read current evidence without requiring a write or sending email.
 - No real email, OAuth confirmation/removal, payment, refund, signature,
   AI provider request or credit grant was performed in this slice.
 - Final webpack/TypeScript build passes (188 static pages). Focused server,
-  settings, auth and hook lint passes. Full wallet-component/E2E lint remains
-  running; no success is claimed for that process yet.
+  settings, auth, hook and consolidated E2E lint passes. Full wallet lint is
+  **not green**: `react-hooks/rules-of-hooks` consumed over 15 CPU minutes in
+  the existing 210 KB wallet component. A diagnostic invocation disabling only
+  that rule finished in 4.7s and exposed a pre-existing synchronous effect
+  update at line 891 plus an unused directive at line 3303. The agent-owned
+  slow process was stopped after isolating the rule, not restarted. No lint
+  configuration or permanent rule suppression was changed. The donation-row
+  edits contain no new hooks; wallet lint/performance cleanup remains due.
 - Final local browser checks: **2/2 pass**, 16.2s, no retries/skips. The new
   unmocked test checks demo exclusion, calculated score, agreement with the
   Reach API, four widths (360/390/1280/2560), footer scrolling and Refresh
@@ -55,7 +61,21 @@ always read current evidence without requiring a write or sending email.
   and 1280 were visually inspected.
 - Real Chrome local account: Email Verified / 10 points, Google and GitHub
   confirmation still pending. Crypto payment verification clearly unavailable;
-  no new consent or mail requested. Live deployment/acceptance pending.
+  no new consent or mail requested.
+- Source `32fa4c5` is READY and promoted to `https://www.veggat.com` as
+  `dpl_5fpyQNqjNq1PdN1Y2k84qZgaCkRb`. Remote webpack/TypeScript build passes;
+  53 migrations, none pending. Candidate health returns healthy; anonymous
+  verification returns 401 with `private, no-store`.
+- Final Live browser checks: **2/2 pass**, 28.6s, no retries/skips. The existing
+  app-issued demo session was reused without a new grant. Live 390/1280
+  screenshots were visually inspected, alongside automated 360/2560 checks.
+- Real Chrome Live account now shows 60 points and 4/9 checks: email, Google,
+  a verified personal wallet and verified Live purchase. GitHub remains
+  connected but unconfirmed. Refresh completes without email; the explanatory
+  disclosure and scrolling to the footer work. The actual 2498px-wide viewport
+  has no horizontal page overflow. The extension's temporary viewport override
+  did not affect this retained tab; it was reset. Do not count that as real-
+  Chrome mobile evidence; mobile acceptance above is from Playwright.
 
 ## Reproduce
 
