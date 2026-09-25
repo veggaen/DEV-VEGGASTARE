@@ -19,8 +19,8 @@ The demo includes five one-time AI credits. Real OpenAI/Groq replies, saved conv
 ## Architecture
 
 AI Studio adds private PNG images and four-second silent videos using the same
-prepaid balance. Real OpenAI image and xAI video generation pass local browser
-tests; production acceptance is tracked separately in the [Studio evidence](docs/ai-studio-2026-09.md).
+prepaid balance. Real OpenAI image and xAI video generation, downloads and credit
+debits pass local and live browser tests. See [Studio evidence and limits](docs/ai-studio-2026-09.md).
 
 ```text
 Browser → Next.js / Auth.js (Vercel) → PostgreSQL (Prisma)

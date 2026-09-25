@@ -53,6 +53,13 @@ test('media Studio adapts across screens and preserves one request through netwo
     await expect(page.getByRole('link',{name:'Buy credits',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Generate image',exact:true})).toHaveCount(0);
     await page.getByRole('radio',{name:'Video',exact:true}).check();await expect(page.getByText('80 credits',{exact:true})).toBeVisible();
+    const previewId='a4c94d99-5bba-48a7-afd3-549e9b14432b';
+    workspace.jobs.unshift({id:previewId,kind:'IMAGE',state:'COMPLETED',prompt:'Saved image layout fixture',credits:6,createdAt:new Date().toISOString(),errorCode:null,contentUrl:'/showcase/fjord-study-preview.jpg'});
+    await page.getByRole('button',{name:'Refresh generations',exact:true}).click();
+    await page.setViewportSize({width:390,height:844});
+    await page.getByRole('button',{name:'Ready · 6 credits Saved image layout fixture',exact:true}).click();
+    await expect(page.getByRole('link',{name:'Download PNG',exact:true})).toBeInViewport();
+    await page.screenshot({path:info.outputPath('media-result-mobile.png')});
     expect(requests).toHaveLength(2);expect(errors).toEqual([]);
   } finally {await context.close();}
 });
@@ -62,7 +69,7 @@ test('media endpoints reject anonymous access and another account cannot downloa
   const anonymous=await browser.newContext({baseURL});const demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
   try{
     expect((await anonymous.request.get('/api/ai-media')).status()).toBe(401);
-    const id='36c12b80-5705-454e-a5df-199d8dd1fc38';
+    const id=process.env.E2E_MEDIA_PRIVATE_ID??'36c12b80-5705-454e-a5df-199d8dd1fc38';
     expect((await anonymous.request.get(`/api/ai-media/${id}/content`)).status()).toBe(401);
     expect((await demo.request.get(`/api/ai-media/${id}/content`)).status()).toBe(404);
     const workspace=await(await demo.request.get('/api/ai-media')).json();expect(workspace.isDemo).toBe(true);

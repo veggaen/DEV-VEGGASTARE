@@ -4,6 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+AI Studio: **DONE for bounded image/video generation locally and Live**.
+Source `2579e7e`, deployment `dpl_CXhgmxsb5YnFy3Jofmk9YqD691uH`.
+Real Chrome generated and downloaded an OpenAI PNG and a four-second silent Grok
+MP4 in each environment. The explicitly authorized Live allowance went 86 → 80 → 0;
+both reservations completed once. Raw storage returns 403; anonymous app access
+401; another signed-in account 404. Local/Live responsive, recovery and product
+checks pass at 360–2560 in both themes. 64 database/lifecycle and 76 focused unit
+cases pass (overlapping coverage). Builds/typechecks pass; no new lint errors.
+No PayPal purchase was made. Longer videos, edits, media BYOK and scheduled-worker
+execution evidence remain outside this acceptance. See [Studio evidence](ai-studio-2026-09.md).
+
 Live 9 NOK starter: **DONE for owner-approved capture and one ten-credit grant**.
 The owner completed the existing order with another buyer account after the
 merchant-account rejection. Capture `8N819301P61947841`, order
@@ -28,7 +39,7 @@ Product names are Veggat AI Credits and Fjord Study — Digital Artwork. Histori
 orders and stable SKU IDs are retained. The entered budget is preserved, but
 exact foreign-currency settlement is not implemented: whole-credit totals remain
 server-priced in NOK. Anthropic needs `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY`;
-image/video generation is not implemented. See
+image/video generation is now verified in the newer Studio slice above. See
 [product and provider evidence](permanent-products-2026-09.md).
 
 Invalid-session recovery: **DONE for scoped local/Preview/Live acceptance**.

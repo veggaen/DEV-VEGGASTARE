@@ -69,8 +69,49 @@ Real Chrome on localhost:3000, isolated Preview database, 90 one-time QA credits
   1920 and 2560 in both themes, no horizontal overflow, preserved retry identity,
   pending/failed states, refunded balance and zero-credit purchase CTA.
 
-Production deployment, actual live generation and browser download acceptance
-are recorded below only after verification; local results do not prove them.
+Both local files were downloaded through real Chrome. The PNG's dimensions and
+both downloaded byte sizes match the stored output. Adding the standard download
+attribute fixed a Chrome-blocked navigation; the user now stays in Studio.
+
+## Live acceptance
+
+Production source **2579e7e**, deployment **dpl_CXhgmxsb5YnFy3Jofmk9YqD691uH**,
+promoted to **https://www.veggat.com** after the strict Vercel build, additive
+migration and protected candidate health check passed. No plan/billing change.
+
+The owner explicitly authorized one 86-credit QA grant and one image plus one
+video. The grant is idempotent and separate from purchased credits. No PayPal
+purchase or payment credential change was made.
+
+- Image `e3d213ec-bfa6-4417-9431-405738eda84f`: COMPLETED, six credits, 1,479,468-byte
+  PNG downloaded through real Chrome. Returned provider usage: US$0.006045.
+- Video `695da477-e3e8-421d-9814-df73e0f30666`: COMPLETED, eighty credits,
+  1,062,098-byte MP4 downloaded through real Chrome. Actual playback visibly
+  progressed through the four-second clip. Price-derived provider estimate:
+  US$0.32; this is not a billing-statement reconciliation.
+- Balance **86 → 80 → 0**, both reservations COMPLETED, no refund adjustment.
+  The live UI blocks further generation with a Buy credits CTA.
+- Both raw storage URLs return **403** anonymously. Anonymous application access
+  returns **401**; a different signed-in demo account receives **404** for each
+  actual live result and cannot see it in history.
+- Local and live each pass the focused Studio responsive/recovery test and the
+  API access test, plus the permanent-product input/layout regression. A separate
+  live video ownership check passes. Eight viewport sizes, both themes; mobile
+  history selection brings the preview and Download action into view.
+- **64 database/lifecycle test cases** pass with the isolated PostgreSQL tests
+  enabled, plus **76 focused unit cases** (overlapping coverage, not 140 distinct
+  tests). Build/typecheck pass locally and on Vercel. Touched lint has no errors;
+  the privacy page retains a pre-existing navigation warning.
+- `/api/health` returns 200; unauthenticated media and cron routes return 401.
+  `CRON_SECRET` is present in Production. The five-minute schedule was accepted
+  by deployment, but scheduled recovery execution has not yet been independently
+  observed; deadline/refund behavior is covered in tests.
+
+Live browser artifacts: `test-results-release-media-live-final`,
+`test-results-release-media-product-live`, and
+`test-results-release-media-video-access-live`. These generated artifacts remain
+untracked. The public product description now includes Studio, with no changes
+to historical order titles or paid amounts.
 
 ## Sources and design research
 
