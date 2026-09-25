@@ -1,16 +1,16 @@
 /** HTTP contracts only. No network, database, provider, email or secret creation. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ auth: vi.fn(), editLimit: vi.fn(), paymentLimit: vi.fn(),
-  estimate: vi.fn(), quote: vi.fn(), save: vi.fn(), prepare: vi.fn(), begin: vi.fn(), complete: vi.fn() }));
+  estimate: vi.fn(), quote: vi.fn(), save: vi.fn(), add: vi.fn(), prepare: vi.fn(), begin: vi.fn(), complete: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowSettlementEdit: m.editLimit, allowAuthAttempt: m.paymentLimit }));
 vi.mock('./settlement-runtime', () => ({ estimateSettlement: m.estimate,
-  settlementStore: () => ({ quoteCart: m.quote, saveCreditIntent: m.save, prepare: m.prepare }) }));
+  settlementStore: () => ({ quoteCart: m.quote, saveCreditIntent: m.save, addCreditIntent: m.add, prepare: m.prepare }) }));
 vi.mock('./showcase-store', () => ({ beginShowcaseCheckout: m.begin, completeShowcaseCheckout: m.complete }));
 import { POST as estimate } from '@/app/api/checkout/estimate/route';
 import { POST as quote } from '@/app/api/checkout/quote/route';
-import { PATCH as save } from '@/app/api/checkout/credit-intent/route';
+import { PATCH as save, POST as add } from '@/app/api/checkout/credit-intent/route';
 import { POST as checkout } from '@/app/api/checkout/route';
 import { POST as demoCheckout } from '@/app/api/demo/checkout/route';
 import { readSettlementJson, settlementErrorResponse } from './settlement-request';
@@ -33,7 +33,9 @@ beforeEach(() => {
   m.editLimit.mockResolvedValue(true); m.paymentLimit.mockResolvedValue(true);
   m.estimate.mockResolvedValue({ currency: 'USD', totalMinor: 10000 });
   m.quote.mockResolvedValue({ quoteId, token: 'private-attestation', quote: { currency: 'USD', totalMinor: 10000 } });
-  m.save.mockResolvedValue({ id: 'own-item', creditAmount: 2500, creditSpendMinor: 10000, creditSpendCurrency: 'USD', updatedAt: new Date() });
+  const saved = { id: 'own-item', quantity: 1, creditAmount: 2500, creditSpendMinor: 10000, creditSpendCurrency: 'USD', updatedAt: new Date(),
+    Product: { id: SHOWCASE_PRODUCTS.credits.id, title: 'Veggat AI Credits', price: 39, priceCurrency: 'NOK', image: [] } };
+  m.save.mockResolvedValue(saved); m.add.mockResolvedValue(saved);
   m.prepare.mockResolvedValue({ orderId: 'prepared-order', requestKey: quoteId });
   m.begin.mockResolvedValue({ orderId: 'prepared-order', approvalUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST' });
   m.complete.mockResolvedValue({ orderId: 'prepared-order' });
@@ -52,7 +54,7 @@ describe('quote/edit authorization and privacy', () => {
     m.auth.mockResolvedValue(null); expect((await handler(request(body))).status).toBe(401);
     expect(m.quote).not.toHaveBeenCalled(); expect(m.save).not.toHaveBeenCalled(); expect(m.editLimit).not.toHaveBeenCalled();
   });
-  it.each([estimate, quote, save, checkout, demoCheckout])('denies cross-origin, missing origin and impersonation before work', async handler => {
+  it.each([estimate, quote, save, add, checkout, demoCheckout])('denies cross-origin, missing origin and impersonation before work', async handler => {
     for (const header of ['', 'http://localhost:3100', 'https://evil.invalid']) {
       expect((await handler(request({}, undefined, { origin: header }))).status).toBe(403);
     }
@@ -77,6 +79,15 @@ describe('quote/edit authorization and privacy', () => {
     expect(m.save).toHaveBeenCalledTimes(1);
     m.save.mockRejectedValue(new CheckoutError('CART_CHANGED',409));
     expect((await save(request(intent))).status).toBe(409);
+  });
+  it('atomically adds only the authenticated actor selection and returns a safe native-price DTO', async () => {
+    const response = await add(request(intent.intent));
+    expect(response.status).toBe(200); expect(m.add).toHaveBeenCalledWith('signed-in-buyer', intent.intent);
+    const body = await response.json(); expect(body.product).toMatchObject({ price: 100, priceCurrency: 'USD' });
+    expect(body).not.toHaveProperty('Product');
+    expect((await add(request({ ...intent.intent, userId: 'other' }))).status).toBe(400);
+    m.auth.mockResolvedValue(null); expect((await add(request(intent.intent))).status).toBe(401);
+    expect(m.add).toHaveBeenCalledTimes(1);
   });
   it('keeps edit limits separate from payment limits and sends retry metadata', async () => {
     m.editLimit.mockResolvedValue(false);

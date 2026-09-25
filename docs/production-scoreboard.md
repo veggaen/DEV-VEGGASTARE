@@ -22,10 +22,14 @@ pass. The additive migration is applied to isolated Preview only; its post-migra
 database tests pass **42/42**. Actual local HTTP tests pass **2/2**, covering exact
 quotes, own-cart spend persistence and denied stale/forged requests, with the demo
 cart restored. Real Chrome verifies legacy receipt reflow and footer scrolling.
-No native-currency customer UI or real capture acceptance is claimed.
-Next: connect auto-updating purchase inputs to the quote APIs,
-then local and real Sandbox browser
-acceptance before activation. The new generated client requires the additive
+The native-currency customer UI is now implemented and verified locally: automatic
+exact spend, atomic cart persistence, currency-change review, quote expiry/stale
+response guards, and identical-body payment retries. Combined payment/cart/report
+regressions pass **629/629 across 29 files**; the final cross-tab guard follow-up
+passes **23/23**. Browser checks cover USD 100, NOK 1000 and light/dark responsive
+checkout without making payments. Real Sandbox capture is not yet claimed.
+Next: isolated Preview deployment and actual native-currency Sandbox
+capture/refund acceptance before production activation. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping
 the draft input at `100` does not yet make a USD 100 charge. See
 [exact-currency settlement work](exact-currency-settlement-2026-09.md).

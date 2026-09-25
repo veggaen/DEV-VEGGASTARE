@@ -9,6 +9,9 @@ import { useCart } from '@/contexts/cart-context';
 import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD } from '@/lib/payments/checkout-delivery-policy';
 import { SALES_TERMS_DOWNLOAD, SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 const messages: Record<string, string> = {
+  SETTLEMENT_QUOTE_EXPIRED: 'This price expired. Refresh checkout and review the current total before continuing.',
+  SETTLEMENT_QUOTE_SCOPE_CHANGED: 'Your basket or sign-in changed. Return to your cart and review it before continuing.',
+  INVALID_SETTLEMENT_TOKEN: 'This price could not be verified. Reopen checkout from your saved cart.',
   SIGN_IN_REQUIRED: 'Your session has expired. Sign in again, then return to your saved cart. No payment has been taken.',
   DELIVERY_CONSENT_REQUIRED: 'Review the delivery requests below before continuing. No payment has been taken.',
   INVALID_ORIGIN: 'Please reopen checkout from this site and try again. No payment has been taken.',
@@ -25,17 +28,19 @@ const messages: Record<string, string> = {
   CHECKOUT_EXPIRED: 'This checkout has expired. Return to your cart to start again.',
   ONE_OF_EACH_REVIEWER_ITEM_PER_ORDER: 'Keep one of each product in your cart. Change the credit amount directly.',
 };
-export default function ReviewerCheckoutButton({ demo, disabled = false, expectedQuote, hasFiles = false, hasCredits = false, order, summary }: { demo: boolean; disabled?: boolean; expectedQuote?: string; hasFiles?: boolean; hasCredits?: boolean; order: ReactNode; summary: ReactNode }) {
+export default function ReviewerCheckoutButton({ demo, disabled = false, expectedQuote, quoteToken, hasFiles = false, hasCredits = false, order, summary }: { demo: boolean; disabled?: boolean; expectedQuote?: string; quoteToken?: string; hasFiles?: boolean; hasCredits?: boolean; order: ReactNode; summary: ReactNode }) {
   const editing = useCheckoutEditing();
   const { checkoutBlocked } = useCart();
   const key = useRef<string | null>(null);
+  const accepted = useRef<Record<string, unknown> | null>(null);
+  const [retryingOriginal, setRetryingOriginal] = useState(false);
   const consentId = useId();
   const filesInput = useRef<HTMLInputElement>(null), creditsInput = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState(false), [credits, setCredits] = useState(false);
   const [consentError, setConsentError] = useState(false);
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   async function submit() {
-    if (pending || editing?.busy || checkoutBlocked) return;
+    if (pending || (!accepted.current && (disabled || editing?.busy || checkoutBlocked))) return;
     if (!demo && ((hasFiles && !files) || (hasCredits && !credits))) {
       setConsentError(true);
       (hasFiles && !files ? filesInput : creditsInput).current?.focus();
@@ -43,15 +48,21 @@ export default function ReviewerCheckoutButton({ demo, disabled = false, expecte
     }
     setConsentError(false);
     key.current ??= crypto.randomUUID(); setPending(true); editing?.setPaymentPending(true); setError('');
+    accepted.current ??= { ...(quoteToken ? { quoteToken } : { requestKey: key.current, expectedQuote }),
+      ...(!demo ? { consent: { version: CHECKOUT_AGREEMENT_VERSION, files: hasFiles && files, credits: hasCredits && credits } } : {}) };
     try {
       const response = await fetch(demo ? '/api/demo/checkout' : '/api/checkout', { method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestKey: key.current, expectedQuote,
-          ...(!demo ? { consent: { version: CHECKOUT_AGREEMENT_VERSION, files: hasFiles && files, credits: hasCredits && credits } } : {}) }) });
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(accepted.current), signal: AbortSignal.timeout(30_000) });
       const result = await response.json();
-      if (!response.ok) { setError(messages[result.error] ?? 'Checkout could not finish. No new payment has been confirmed; please retry.'); return; }
+      if (!response.ok) {
+        // These failures occur before a new attempt is persisted. All ambiguous
+        // outcomes retain the identical quote/body and keep editing locked.
+        if (['SETTLEMENT_QUOTE_EXPIRED','SETTLEMENT_QUOTE_SCOPE_CHANGED','INVALID_SETTLEMENT_TOKEN','INVALID_REQUEST','DELIVERY_CONSENT_REQUIRED','DAILY_PURCHASE_LIMIT','DAILY_PURCHASE_AMOUNT_LIMIT','CREDIT_SALES_PAUSED'].includes(result.error)) accepted.current = null;
+        setError(messages[result.error] ?? 'Checkout could not finish. Review My orders or retry this same order.'); return;
+      }
       window.location.assign(result.approvalUrl ?? `/checkout/receipt/${encodeURIComponent(result.orderId)}`);
     } catch { setError('Connection interrupted. Retry safely using the same checkout.'); }
-    finally { setPending(false); editing?.setPaymentPending(false); }
+    finally { setPending(false); setRetryingOriginal(Boolean(accepted.current)); editing?.setPaymentPending(Boolean(accepted.current)); }
   }
   return <div className="mt-6 grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)] lg:gap-8">
     <div className="min-w-0 space-y-6">
@@ -91,10 +102,11 @@ export default function ReviewerCheckoutButton({ demo, disabled = false, expecte
     <aside aria-label="Payment summary" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-6">
       {summary}
       {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
-      <Button className="min-h-12 w-full gap-2 text-base" disabled={disabled || pending || editing?.busy || checkoutBlocked} onClick={submit}>
-      {pending ? 'Preparing your order…' : demo ? 'Complete free demo order' : 'Continue to PayPal'}
+      <Button className="min-h-12 w-full gap-2 text-base" disabled={pending || (!retryingOriginal && (disabled || editing?.busy || checkoutBlocked))} onClick={submit}>
+      {pending ? 'Preparing your order…' : retryingOriginal ? 'Retry this order' : demo ? 'Complete free demo order' : 'Continue to PayPal'}
       {!pending && <ArrowUpRight aria-hidden="true" className="size-4" />}
       </Button>
+      {retryingOriginal && <Link href="/my-orders" className="mt-2 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Review My orders</Link>}
       <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground"><LockKeyhole aria-hidden="true" className="size-3.5" />{demo ? 'No card required' : 'Payment details stay with PayPal'}</p>
       <nav aria-label="Checkout help" className="mt-3 flex flex-wrap justify-center gap-x-5 text-xs text-muted-foreground">
         <Link href="/terms" target="_blank" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">Terms</Link>

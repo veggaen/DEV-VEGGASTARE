@@ -3,7 +3,9 @@
 import { type ReactNode, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PriceAmount from '@/components/crypto-related/PriceAmount';
 import CreditProductPanel from '@/components/uicustom/product/credit-product-panel';
-import { DEFAULT_PURCHASE_CREDITS, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
+import type { CreditChoice } from '@/lib/payments/settlement-client';
+import { useUiPreferences } from '@/components/providers/ui-preferences';
+import { DEFAULT_PURCHASE_CREDITS } from '@/lib/ai-credit-purchase';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -112,10 +114,13 @@ const getPosition = () =>
 
 function ProductDetails({ product }: { product: Product }) {
   const router = useRouter();
+  const { prefs } = useUiPreferences();
   const { data: session } = useSession();
-  const { addItem, items: cartItems, isLoading: cartLoading, error: cartError } = useCart();
+  const { addItem, addCreditIntent, items: cartItems, isLoading: cartLoading, error: cartError } = useCart();
   const purchaseLock = useRef(false);
   const [selectedCredits, setSelectedCredits] = useState(DEFAULT_PURCHASE_CREDITS);
+  const [creditChoice, setCreditChoice] = useState<CreditChoice | null>(null);
+  const selectCreditChoice = (choice: CreditChoice) => { setCreditChoice(choice); setSelectedCredits(choice.quote.lines[0].credits); };
   const [dirtyCredits, setDirtyCredits] = useState(false);
   const [purchasePending, setPurchasePending] = useState<'add' | 'buy' | null>(null);
   const [purchaseFailure, setPurchaseError] = useState('');
@@ -388,7 +393,7 @@ function ProductDetails({ product }: { product: Product }) {
   // One lock for both desktop/mobile actions, including clicks before React paints.
   // An uncertain network response must be reviewed in the cart, not blindly replayed.
   const purchase = useCallback(async (action: 'add' | 'buy') => {
-    if (purchaseLock.current || cartLoading || dirtyCredits || purchaseError || !canPurchase) return;
+    if (purchaseLock.current || cartLoading || dirtyCredits || purchaseError || !canPurchase || (isCreditPack && (!creditChoice || creditChoice.intent.currency !== prefs.preferredFiatCurrency || Date.parse(creditChoice.quote.expiresAt) <= Date.now()))) return;
     if (!session?.user?.id) {
       router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/products/${product.id}`)}`);
       return;
@@ -399,7 +404,7 @@ function ProductDetails({ product }: { product: Product }) {
     try {
       const alreadyInCart = cartItems.some(item => item.product.id === product.id);
       if (isCreditPack || !(alreadyInCart && (action === 'buy' || isDigitalProduct))) {
-        if (!await addItem(product.id, 1, isCreditPack ? selectedCredits : undefined)) throw new Error('Cart update not confirmed');
+        if (!await (isCreditPack ? addCreditIntent(creditChoice!.intent) : addItem(product.id, 1))) throw new Error('Cart update not confirmed');
       }
       if (action === 'buy') {
         navigating = true;
@@ -416,11 +421,12 @@ function ProductDetails({ product }: { product: Product }) {
     } finally {
       if (!navigating) { purchaseLock.current = false; setPurchasePending(null); }
     }
-  }, [cartLoading, dirtyCredits, purchaseError, canPurchase, session?.user?.id, router, product.id, product.title, cartItems, isDigitalProduct, isCreditPack, selectedCredits, addItem]);
+  }, [cartLoading, dirtyCredits, purchaseError, canPurchase, session?.user?.id, router, product.id, product.title, cartItems, isDigitalProduct, isCreditPack, creditChoice, prefs.preferredFiatCurrency, addItem, addCreditIntent]);
   const handleAddToCart = () => purchase('add');
   const handleBuyNow = () => purchase('buy');
-  const purchaseDisabled = !canPurchase || dirtyCredits || cartLoading || purchasePending !== null || Boolean(purchaseError);
-  const displayPrice = <PriceAmount amount={isCreditPack ? quoteCreditPurchase(selectedCredits).amountOre / 100 : product.price} currency={isCreditPack ? 'NOK' : product.priceCurrency || 'USD'} />;
+  const purchaseDisabled = !canPurchase || dirtyCredits || cartLoading || purchasePending !== null || Boolean(purchaseError) || (isCreditPack && (!creditChoice || creditChoice.intent.currency !== prefs.preferredFiatCurrency));
+  const displayPrice = isCreditPack ? creditChoice && !dirtyCredits ? <PriceAmount amount={creditChoice.quote.totalMinor / 100} currency={creditChoice.quote.currency} displayFiat={creditChoice.quote.currency} context="settlement" /> : <span className="text-sm text-muted-foreground">Confirming price…</span>
+    : <PriceAmount amount={product.price} currency={product.priceCurrency || 'USD'} />;
   const productKindLabel = isCreditPack ? "AI usage credits" : isDigitalProduct ? "Digital download" : product.productType === "HYBRID" ? "Hybrid product" : "Physical product";
   const updatedAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.updatedAt));
   const createdAt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(product.createdAt));
@@ -632,7 +638,7 @@ function ProductDetails({ product }: { product: Product }) {
       </div>
 
       {/* Credits use a purchase workspace, not a tall gallery/sidebar layout. */}
-      {isCreditPack ? <CreditProductPanel title={product.title} credits={selectedCredits} onCredits={setSelectedCredits}
+      {isCreditPack ? <CreditProductPanel title={product.title} credits={selectedCredits} choice={creditChoice} onCredits={selectCreditChoice}
         onDirtyChange={setDirtyCredits} disabled={cartLoading || purchasePending !== null} controls={listingControls} actions={purchaseActions} /> : <>
       <motion.section
         className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2 xl:gap-8"

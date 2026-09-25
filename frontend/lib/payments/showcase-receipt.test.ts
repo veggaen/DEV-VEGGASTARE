@@ -2,7 +2,8 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const m = vi.hoisted(() => ({ auth: vi.fn(), receipt: vi.fn(), account: vi.fn(), cart: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), receipt: vi.fn(), account: vi.fn(), cart: vi.fn(), cartQuote: vi.fn() }));
+vi.mock('@/hooks/use-cart-settlement', () => ({ useCartSettlement: m.cartQuote }));
 vi.mock('@/auth', () => ({ auth: m.auth }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { transactionalEmail: { findMany: vi.fn().mockResolvedValue([]) }, checkoutAttempt: { findUnique: m.receipt }, aiCreditAccount: { findUnique: m.account }, cart: { findUnique: m.cart } } }));
 vi.mock('@/lib/payments/showcase-paypal', () => ({ paypalConfigured: () => true }));
@@ -31,6 +32,8 @@ const creditQuote = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id
 
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('VERCEL', '0');
+  m.cartQuote.mockReturnValue({ ready: true, loading: false, error: '', quote: { currency: 'NOK', totalMinor: 3900,
+    lines: [{ productId: SHOWCASE_PRODUCTS.credits.id, credits: 100, amountMinor: 3900 }] } });
   m.auth.mockResolvedValue({ user: { id: 'buyer' } });
   m.account.mockResolvedValue({ balance: 0, refundAdjustment: 7 });
   m.receipt.mockResolvedValue({ orderId: 'order', userId: 'buyer', environment: 'SANDBOX', state: 'REFUNDED', totalOre: 3900,
@@ -95,9 +98,16 @@ it('keeps receipt file transfers on the page with accessible download buttons', 
 });
 it('treats the cancellation query only as navigation feedback, never payment proof', async () => {
   const html = renderToStaticMarkup(await CheckoutPage({ searchParams: Promise.resolve({ cancelled: '1' }) }));
-  expect(html).toContain('Returning here does not confirm a payment or add credits');
+  expect(html).toContain('Your basket is saved. Already approved payment? Check');
+  expect(html).not.toContain('Your order is confirmed');
   expect(html).toContain('My orders');
   expect(html).toContain('Continue to PayPal');
+});
+it('does not claim a zero-credit pack while the new price is loading', async () => {
+  m.cartQuote.mockReturnValue({ ready: false, loading: true, error: '', quote: null });
+  const html = renderToStaticMarkup(await CheckoutPage({}));
+  expect(html).toContain('Credit refund adjustment: 7 credits');
+  expect(html).not.toContain('This pack adds 0 credits');
 });
 it('renders native USD money and crypto, never the NOK exposure as the paid total', async () => {
   const fixture = await m.receipt(), now = Date.parse('2026-09-25T12:00:00Z');

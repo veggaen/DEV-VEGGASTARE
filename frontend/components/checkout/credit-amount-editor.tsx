@@ -1,113 +1,112 @@
 'use client';
-/** @fileOverview Automatic linked credit inputs; preserves budget drafts and locks payment until the server confirms cart edits. @stability active */
+/** Exact-spend drafts stay intact; only a current server quote can enable purchase. */
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
-import { MAX_PURCHASE_CREDITS, isPurchasableCreditAmount, quoteCreditPurchase } from '@/lib/ai-credit-purchase';
-import { quoteCreditBudget } from '@/lib/credit-budget';
+import { isPurchasableCreditAmount } from '@/lib/ai-credit-purchase';
 import { useCart } from '@/contexts/cart-context';
-import { useCurrencyRates } from '@/hooks/useCurrencyRates';
 import { useUiPreferences } from '@/components/providers/ui-preferences';
-import { priceDisplay } from '@/lib/price-display';
+import { CreditIntent } from '@/lib/payments/settlement-input';
+import { formatMinor, parseSpendMinor, SettlementCurrency } from '@/lib/payments/settlement-money';
+import { previewCreditIntent, SettlementClientError, settlementFailureMessage, type CreditChoice } from '@/lib/payments/settlement-client';
 
-export default function CreditAmountEditor({ value, onSave, onDirtyChange, disabled = false, immediate = false }: {
-  value: number; onSave: (credits: number) => Promise<boolean | void> | boolean | void;
-  onDirtyChange?: (dirty: boolean) => void; disabled?: boolean; immediate?: boolean;
+type Draft = { type: 'credits' | 'spend'; text: string; currency: string };
+export default function CreditAmountEditor({ value, spendMinor, spendCurrency, onSave, onQuote, onDirtyChange, disabled = false }: {
+  value: number; spendMinor?: number | null; spendCurrency?: string | null;
+  onSave: (choice: CreditChoice) => Promise<boolean | void> | boolean | void;
+  onQuote?: (choice: CreditChoice) => void; onDirtyChange?: (dirty: boolean) => void; disabled?: boolean;
 }) {
-  const id = useId(), input = useRef<HTMLInputElement>(null), callback = useRef(onDirtyChange);
-  const saveCallback = useRef(onSave), saveTarget = useRef<number | null>(null), savingLock = useRef(false);
-  const { setCartEditing } = useCart();
-  const { prefs } = useUiPreferences();
-  const rates = useCurrencyRates();
+  const id = useId(), { prefs } = useUiPreferences(), { setCartEditing } = useCart();
   const fiat = prefs.preferredFiatCurrency;
-  const [draft, setDraft] = useState(String(value)), [error, setError] = useState(''), [saving, setSaving] = useState(false);
-  const [budget, setBudget] = useState<{ text: string; fiat: string } | null>(null);
-  const [ready, setReady] = useState(false);
-  callback.current = onDirtyChange;
-  saveCallback.current = onSave;
-  useEffect(() => { setReady(true); }, []);
+  const savedKey = JSON.stringify([value, spendMinor ?? null, spendCurrency ?? null]);
+  const initial = (): Draft => spendMinor != null ? { type: 'spend', text: formatMinor(spendMinor), currency: spendCurrency! }
+    : { type: 'credits', text: String(value), currency: fiat };
+  const [draft, setDraft] = useState<Draft>(initial), [choice, setChoice] = useState<CreditChoice | null>(null);
+  const [status, setStatus] = useState<'loading' | 'saving' | 'ready' | 'error'>('loading');
+  const [error, setError] = useState(''), [retry, setRetry] = useState(0);
+  const callbacks = useRef({ onSave, onQuote, onDirtyChange }); callbacks.current = { onSave, onQuote, onDirtyChange };
+  const previous = useRef(savedKey), expected = useRef<string | null>(null), saved = useRef({ value, spendMinor, spendCurrency });
+  saved.current = { value, spendMinor, spendCurrency };
   useEffect(() => {
-    // A successful automatic update must not replace the user's exact budget.
-    setDraft(String(value));
-    if (value !== saveTarget.current) setBudget(null);
-    setError('');
-    saveTarget.current = null;
-  }, [value]);
-  useEffect(() => { setBudget(null); setError(''); }, [fiat]);
-  const dirty = draft !== String(value);
-  useEffect(() => { setCartEditing?.(id, dirty || saving); }, [id, dirty, saving, setCartEditing]);
-  useEffect(() => () => { setCartEditing?.(id, false); }, [id, setCartEditing]);
-  useEffect(() => { callback.current?.(dirty); }, [dirty]);
-  useEffect(() => () => { callback.current?.(false); }, []);
-  const number = /^\d+$/.test(draft) ? Number(draft) : NaN;
-  const valid = isPurchasableCreditAmount(number);
-  const quote = valid ? quoteCreditPurchase(number) : null;
-  const display = quote ? priceDisplay({ amount: quote.amountOre / 100, currency: 'NOK', fiat,
-    crypto: 'NONE', fiatRates: rates.fiatRates, cryptoPrices: {}, loading: rates.isLoading && !rates.lastUpdated }) : null;
-  const budgetAvailable = fiat === 'NOK' || (!rates.isFiatStale && Number.isFinite(rates.fiatRates.NOK) && (fiat === 'USD' || Number.isFinite(rates.fiatRates[fiat])));
-  const budgetValue = budget?.fiat === fiat ? budget.text : Number.isFinite(display?.fiatAmount) ? display!.fiatAmount.toFixed(2) : '';
-  function choose(credits: string) { setDraft(credits); setBudget(null); setError(''); }
-  function changeBudget(text: string) {
-    setBudget({ text, fiat }); setError('');
-    const next = quoteCreditBudget(text, fiat, rates.fiatRates, rates.isFiatStale);
-    setDraft(next ? String(next.credits) : '');
-  }
+    if (previous.current === savedKey) return;
+    previous.current = savedKey;
+    if (expected.current === savedKey) { expected.current = null; return; }
+    setDraft(spendMinor != null ? { type: 'spend', text: formatMinor(spendMinor), currency: spendCurrency! }
+      : { type: 'credits', text: String(value), currency: fiat });
+    setChoice(null); setStatus('loading'); setRetry(n => n + 1);
+  }, [savedKey, value, spendMinor, spendCurrency, fiat]);
+  const intentKey = JSON.stringify([draft.type, draft.text, fiat, draft.currency]);
+  const [confirmedKey, setConfirmedKey] = useState('');
+  const busy = status !== 'ready' || confirmedKey !== intentKey;
+  useEffect(() => { setCartEditing(id, busy); callbacks.current.onDirtyChange?.(busy); }, [id, busy, setCartEditing]);
+  useEffect(() => () => { setCartEditing(id, false); callbacks.current.onDirtyChange?.(false); }, [id, setCartEditing]);
   useEffect(() => {
-    if (!ready || !dirty || !valid || disabled || saving || error) return;
+    const controller = new AbortController(); let active = true;
+    setStatus('loading'); setError('');
     const timer = window.setTimeout(async () => {
-      if (savingLock.current) return;
-      savingLock.current = true; saveTarget.current = number; setSaving(true);
       try {
-        if (await saveCallback.current(number) === false) throw new Error();
-      } catch { setError('Could not update your basket. Retry or keep the saved amount.'); }
-      finally { savingLock.current = false; setSaving(false); }
-    }, immediate ? 0 : 450);
-    return () => window.clearTimeout(timer);
-  }, [ready, dirty, valid, disabled, saving, error, number, immediate]);
-  function validate() {
-    if (dirty && !valid) setError('Choose 10 credits, or a whole number from 100 to 10,000.');
+        const currency = SettlementCurrency.parse(fiat);
+        if (draft.type === 'spend' && draft.currency !== fiat) throw new SettlementClientError('Currency changed. Enter your new spending amount, or choose a credit preset.');
+        if (draft.type === 'credits' && (!/^\d+$/.test(draft.text) || !isPurchasableCreditAmount(Number(draft.text)))) throw new SettlementClientError('Choose 10 credits, or a whole number from 100 to 10,000.');
+        if (draft.type === 'spend') { try { parseSpendMinor(draft.text); } catch { throw new SettlementClientError('Enter an amount with up to two decimal places.'); } }
+        const intent: CreditIntent = draft.type === 'spend' ? { type: 'spend', currency, amount: draft.text }
+          : { type: 'credits', currency, credits: Number(draft.text) };
+        const next = await previewCreditIntent(intent, controller.signal);
+        if (!active) return;
+        const line = next.quote.lines[0], snapshot = saved.current;
+        const changed = intent.type === 'spend' ? snapshot.spendMinor !== next.quote.totalMinor || snapshot.spendCurrency !== fiat
+          : snapshot.spendMinor != null || snapshot.value !== line.credits;
+        if (changed) {
+          expected.current = JSON.stringify([line.credits, intent.type === 'spend' ? next.quote.totalMinor : null, intent.type === 'spend' ? fiat : null]);
+          setStatus('saving');
+          if (await callbacks.current.onSave(next) === false) throw new SettlementClientError('Could not confirm your basket change. Refresh the basket before retrying.');
+        }
+        if (!active) return;
+        setChoice(next); setConfirmedKey(intentKey); setStatus('ready'); callbacks.current.onQuote?.(next);
+      } catch (failure) {
+        if (!active) return;
+        setStatus('error'); setError(settlementFailureMessage(failure));
+      }
+    }, 450);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  // Parent disabled/saved-result updates must not cancel their own in-flight save.
+  }, [intentKey, retry, draft.type, draft.text, draft.currency, fiat]);
+  useEffect(() => {
+    if (status !== 'ready' || !choice) return;
+    const timer = window.setTimeout(() => { setStatus('error'); setError('This price expired. Refresh the price before continuing.'); }, Math.max(0, Date.parse(choice.quote.expiresAt) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [choice, status]);
+  function change(type: Draft['type'], text: string) {
+    setCartEditing(id, true); callbacks.current.onDirtyChange?.(true);
+    setDraft({ type, text, currency: fiat }); setStatus('loading'); setError(''); setRetry(n => n + 1);
   }
+  const current = confirmedKey === intentKey && status === 'ready' ? choice : null;
+  const creditsText = draft.type === 'credits' ? draft.text : current ? String(current.quote.lines[0].credits) : '';
+  const spendText = draft.type === 'spend' ? draft.text : current ? formatMinor(current.quote.totalMinor) : '';
   return <div className="w-full min-w-0 space-y-3" data-credit-editor>
     <div className="grid min-w-0 grid-cols-2 gap-3">
-      <div className="min-w-0 space-y-2">
-        <label htmlFor={id} className="block text-sm font-medium">Number of credits</label>
-        <Input ref={input} id={id} name="creditAmount" type="text" inputMode="numeric" autoComplete="off" spellCheck={false}
-          value={draft} onChange={event => choose(event.target.value)}
-          onBlur={validate}
-          disabled={!ready || disabled || saving} aria-invalid={Boolean(error)} aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
-          className="h-12 min-w-0 text-base tabular-nums" />
-      </div>
-      <div className="min-w-0 space-y-2">
-        <label htmlFor={`${id}-budget`} className="block text-sm font-medium">Budget ({fiat})</label>
-        <Input id={`${id}-budget`} name="creditBudget" type="text" inputMode="decimal" autoComplete="off" spellCheck={false}
-          value={budgetValue} onChange={event => changeBudget(event.target.value)}
-          onBlur={validate}
-          disabled={!ready || disabled || saving || !budgetAvailable} aria-describedby={`${id}-help`}
-          className="h-12 min-w-0 text-base tabular-nums" />
-      </div>
+      <div className="min-w-0 space-y-2"><label htmlFor={id} className="block text-sm font-medium">Number of credits</label>
+        <Input id={id} name="creditAmount" type="text" inputMode="numeric" autoComplete="off" spellCheck={false} value={creditsText}
+          onChange={event => change('credits', event.target.value)} disabled={disabled || status === 'saving'} aria-invalid={Boolean(error)}
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`} className="h-12 min-w-0 text-base tabular-nums" /></div>
+      <div className="min-w-0 space-y-2"><label htmlFor={`${id}-spend`} className="block text-sm font-medium">Spend ({fiat})</label>
+        <Input id={`${id}-spend`} name="creditSpend" type="text" inputMode="decimal" autoComplete="off" spellCheck={false} value={spendText}
+          onChange={event => change('spend', event.target.value)} disabled={disabled || status === 'saving'} aria-invalid={Boolean(error)}
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`} className="h-12 min-w-0 text-base tabular-nums" /></div>
     </div>
-    <div className="flex flex-wrap gap-2" aria-label="Credit presets">
-      {[10, 100, 1000, MAX_PURCHASE_CREDITS].map(amount => <Button key={amount} type="button" variant={number === amount ? 'secondary' : 'outline'}
-        className="min-h-11 flex-1 px-2 tabular-nums" aria-label={amount === 10 ? 'Choose 10-credit starter pack' : `Choose ${amount.toLocaleString('en')} credits`}
-        aria-pressed={number === amount} disabled={!ready || disabled || saving}
-        onClick={() => { choose(String(amount)); }}>{amount.toLocaleString('en')}</Button>)}
-    </div>
-    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">{budget ? 'Whole credits, within your budget.' : '10-credit starter, or 100–10,000 credits.'}
-      {!budgetAvailable && ' Currency rates unavailable; enter credits instead.'}</p>
-    <div role="status" className="flex flex-wrap items-baseline justify-between gap-2 text-sm tabular-nums">
-      {quote && <><span className="font-semibold"><span className="mr-2 font-normal text-muted-foreground">Total</span><PriceAmount amount={quote.amountOre / 100} currency="NOK" /></span>
-        {quote.discountOre > 0 && <span className="text-xs text-muted-foreground">Save <PriceAmount amount={quote.discountOre / 100} currency="NOK" displayCrypto="NONE" /></span>}</>}
-    </div>
-    {(saving || (dirty && valid && !error)) && !immediate && <p role="status" className="text-xs text-muted-foreground">Updating basket…</p>}
-    {error && <div className="flex flex-wrap gap-2">
-      {valid && <Button type="button" variant="outline" disabled={disabled || saving} onClick={() => setError('')}>Retry update</Button>}
-      <Button type="button" variant="ghost" disabled={disabled || saving} onClick={() => choose(String(value))}>Keep saved amount</Button>
-    </div>}
-    {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
-    <details className="text-xs text-muted-foreground">
-      <summary className="min-h-11 cursor-pointer py-3 focus-visible:outline-2">How pricing works</summary>
-      <p className="pb-2 leading-5">First 100 at base price; credits 101–500 receive 5% off; credits 501–10,000 receive 10% off. Discounts apply within each band. Your spending amount selects whole credits, not a cash balance. PayPal settles in NOK; other currencies use reference-rate estimates.</p>
-    </details>
+    <div className="flex flex-wrap gap-2" aria-label="Credit presets">{[10,100,1000,10000].map(amount => <Button key={amount} type="button"
+      variant={current?.quote.lines[0].credits === amount ? 'secondary' : 'outline'} className="min-h-11 flex-1 px-2 tabular-nums"
+      aria-label={amount === 10 ? 'Choose 10-credit starter pack' : `Choose ${amount.toLocaleString('en')} credits`}
+      disabled={disabled || status === 'saving'} onClick={() => change('credits', String(amount))}>{amount.toLocaleString('en')}</Button>)}</div>
+    <p id={`${id}-help`} className="text-xs leading-5 text-muted-foreground">10-credit starter, or 100–10,000 credits. No automatic top-ups.</p>
+    <div role="status" className="min-h-6 text-sm tabular-nums">{current ? <span className="font-semibold">Total <PriceAmount amount={current.quote.totalMinor / 100} currency={fiat} displayFiat={fiat} context="settlement" /></span>
+      : status !== 'error' ? <span className="text-muted-foreground">{status === 'saving' ? 'Saving amount…' : 'Confirming price…'}</span> : null}</div>
+    {error && <div><p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p><div className="mt-2 flex flex-wrap gap-2">
+      <Button variant="outline" type="button" disabled={disabled || status === 'saving'} onClick={() => setRetry(n => n + 1)}>Retry price</Button>
+      <Button variant="ghost" type="button" disabled={disabled || status === 'saving'} onClick={() => { setDraft(initial()); setRetry(n => n + 1); }}>Keep saved amount</Button>
+    </div></div>}
+    <details className="text-xs text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3 focus-visible:outline-2">How pricing works</summary>
+      <p className="pb-2 leading-5">Choose credits for a quoted price, or spend an exact amount for the displayed whole-credit pack. The pack costs exactly what you enter. Volume pricing applies automatically; this is usage credit, not a cash balance.</p></details>
   </div>;
 }

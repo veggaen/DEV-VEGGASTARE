@@ -10,6 +10,81 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S4 exact spend stays 100 through product, basket, cart and checkout with safe retry', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_EXACT_SPEND_UI !== '1' || !process.env.E2E_DEMO_STORAGE_STATE || baseURL !== 'http://localhost:3000', 'Local retained demo cart only; payment intercepted');
+  test.setTimeout(180000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width:1280, height:800 }, reducedMotion:'reduce' });
+  const headers = { origin: baseURL! }, sku = 'cveggatinterviewcredits01';
+  const page = await context.newPage(), errors: string[] = [], paymentBodies: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let cartUrl = '', original: { id:string; creditAmount:number; creditSpendMinor?:number|null; creditSpendCurrency?:string|null } | undefined;
+  try {
+    await openDirectoryGate(context);
+    await context.addInitScript(() => localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency:'USD', preferredCryptoCurrency:'ETH' })));
+    await page.route(/\/api\/(demo\/)?checkout$/, route => {
+      paymentBodies.push(route.request().postData() ?? '');
+      return route.fulfill({ status:503, json:{ error:'CHECKOUT_TEMPORARILY_UNAVAILABLE' } });
+    });
+    const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.isDemo).toBe(true);
+    cartUrl = `/api/cart/${session.user.id}`;
+    original = (await (await context.request.get(cartUrl)).json()).items.find((row: {product:{id:string}}) => row.product.id === sku);
+    await page.goto(`/products/${sku}`, { waitUntil:'domcontentloaded' });
+    const cookie = page.getByRole('button', { name:'Essential Only', exact:true }); if(await cookie.isVisible()) await cookie.click();
+    const spend = page.getByRole('textbox', { name:'Spend (USD)', exact:true });
+    const credits = page.getByRole('textbox', { name:'Number of credits', exact:true });
+    await expect(page.getByRole('button', { name:'Buy now', exact:true })).toBeEnabled();
+    await spend.fill('100'); await spend.press('Tab');
+    await expect(spend).toHaveValue('100');
+    await expect(page.locator('[data-credit-editor]').getByRole('status')).toContainText('USD 100.00');
+    await expect(page.getByRole('button', { name:'Update credits', exact:true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name:'Buy now', exact:true })).toBeEnabled();
+    const creditCount = Number(await credits.inputValue()); expect(creditCount).toBeGreaterThan(100);
+    await page.getByRole('button', { name:'Add to basket', exact:true }).filter({ visible:true }).click();
+    await expect.poll(async () => {
+      const row = (await (await context.request.get(cartUrl)).json()).items.find((row: {product:{id:string}}) => row.product.id === sku);
+      return { amount:row?.creditSpendMinor, currency:row?.creditSpendCurrency };
+    }).toEqual({ amount:10000, currency:'USD' });
+    await page.getByRole('button', { name:/items? in basket/ }).click();
+    const basket = page.getByRole('dialog', { name:'Shopping basket', exact:true });
+    await expect(basket.getByRole('textbox', {name:'Spend (USD)',exact:true})).toHaveValue('100.00');
+    await basket.getByRole('button', { name:'View Full Cart',exact:true }).click();
+    await expect(page).toHaveURL(/\/cart$/); await expect(spend).toHaveValue('100.00');
+    await spend.fill('101'); await expect(page.getByRole('button', {name:'Proceed to checkout',exact:true})).toBeDisabled();
+    await expect(page.getByRole('link', {name:'Proceed to checkout',exact:true})).toBeVisible();
+    await spend.fill('100'); await expect(page.getByRole('link', {name:'Proceed to checkout',exact:true})).toBeVisible();
+    await page.getByRole('link', {name:'Proceed to checkout',exact:true}).click();
+    const pay = page.getByRole('button', {name:'Complete free demo order',exact:true});
+    await expect(pay).toBeEnabled(); await expect(spend).toHaveValue('100.00');
+    await expect(page.getByRole('region', {name:'Order items',exact:true})).toContainText('USD 100.00');
+    for (const size of [{width:360,height:800},{width:390,height:844},{width:844,height:390},{width:1024,height:1366},{width:1280,height:800},{width:2560,height:1440}]) {
+      await page.setViewportSize(size); await pay.scrollIntoViewIfNeeded(); await expect(pay).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.getByRole('heading',{name:'Secure checkout',exact:true}).scrollIntoViewIfNeeded();
+      if ([390,1280,2560].includes(size.width)) await page.screenshot({path:info.outputPath(`exact-checkout-${size.width}.png`)});
+    }
+    await pay.click();
+    const retry = page.getByRole('button',{name:'Retry this order',exact:true}); await expect(retry).toBeEnabled();
+    await expect(spend).toBeDisabled(); await retry.click(); await expect(retry).toBeEnabled();
+    expect(paymentBodies).toHaveLength(2);
+    // Compare only booleans; failing assertions must never print signed tokens.
+    expect(paymentBodies[0] === paymentBodies[1]).toBe(true);
+    expect(typeof JSON.parse(paymentBodies[0]).quoteToken).toBe('string');
+    expect(Object.hasOwn(JSON.parse(paymentBodies[0]), 'expectedQuote')).toBe(false);
+    expect(errors).toEqual([]);
+  } finally {
+    try {
+      if(cartUrl) {
+        const current = (await (await context.request.get(cartUrl)).json()).items.find((row:{product:{id:string}})=>row.product.id===sku);
+        if(current && original) {
+          const intent = original.creditSpendMinor != null ? {type:'spend',currency:original.creditSpendCurrency,amount:(original.creditSpendMinor/100).toFixed(2)}
+            : {type:'credits',currency:'NOK',credits:original.creditAmount};
+          expect((await context.request.patch('/api/checkout/credit-intent',{headers,data:{itemId:current.id,expectedUpdatedAt:current.updatedAt,intent}})).status()).toBe(200);
+        } else if(current) expect((await context.request.delete(`${cartUrl}/items/${current.id}`,{headers})).ok()).toBe(true);
+      }
+    } finally { await page.unrouteAll({behavior:'ignoreErrors'}); await context.close(); }
+  }
+});
+
 test('S4 exact settlement HTTP quotes use real local runtime and reject forged inputs', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_SETTLEMENT_HTTP !== '1' || baseURL !== 'http://localhost:3000', 'Opt-in local quotes only; no payment or email');
   const context = await browser.newContext({ baseURL });
@@ -9439,9 +9514,10 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  let cartPath = '', original: Array<{ product: { id: string }; quantity: number; creditAmount?: number }> = [];
+  let cartPath = '', original: Array<{ product: { id: string }; quantity: number; creditAmount?: number; creditSpendMinor?: number|null; creditSpendCurrency?: string|null }> = [];
   let paymentPosts = 0;
   try {
+    await openDirectoryGate(context);
     await context.addInitScript(() => {
       localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' }));
       localStorage.removeItem('veggastare_currency_rates');
@@ -9457,17 +9533,20 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
     const cookie = page.getByRole('button', { name: 'Essential Only', exact: true });
     if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await cookie.click();
     const credits = page.getByRole('textbox', { name: 'Number of credits', exact: true });
-    const budget = page.getByRole('textbox', { name: 'Budget (NOK)', exact: true });
+    const budget = page.getByRole('textbox', { name: 'Spend (NOK)', exact: true });
     await expect(credits).toHaveValue('100');
     await credits.fill('10000'); await expect(budget).toHaveValue('3521.70');
     await budget.fill('1000'); await expect(credits).toHaveValue('2815');
     await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeEnabled();
     await budget.press('Tab'); await expect(budget).toHaveValue('1000');
+    const addedCredits = page.waitForResponse(response => response.url().endsWith('/api/checkout/credit-intent') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    expect((await addedCredits).status()).toBe(200);
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
     await expect(credits).toHaveValue('2815');
     const saved = (await (await context.request.get(cartPath)).json()).items[0];
-    expect(saved).toMatchObject({ quantity: 1, creditAmount: 2815, product: { price: 999.77, priceCurrency: 'NOK' } });
+    expect(saved).toMatchObject({ quantity: 1, creditAmount: 2815, creditSpendMinor: 100000, creditSpendCurrency: 'NOK' });
+    await expect(page.getByRole('region', { name: 'Cart summary' })).toContainText('NOK 1,000.00');
     await credits.fill('10000');
     await expect.poll(async () => (await (await context.request.get(cartPath)).json()).items[0].creditAmount).toBe(10000);
     expect((await context.request.patch(`${cartPath}/items/${saved.id}`, { data: { creditAmount: 10001 } })).status()).toBe(400);
@@ -9476,19 +9555,19 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
     await expect(credits).toHaveValue('10000');
     await expect(budget).toHaveValue('3521.70');
     await budget.fill('1000');
-    await expect(credits).toHaveValue('2815');
     const pay = page.getByRole('button', { name: 'Complete free demo order', exact: true });
     await expect(pay).toBeDisabled();
-    await budget.press('Enter');
-    await expect(page.getByRole('heading', { name: 'Veggat AI Credits · 2815 credits', exact: true })).toBeVisible();
+    await expect(credits).toHaveValue('2815');
+    await expect(page.getByRole('region', { name: 'Order items' })).toContainText('NOK 1,000.00');
     await expect(pay).toBeEnabled();
     await page.reload({ waitUntil: 'domcontentloaded' }); await expect(credits).toHaveValue('2815');
     await page.getByRole('button', { name: /^Display currency:/ }).click();
     await page.getByRole('menuitemradio', { name: 'US Dollar', exact: true }).click();
     await page.keyboard.press('Escape');
-    const usdBudget = page.getByRole('textbox', { name: 'Budget (USD)', exact: true });
-    await expect(usdBudget).toHaveValue('99.98');
-    await usdBudget.fill('100'); await expect(credits).toHaveValue('2815');
+    const usdBudget = page.getByRole('textbox', { name: 'Spend (USD)', exact: true });
+    await expect(pay).toBeDisabled();
+    await expect(page.getByText('Currency changed. Enter your new spending amount, or choose a credit preset.', { exact: true })).toBeVisible();
+    await usdBudget.fill('100');
     await expect(usdBudget).toHaveValue('100');
     await expect(pay).toBeEnabled();
     const items = page.getByRole('region', { name: 'Order items', exact: true });
@@ -9512,7 +9591,12 @@ test('S4 flexible credit budgets persist and checkout reflows without a payment'
   } finally {
     if (cartPath) {
       expect((await context.request.delete(cartPath)).ok()).toBe(true);
-      for (const row of original) expect((await context.request.post(cartPath, { data: { productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount } })).ok()).toBe(true);
+      for (const row of original) {
+        const response = row.creditSpendMinor != null
+          ? await context.request.post('/api/checkout/credit-intent', { headers: { origin: baseURL! }, data: { type: 'spend', currency: row.creditSpendCurrency, amount: (row.creditSpendMinor/100).toFixed(2) } })
+          : await context.request.post(cartPath, { data: { productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount } });
+        expect(response.ok()).toBe(true);
+      }
     }
     await context.close();
   }
@@ -9526,8 +9610,10 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   const page = await context.newPage();
   let cartPath: string | undefined;
-  let originalItems: Array<{ product: { id: string }; quantity: number; creditAmount?: number }> = [];
+  let originalItems: Array<{ product: { id: string }; quantity: number; creditAmount?: number; creditSpendMinor?: number|null; creditSpendCurrency?: string|null }> = [];
   try {
+    await openDirectoryGate(context);
+    await context.addInitScript(() => localStorage.setItem('veggastare:uiPreferences', JSON.stringify({ preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'ETH' })));
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user.isDemo).toBe(true);
     const path = `/api/cart/${session.user.id}`;
@@ -9551,7 +9637,9 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     await expect(input).toHaveValue('10');
     await expect(page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true })).toBeEnabled();
 
+    const addedStarter = page.waitForResponse(response => response.url().endsWith('/api/checkout/credit-intent') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Add to basket', exact: true }).filter({ visible: true }).click();
+    expect((await addedStarter).status()).toBe(200);
     await page.goto('/cart', { waitUntil: 'domcontentloaded' });
     await expect(input).toHaveValue('10');
     const cart = await (await context.request.get(path)).json();
@@ -9579,16 +9667,19 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
     await expect.poll(async () => (await (await context.request.get(path)).json()).items[0].product.price).toBe(9);
     await page.screenshot({ path: testInfo.outputPath('small-credit-basket-1280.png') });
     await page.getByRole('button', { name: 'Close basket', exact: true }).click();
+    await expect(basket).not.toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('link', { name: 'Proceed to checkout', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Veggat AI Credits · 10 credits', exact: true })).toBeVisible();
-    let submittedQuote: unknown;
+    await expect(page).toHaveURL(/\/checkout$/);
+    await expect(page.getByRole('heading', { name: 'Veggat AI Credits', exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Spend (NOK)', exact: true })).toHaveValue('9.00');
+    let submittedNativeQuote = false;
     await page.route('**/api/demo/checkout', async route => {
-      submittedQuote = JSON.parse(route.request().postDataJSON().expectedQuote);
+      submittedNativeQuote = typeof route.request().postDataJSON().quoteToken === 'string';
       await route.fulfill({ status: 503, json: { error: 'PAYPAL_NOT_CONFIGURED' } });
     });
     await page.getByRole('button', { name: 'Complete free demo order', exact: true }).click();
-    await expect.poll(() => submittedQuote).toMatchObject({ totalOre: 900, lines: [{ credits: 10, amountOre: 900 }] });
+    await expect.poll(() => submittedNativeQuote).toBe(true);
     for (const width of [360, 390, 1280, 2560]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await page.locator('[data-site-scroll]').evaluate(e => e.scrollWidth <= e.clientWidth)).toBe(true);
@@ -9601,9 +9692,12 @@ test('S4 — small credit pack keeps a 9 NOK quote across cart and checkout', as
   } finally {
     if (cartPath) {
       expect((await context.request.delete(cartPath)).ok()).toBe(true);
-      for (const row of originalItems) expect((await context.request.post(cartPath, { data: {
-        productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount,
-      } })).ok()).toBe(true);
+      for (const row of originalItems) {
+        const response = row.creditSpendMinor != null
+          ? await context.request.post('/api/checkout/credit-intent', { headers: { origin: baseURL! }, data: { type: 'spend', currency: row.creditSpendCurrency, amount: (row.creditSpendMinor/100).toFixed(2) } })
+          : await context.request.post(cartPath, { data: { productId: row.product.id, quantity: row.quantity, creditAmount: row.creditAmount } });
+        expect(response.ok()).toBe(true);
+      }
     }
     await context.close();
   }

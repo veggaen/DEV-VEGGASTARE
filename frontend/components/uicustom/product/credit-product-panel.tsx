@@ -4,9 +4,10 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Check, MessageSquare, Sparkles } from 'lucide-react';
 import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
+import type { CreditChoice } from '@/lib/payments/settlement-client';
 
-export default function CreditProductPanel({ title, credits, onCredits, onDirtyChange, disabled, controls, actions }: {
-  title: string; credits: number; onCredits: (amount: number) => void; onDirtyChange: (dirty: boolean) => void;
+export default function CreditProductPanel({ title, credits, choice, onCredits, onDirtyChange, disabled, controls, actions }: {
+  title: string; credits: number; choice: CreditChoice | null; onCredits: (choice: CreditChoice) => void; onDirtyChange: (dirty: boolean) => void;
   disabled: boolean; controls: ReactNode; actions: ReactNode;
 }) {
   return <section aria-labelledby="credit-product-title" data-credit-product className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -20,7 +21,8 @@ export default function CreditProductPanel({ title, credits, onCredits, onDirtyC
     <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <section aria-label="Choose your credits" className="min-w-0 p-5 sm:p-7">
         <h2 className="mb-5 text-lg font-semibold">Choose your amount</h2>
-        <CreditAmountEditor value={credits} onSave={onCredits} onDirtyChange={onDirtyChange} disabled={disabled} immediate />
+        <CreditAmountEditor value={credits} spendMinor={choice?.intent.type === 'spend' ? choice.quote.totalMinor : null}
+          spendCurrency={choice?.intent.type === 'spend' ? choice.intent.currency : null} onSave={onCredits} onQuote={onCredits} onDirtyChange={onDirtyChange} disabled={disabled} />
         <div data-credit-purchase-actions className="mt-3">{actions}</div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">One-time purchase · PayPal at checkout</p>
       </section>

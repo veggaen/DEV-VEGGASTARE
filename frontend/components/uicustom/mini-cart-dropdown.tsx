@@ -9,6 +9,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FiShoppingCart, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiPackage, FiShoppingBag } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import PriceAmount, { PriceTotal } from "@/components/crypto-related/PriceAmount";
+import { useCartSettlement } from '@/hooks/use-cart-settlement';
 import { useCartPage } from '@/hooks/use-cart-page';
 import { useCart } from '@/contexts/cart-context';
 import { isShowcaseProduct } from '@/lib/showcase-catalog';
@@ -44,7 +45,9 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
   const { syncCart, checkoutBlocked } = useCart();
   const { items, loading, refreshing, pending, error, needsRefresh, reload, mutate } = useCartPage(activated ? userId : undefined, syncCart);
   const busy = refreshing || pending.size > 0;
-  const canCheckout = !busy && !checkoutBlocked && !needsRefresh && !hasDrafts && items.every(item => isShowcaseProduct(item.product.id) && item.quantity === 1);
+  const supported = items.every(item => isShowcaseProduct(item.product.id) && item.quantity === 1);
+  const pricing = useCartSettlement(items, !open || loading || !supported);
+  const canCheckout = pricing.ready && !busy && !checkoutBlocked && !needsRefresh && !hasDrafts && supported;
   const mounted = useClientReady();
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -239,8 +242,11 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                 <PriceAmount
-                                  amount={item.product.price * item.quantity}
-                                  currency={item.product.priceCurrency ?? "USD"}
+                                  amount={pricing.quote?.lines.find(line => line.productId === item.product.id)?.amountMinor != null
+                                    ? pricing.quote.lines.find(line => line.productId === item.product.id)!.amountMinor / 100 : item.product.price * item.quantity}
+                                  currency={pricing.quote?.currency ?? item.product.priceCurrency ?? "USD"}
+                                  displayFiat={pricing.quote?.currency}
+                                  context={pricing.quote ? 'settlement' : 'catalog'}
                                 />
                               </span>
                               {item.quantity > 1 && (
@@ -285,7 +291,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                               <FiTrash2 className="h-3 w-3" />
                             </button>
                           </div>
-                          {item.creditAmount !== undefined && <div className="col-span-2 min-w-0"><CreditAmountEditor value={item.creditAmount}
+                          {item.creditAmount !== undefined && <div className="col-span-2 min-w-0"><CreditAmountEditor value={item.creditAmount} spendMinor={item.creditSpendMinor} spendCurrency={item.creditSpendCurrency}
                             disabled={pending.has(item.id) || refreshing || needsRefresh}
                             onSave={credits => mutate(item.id, credits)} /></div>}
                         </motion.div>
@@ -300,10 +306,12 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
                     <span className="min-w-0 text-right text-base font-bold text-zinc-900 dark:text-zinc-100">
-                      <PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} />
+                      {supported ? pricing.quote ? <PriceAmount amount={pricing.quote.totalMinor / 100} currency={pricing.quote.currency} displayFiat={pricing.quote.currency} context="settlement" /> : '—'
+                        : <PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} />}
                     </span>
                   </div>
 
+                  {pricing.error && <p role="alert" className="text-sm text-destructive">{pricing.error}</p>}
                   {/* Action buttons */}
                   {hasDrafts && <div className="text-sm text-muted-foreground"><p>Save your quantity edits to update the total.</p><button type="button" className="min-h-11 underline focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setDrafts({})}>Discard quantity edits</button></div>}
                   <div className="flex gap-2">
@@ -329,7 +337,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
 
                   {/* Subtle info */}
                   <p className="text-center text-[10px] text-zinc-400 dark:text-zinc-500">
-                    {!canCheckout && !busy && !needsRefresh ? 'Review item quantities in the full cart before checkout.' : 'Final price and payment method confirmed at checkout.'}
+                    {pricing.error ? 'Open the full cart to review and refresh the price.' : !supported ? 'Review item quantities in the full cart before checkout.' : 'Your selected fiat currency is used at checkout.'}
                   </p>
                 </div>
               </>

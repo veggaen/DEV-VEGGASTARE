@@ -19,7 +19,7 @@ interface PriceAmountProps {
   /** @deprecated Source currency belongs in transaction details, not price parentheses. */
   showOriginalAmount?: boolean;
   render?: (parts: PriceDisplayParts) => ReactNode;
-  context?: 'catalog' | 'history';
+  context?: 'catalog' | 'history' | 'settlement';
 }
 
 /** Sum mixed listing currencies only for presentation; unknown currency fails closed. */
@@ -43,7 +43,9 @@ export default function PriceAmount({ usd, amount, currency = 'USD', displayFiat
     stale: rates.isFiatStale || ((displayCrypto ?? prefs.preferredCryptoCurrency) !== 'NONE' && rates.isCryptoStale),
   });
   if (render) return <>{render(parts)}</>;
-  return <span data-price-display className="inline-block max-w-full tabular-nums" title={parts.isEstimate ? `Display estimate${parts.isStale ? ' using last available rates' : ' using current reference rates'}. ${context === 'history' ? 'Original recorded amounts are unchanged.' : 'Payment totals are confirmed at checkout.'}` : undefined}>
+  return <span data-price-display className="inline-block max-w-full tabular-nums" title={context === 'settlement'
+    ? 'Server-confirmed fiat price. The crypto equivalent is an estimate, not a payment quote.'
+    : parts.isEstimate ? `Display estimate${parts.isStale ? ' using last available rates' : ' using current reference rates'}. ${context === 'history' ? 'Original recorded amounts are unchanged.' : 'Payment totals are confirmed at checkout.'}` : undefined}>
     <span className="whitespace-nowrap">{parts.primaryText}</span>
     {parts.secondaryText && <> <span className="inline-block text-xs font-normal text-muted-foreground">{parts.secondaryText}</span></>}
   </span>;

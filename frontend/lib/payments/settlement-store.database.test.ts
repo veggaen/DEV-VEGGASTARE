@@ -187,6 +187,24 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
     expect(lines.find(line => line.productId === creditSku)?.priceAtTime).toBe(100);
     expect(lines.find(line => line.productId === fileSku)?.priceAtTime).toBe(signed.quote.lines.find(line => line.kind === 'DIGITAL_FILES')!.amountMinor / 100);
   });
+  it('adds exact spend atomically and replaces the same credit line without an intermediate count price', async () => {
+    const current = await cart();
+    await db.cartItem.deleteMany({ where: { cartId: current.id } });
+    const item = await store().addCreditIntent(current.userId, { type: 'spend', currency: 'USD', amount: '100' });
+    expect(item).toMatchObject({ quantity: 1, creditSpendMinor: 10000, creditSpendCurrency: 'USD' });
+    const changed = await store().addCreditIntent(current.userId, { type: 'credits', currency: 'NOK', credits: 555 });
+    expect(changed).toMatchObject({ id: item.id, creditAmount: 555, creditSpendMinor: null, creditSpendCurrency: null });
+    expect(await db.cartItem.count({ where: { cartId: current.id } })).toBe(1);
+    expect(await db.order.count({ where: { userId: current.userId } })).toBe(0);
+  });
+  it('rolls back a product-page add when the credit listing is unavailable', async () => {
+    const current = await cart(), before = current.CartItem[0];
+    await db.product.update({ where: { id: creditSku }, data: { visibility: 'HIDDEN' } });
+    try {
+      await expect(store().addCreditIntent(current.userId, { type: 'spend', currency: 'USD', amount: '100' })).rejects.toThrow('ITEM_UNAVAILABLE');
+      expect(await db.cartItem.findUnique({ where: { id: before.id } })).toMatchObject({ creditAmount: 100, creditSpendMinor: null });
+    } finally { await db.product.update({ where: { id: creditSku }, data: { visibility: 'PUBLIC' } }); }
+  });
   it('persists whole-credit mode by clearing both previous spend fields', async () => {
     const { current, item, saved } = await exact('USD', '100');
     const changed = await store().saveCreditIntent(current.userId, item.id, saved.updatedAt.toISOString(), { type: 'credits', currency: 'NOK', credits: 122 });

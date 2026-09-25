@@ -6,11 +6,13 @@ import { useCart } from '@/contexts/cart-context';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import CreditAmountEditor from './credit-amount-editor';
+import type { CreditChoice } from '@/lib/payments/settlement-client';
+import type { CartItemDto } from '@/lib/types/carts';
 
 const Context = createContext<{ busy: boolean; editingBlocked: boolean; error: string; remove: (id: string) => Promise<void>;
-  credits: (id: string, amount: number) => Promise<boolean>; setDirty: (dirty: boolean) => void; setPaymentPending: (pending: boolean) => void } | null>(null);
+  paymentPending: boolean; credits: (item: CartItemDto, choice: CreditChoice) => Promise<boolean>; setDirty: (dirty: boolean) => void; setPaymentPending: (pending: boolean) => void } | null>(null);
 export function CheckoutEditProvider({ children }: { children: ReactNode }) {
-  const { removeItem, updateCredits } = useCart();
+  const { removeItem, updateCreditIntent } = useCart();
   const router = useRouter();
   const locked = useRef(false);
   const [editing, setEditing] = useState(false), [error, setError] = useState('');
@@ -25,23 +27,23 @@ export function CheckoutEditProvider({ children }: { children: ReactNode }) {
       startTransition(() => router.refresh());
     } finally { locked.current = false; setEditing(false); }
   }
-  async function credits(id: string, amount: number) {
+  async function credits(item: CartItemDto, choice: CreditChoice) {
     if (locked.current || refreshing || paymentPending) return false;
     locked.current = true; setEditing(true); setError('');
     try {
-      if (!await updateCredits(id, amount)) { setError('We could not confirm the credit amount. Review your saved cart before paying.'); return false; }
+      if (!item.updatedAt || !await updateCreditIntent(item.id, item.updatedAt, choice.intent)) { setError('We could not confirm the credit amount. Review your saved cart before paying.'); return false; }
       startTransition(() => router.refresh());
       return true;
     } finally { locked.current = false; setEditing(false); }
   }
   const editingBlocked = editing || refreshing || paymentPending || Boolean(error);
-  return <Context.Provider value={{ busy: editingBlocked || dirty, editingBlocked, error, remove, credits, setDirty, setPaymentPending }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ busy: editingBlocked || dirty, editingBlocked, error, remove, credits, setDirty, setPaymentPending, paymentPending }}>{children}</Context.Provider>;
 }
 export function useCheckoutEditing() { return useContext(Context); }
-export function CheckoutCreditAmount({ itemId, value }: { itemId: string; value: number }) {
+export function CheckoutCreditAmount({ item }: { item: CartItemDto }) {
   const edit = useCheckoutEditing();
-  return <div className="mt-4"><CreditAmountEditor value={value} disabled={!edit || edit.editingBlocked}
-    onSave={amount => edit?.credits(itemId, amount) ?? false} onDirtyChange={edit?.setDirty} /></div>;
+  return <div className="mt-4"><CreditAmountEditor value={item.creditAmount!} spendMinor={item.creditSpendMinor} spendCurrency={item.creditSpendCurrency} disabled={!edit || edit.editingBlocked}
+    onSave={choice => edit?.credits(item, choice) ?? false} onDirtyChange={edit?.setDirty} /></div>;
 }
 export function RemoveCheckoutItem({ itemId, title }: { itemId: string; title: string }) {
   const edit = useCheckoutEditing();

@@ -44,14 +44,14 @@ function checkListings(cart: StoredCart) {
   }
 }
 
-async function lockCart(tx: Prisma.TransactionClient, userId: string) {
+async function lockCart(tx: Prisma.TransactionClient, userId: string, allowEmpty = false) {
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Cart" WHERE "userId"=${userId} FOR UPDATE`;
   if (!rows.length) throw new SettlementError('EMPTY_CART');
   // Parent FOR UPDATE blocks new child FK inserts. Existing child edits/deletes
   // serialize on row locks, including older cart handlers without advisory locks.
   await tx.$queryRaw`SELECT "id" FROM "CartItem" WHERE "cartId"=${rows[0].id} ORDER BY "id" FOR UPDATE`;
   const cart = await tx.cart.findUnique({ where: { userId }, include: cartInclude });
-  if (!cart || !cart.CartItem.length) throw new SettlementError('EMPTY_CART');
+  if (!cart || (!allowEmpty && !cart.CartItem.length)) throw new SettlementError('EMPTY_CART');
   return cart;
 }
 
@@ -67,6 +67,28 @@ export function createSettlementStore(db: PrismaClient, config: {
     { now: clock(), fx, models: config.models, modelCostReviewBy: config.modelCostReviewBy });
 
   return {
+    /** Explicit product-page add/replace; spend and computed count commit together. */
+    async addCreditIntent(userId: string, input: unknown) {
+      const intent = CreditIntent.parse(input), fx = await config.readFx(intent.currency);
+      const credits = intent.type === 'spend' ? { type: 'spend' as const, amount: intent.amount }
+        : { type: 'credits' as const, credits: intent.credits };
+      const quote = buildQuote({ currency: intent.currency, items: [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, credits }] }, fx);
+      const line = quote.lines[0];
+      return db.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`checkout:${userId}`}, 0))`;
+        await tx.cart.upsert({ where: { userId }, create: { userId }, update: {} });
+        const cart = await lockCart(tx, userId, true);
+        if (clock() >= Date.parse(quote.expiresAt)) throw new SettlementError('SETTLEMENT_QUOTE_EXPIRED');
+        const data = { quantity: 1, creditAmount: line.credits,
+          creditSpendMinor: intent.type === 'spend' ? line.amountMinor : null,
+          creditSpendCurrency: intent.type === 'spend' ? intent.currency : null };
+        const item = await tx.cartItem.upsert({ where: { productId_cartId: { productId: line.productId, cartId: cart.id } },
+          create: { cartId: cart.id, productId: line.productId, ...data }, update: data, include: { Product: true } });
+        const checked = await tx.cart.findUniqueOrThrow({ where: { id: cart.id }, include: cartInclude });
+        checkListings({ ...checked, CartItem: checked.CartItem.filter(row => row.id === item.id) });
+        return item;
+      }, { maxWait: 10_000, timeout: 15_000 });
+    },
     /** Authentication/rate limits/origin checks belong to the calling route.
      * This read never creates an order or grants a demo allowance. */
     async quoteCart(userId: string, selectedCurrency: unknown) {
@@ -101,7 +123,7 @@ export function createSettlementStore(db: PrismaClient, config: {
         return tx.cartItem.update({ where: { id: item.id }, data: { quantity: 1, creditAmount: line.credits,
           creditSpendMinor: intent.type === 'spend' ? line.amountMinor : null,
           creditSpendCurrency: intent.type === 'spend' ? intent.currency : null },
-          select: { id: true, creditAmount: true, creditSpendMinor: true, creditSpendCurrency: true, updatedAt: true } });
+          include: { Product: true } });
       }, { maxWait: 10_000, timeout: 15_000 });
     },
 

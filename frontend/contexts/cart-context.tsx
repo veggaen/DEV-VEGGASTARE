@@ -1,8 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import type { CreditIntent } from '@/lib/payments/settlement-input';
+import { settlementRequest } from '@/lib/payments/settlement-client';
+import { CartItemResponseSchema } from '@/lib/types/carts';
 
 interface CartItem {
   id: string;
@@ -33,6 +36,8 @@ interface CartContextType {
   error: string | null;
   addItem: (productId: string, quantity?: number, creditAmount?: number) => Promise<boolean>;
   updateCredits: (itemId: string, creditAmount: number) => Promise<boolean>;
+  addCreditIntent: (intent: CreditIntent) => Promise<boolean>;
+  updateCreditIntent: (itemId: string, revision: string, intent: CreditIntent) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateQuantity: (itemId: string, changeType: "increment" | "decrement") => Promise<boolean>;
   clearCart: () => Promise<boolean>;
@@ -61,6 +66,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const userId = session?.user?.id;
+  const currentUser = useRef(userId); currentUser.current = userId;
 
   const itemCount = useMemo(() =>
     items.reduce((sum, item) => sum + item.quantity, 0),
@@ -83,6 +89,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const refreshCart = useCallback(async () => {
     if (!userId) {
       setItems([]);
+      setIsLoading(false);
+      setError(null);
       return;
     }
 
@@ -93,12 +101,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`/api/cart/${userId}`);
       if (!response.ok) throw new Error("Failed to fetch cart");
       const data = await response.json();
+      if (currentUser.current !== userId) return;
       setItems(data.items ?? []);
     } catch (err) {
       console.error("Error fetching cart:", err);
-      setError("Failed to load cart");
+      if (currentUser.current === userId) setError("Failed to load cart");
     } finally {
-      setIsLoading(false);
+      if (currentUser.current === userId) setIsLoading(false);
     }
   }, [userId]);
 
@@ -206,6 +215,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch { return false; }
   }, [userId]);
 
+  const saveCreditIntent = useCallback(async (intent: CreditIntent, itemId?: string, revision?: string) => {
+    if (!userId) return false;
+    setIsLoading(true);
+    try {
+      const result = await settlementRequest('/api/checkout/credit-intent', itemId
+        ? { itemId, expectedUpdatedAt: revision, intent } : intent, undefined, itemId ? 'PATCH' : 'POST');
+      const item = CartItemResponseSchema.parse(result);
+      if (currentUser.current !== userId) return false;
+      if (itemId && item.id !== itemId) throw new Error('Unexpected cart item');
+      setItems(previous => [...previous.filter(row => row.product.id !== item.product.id), item]);
+      setError(null);
+      return true;
+    } catch { if (currentUser.current === userId) setError('Your basket change could not be confirmed. Refresh your basket before trying again.'); return false; }
+    finally { if (currentUser.current === userId) setIsLoading(false); }
+  }, [userId]);
+  const addCreditIntent = useCallback((intent: CreditIntent) => saveCreditIntent(intent), [saveCreditIntent]);
+  const updateCreditIntent = useCallback((itemId: string, revision: string, intent: CreditIntent) => saveCreditIntent(intent, itemId, revision), [saveCreditIntent]);
+
   return (
     <CartContext.Provider
       value={{
@@ -218,6 +245,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         updateQuantity,
         updateCredits,
+        addCreditIntent,
+        updateCreditIntent,
         clearCart,
         refreshCart,
         syncCart: setItems,

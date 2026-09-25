@@ -12,7 +12,8 @@ import { useCart } from "@/contexts/cart-context";
 import { useCartPage } from "@/hooks/use-cart-page";
 import { cartCurrencyTotals } from "@/lib/cart-display";
 import PreferredMoney from '@/components/checkout/preferred-money';
-import { PriceTotal } from '@/components/crypto-related/PriceAmount';
+import PriceAmount, { PriceTotal } from '@/components/crypto-related/PriceAmount';
+import { useCartSettlement } from '@/hooks/use-cart-settlement';
 import { isShowcaseProduct } from "@/lib/showcase-catalog";
 import CartSkeleton, { CartHeader, cartCanvas, cartColumns } from "@/components/checkout/cart-skeleton";
 import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
@@ -27,7 +28,8 @@ export default function CartPage() {
   const totals = cartCurrencyTotals(items);
   const supported = items.every(item => isShowcaseProduct(item.product.id));
   const validQuantities = items.every(item => item.quantity === 1);
-  const canCheckout = !busy && !dirtyCredits && !checkoutBlocked && !needsRefresh && !!totals && supported && validQuantities;
+  const pricing = useCartSettlement(items, loading || !supported || !validQuantities);
+  const canCheckout = pricing.ready && !busy && !dirtyCredits && !checkoutBlocked && !needsRefresh && !!totals && supported && validQuantities;
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/auth/login?callbackUrl=%2Fcart");
@@ -62,12 +64,14 @@ export default function CartPage() {
               </Link>
               <div className="min-w-0 py-1">
                 <h2 className="text-base font-semibold leading-6 [overflow-wrap:anywhere]"><Link href={href} className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.product.title}</Link></h2>
-                <div className="mt-2 text-sm tabular-nums text-muted-foreground"><PreferredMoney amount={item.product.price} currency={item.product.priceCurrency ?? 'USD'} /> <span className="text-xs">each</span></div>
+                <div className="mt-2 text-sm tabular-nums text-muted-foreground">{supported && validQuantities ? pricing.quote
+                  ? <PriceAmount amount={pricing.quote.lines.find(line => line.productId === item.product.id)!.amountMinor / 100} currency={pricing.quote.currency} displayFiat={pricing.quote.currency} context="settlement" />
+                  : 'Confirming price…' : <PreferredMoney amount={item.product.price} currency={item.product.priceCurrency ?? 'USD'} />} <span className="text-xs">each</span></div>
                 {!isShowcaseProduct(item.product.id) && <p className="mt-2 text-sm leading-6 text-muted-foreground">Browse-only listing. Remove this item to check out the available products.</p>}
                 {isShowcaseProduct(item.product.id) && item.quantity > 1 && <p className="mt-2 text-sm leading-6 text-muted-foreground">One copy per account is enough. Reduce the quantity to 1 to continue.</p>}
               </div>
               <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1 sm:col-start-2">
-                {item.creditAmount !== undefined ? <CreditAmountEditor value={item.creditAmount} onDirtyChange={setDirtyCredits}
+                {item.creditAmount !== undefined ? <CreditAmountEditor value={item.creditAmount} spendMinor={item.creditSpendMinor} spendCurrency={item.creditSpendCurrency} onDirtyChange={setDirtyCredits}
                   disabled={disabled} onSave={credits => mutate(item.id, credits)} /> : <div role="group" aria-label={`Quantity for ${item.product.title}`} className="flex shrink-0 items-center rounded-lg border border-border">
                   <Button size="icon" variant="ghost" className="size-11 rounded-r-none" onClick={() => void mutate(item.id, "decrement")} disabled={disabled || item.quantity <= 1} aria-label="Decrease quantity"><Minus aria-hidden="true" className="size-4" /></Button>
                   <span className="min-w-10 px-1 text-center text-sm font-medium tabular-nums" aria-live="polite">{item.quantity}</span>
@@ -87,16 +91,19 @@ export default function CartPage() {
         <dl className="mt-5 space-y-4 text-sm">
           <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">Items</dt><dd className="tabular-nums">{items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
           {totals ? <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
-            <dt className="font-medium">Subtotal</dt><dd className="max-w-full text-xl font-semibold tabular-nums"><PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} /></dd>
+            <dt className="font-medium">Subtotal</dt><dd className="max-w-full text-xl font-semibold tabular-nums">{supported && validQuantities ? pricing.quote
+              ? <PriceAmount amount={pricing.quote.totalMinor / 100} currency={pricing.quote.currency} displayFiat={pricing.quote.currency} context="settlement" /> : '—'
+              : <PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} />}</dd>
           </div> : <div><dt>Subtotal</dt><dd>Price unavailable. Refresh your saved cart.</dd></div>}
         </dl>
         {!supported ? <p className="mt-4 text-sm leading-6 text-muted-foreground">Checkout supports Fjord Study and Veggat AI Credits. Remove other listings to continue.</p>
           : !validQuantities && <p className="mt-4 text-sm leading-6 text-muted-foreground">Reviewer checkout supports one of each product. Set each quantity to 1 to continue.</p>}
+        {pricing.error && <div className="mt-4"><p role="alert" className="text-sm text-destructive">{pricing.error}</p><Button type="button" variant="outline" className="mt-2 min-h-11" disabled={busy} onClick={() => pricing.needsCartRefresh ? void reload() : pricing.refresh()}>{pricing.needsCartRefresh ? 'Refresh saved basket' : 'Refresh price'}</Button></div>}
         {canCheckout ? <Button asChild className="mt-5 min-h-12 w-full"><Link href="/checkout">Proceed to checkout</Link></Button>
           : <Button disabled className="mt-5 min-h-12 w-full">{busy ? "Updating cart…" : "Proceed to checkout"}</Button>}
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{session.user.isDemo
           ? "Demo checkout is free. No payment or card details are needed."
-          : "Converted prices are estimates in your selected display currency. Checkout confirms the original-currency charge; your payment provider may use a different exchange rate."}</p>
+          : "Your selected fiat currency is used at checkout. Crypto amounts are estimates."}</p>
       </section>
     </div>}
   </div>;

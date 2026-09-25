@@ -1,10 +1,10 @@
 # Exact-currency credit purchases — implementation in progress
 
-Status: **PARTIAL, exact-price entry not activated or deployed**. Production still
+Status: **PARTIAL, exact-price entry implemented locally, not deployed**. Production still
 charges server-priced NOK and treats a typed budget as a maximum. Keeping `100`
 in that input did not fulfill the request to actually buy for USD 100.00.
-The new policy is the first implementation step toward that requirement, not a
-claim that the customer journey is complete.
+The local customer journey now uses native-currency server quotes. Real Sandbox
+capture/refund acceptance and production activation are still required.
 
 ## Required end state
 
@@ -256,11 +256,13 @@ The fee policy expires with the existing 24 October review deadline.
    owner financial reports, company checkout counts and verification evidence
    are implemented with v1 compatibility tests. An exposure valuation is not revenue. Retain
    verified webhook signatures, unique capture grants and revocation locks.
-3. Connect product/basket/cart/checkout auto inputs to the server quote. Persist
-   spend intent; currency changes require a new quote. Show one native fiat total
-   plus optional crypto estimate, retain editable drafts and lock payment during
-   a pending/failed/expired quote. Never round a NOK-derived estimate to fake an
-   exact foreign-currency charge. The existing display helper alone is not enough.
+3. Product/basket/cart/checkout are now connected to server quotes locally.
+   The debounced input retains exact spend, atomically saves intent plus computed
+   credits, and needs no Update button. Currency changes require explicit review;
+   pending, failed and expired quotes disable payment. A possibly accepted payment
+   freezes its quote/body for identical retries. Other-tab changes cannot replace
+   the displayed selection silently, and paused quotes cannot cross cart/currency
+   revisions. Native fiat is distinguished from the optional crypto estimate.
 4. Local :3000 then isolated Preview: exact USD 100, NOK 1000, count mode, mixed
    cart, expiry, currency switching, cross-tab edits, old-order recovery, denied
    forged inputs, capture/refund replay, and 390/1280 plus requested layout sizes.
@@ -268,3 +270,41 @@ The fee policy expires with the existing 24 October review deadline.
 5. Verify the merchant's foreign-currency receiving behavior. Deploy only after
    the dependent money/report paths are consistent. Any new Live purchase remains
    an explicit owner-reviewed action, not part of these read-only checks.
+
+## Local purchase UI verification — 25 September 2026
+
+- Combined payment/cart/report regressions: **629/629 across 29 files**, no skips.
+  A subsequent focused run passes **23/23** after adding cross-tab quote-binding
+  validation. PostgreSQL tests use only disposable isolated schemas and mocked
+  provider proofs, not real payments.
+- Browser checks verify exact USD 100 across product, basket, cart and checkout;
+  an intercepted unavailable-payment response retries the identical signed body,
+  with edits locked. No order, provider request, allowance or email is created.
+- NOK 1000 exact spend, the 10,000-credit preset, explicit currency-change recovery,
+  and light/dark checkout layouts are checked at 360/390/844 landscape/768/1024/
+  1280/1920/2560. Screenshots are inspected, not just overflow measurements.
+- The 10-credit **9.00 NOK** preset also passes its separate product → basket →
+  cart → checkout browser run, including a mocked submission and reload. Only
+  the isolated demo cart is edited; no payment, order or credits are created.
+- Earlier harness failures navigated away before the Add response; tests now
+  await the actual cart write. Rapid consecutive runs also reached the existing
+  request limit. Limits are unchanged; final runs are spaced. These intermediate
+  failed runs are not reported as passes.
+- Unexpected network/JSON errors are redacted into actionable buyer messages;
+  429 responses request a pause. Refund-adjustment information is retained, but
+  does not temporarily claim a zero-credit pack while its quote is loading.
+- Real Chrome confirms the signed-in local product, automatic exact USD 100 and
+  the balanced purchase workspace, plus a Sandbox file checkout and scrolling to
+  its footer at the actual 2498px width, with no horizontal overflow. The attempted
+  viewport override did not change this tab's measured width; it is not counted
+  as real-Chrome mobile acceptance. Responsive acceptance above is Playwright.
+  Existing Resend webhook remains Enabled and
+  its recorded test event received HTTP 200; this is not inbox-delivery evidence.
+- Design review uses the [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md)
+  for labelled inputs, keyboard focus, token surfaces and responsive containment.
+  Existing consent wording and payment/grant safeguards are unchanged.
+- Production remains `92c5ac7`. No production migration/deployment, new Live
+  charge/refund, email, credential or billing change is part of this UI slice.
+- Final optimized build, full TypeScript and touched ESLint pass. Local testing
+  uses the production-mode build on :3000 with isolated Preview data and Sandbox
+  credentials only.

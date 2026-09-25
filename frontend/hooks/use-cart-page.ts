@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CartItemResponseSchema, CartResponseSchema, type CartItemDto } from "@/lib/types/carts";
 import { isPurchasableCreditAmount } from '@/lib/ai-credit-purchase';
+import type { CreditChoice } from '@/lib/payments/settlement-client';
 
 export function useCartPage(userId: string | undefined, syncCart: (items: CartItemDto[]) => void) {
   const [items, setItems] = useState<CartItemDto[]>([]);
@@ -85,11 +86,13 @@ export function useCartPage(userId: string | undefined, syncCart: (items: CartIt
     };
   }, [reload]);
 
-  const mutate = async (itemId: string, action: "increment" | "decrement" | "remove" | number) => {
+  const mutate = async (itemId: string, action: "increment" | "decrement" | "remove" | number | CreditChoice) => {
     if (!userId || locks.current.has(itemId) || reading.current || uncertain.current) return;
     const previous = current.current.find(item => item.id === itemId);
     if (!previous || (action === "decrement" && previous.quantity <= 1)) return;
     const credits = previous.creditAmount !== undefined;
+    const intent = typeof action === 'object' ? action.intent : null;
+    if (intent && (!credits || !previous.updatedAt)) return false;
     if (credits && (action === 'increment' || action === 'decrement')) return false;
     if (typeof action === 'number' && ((credits ? !isPurchasableCreditAmount(action) :
         !Number.isInteger(action) || action < 1 || action > 1000) ||
@@ -101,10 +104,11 @@ export function useCartPage(userId: string | undefined, syncCart: (items: CartIt
     // Keep a removal row mounted until confirmed: focus, errors and retry remain discoverable.
     // Credit totals are server-priced: wait for the validated DTO instead of
     // displaying an old price with a new credit amount. Ordinary quantities can be optimistic.
-    if (!credits && action !== "remove") commit(current.current.map(item => item.id === itemId
+    if (!credits && !intent && action !== "remove") commit(current.current.map(item => item.id === itemId
       ? { ...item, quantity: typeof action === 'number' ? action : item.quantity + (action === "increment" ? 1 : -1) } : item));
     try {
-      const result = await request(`/api/cart/${userId}/items/${itemId}`, action === "remove"
+      const result = intent ? await request('/api/checkout/credit-intent', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, expectedUpdatedAt: previous.updatedAt, intent }) }) : await request(`/api/cart/${userId}/items/${itemId}`, action === "remove"
         ? { method: "DELETE" }
         : { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(typeof action === 'number'
           ? credits ? { creditAmount: action } : { quantity: action } : { changeType: action }) });
