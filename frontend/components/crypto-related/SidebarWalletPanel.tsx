@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { reconcileWalletDisplay, walletAddressKey } from "@/lib/wallet-display";
 import { readLocalChainStatus } from "@/lib/local-chain-status";
+import { parseWalletRegistry, type WalletRegistryEntry } from "@/lib/wallet-registry";
 import Link from "next/link";
 import {
   useAccount,
@@ -90,34 +91,6 @@ type TransferReceipt = {
 };
 
 /**
- * Registry entry for a wallet seen this session.
- * Persists even when the provider auto-disconnects (AppKit AUTH),
- * so the card stays visible as a grey/inactive row with copyable address.
- */
-type WalletRegistryEntry = {
-  key: string;
-  label: string;
-  /** User-defined custom label (overrides label in display) */
-  customLabel?: string;
-  family: string;
-  address: string;
-  connectorName: string;
-  connectorType: string;
-  connectorUid: string;
-  connectorId: string;
-  connectorIcon?: string;
-  /** Auth provider saved at connect time (Google, Discord, etc.) — only for AUTH wallets */
-  authProvider?: string;
-  /** Social display name saved at connect time */
-  socialName?: string;
-  /** Social email saved at connect time */
-  socialEmail?: string;
-  /** DB wallet ID (cuid) — backfilled when DB wallets are synced */
-  dbWalletId?: string;
-  addedAt: number;
-};
-
-/**
  * Open a popup window centered on the user's current screen.
  * Falls back to default positioning if screen geometry isn't available.
  */
@@ -153,8 +126,7 @@ function saveRegistryToStorage(registry: Map<string, WalletRegistryEntry>) {
 /** Restore wallet registry from sessionStorage */
 function restoreRegistryFromStorage(): [string, WalletRegistryEntry][] {
   try {
-    const stored = sessionStorage.getItem(REGISTRY_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    return parseWalletRegistry(sessionStorage.getItem(REGISTRY_STORAGE_KEY));
   } catch { /* ignore corrupt data */ }
   return [];
 }

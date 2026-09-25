@@ -7,6 +7,47 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+for (const corrupt of ['object', 'null', 'mixed'] as const) test(`S6 corrupt wallet cache keeps navigation usable (${corrupt})`, async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained app-issued demo; browser-only corrupt cache');
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
+  await context.addInitScript(value => {
+    const key = 'qa-valid-cached';
+    const entry = { key, label: 'QA valid cached', customLabel: 'QA valid cached', family: 'EVM', address: '0x' + '3'.repeat(40),
+      connectorName: 'Auth', connectorType: 'AUTH', connectorUid: key, connectorId: 'auth', addedAt: 1 };
+    sessionStorage.setItem('veggat_wallet_registry', JSON.stringify(value === 'object' ? {} : value === 'null' ? null : [null, ['bad', { address: null }], [key, entry]]));
+  }, corrupt);
+  const page = await context.newPage(), errors: string[] = [], writes: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/(wallets|payments|auth\/wallet)/.test(new URL(request.url()).pathname)) writes.push(new URL(request.url()).pathname); });
+  try {
+    await page.goto('/settings?section=wallet', { waitUntil: 'domcontentloaded' });
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Navigation Menu', exact: true });
+    const connect = menu.getByRole('button', { name: /^(?:\+ )?Connect a wallet$|^Enable Web3$/ });
+    await expect(connect).toBeVisible(); await connect.scrollIntoViewIfNeeded();
+    if (corrupt === 'mixed') await expect(menu.getByRole('group', { name: 'QA valid cached wallet', exact: true })).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`cache-${corrupt}-390.png`) });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.keyboard.press('Escape'); await expect(menu).toBeHidden();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click(); await expect(connect).toBeVisible();
+    expect(errors).toEqual([]); expect(writes).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S6 wallet reads are private and the retired metadata writer refuses requests', async ({ browser, baseURL }) => {
+  const anonymous = await browser.newContext({ baseURL });
+  try {
+    const wallets = await anonymous.request.get('/api/wallets/evm');
+    expect(wallets.status()).toBe(401); expect(wallets.headers()['cache-control']).toContain('no-store');
+    const retired = await anonymous.request.post('/api/wallets/evm/backfill-meta', { data: {} });
+    expect(retired.status()).toBe(410); expect(retired.headers()['cache-control']).toContain('no-store');
+  } finally { await anonymous.close(); }
+});
+
 test('S6 saved wallet addresses remain distinct without metadata writes', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained app-issued demo; browser-only wallet fixtures');
   test.setTimeout(90_000);
