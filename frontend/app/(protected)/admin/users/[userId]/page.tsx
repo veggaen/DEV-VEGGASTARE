@@ -54,8 +54,10 @@ function UserEditor({ userId, ownAccount }: { userId: string; ownAccount: boolea
   const [uploading, setUploading] = useState<'image' | 'banner' | null>(null);
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [fields, setFields] = useState<Record<string, string>>({});
   const epoch = useRef(0), leaving = useRef(false);
+  const errorPanel = useRef<HTMLDivElement>(null);
   const dirty = !!user && (Object.keys(draft) as Array<keyof Draft>).some(key => draft[key] !== draftOf(user)[key]);
   const locked = busy || loading || !!uploading;
+  useEffect(() => { if (error) errorPanel.current?.focus(); }, [error]);
   useEffect(() => {
     const abort = new AbortController(), ticket = ++epoch.current;
     setLoading(true); setError('');
@@ -158,7 +160,7 @@ function UserEditor({ userId, ownAccount }: { userId: string; ownAccount: boolea
       </div>
       {permissions.preview && user && <Button variant="outline" className={control} onClick={preview} disabled={locked}><Eye aria-hidden className="mr-2 size-4" />Preview Account</Button>}
     </header>
-    {error && <div role="alert" className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+    {error && <div ref={errorPanel} role="alert" tabIndex={-1} className="scroll-mt-24 space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 focus-visible:outline-2 focus-visible:outline-ring">
       <p>{error}</p><Button variant="outline" className={control} disabled={locked} onClick={reloadSaved}>{user ? 'Reload saved account' : 'Retry'}</Button>
     </div>}
     {loading ? <div role="status" className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"><span className="sr-only">Loading account…</span><Skeleton className="h-96 rounded-2xl" /><Skeleton className="h-72 rounded-2xl" /></div>

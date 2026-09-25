@@ -74,6 +74,7 @@ test('S8 admin detail keeps drafts, handles conflicts and adapts across screens'
     await expect(name).toHaveValue('QA changed');
     await form.getByRole('button', { name: 'Save Changes', exact: true }).click();
     await expect(editor.getByRole('alert')).toContainText('changed elsewhere'); await expect(name).toHaveValue('QA changed');
+    await expect(editor.getByRole('alert')).toBeFocused(); await expect(editor.getByRole('alert')).toBeInViewport();
     expect(writes[0]).toEqual({ name: 'QA changed', expectedUpdatedAt: '2026-01-01T00:00:00.000Z', reason: 'Disposable UI QA' });
     await editor.getByRole('button', { name: 'Reload saved account', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(name).toHaveValue('QA changed');
