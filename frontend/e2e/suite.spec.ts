@@ -74,8 +74,9 @@ test('S6 old Web3 email links are read-only and anonymous changes are rejected',
   } finally { await context.close(); }
 });
 
-test('S2 wallet login proves a disposable wallet through the real local auth handler', async ({ browser, baseURL }, info) => {
-  test.skip(baseURL !== 'http://localhost:3000', 'Creates one disposable wallet-only user in the isolated local test database, never live');
+test('S2 wallet login proves a disposable wallet through the isolated auth handler', async ({ browser, baseURL }, info) => {
+  const isolatedOrigins = ['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app'];
+  test.skip(!baseURL || !isolatedOrigins.includes(baseURL), 'Creates one disposable wallet-only user in the isolated test database, never live');
   const account = privateKeyToAccount(generatePrivateKey());
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage(), errors: string[] = [];
@@ -113,11 +114,14 @@ test('S2 wallet login proves a disposable wallet through the real local auth han
     await expect(page).toHaveURL(/\/products$/);
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user.id).toBeTruthy(); expect(session.user.email).toBeFalsy();
+    const secure = baseURL!.startsWith('https:');
+    const proofCookie = (await context.cookies()).find(cookie => cookie.name === (secure ? '__Host-veggat.wallet-login' : 'veggat.wallet-login'));
+    expect(proofCookie).toMatchObject({ httpOnly: true, secure, sameSite: 'Lax', path: '/' });
     const blockedModeChange = await context.request.patch('/api/settings/web3-mode', { headers: { origin: baseURL! }, data: { enabled: false, expectedEnabled: true } });
     expect(blockedModeChange.status()).toBe(409); expect((await blockedModeChange.json()).error).toContain('sign-in method');
     expect(await (await context.request.get('/api/settings/web3-mode')).json()).toEqual({ web3ModeEnabled: true });
     expect(signatures).toBe(1); expect(transactions).toBe(0); expect(errors).toEqual([]);
-    await info.attach('isolated-wallet-result', { body: JSON.stringify({ userId: session.user.id, address: account.address, environment: 'localhost / isolated Preview database' }), contentType: 'application/json' });
+    await info.attach('isolated-wallet-result', { body: JSON.stringify({ userId: session.user.id, address: account.address, environment: `${baseURL} / isolated Preview database` }), contentType: 'application/json' });
     const csrf = await (await context.request.get('/api/auth/csrf')).json();
     await context.request.post('/api/auth/signout', { form: { csrfToken: csrf.csrfToken, callbackUrl: '/auth/login' } });
     expect(await (await context.request.get('/api/auth/session')).json()).toBeNull();
