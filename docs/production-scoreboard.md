@@ -4,6 +4,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+People discovery: **DONE for scoped endpoint privacy/mobile placement;
+desktop paint acceptance remains PARTIAL**. Runtime `60e99a9` is promoted as
+`dpl_5ZcQot1hG9J4bGZMX7WE8brdiggo`. Exact lookup filters email visibility in the
+query; bounded suggestions and account-safe search/follow feedback replace the
+hover-only panel. 72 focused units, 11 isolated PostgreSQL checks, strict builds,
+and populated local/Preview/Live browser **3/3** each pass without retries/skips.
+Real Chrome confirms phone placement but still captures blank card interiors
+after independent sidebar scrolling. No real follow/payment write was submitted.
+See [people discovery evidence](people-discovery-evidence-2026-09.md).
+
+Source publication: **PARTIAL**. The release branch is 79 commits ahead of its
+remote, with no open release PR. The unpublished range passes a redacted secret
+scan; the historical repository scan requires separate owner-approved remediation.
+No force push, history rewrite, repository visibility change or credential use
+was performed. GitHub's isolated E2E job remains blocked by an account billing lock.
+
 People-search privacy: **DONE for this endpoint; the wider directory/social
 audit remains PARTIAL**. Runtime `026504e` is promoted as
 `dpl_HL9N6CcyyuZimaX1K4XY6rW4iPhF`. Demo searches return no real people, all

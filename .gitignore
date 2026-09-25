@@ -5,6 +5,8 @@
 scripts/_probe/
 **/.private-showcase/
 **/.vercel_token
+# Machine-specific agent permissions/commands can contain credentials.
+.claude/settings.local.json
 
 # Python bytecode cache
 **/__pycache__/

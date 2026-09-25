@@ -10,6 +10,8 @@
 /coverage
 /playwright-report/
 /test-results/
+/test-results-*/
+/test-results.json
 /e2e/.auth/
 
 # next.js

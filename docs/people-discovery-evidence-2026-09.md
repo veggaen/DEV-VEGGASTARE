@@ -71,6 +71,36 @@ sidebar scrolling, unchanged main scroll position and blur-free cards. Final rea
 Chrome acceptance must repeat this interaction; a DOM visibility assertion alone
 does not prove the paint issue is resolved on the owner's GPU/browser.
 
+## Final deployment and outstanding visual finding
+
+Runtime `60e99a9` is now deployed to isolated Preview
+`dpl_5GNpTzsh4K4xZ81yV4EKW15VNq6z` and promoted to `www.veggat.com` as
+`dpl_5ZcQot1hG9J4bGZMX7WE8brdiggo`. Both strict remote builds completed, the
+production health endpoint reports healthy, and alias inspection confirms the
+production target. No migrations were pending.
+
+The populated fixture passes **3/3 locally (9.6s), 3/3 on Preview (17.6s), and
+3/3 Live (20.3s)** with zero retries/skips. The local dark-mode UI case also passes
+(7.1s). Reports are retained outside tracked source under
+`frontend/test-results-release-people-discovery-*-populated/` and
+`frontend/test-results-release-people-discovery-local-populated-dark/`.
+
+Real Chrome confirms the mobile disclosure above populated Live posts and real
+local/Live search results. No follows, messages, purchases or account settings
+were submitted. Routine feed viewing may update normal view counts.
+
+**Desktop paint acceptance remains PARTIAL.** At 1280x800, scrolling the right
+people panel still produces screenshots with blank left-card interiors. A fresh
+screenshot repeats it; the article DOM retains text, opacity 1, visibility visible,
+and no backdrop filter or content-visibility suppression. The blur removal did
+not resolve this observation. Owner screen confirmation is requested to distinguish
+an actual display problem from a capture-only issue. No speculative global GPU/CSS
+workaround was applied and the regression is not called fixed.
+
+Reference: Chrome's [rendering diagnostics](https://developer.chrome.com/docs/devtools/rendering/performance)
+and [compositing explanation](https://developer.chrome.com/blog/inside-browser-part3)
+guide further investigation; they do not establish the cause of this observation.
+
 Remaining separate audit: `/api/admin/users` needs strict sort/pagination bounds
 and honest handling of its placeholder bulk-action response. The legacy admin
 `/api/users` list is unbounded and is still consumed by company creation. The admin
