@@ -51,6 +51,7 @@ the Python helper is unavailable in this environment.
   and revocation while waiting for the actor lock. The disposable schema is
   dropped afterwards, not a production/customer schema.
 - Strict local webpack build and full TypeScript pass. Touched lint passes.
+- An additional combined company/account/audit regression run passes **130/130**.
 - Actual local Auth.js/API/browser acceptance passes directory → details →
   edit → save using one disposable company and owner in the isolated Preview
   database. Direct database inspection confirms exactly one EDIT audit with
@@ -74,7 +75,33 @@ the Python helper is unavailable in this environment.
   save control at a shortened 390x480 viewport. This does not prove physical
   phone-keyboard behavior. Phone and desktop screenshots were visually reviewed.
 
-Hosted deployment and acceptance are pending.
+## Deployment and hosted acceptance
+
+Runtime `ed81eb2` builds successfully in both environments, with all 54 existing
+migrations applied and none added. Both health checks pass. Staged-change
+gitleaks finds no leaks; this does not clear historical repository content.
+
+- Preview `dpl_FwCQWzxy4h3Qwh6AXg6eXPpRmsNM`:
+  `https://dev-veggastare-rh49tmrvw-v3ggas-projects.vercel.app`, assigned to
+  the existing showcase-ai-revival Preview alias.
+- Promoted production `dpl_CrRSMTTVxb1cRW5XYSAaE1KypDFA`:
+  `https://dev-veggastare-60rjc8f24-v3ggas-projects.vercel.app`.
+  The production alias inspection confirms this deployment on www.veggat.com.
+- Previous production rollback candidate:
+  `dpl_Br5VH55HrqRSyHHqkVfYF2uxbSbW` (`69b21de`).
+
+Preview and Live each pass light **2/2** and dark **2/2**, without retries or
+skips. Privileged hosted edit scenarios use browser-only fixtures; real
+anonymous/demo access-denial requests still reach the hosted API. Actual writes
+are covered by the isolated local acceptance above, not customer records.
+
+Real Chrome used the owner's existing signed-in session to search for Veggat
+Studio, open its details and editor, and check Branding/Record details
+disclosures. The 390px layout and footer scrolling and 1280px desktop layout
+and independent sidebar scrolling were checked. No captured console errors
+were returned. No form fields were changed or saved. These normal detail reads
+append VIEW audit records. The temporary viewport override was reset and the
+read-only company details page retained for the user.
 
 ## Limits
 
@@ -83,3 +110,12 @@ payout changes or retention-safe company erasure. It does not audit every
 business membership or operational endpoint. Remote browser write scenarios
 must use fixtures; no production company changes are authorized for QA here.
 No payment, email, provider generation or billing change is needed.
+
+Follow-up: the Activity "Sales" count uses `Company._count.Sale`, a legacy
+sales-record table. The marketplace seller route instead reads `Order` and
+`OrderItem` with payment/checkout state. Veggat Studio currently displays zero
+legacy sales despite the previously verified marketplace purchases. This is
+not evidence that those payments disappeared. Reconcile the metric's source
+and label, with explicit paid/unpaid, Sandbox/Live and refund treatment, before
+calling company sales reporting complete. No financial records were rewritten
+to make the display agree.

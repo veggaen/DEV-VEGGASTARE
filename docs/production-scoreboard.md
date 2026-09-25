@@ -4,6 +4,24 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company administration: **DONE for working detail/edit routes, audited
+storefront edits and responsive recovery; company sales metrics and wider
+admin/full-route audit remain PARTIAL**. Runtime `ed81eb2` is promoted as
+`dpl_CrRSMTTVxb1cRW5XYSAaE1KypDFA`. List search/sort/pagination, real View/Edit
+destinations, strict current-role/version checks, same-origin bounded patches,
+conflict-safe transactional edits/audits and private access-loss recovery replace
+the broken flow. Cascading deletion is refused. 45 focused tests, four isolated
+PostgreSQL checks, 130 combined regression tests, touched lint and strict builds
+pass. Local/Preview/Live each pass light **2/2** and dark **2/2**, with zero
+retries/skips. Actual local HTTP/UI saves use disposable isolated records;
+hosted edit cases use browser fixtures. Real signed-in Chrome confirms list,
+details, editor disclosures, 390/1280 layouts and page/sidebar scrolling; its
+viewport is restored. No company fields, payments or emails were changed in
+production; normal detail views added VIEW audits. The design-guidelines review
+informed labels, 44px controls, token surfaces and concise disclosures. Next:
+reconcile the legacy Sales count with verified marketplace orders. See
+[company administration evidence](admin-company-evidence-2026-09.md).
+
 Owner audit log: **DONE for private read access, filters, recovery and responsive
 details; wider admin/full-route audit remains PARTIAL**. Runtime `69b21de` is
 live as `dpl_Br5VH55HrqRSyHHqkVfYF2uxbSbW`. Invalid empty select options no
