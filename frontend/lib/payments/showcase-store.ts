@@ -58,7 +58,7 @@ export async function prepareShowcaseCheckout(userId: string, requestKey: string
     }
     const order = await tx.order.create({ data: {
       userId, totalAmount: quote.totalOre / 100, currency: 'NOK', status: 'PENDING',
-      commentOrder: environment === 'DEMO' ? 'Demo preview — no payment collected' : 'Verified reviewer checkout',
+      commentOrder: environment === 'DEMO' ? 'Demo preview — no payment collected' : 'Veggat Studio checkout',
       OrderItem: { create: quote.lines.map(line => ({ productId: line.productId, title: line.title, quantity: 1, priceAtTime: line.amountOre / 100 })) },
     } });
     return tx.checkoutAttempt.create({ data: { orderId: order.id, userId, requestKey, environment,

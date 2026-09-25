@@ -42,13 +42,26 @@ are silently ignored and cancellation never invents a refund.
   and demo mutations. Ownership checks additionally pass in service unit tests.
 - Real Chrome Live inspection confirms the unpaid expired order has a cancellation
   confirmation, Keep order leaves it untouched, and the paid order remains verified.
-  No Live cancellation, new purchase or refund was made. An actual fresh PayPal
-  approval resumed from history is not yet independently exercised; navigation and
-  immutable request reuse are covered by browser mocks and unit tests respectively.
+  No Live cancellation, new purchase or refund was made.
+- Actual Sandbox resumption subsequently passed locally and on stable Preview.
+  The existing password QA buyer created an unpaid artwork order, left PayPal,
+  used Continue payment in My orders, and reached the real PayPal login/approval
+  screen with the identical provider approval URL. Cancellation then passed.
+  Local order `cmug92zx20005rct54tz4ojct` and Preview order
+  `cmug95lg3000004l3bmieyk1e` each remain CANCELLED with no capture, credit grant or
+  download token. A read-only database query confirmed this independently.
+  Payment was never approved. The real server/provider responses were relayed
+  unchanged in Playwright to retain evidence across cross-origin navigation;
+  neither PayPal nor the application payment API was mocked in this acceptance.
+- Rapid consecutive runs reached the existing five-minute checkout throttle.
+  The test reused its already-created order after expiry; no cap/counter reset,
+  duplicate purchase or security exception was introduced.
 
 Artifacts: `frontend/test-results-release-order-recovery-local-secure-final`,
 `frontend/test-results-release-order-recovery-live`, and
 `frontend/test-results-release-order-recovery-preview` (generated, untracked).
+Real-provider artifacts: `frontend/test-results-release-real-recovery-local` and
+`frontend/test-results-release-real-recovery-preview`.
 
 ## Rollout
 

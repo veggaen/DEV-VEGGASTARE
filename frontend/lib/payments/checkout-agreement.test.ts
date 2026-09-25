@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { SHOWCASE_PRODUCTS } from '@/lib/showcase-catalog';
 import { quoteShowcaseCart } from './showcase-policy';
-import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, purchaseConfirmation, recordCheckoutAgreement, storedCheckoutAgreement } from './checkout-agreement';
+import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD, purchaseConfirmation, recordCheckoutAgreement, storedCheckoutAgreement } from './checkout-agreement';
 import { SALES_TERMS_TEXT } from '@/lib/legal/sales-terms';
 import { SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 import { transactionMessage } from './email-policy';
@@ -13,6 +13,15 @@ const mixed = quoteShowcaseCart([...files.lines, ...credits.lines].map(line => (
 const now = new Date('2026-09-24T10:00:00.000Z');
 const consent = { version: CHECKOUT_AGREEMENT_VERSION, files: true, credits: false };
 describe('server-owned delivery consent', () => {
+  it('describes the permanent products and the supported media allowance without interview copy', () => {
+    expect(DIGITAL_PURCHASE_RECORD).toContain(SHOWCASE_PRODUCTS.interviewPack.title);
+    expect(DIGITAL_PURCHASE_RECORD).toContain(SHOWCASE_PRODUCTS.credits.title);
+    expect(DIGITAL_PURCHASE_RECORD).toContain('image generations and short-video generations');
+    expect(DIGITAL_PURCHASE_RECORD).not.toMatch(/reviewer listings|test\/showcase products|interview guide/i);
+  });
+  it('rejects the previous purchase-copy version for a new agreement', () => {
+    expect(() => recordCheckoutAgreement(files, { ...consent, version: '2026-09-24.2' }, false)).toThrow('DELIVERY_CONSENT_REQUIRED');
+  });
   it('stores exact visible wording and a server timestamp', () => {
     expect(recordCheckoutAgreement(files, consent, false, now)).toMatchObject({ version: CHECKOUT_AGREEMENT_VERSION,
       recordedAt: now.toISOString(), demo: false, requests: [DELIVERY_REQUESTS.files] });

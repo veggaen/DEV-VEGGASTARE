@@ -7,6 +7,81 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('real Sandbox order resumption preserves the provider order and cancels without capture', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_REAL_RECOVERY !== '1', 'Explicit isolated Sandbox acceptance only; never approves payment');
+  test.setTimeout(150_000);
+  expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  try {
+    const page = await context.newPage();
+    // Relay real server responses unchanged, retaining the body before the
+    // cross-origin PayPal navigation discards Chromium's network resource.
+    let createdPayload: { orderId: string; approvalUrl: string } | undefined;
+    let resumedPayload: { nextUrl: string } | undefined;
+    await page.route('**/api/checkout', async route => {
+      const response = await route.fetch(); expect(response.status()).toBe(200);
+      createdPayload = await response.json(); await route.fulfill({ response });
+    });
+    await page.route('**/api/checkout/*/recovery', async route => {
+      const response = await route.fetch(); expect(response.status()).toBe(200);
+      if (route.request().postDataJSON().action === 'resume') resumedPayload = await response.json();
+      await route.fulfill({ response });
+    });
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+    await page.getByPlaceholder('you@example.com').fill(process.env.E2E_TEST_EMAIL!);
+    await page.locator('input[type="password"]').fill(process.env.E2E_TEST_PASSWORD!);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForURL(/\/(nexus|products|dashboard|pulse)(?:[/?#]|$)/);
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.id).toBe('cveggatpreviewbuyer000001');
+    await context.storageState({ path: `.private-showcase/recovery-buyer-${baseURL === 'http://localhost:3000' ? 'local' : 'preview'}.json` });
+    let orderId = process.env.E2E_RECOVERY_EXISTING_ORDER;
+    let approvalUrl: string | undefined;
+    if (!orderId) {
+    await page.goto('/products/cveggatinterviewpack000001', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Fjord Study — Digital Artwork', exact: true })).toBeVisible();
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to basket', exact: true }).last().click();
+    await expect(page.getByText(/^(Added to basket|Already in your basket)$/)).toBeVisible();
+    await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('complementary', { name: 'Payment summary', exact: true }).getByText('PayPal Sandbox — test money only', { exact: true })).toBeVisible();
+    await page.locator('input[name="immediate-files"]').check();
+    if (await page.locator('input[name="immediate-ai"]').isVisible()) await page.locator('input[name="immediate-ai"]').check();
+    await page.getByRole('button', { name: 'Continue to PayPal', exact: true }).click();
+    await page.waitForURL(url => url.hostname === 'www.sandbox.paypal.com', { waitUntil: 'domcontentloaded' });
+    expect(createdPayload).toBeDefined();
+    orderId = createdPayload!.orderId; approvalUrl = createdPayload!.approvalUrl;
+    expect(new URL(approvalUrl).hostname).toBe('www.sandbox.paypal.com');
+    }
+    // Leave before approval; recover the exact same purchase from the app UI.
+    await page.goto(`/my-orders?order=${encodeURIComponent(orderId)}`, { waitUntil: 'domcontentloaded' });
+    const card = page.getByRole('list', { name: 'Your orders', exact: true }).locator(':scope > li').filter({ hasText: `#${orderId.slice(-8).toUpperCase()}` });
+    await card.getByRole('button', { name: 'Continue payment', exact: true }).click();
+    await page.waitForURL(url => url.hostname === 'www.sandbox.paypal.com', { waitUntil: 'domcontentloaded' });
+    expect(resumedPayload).toBeDefined();
+    if (approvalUrl) expect(resumedPayload!.nextUrl).toBe(approvalUrl);
+    else {
+      approvalUrl = resumedPayload!.nextUrl;
+      expect(new URL(approvalUrl).hostname).toBe('www.sandbox.paypal.com');
+      await page.goto(`/my-orders?order=${encodeURIComponent(orderId)}`, { waitUntil: 'domcontentloaded' });
+      await card.getByRole('button', { name: 'Continue payment', exact: true }).click();
+      await page.waitForURL(url => url.hostname === 'www.sandbox.paypal.com', { waitUntil: 'domcontentloaded' });
+      expect(resumedPayload!.nextUrl).toBe(approvalUrl);
+    }
+    await page.screenshot({ path: info.outputPath('actual-paypal-resumed.png') });
+    await page.goto(`/my-orders?order=${encodeURIComponent(orderId)}`, { waitUntil: 'domcontentloaded' });
+    await card.getByRole('button', { name: 'Cancel unpaid order', exact: true }).click();
+    await card.getByRole('button', { name: 'Confirm cancellation', exact: true }).click();
+    await expect(card.getByRole('button', { name: /Order #.*Cancelled/ })).toBeVisible();
+    await expect(card.getByRole('link', { name: 'View receipt', exact: true })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('actual-sandbox-cancelled.png') });
+    const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    expect(orders.filter((order: { id: string }) => order.id === orderId)).toHaveLength(1);
+    expect(orders.find((order: { id: string }) => order.id === orderId)).toMatchObject({ status: 'CANCELLED', checkout: { state: 'CANCELLED', captureId: null } });
+    console.log(`Sandbox recovery accepted for ${orderId}; no approval, capture or credit grant.`);
+  } finally { await context.close(); }
+});
+
 test('unpaid order recovery confirms cancellation and resumes the same purchase', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_ORDER_RECOVERY !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Focused recovery audit; all payment mutations mocked');
   test.setTimeout(120_000);

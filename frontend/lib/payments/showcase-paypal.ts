@@ -39,7 +39,7 @@ export async function createPayPalOrder(orderId: string, quote: ShowcaseQuote, r
   const origin = authOrigin();
   const body = await request('/v2/checkout/orders', { method: 'POST', requestId, body: {
     intent: 'CAPTURE', purchase_units: [{ reference_id: orderId, invoice_id: orderId, custom_id: orderId,
-      description: 'Veggat reviewer marketplace order',
+      description: 'Veggat Studio digital order',
       amount: { currency_code: 'NOK', value: moneyString(quote.totalOre), breakdown: {
         item_total: { currency_code: 'NOK', value: moneyString(quote.totalOre) },
       } },
