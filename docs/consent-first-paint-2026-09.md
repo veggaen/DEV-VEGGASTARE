@@ -56,3 +56,18 @@ and CLS are effectively unchanged: this is not evidence of faster interactivity,
 field Core Web Vitals, or completion of performance work on all routes. Wallet
 initialization and route-specific loading remain separate work. Hosted acceptance
 is still pending; production has not changed.
+
+## Hosted follow-up
+
+Initial Preview `4afb324` deployed READY as `dpl_EqWR2M8ehDZT9FbLMAa3FuYgiHSj`.
+Real Chrome reopened and saved essential-only preferences on local and Preview.
+The hosted browser checks exposed two issues before acceptance:
+
+- Unbounded network-idle was not a reliable hydration signal. The test now bounds
+  that wait and opens/closes the actual navigation menu to prove interactivity.
+- A newly server-rendered Customize button could be clicked before its handler
+  was attached. Consent actions now use a disabled fieldset until hydration;
+  pre-bundle acceptance asserts this, and a unit test verifies re-enabling.
+
+The corrected candidate passes **36/36** focused unit tests and the optimized
+build/TypeScript. Final hosted acceptance of the correction is recorded below.

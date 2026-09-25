@@ -25,6 +25,7 @@ function readConsent(): CookieConsent | null {
 }
 
 export default function CookieBanner() {
+  const [ready, setReady] = React.useState(false);
   const [showCustomize, setShowCustomize] = React.useState(false);
   const [analytics, setAnalytics] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(false);
@@ -36,6 +37,7 @@ export default function CookieBanner() {
   const returnFocus = React.useRef<HTMLElement | null>(null);
 
   React.useLayoutEffect(() => {
+    setReady(true);
     const existing = readConsent();
     setAnalytics(existing?.analytics ?? false);
     setDismissed(Boolean(existing));
@@ -158,7 +160,7 @@ export default function CookieBanner() {
         )}
         {saveError && <p role="alert" className="mt-4 text-sm text-destructive">Your browser could not save this choice. Allow site storage and try again. Optional analytics stay governed by your last saved choice.</p>}
       </div>
-      <div className="shrink-0 space-y-2 border-t border-border bg-popover p-4">
+      <fieldset disabled={!ready} aria-busy={!ready} className="min-w-0 shrink-0 space-y-2 border-0 border-t border-solid border-border bg-popover p-4">
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" className="h-auto min-h-11 whitespace-normal" onClick={() => save(false)}>Essential Only</Button>
           <Button type="button" variant="outline" className="h-auto min-h-11 whitespace-normal" onClick={() => save(showCustomize ? analytics : true)}>{showCustomize ? 'Save Preferences' : 'Allow Analytics'}</Button>
@@ -168,7 +170,7 @@ export default function CookieBanner() {
         ) : (
           <Button ref={customize} type="button" variant="ghost" className="min-h-11 w-full gap-2" aria-expanded={false} aria-label="Customize cookie preferences" onClick={() => setShowCustomize(true)}><Settings2 aria-hidden="true" className="h-4 w-4" />Customize</Button>
         )}
-      </div>
+      </fieldset>
     </section>
   );
 }

@@ -28,6 +28,12 @@ it('includes a visible notice in server HTML, without an opacity entrance',()=>{
   const html=renderToString(<CookieBanner/>);
   expect(html).toContain('data-cookie-banner');expect(html).toContain('Essential Only');
   expect(html).not.toContain('opacity:0');
+  const markup=document.createElement('div');markup.innerHTML=html;
+  expect(markup.querySelector('fieldset')?.disabled).toBe(true);
+});
+it('enables consent actions only after hydration',async()=>{
+  await render();expect(host.querySelector('fieldset')?.disabled).toBe(false);
+  await click('Customize');expect(host.querySelector('[role="switch"]')).not.toBeNull();
 });
 it('hands saved presentation back to React before paint and can reopen preferences',async()=>{
   document.documentElement.setAttribute('data-saved-consent','true');

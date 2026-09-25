@@ -3690,10 +3690,16 @@ test('Platform consent paints before app bundles without flashing saved choices 
       await expect(page.locator('[data-cookie-banner]')).toHaveCount(1);
       expect(await page.locator('#consent-visibility').evaluate((element:HTMLScriptElement)=>Boolean(element.nonce))).toBe(true);
       if(choice==='essential'||choice==='analytics')await expect(panel).toBeHidden();
-      else{await expect(panel).toBeVisible();await expect(panel).toHaveCSS('opacity','1');}
+      else{await expect(panel).toBeVisible();await expect(panel).toHaveCSS('opacity','1');await expect(panel.getByRole('button',{name:'Customize cookie preferences',exact:true})).toBeDisabled();}
       expect(scripts).toEqual([]);
-      release();await page.waitForLoadState('networkidle');
-      await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+      release();
+      // Background connections are not hydration readiness. Bound the idle wait
+      // and prove the actual menu responds before inspecting the state handover.
+      await page.waitForLoadState('networkidle',{timeout:5000}).catch(()=>{});
+      await page.getByRole('button',{name:'Open menu',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Navigation Menu',exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Close',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Navigation Menu',exact:true})).toBeHidden();
       expect(await page.locator('html').getAttribute('data-saved-consent')).toBeNull();
       if(choice==='essential'||choice==='analytics')await expect(panel).toHaveCount(0);else await expect(panel).toBeVisible();
       if(choice==='analytics')await expect.poll(()=>scripts.some(path=>path.includes('/insights/'))&&scripts.some(path=>path.includes('/speed-insights/'))).toBe(true);
