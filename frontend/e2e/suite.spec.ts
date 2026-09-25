@@ -3977,14 +3977,24 @@ test('S2 security patch password login, protected routes and logout at phone and
 test('CI showcase happy path — real demo, custom cart, payment error recovery and unpaid receipt', async ({ browser, baseURL }, testInfo) => {
   test.skip(process.env.E2E_CI_SHOWCASE !== '1', 'Explicit disposable demo flow only');
   test.setTimeout(180_000);
-  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  // Release reruns can reuse an app-issued disposable session without relaxing
+  // the five-per-day signup cap. CI still exercises fresh demo sign-in by default.
+  const retainedDemo = process.env.E2E_RETAINED_SHOWCASE;
+  const context = await browser.newContext({ baseURL, storageState: retainedDemo, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors: string[] = [], checkoutRequests: { requestKey: string; expectedQuote: string }[] = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
     await context.route(/https:\/\/[^/]*paypal\.com\//, route => route.abort());
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    if (retainedDemo) {
+      const retained = await (await context.request.get('/api/auth/session')).json();
+      expect(retained.user).toMatchObject({ isDemo: true, role: 'USER' });
+      expect((await context.request.delete(`/api/cart/${retained.user.id}`)).ok()).toBe(true);
+      await page.goto('/products', { waitUntil: 'domcontentloaded' });
+    } else {
+      await page.getByRole('button', { name: 'Try the demo — no payment', exact: true }).click();
+    }
     await page.waitForURL('**/products', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('complementary', { name: 'Demo mode', exact: true })).toBeVisible();
     await page.getByText('Veggat AI Credits', { exact: true }).first().click();
@@ -4004,6 +4014,8 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     await expect(page.getByRole('textbox', { name: 'Number of credits', exact: true })).toHaveValue('122');
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user).toMatchObject({ isDemo: true, role: 'USER' });
+    const beforeOrders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
+    expect(Array.isArray(beforeOrders)).toBe(true);
     for (const width of [390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -4033,18 +4045,22 @@ test('CI showcase happy path — real demo, custom cart, payment error recovery 
     expect(confirmationText).toContain('Actually charged: 0.00 NOK');
     expect(confirmationText).toContain('no paid delivery consent was collected');
     expect(confirmationText).toContain(SALES_TERMS_TEXT);
-    await expect(page.getByRole('region', { name: 'Original order confirmation' })).toContainText(`full Norwegian sales terms, version ${SALES_TERMS_VERSION}`);
+    const originalConfirmation = page.getByRole('group', { name: 'Original order confirmation', exact: true });
+    await originalConfirmation.getByText('Terms & delivery record', { exact: true }).click();
+    await expect(originalConfirmation.getByText(`Includes the full Norwegian sales terms, version ${SALES_TERMS_VERSION}, and an optional withdrawal form.`, { exact: true })).toBeVisible();
     const anonymous = await browser.newContext({ baseURL });
     try { expect((await anonymous.request.get(confirmationPath!)).status()).toBe(401); }
     finally { await anonymous.close(); }
     expect(checkoutRequests).toHaveLength(2);
     expect(checkoutRequests[1]).toEqual(checkoutRequests[0]);
     const orders = await (await context.request.get(`/api/orders/user/${session.user.id}`)).json();
-    expect(orders).toHaveLength(1);
-    expect(orders[0]).toMatchObject({ checkout: { environment: 'DEMO', state: 'COMPLETED', captureId: null }, payment: null });
+    expect(orders).toHaveLength(beforeOrders.length + 1);
+    const created = orders.filter((order: { id: string }) => !beforeOrders.some((before: { id: string }) => before.id === order.id));
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ checkout: { environment: 'DEMO', state: 'COMPLETED', captureId: null }, payment: null });
     const replay = await context.request.post('/api/demo/checkout', { headers: { Origin: new URL(baseURL!).origin }, data: checkoutRequests[1] });
     expect(replay.ok()).toBe(true);
-    expect(await replay.json()).toMatchObject({ orderId: orders[0].id, alreadyCompleted: true });
+    expect(await replay.json()).toMatchObject({ orderId: created[0].id, alreadyCompleted: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: testInfo.outputPath('interview-demo-receipt-390.png') });
     expect(errors).toEqual([]);

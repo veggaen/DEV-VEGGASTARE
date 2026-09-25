@@ -4,6 +4,26 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Account preview: **DONE for scoped session/perimeter safeguards and local
+synthetic-principal UI acceptance; wider account management remains PARTIAL**.
+Runtime `9624ca1` is promoted as `dpl_6EdfXa99sJMRZyL2FDbmN1uhji5X`.
+Owner-only previews require current owner/target versions, an absolute one-hour
+deadline and mandatory transactional audit; failures cannot become an ordinary
+member session. Writes, identity linking and known side-effectful GET paths are
+blocked. The banner no longer covers navigation and has keyboard/retry/sign-out
+recovery. 98 units, three isolated PostgreSQL checks, local actual HTTP/UI
+start/end and revocation checks, touched lint and strict local/remote builds pass.
+Local, Preview and Live each pass **3/3 in both themes**, eight responsive sizes,
+zero skips/retries. Real Chrome preserves existing signed-in local/Live settings.
+The retained-demo marketplace regression also passes **1/1 locally, on Preview
+and on Live** (custom credits, cart, unpaid receipt, access denial and replay).
+Its stale expanded-terms locator was repaired; a fresh local rerun hit the real
+signup cap, which remains unchanged. CI defaults still use fresh sign-in.
+No customer was impersonated or charged; disposable test principals/audits were
+removed. Per-preview server-side revocation, broader read-handler audit and
+privileged user-detail mutations remain unfinished. See
+[account preview evidence](account-preview-evidence-2026-09.md).
+
 Personal account settings: **DONE for deployed validation, scoped service tests
 and UI recovery; full account management remains PARTIAL**. Runtime `a4d40fd`
 is promoted as `dpl_9Nm3dqkYF7okt1jCkSNqJL5RgNT9`. Strict allowlisted writes,
@@ -18,8 +38,9 @@ Live light/dark browser runs each pass **1/1**, eight sizes, no configured retri
 or skips; the initial cold-start null-demo-session failure is recorded, not hidden.
 Real Chrome confirms local/Live phone scrolling and unchanged account settings.
 Verified email replacement, actual security-email/credential-change acceptance,
-retention-safe erasure, privileged user-detail writes and impersonation revocation
-remain unfinished. See [account settings evidence](account-settings-evidence-2026-09.md).
+retention-safe erasure and privileged user-detail writes remain unfinished.
+Impersonation version/deadline revocation is covered by the later slice above.
+See [account settings evidence](account-settings-evidence-2026-09.md).
 
 Admin directory: **DONE for deployed list/read fixes and scoped automated checks;
 real-Chrome privileged-session acceptance and wider account management remain
@@ -1656,7 +1677,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | Google | DONE for existing-account local/Live real-Chrome sign-in and logout; automated-browser restriction remains, not bypassed |
 | Auth | GitHub | DONE for existing-account local/Live real-Chrome sign-in and logout; separate email/trust-badge confirmation is not claimed |
 | Auth | Discord | PARTIAL — correct Live callback/S256 consent screen and safe cancellation observed; positive local/Live callback/link requires explicit owner consent |
-| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted account writes, atomic code-confirmed security service, safe request/cancel and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review and impersonated-session revocation remain |
+| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted writes, atomic confirmation, safe request/cancel, preview version/deadline revocation and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review, privileged user-detail writes and per-preview server revocation remain |
 | Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |
