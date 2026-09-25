@@ -1,6 +1,7 @@
 # Company access boundary — September 2026
 
-Status: **PARTIAL — final local acceptance passes; hosted verification pending.**
+Status: **DONE for this read-access slice — deployed and locally/hosted verified.
+Full company payment and layout acceptance remains PARTIAL.**
 
 ## Findings and changes
 
@@ -51,10 +52,44 @@ targets and token-based recovery cards. This is not a full settings-page redesig
   viewport is 390×844 with scroll width 390. No new session or grant was created.
   Artifacts: `frontend/test-results-release-company-access-local-final/` (ignored).
 
+## Hosted acceptance
+
+- Source `cc31221` is READY on isolated Preview as
+  `dpl_49vNCn8A3HmvKCYNZSETSJEQ8V3e` at
+  `https://dev-veggastare-825tk6q47-v3ggas-projects.vercel.app`. Strict build:
+  webpack 53s, TypeScript 17.7s, 189 pages. Jolly-smoke Preview database,
+  53 migrations, none pending. Candidate health passes; the existing public
+  Sandbox alias was advanced without changing deployment protection.
+- Stable Preview browser acceptance: **2/2, 22.6s, zero retries/skips**. Real
+  Chrome independently confirms the retained unrelated account sees the compact
+  access notice. The local phone storefront, footer and menu scrolling were
+  visually checked in real Chrome; temporary viewport override was reset.
+- Same source is READY in Production as `dpl_C4eiasxJTxHeGd63WqtrLPY1WyCj` at
+  `https://dev-veggastare-9kvwgf3ek-v3ggas-projects.vercel.app`. Strict build:
+  webpack 54s, TypeScript 17.6s, 189 pages. Correct orange-wildflower Production
+  database, 53 migrations, none pending. Candidate health and anonymous detail
+  rejection (401) passed before promotion. The prior main deployment was verified
+  as `dpl_DbYF6shZVj6jzstPgrbB7Z4XHcLg`; CLI inspection confirms the new main target.
+- Live browser acceptance: **2/2, 27.0s, zero retries/skips**. www.veggat.com
+  health is 200/healthy (single observed database latency 30ms, not a percentile).
+  Real Chrome retains the owner's existing sign-in and opens company settings
+  through the public profile. No console errors, ownership, payment or email
+  mutations. Positive owner access remains available while outsiders are denied.
+- Hosted artifacts: `frontend/test-results-release-company-access-preview/` and
+  `frontend/test-results-release-company-access-live/` (ignored).
+
 ## Remaining
 
-Preview/Live acceptance and deployment are pending. Company payment
-editing, email-verification race handling, full owner-page responsive layout and
+Company payment editing, email-verification race handling, full owner-page responsive layout and
 role-specific employee/warehouse actions still need their separate audit. This
 slice does not claim those flows complete. No payout destination, email, payment,
 refund or wallet state has been changed.
+
+Concrete next issues: the live owner page displays **Invalid company ID** in the
+payment panel. `actions/seller-payment.ts` requires exactly 25 characters, while
+the existing permanent company ID has 26. Preserve that ID and its existing
+orders; fix validation without relaxing ownership checks. PayPal email verification
+also reads a token and later marks the target verified without atomically binding
+the current email to the token email. Test and fix save/verify/remove races before
+claiming payout setup complete. The owner page's oversized banner and fact cards
+push payment controls down; shorten/reorder it and audit real scrolling/resizing.

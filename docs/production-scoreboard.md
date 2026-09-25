@@ -4,12 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Company read boundaries: **PARTIAL — local acceptance passes; hosted release
-pending**. Four internal endpoints now enforce current company membership and
+Company read boundaries: **DONE for this scoped slice — deployed as `cc31221`,
+`dpl_C4eiasxJTxHeGd63WqtrLPY1WyCj`**. Four internal endpoints enforce current company membership and
 current privileged role, with private/no-store responses and safe recovery UI.
 The public storefront routing regression is corrected without opening management
-pages. 48 focused units, 37 rolled-back PostgreSQL checks, strict build and local
-browser 2/2 pass. Full company payment/layout acceptance remains separate.
+pages. 48 focused units, 37 rolled-back PostgreSQL checks, strict builds and local
+2/2, Preview 2/2, Live 2/2 browser checks pass (no retries/skips). Real Chrome
+confirms non-member denial and retained live owner access; Live health passes.
+Full company payment/layout acceptance remains separate: the owner payment panel
+currently rejects the permanent 26-character company ID; atomic PayPal email
+verification and the oversized settings layout are the next concrete work.
 See [company access evidence](company-access-evidence-2026-09.md).
 
 Combined wallet release: **DONE for deployment and scoped acceptance; S6 remains
