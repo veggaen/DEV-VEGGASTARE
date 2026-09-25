@@ -133,6 +133,29 @@ describe('signed quote to existing payment path', () => {
     expect((await checkout(request({ requestKey:quoteId,expectedQuote:'original-nok',consent }))).status).toBe(200);
     expect(m.prepare).not.toHaveBeenCalled(); expect(m.begin).toHaveBeenCalledWith('signed-in-buyer',quoteId,'original-nok',consent);
   });
+  it('passes an old version to the transactional retry lookup, not a new agreement', async () => {
+    const earlierConsent = { ...consent, version: '2026-09-24.2' };
+    expect((await checkout(request({ quoteToken: 'private-attestation', consent: earlierConsent }))).status).toBe(200);
+    expect(m.prepare).toHaveBeenCalledWith('signed-in-buyer', 'private-attestation', earlierConsent);
+    expect(m.begin).toHaveBeenCalledTimes(1);
+    m.begin.mockClear();
+    m.prepare.mockRejectedValue(new CheckoutError('DELIVERY_CONSENT_REQUIRED', 400));
+    const fresh = await checkout(request({ quoteToken: 'new-unprepared-token', consent: earlierConsent }));
+    expect(fresh.status).toBe(400);
+    expect(await fresh.json()).toEqual({ error: 'DELIVERY_CONSENT_REQUIRED' });
+    expect(m.begin).not.toHaveBeenCalled();
+  });
+  it('also preserves the legacy request identity across a terms deployment', async () => {
+    const earlierConsent = { ...consent, version: '2026-09-25.1' };
+    expect((await checkout(request({ requestKey: quoteId, expectedQuote: 'original-nok', consent: earlierConsent }))).status).toBe(200);
+    expect(m.begin).toHaveBeenCalledWith('signed-in-buyer', quoteId, 'original-nok', earlierConsent);
+    expect(m.prepare).not.toHaveBeenCalled();
+    expect(m.complete).not.toHaveBeenCalled();
+  });
+  it.each([undefined, '', 'x'.repeat(81), 'version\nforged', 123])('rejects malformed historical versions without looking up an order', async version => {
+    expect((await checkout(request({ quoteToken: 'token', consent: { ...consent, version } }))).status).toBe(400);
+    expect(m.prepare).not.toHaveBeenCalled(); expect(m.begin).not.toHaveBeenCalled();
+  });
   it('allows exact-price demos only through the unpaid path, without provider creation', async () => {
     m.auth.mockResolvedValue({ user: { id:'demo_isolated' } });
     expect((await checkout(request({quoteToken:'token',consent}))).status).toBe(403);

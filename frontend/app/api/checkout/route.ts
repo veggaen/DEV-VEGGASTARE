@@ -3,13 +3,13 @@ import { z } from 'zod';
 import { checkoutUser } from '@/lib/payments/checkout-request';
 import { beginShowcaseCheckout } from '@/lib/payments/showcase-store';
 import { isDemoUserId } from '@/lib/demo-policy';
-import { DeliveryConsentInput } from '@/lib/payments/checkout-agreement';
+import { SubmittedDeliveryConsent } from '@/lib/payments/checkout-agreement';
 import { settlementStore } from '@/lib/payments/settlement-runtime';
 import { QuoteToken } from '@/lib/payments/settlement-input';
 import { readSettlementJson, settlementErrorResponse, settlementJson } from '@/lib/payments/settlement-request';
 const Body = z.union([
-  z.object({ quoteToken: QuoteToken, consent: DeliveryConsentInput }).strict(),
-  z.object({ requestKey: z.string().uuid(), expectedQuote: z.string().max(4096).optional(), consent: DeliveryConsentInput }).strict(),
+  z.object({ quoteToken: QuoteToken, consent: SubmittedDeliveryConsent }).strict(),
+  z.object({ requestKey: z.string().uuid(), expectedQuote: z.string().max(4096).optional(), consent: SubmittedDeliveryConsent }).strict(),
 ]);
 export async function POST(request: Request) {
   try {

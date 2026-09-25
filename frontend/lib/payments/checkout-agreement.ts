@@ -9,12 +9,17 @@ import { SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 export { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD } from './checkout-delivery-policy';
 import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD } from './checkout-delivery-policy';
 
-export const DeliveryConsentInput = z.object({
-  version: z.literal(CHECKOUT_AGREEMENT_VERSION),
+// The transport accepts bounded historical versions so an already prepared
+// purchase can be retried after a release. This is NOT new-consent validation.
+// Both stores look up the actor's immutable prior attempt before creating one;
+// all new agreements must pass the current-version schema below.
+export const SubmittedDeliveryConsent = z.object({
+  version: z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
   files: z.boolean(),
   credits: z.boolean(),
 }).strict();
-export type DeliveryConsent = z.infer<typeof DeliveryConsentInput>;
+export const DeliveryConsentInput = SubmittedDeliveryConsent.extend({ version: z.literal(CHECKOUT_AGREEMENT_VERSION) });
+export type DeliveryConsent = z.infer<typeof SubmittedDeliveryConsent>;
 
 export function recordCheckoutAgreement(quote: { lines: readonly { kind: string }[] }, input: unknown, demo: boolean, now = new Date()) {
   const publishedTerms = { version: SALES_TERMS_VERSION, language: 'nb' as const, text: SALES_TERMS_TEXT };

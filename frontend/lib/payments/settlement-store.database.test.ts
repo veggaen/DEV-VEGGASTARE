@@ -226,7 +226,8 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
   });
   it('requires the exact current delivery consent before preparing any paid order', async () => {
     const { current, signed } = await exact('USD', '100', true);
-    for (const agreement of [undefined, consent, { ...consent, files: true, credits: false }]) {
+    for (const agreement of [undefined, consent, { ...consent, files: true, credits: false },
+      { ...consent, files: true, version: '2026-09-25.1' }]) {
       await expect(store().prepare(current.userId, signed.token, agreement)).rejects.toThrow('DELIVERY_CONSENT_REQUIRED');
     }
     expect(await db.order.count({ where: { userId: current.userId } })).toBe(0);
@@ -238,6 +239,11 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
     await db.cartItem.delete({ where: { id: item.id } });
     const replay = await store({ now: () => initialNow + 86400000 }).prepare(current.userId, signed.token);
     expect(replay).toEqual(attempts[0]);
+    // A release changing the HTTP consent version must not block an already
+    // frozen purchase or replace its original agreement on retry.
+    const oldClientRetry = await store({ now: () => initialNow + 86400000 }).prepare(current.userId, signed.token,
+      { ...consent, version: '2026-09-24.2' });
+    expect(oldClientRetry).toEqual(attempts[0]);
     expect(await db.order.count({ where: { userId: current.userId } })).toBe(1);
   }, 30_000);
   it('does not reuse an ID to authorize different signed money', async () => {

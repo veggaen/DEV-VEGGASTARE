@@ -346,3 +346,27 @@ The fee policy expires with the existing 24 October review deadline.
   behavior. The retained password QA buyer has already used today's two attempts
   on cancelled orders; limits were not reset or weakened. Hosted quote/UI success
   must not be described as a successful PayPal capture.
+
+## Versioned purchase records — 25 September 2026
+
+- Fixed a stale NOK-only sentence in the purchase record. Version `2026-09-25.2`
+  describes the checkout's confirmed payment amount/currency; crypto remains an
+  estimate. The Norwegian service description now includes supported image and
+  short-video requests. Withdrawal, defect and dispute rights are unchanged.
+- A regression exposed an HTTP boundary that rejected an identical, already
+  prepared checkout after a terms-version update. The boundary now accepts a
+  bounded version identifier for lookup; new purchases still require the current
+  version inside the transaction. Existing signed quotes, ownership checks,
+  environment checks, immutable agreements and payment caps are unchanged.
+- Focused policy/HTTP/real-isolated-Postgres tests pass **171/171**, including old
+  consent rejected for new purchases, prior attempts surviving cart deletion and
+  token expiry, historical NOK wording preserved, and exact USD confirmations.
+  Touched ESLint and the optimized build/full TypeScript pass.
+- Local published-terms browser acceptance passes **1/1** across eight widths
+  (360–2560), no JavaScript, anchor navigation, optional form and exact TXT export.
+- An older refunded QA record returned 404 for its confirmation. It is not
+  counted as historical HTTP acceptance, and no agreement was backfilled.
+- PayPal's [currency documentation](https://developer.paypal.com/api/codes/currency/)
+  requires receiving preferences for currencies the merchant does not hold;
+  actual native-currency Sandbox capture/refund remains required before promotion.
+  Production is unchanged by this candidate.

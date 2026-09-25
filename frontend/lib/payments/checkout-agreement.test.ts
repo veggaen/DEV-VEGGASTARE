@@ -6,6 +6,7 @@ import { CHECKOUT_AGREEMENT_VERSION, DELIVERY_REQUESTS, DIGITAL_PURCHASE_RECORD,
 import { SALES_TERMS_TEXT } from '@/lib/legal/sales-terms';
 import { SALES_TERMS_VERSION } from '@/lib/legal/sales-terms-version';
 import { transactionMessage } from './email-policy';
+import { quoteSettlementCart } from './settlement-quote';
 
 const files = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.interviewPack.id, quantity: 1 }]);
 const credits = quoteShowcaseCart([{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, creditAmount: 122 }]);
@@ -19,8 +20,12 @@ describe('server-owned delivery consent', () => {
     expect(DIGITAL_PURCHASE_RECORD).toContain('image generations and short-video generations');
     expect(DIGITAL_PURCHASE_RECORD).not.toMatch(/reviewer listings|test\/showcase products|interview guide/i);
   });
-  it('rejects the previous purchase-copy version for a new agreement', () => {
-    expect(() => recordCheckoutAgreement(files, { ...consent, version: '2026-09-24.2' }, false)).toThrow('DELIVERY_CONSENT_REQUIRED');
+  it.each(['2026-09-24.2', '2026-09-25.1'])('rejects previous version %s for a new agreement', version => {
+    expect(() => recordCheckoutAgreement(files, { ...consent, version }, false)).toThrow('DELIVERY_CONSENT_REQUIRED');
+  });
+  it('describes the confirmed payment currency without promising NOK-only settlement', () => {
+    expect(DIGITAL_PURCHASE_RECORD).toContain('amount and fiat currency confirmed at checkout');
+    expect(DIGITAL_PURCHASE_RECORD).not.toContain('PayPal payments are charged in NOK');
   });
   it('stores exact visible wording and a server timestamp', () => {
     expect(recordCheckoutAgreement(files, consent, false, now)).toMatchObject({ version: CHECKOUT_AGREEMENT_VERSION,
@@ -69,6 +74,33 @@ describe('original purchase confirmation', () => {
     const prior = { ...attempt, quote: { ...files, agreement: { ...agreement, publishedTerms: { version: 'previous', language: 'nb', text: 'Previous full published terms' } } } };
     expect(purchaseConfirmation(prior)).toContain('Previous full published terms');
     expect(purchaseConfirmation(prior)).not.toContain(SALES_TERMS_TEXT);
+  });
+  it('retains original NOK wording for an old purchase after the selected-currency release', () => {
+    const purchaseTerms = 'PayPal payments are charged in NOK. Original policy — 2026-09-25.1';
+    const old = { ...attempt, quote: { ...files, agreement: { ...agreement, version: '2026-09-25.1', purchaseTerms,
+      publishedTerms: { version: '2026-09-25.1', language: 'nb', text: 'Original published terms' } } } };
+    const original = purchaseConfirmation(old)!;
+    expect(original).toContain(purchaseTerms);
+    expect(original).toContain('Confirmed total: 29.00 NOK');
+    expect(original).not.toContain(CHECKOUT_AGREEMENT_VERSION);
+    expect(original).not.toContain(DIGITAL_PURCHASE_RECORD);
+    expect(purchaseConfirmation({ ...old, refundedOre: old.totalOre })).toBe(original);
+  });
+  it('confirms exact USD cash and the same versioned policy in the download and email', () => {
+    const quoteNow = Date.parse('2026-09-25T12:00:00Z');
+    const quote = quoteSettlementCart({ currency: 'USD', items: [{ productId: SHOWCASE_PRODUCTS.credits.id, quantity: 1, credits: { type: 'spend', amount: '100' } }] },
+      { now: quoteNow, fx: { source: 'ECB_VIA_FRANKFURTER', base: 'NOK', currency: 'USD', rate: '0.105', publishedOn: '2026-09-25', fetchedAt: new Date(quoteNow).toISOString() },
+        models: [{ credits: 1, reserveMicroUsd: 10000 }], modelCostReviewBy: '2026-10-24T00:00:00Z' });
+    const saved = { ...attempt, currency: 'USD', totalMinor: 10000, totalOre: quote.exposureNokOre, refundedMinor: 0,
+      settlementQuoteId: '584ba6e8-6580-43ac-a6f2-1b93bc80d0b4',
+      quote: { settlement: quote, agreement: recordCheckoutAgreement(quote, { version: CHECKOUT_AGREEMENT_VERSION, files: false, credits: true }, false, new Date(quoteNow)) } };
+    const text = purchaseConfirmation(saved)!;
+    expect(text).toContain('Confirmed total: 100.00 USD');
+    expect(text).toContain(DIGITAL_PURCHASE_RECORD);
+    expect(text).toContain(SALES_TERMS_TEXT);
+    expect(text).not.toContain('PayPal payments are charged in NOK');
+    const message = transactionMessage('buyer@example.org', 'Your order confirmation', 'veggat-order-order1.txt', text);
+    expect(Buffer.from(message.attachments[0].content, 'base64').toString('utf8')).toBe(text);
   });
   it('emails exactly the downloadable full packet within payload limits', () => {
     const original = purchaseConfirmation(attempt)!;

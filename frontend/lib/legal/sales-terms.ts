@@ -47,7 +47,7 @@ export const SALES_TERMS_SECTIONS = [
       },
       {
         "kind": "paragraph",
-        "text": "Prisene inkluderer merverdiavgift der det gjelder. Valgt visningsvaluta og kryptovaluta kan være veiledende omregninger. Beløpet og valutaen du faktisk godkjenner hos betalingsleverandøren gjelder for betalingen. Sandbox- og demoordre er tydelig merket og bruker ikke ekte penger."
+        "text": "Prisene inkluderer merverdiavgift der det gjelder. Ved PayPal-kjøp bekreftes beløp og betalingsvaluta i kassen og vises før du godkjenner betalingen hos PayPal. Kryptobeløp er kun veiledende og er ikke et betalingstilbud. Tidligere ordre beholder opprinnelig beløp og betalingsvaluta, selv om visningsvalutaen endres. Sandbox- og demoordre er tydelig merket og bruker ikke ekte penger."
       }
     ]
   },
@@ -193,11 +193,11 @@ export const SALES_TERMS_SECTIONS = [
     "blocks": [
       {
         "kind": "paragraph",
-        "text": "Kreditter gir tilgang til avgrensede AI-meldinger i Veggat. De er ikke penger, en investering eller en lovnad om et bestemt antall modell-tokens. Kredittkostnaden for valgt modell vises før sending. Du kan ikke sende en betalt melding uten tilstrekkelig tilgjengelig saldo. Modelltilgjengelighet og bruksgrenser kan variere."
+        "text": "Kreditter gir tilgang til støttede AI-meldinger, bildegenereringer og korte videogenereringer i Veggat. De er ikke penger, en investering eller en lovnad om et bestemt antall modell-tokens. Kredittkostnaden vises før hver forespørsel. Du kan ikke starte en betalt forespørsel uten tilstrekkelig tilgjengelig saldo. Tilgjengelige modeller, formater, videolengde og bruksgrenser vises i appen og kan variere."
       },
       {
         "kind": "paragraph",
-        "text": "Kredittkjøp er engangskjøp uten abonnement eller automatisk påfyll. Pris og eventuell mengderabatt vises før betalingen. Ved en registrert leverandørfeil frigjøres eller tilbakeføres meldingens reserverte kreditter. AI-svar kan være feil og må vurderes av deg; dette begrenser ikke lovfestede rettigheter ved feil på tjenesten."
+        "text": "Kredittkjøp er engangskjøp uten abonnement eller automatisk påfyll. Pris og eventuell mengderabatt vises før betalingen. Ved en registrert leverandørfeil frigjøres eller tilbakeføres forespørselens reserverte kreditter. AI-innhold kan være feil og må vurderes av deg; dette begrenser ikke lovfestede rettigheter ved feil på tjenesten."
       }
     ]
   }
