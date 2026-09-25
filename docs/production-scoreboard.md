@@ -2,6 +2,15 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Realtime loading follow-up — 26 September 2026
+
+**PARTIAL; local acceptance complete, hosted verification pending.** The shared
+realtime SDK is lazy-loaded for active subscribers, with per-listener cleanup so
+one component cannot unsubscribe its siblings. Build/TypeScript/lint, nine units,
+and three focused browser checks pass. Guest homepage JS fell about 17.8KB in one
+local lab sample; this is not an all-route speed claim. See
+[realtime evidence](realtime-loading-2026-09.md).
+
 ## Current Live UI release — 26 September 2026
 
 **DONE for consent first-paint and Pulse keyboard/touch controls, not all S1–S9.**
