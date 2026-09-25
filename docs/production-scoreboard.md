@@ -4,11 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Interview walkthrough: **recorded and verified locally/Live; player release pending**.
+Interview walkthrough: **DONE for the published introduction and player**.
 A 75.72-second real Live recording follows public home → isolated demo → artwork →
 free checkout → actual protected JPG download → automatic credit quote → AI workspace.
 The new demo order has no payment/capture. No PayPal or generation requests occurred.
 The opt-in browser test passes locally and Live; no paid refund was submitted.
+Source `d2f8c87`, Production `dpl_74FcTAtrnRkevSGjUtgERSb1HH6s` is READY at
+www.veggat.com. Separate local/Live player checks each pass: keyboard playback,
+nine captions, full decoding to the end, four responsive sizes, and no video
+request until Play. Live video checksum matches the reviewed local artifact.
+Strict build/TypeScript, touched lint and candidate/live health pass. The static
+player is script-free; the video is not preloaded onto the app's main routes.
 See [recording evidence and reproduction](showcase-walkthrough-2026-09.md).
 
 Dynamic failure paths: **DONE for scoped missing-record acceptance**. App source
@@ -1347,7 +1353,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Quality | Home → demo → product → cart E2E | DONE — local and live pass; payment coverage remains a separate S4 task |
 | Quality | Payment mocked in CI | BLOCKED — workflow implemented and local demo/retry/replay passes; GitHub rejects execution due to account billing lock. Provider transport mocked in unit tests |
 | Layout | Core path at 360 and 2560, other requested sizes, 125% zoom | PARTIAL — core route/drawer/scroll tests include 360/390/landscape/768/1024/1280/1920/2560; all-route interaction, real phone keyboard and actual Chrome 125% zoom remain unverified |
-| Interview | Root README | PARTIAL — human story, architecture, decisions, setup and actual payment evidence documented; 76-second real Live walkthrough recorded, public player release being verified |
+| Interview | Root README | DONE for the interview artifact — human story, architecture, four decisions, setup/tests, production limits and a published 76-second real Live demo with captions/text alternative. Whole-app acceptance remains separate |
 
 ## S7 — Shared navigation alignment (local/live verified)
 
