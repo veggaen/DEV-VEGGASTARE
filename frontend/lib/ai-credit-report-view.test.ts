@@ -5,7 +5,7 @@ const report = () => ({
   environment: 'LIVE', generatedAt: '2026-09-25T12:00:00Z',
   accounts: { total: 1, available: 0, refundAdjustment: 0, recent: [{ userId: 'buyer', name: null, available: 0, refundAdjustment: 0, updatedAt: '2026-09-25T12:00:00Z' }] },
   usage: { completed: 9, chargedCredits: 96, pending: 0, reservedCredits: 0, refundedRequests: 0, costCeilingMicroUsd: 970000 },
-  payments: { captures: 2, grossOre: 3800, refundedOre: 0 },
+  payments: { captures: 2, currencies: [{ currency: 'NOK', captures: 2, grossMinor: 3800, refundedMinor: 0 }] },
   platformToday: { day: '2026-09-25', reservedMicroUsd: 850000, limitMicroUsd: 5000000, requests: 2, requestLimit: 500 },
 });
 describe('private credit report display contract', () => {
@@ -23,7 +23,7 @@ describe('private credit report display contract', () => {
     expect(() => parseCreditReport(body, null)).toThrow();
   });
   it.each([-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '0'])('rejects invalid financial values %s', value => {
-    const body = report(); Object.assign(body.payments, { grossOre: value }); expect(() => parseCreditReport(body, null)).toThrow();
+    const body = report(); Object.assign(body.payments.currencies[0], { grossMinor: value }); expect(() => parseCreditReport(body, null)).toThrow();
   });
   it('rejects invalid timestamps before the formatter can crash', () => {
     expect(() => parseCreditReport({ ...report(), generatedAt: 'not-a-date' }, null)).toThrow();
@@ -42,5 +42,14 @@ describe('private credit report display contract', () => {
   it('gives bounded actionable errors without server response text', () => {
     expect(creditReportFailure(429)).toContain('Wait'); expect(creditReportFailure(400)).toContain('Choose');
     expect(creditReportFailure(500)).toBe(creditReportFailure(503));
+  });
+  it.each(['duplicate', 'wrong-count', 'over-refund', 'unsupported', 'legacy-shape'])('rejects invalid currency report: %s', kind => {
+    const body = report();
+    if (kind === 'duplicate') body.payments.currencies.push(body.payments.currencies[0]);
+    if (kind === 'wrong-count') body.payments.captures++;
+    if (kind === 'over-refund') body.payments.currencies[0].refundedMinor = 3801;
+    if (kind === 'unsupported') body.payments.currencies[0].currency = 'JPY';
+    if (kind === 'legacy-shape') Object.assign(body, { payments: { captures: 2, grossOre: 3800, refundedOre: 0 } });
+    expect(() => parseCreditReport(body, null)).toThrow();
   });
 });

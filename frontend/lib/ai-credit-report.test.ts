@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   m.session.mockResolvedValue({ id: 'owner', role: 'OWNER' }); m.owner.mockResolvedValue({ role: 'OWNER' });
   m.rate.mockResolvedValue({ success: true, resetIn: 60 });
-  m.transaction.mockImplementation(fn => fn({ aiCreditAccount: { aggregate: m.accounts, findMany: m.recent }, aiGenerationReservation: { groupBy: m.generations }, checkoutAttempt: { aggregate: m.captures }, aiPlatformSpendDay: { findUnique: m.budget } }));
+  m.transaction.mockImplementation(fn => fn({ aiCreditAccount: { aggregate: m.accounts, findMany: m.recent }, aiGenerationReservation: { groupBy: m.generations }, $queryRaw: m.captures, aiPlatformSpendDay: { findUnique: m.budget } }));
   m.accounts.mockResolvedValue({ _count: { _all: 1 }, _sum: { balance: 30, refundAdjustment: 7 } });
   m.recent.mockResolvedValue([{ userId: 'buyer', balance: 30, refundAdjustment: 0, updatedAt: new Date('2026-09-23T12:00:00Z'), User: { name: 'QA Buyer' } }]);
   m.generations.mockResolvedValue([
@@ -21,7 +21,7 @@ beforeEach(() => {
     { state: 'RESERVED', _count: { _all: 1 }, _sum: { credits: 2, reservedMicroUsd: 15000 } },
     { state: 'REFUNDED', _count: { _all: 1 }, _sum: { credits: 8, reservedMicroUsd: 80000 } },
   ]);
-  m.captures.mockResolvedValue({ _count: { _all: 2 }, _sum: { totalOre: 6800, refundedOre: 2900 } });
+  m.captures.mockResolvedValue([{ currency: 'NOK', captures: '2', grossMinor: '6800', refundedMinor: '2900' }]);
   m.budget.mockResolvedValue({ reservedMicroUsd: 850000, requests: 6 });
 });
 const request = (environment = 'SANDBOX') => new Request('https://test.example/api/admin/ai-credits?environment=' + environment);
@@ -56,7 +56,7 @@ describe('honest ledger totals', () => {
     const result = await readAiCreditReport('SANDBOX', new Date('2026-09-23T23:15:00Z'));
     expect(result.accounts.available).toBe(30); expect(result.usage.reservedCredits).toBe(2);
     expect(result.usage.chargedCredits).toBe(70); expect(result.usage.costCeilingMicroUsd).toBe(790000);
-    expect(result.payments).toEqual({ captures: 2, grossOre: 6800, refundedOre: 2900 });
+    expect(result.payments).toEqual({ captures: 2, currencies: [{ currency: 'NOK', captures: 2, grossMinor: 6800, refundedMinor: 2900 }] });
     expect(result.platformToday).toEqual({ day: '2026-09-23', reservedMicroUsd: 850000, limitMicroUsd: 5000000, requests: 6, requestLimit: 500 });
     expect(result).not.toHaveProperty('profit'); expect(result).not.toHaveProperty('actualProviderSpend');
     expect(m.transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
@@ -65,12 +65,24 @@ describe('honest ledger totals', () => {
     await readAiCreditReport(environment);
     expect(m.accounts).toHaveBeenCalledWith(expect.objectContaining({ where: { environment } }));
     expect(m.generations).toHaveBeenCalledWith(expect.objectContaining({ where: { Account: { is: { environment } } } }));
-    expect(m.captures).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ environment, captureId: { not: null } }) }));
+    expect(m.captures.mock.calls[0][0].values).toEqual([environment]);
     const select = m.recent.mock.calls[0][0]; expect(select.take).toBe(50); expect(select.select.User).toEqual({ select: { name: true } });
   });
   it('returns an explicit zero empty state', async () => {
     m.accounts.mockResolvedValue({ _count: { _all: 0 }, _sum: { balance: null, refundAdjustment: null } }); m.recent.mockResolvedValue([]); m.generations.mockResolvedValue([]);
-    m.captures.mockResolvedValue({ _count: { _all: 0 }, _sum: { totalOre: null, refundedOre: null } }); m.budget.mockResolvedValue(null);
-    const result = await readAiCreditReport('DEMO'); expect(result.accounts.total).toBe(0); expect(result.usage.costCeilingMicroUsd).toBe(0); expect(result.payments.grossOre).toBe(0);
+    m.captures.mockResolvedValue([]); m.budget.mockResolvedValue(null);
+    const result = await readAiCreditReport('DEMO'); expect(result.accounts.total).toBe(0); expect(result.usage.costCeilingMicroUsd).toBe(0); expect(result.payments).toEqual({ captures: 0, currencies: [] });
+  });
+  it('keeps USD cash separate from NOK without a fabricated grand total', async () => {
+    m.captures.mockResolvedValue([{ currency: 'NOK', captures: '2', grossMinor: '6800', refundedMinor: '2900' },
+      { currency: 'USD', captures: '1', grossMinor: '10000', refundedMinor: '2500' }]);
+    expect((await readAiCreditReport('LIVE')).payments).toEqual({ captures: 3, currencies: [
+      { currency: 'NOK', captures: 2, grossMinor: 6800, refundedMinor: 2900 },
+      { currency: 'USD', captures: 1, grossMinor: 10000, refundedMinor: 2500 },
+    ] });
+  });
+  it.each(['9007199254740992', '-1', '1.5', 'NaN'])('fails closed on unsafe aggregate %s', async grossMinor => {
+    m.captures.mockResolvedValue([{ currency: 'USD', captures: '1', grossMinor, refundedMinor: '0' }]);
+    expect((await GET(request())).status).toBe(503);
   });
 });

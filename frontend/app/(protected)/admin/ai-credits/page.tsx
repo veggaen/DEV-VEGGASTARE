@@ -110,9 +110,14 @@ function ReportFigures({ report }: { report: AiCreditReport }) {
       </section>
       <section aria-labelledby="payment-totals" className={card}>
         <h2 id="payment-totals" className="text-lg font-semibold">Captured payments</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-3"><div className="min-w-0"><dt className="text-sm text-muted-foreground">Gross captured</dt><dd className="mt-1 break-words text-2xl font-semibold tabular-nums">{money(report.payments.grossOre / 100, 'NOK')}</dd></div><div className="min-w-0"><dt className="text-sm text-muted-foreground">Refunded / reversed</dt><dd className="mt-1 break-words text-2xl font-semibold tabular-nums">{money(report.payments.refundedOre / 100, 'NOK')}</dd></div></dl>
+        {report.payments.currencies.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No captured payments yet.</p> :
+          <ul className="mt-3 grid gap-x-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">{report.payments.currencies.map(row => <li key={row.currency} className="min-w-0 border-b border-border py-3">
+            <h3 className="text-sm font-medium">{row.currency} <span className="font-normal text-muted-foreground">· {count(row.captures)} {row.captures === 1 ? 'capture' : 'captures'}</span></h3>
+            <dl className="mt-2 grid grid-cols-2 gap-3"><div className="min-w-0"><dt className="text-xs text-muted-foreground">Gross captured</dt><dd className="mt-1 break-words text-lg font-semibold tabular-nums">{money(row.grossMinor / 100, row.currency)}</dd></div>
+              <div className="min-w-0"><dt className="text-xs text-muted-foreground">Refunded / reversed</dt><dd className="mt-1 break-words text-lg font-semibold tabular-nums">{money(row.refundedMinor / 100, row.currency)}</dd></div></dl>
+          </li>)}</ul>}
         <p className="mt-3 text-sm text-muted-foreground">{count(report.payments.captures)} captures · recorded currency</p>
-        <details className="mt-2 border-t border-border"><summary className={disclosure}>About payment totals</summary><p className="pb-2 text-sm leading-relaxed text-muted-foreground">Digital files and credit purchases in the selected environment. Pending approvals are excluded. These are original NOK amounts, not display-currency estimates. Fees, taxes, exchange costs and provider invoices are not deducted. This is not a profit statement.</p></details>
+        <details className="mt-2 border-t border-border"><summary className={disclosure}>About payment totals</summary><p className="pb-2 text-sm leading-relaxed text-muted-foreground">Verified digital-file and credit purchases, grouped by original payment currency. Pending approvals are excluded. No exchange-rate conversion, fees, taxes or provider costs are applied. This is not a profit statement.</p></details>
       </section>
     </div>
     <section aria-labelledby="credit-position"><h2 id="credit-position" className="mb-3 text-lg font-semibold">Credit position</h2>

@@ -21,6 +21,7 @@ import { quoteShowcaseCart } from './showcase-policy';
 import { quoteSettlementCart, readStoredSettlementQuote, type SettlementFx } from './settlement-quote';
 import { readSignedSettlementQuoteToken } from './settlement-quote-token';
 import { formatMinor, type SettlementCurrency } from './settlement-money';
+import { readCapturedPaymentTotals } from './checkout-reporting';
 
 const initialNow = Date.parse('2026-09-25T12:00:00Z');
 const secret = 'fake-signing-secret-for-disposable-database-tests-only';
@@ -415,13 +416,19 @@ describe.skipIf(process.env.TEST_SETTLEMENT_DATABASE !== '1')('exact settlement:
     await data.complete(data.attempt.orderId, data.current.userId);
     expect(await db.cartItem.findUnique({ where: { id: next.id } })).not.toBeNull();
   });
-  it.each(['NOK', 'EUR', 'GBP', 'SEK', 'DKK'] as const)('retains %s 100.00 through native capture, confirmation and full refund', async currency => {
+  it.each(['NOK', 'USD', 'EUR', 'GBP', 'SEK', 'DKK'] as const)('retains %s 100.00 through native capture, confirmation, reports and full refund', async currency => {
+    const readTotals = () => db.$transaction(tx => readCapturedPaymentTotals(tx, 'SANDBOX'));
+    const before = (await readTotals()).currencies.find(row => row.currency === currency);
     const data = await prepared(false, currency); await data.complete(data.attempt.orderId, data.current.userId);
+    expect((await readTotals()).currencies.find(row => row.currency === currency)).toEqual({ currency,
+      captures: (before?.captures ?? 0) + 1, grossMinor: (before?.grossMinor ?? 0) + 10000, refundedMinor: before?.refundedMinor ?? 0 });
     const packet = await db.transactionalEmail.findUniqueOrThrow({ where: { sourceKey: `purchase:${data.attempt.orderId}` } });
     expect((packet.payload as { text: string }).text).toContain(`Confirmed total: 100.00 ${currency}`);
     expect((await db.payment.findUniqueOrThrow({ where: { orderId: data.attempt.orderId } }))).toMatchObject({ tokenSymbol: currency, nativeAmount: '100.00' });
     const refund = adjustmentProvider(data); await refund.reconcile(refund.event);
     expect((await db.checkoutAttempt.findUniqueOrThrow({ where: { orderId: data.attempt.orderId } }))).toMatchObject({ currency, totalMinor: 10000, refundedMinor: 10000, refundedOre: 0, state: 'REFUNDED' });
+    expect((await readTotals()).currencies.find(row => row.currency === currency)).toEqual({ currency,
+      captures: (before?.captures ?? 0) + 1, grossMinor: (before?.grossMinor ?? 0) + 10000, refundedMinor: (before?.refundedMinor ?? 0) + 10000 });
   }, 15_000);
   it.each(['currency', 'amount'] as const)('does not grant anything after a provider %s mismatch', async mismatch => {
     const data = await prepared(false);

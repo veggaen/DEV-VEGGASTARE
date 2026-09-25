@@ -4987,7 +4987,7 @@ test('S5 owner credit report preserves refresh state and clears private data on 
       environment: mode === 'mismatch' ? 'LIVE' : environment, generatedAt: mode === 'malformed' ? 'invalid timestamp' : '2026-09-25T12:00:00Z',
       accounts: { total: 1, available: environment === 'DEMO' ? 44 : 30, refundAdjustment: 0, recent: [{ userId: 'private-account-id', name: 'Private QA credit account', available: 30, refundAdjustment: 0, updatedAt: '2026-09-25T12:00:00Z' }] },
       usage: { completed: 3, chargedCredits: 70, pending: 1, reservedCredits: 2, refundedRequests: 1, costCeilingMicroUsd: 790000 },
-      payments: { captures: 2, grossOre: 6800, refundedOre: 2900 },
+      payments: { captures: 2, currencies: [{ currency: 'NOK', captures: 2, grossMinor: 6800, refundedMinor: 2900 }] },
       platformToday: { day: '2026-09-25', reservedMicroUsd: 790000, limitMicroUsd: 5000000, requests: 5, requestLimit: 500 },
     } });
   });
@@ -5060,7 +5060,8 @@ test('S5 owner credit report retries, filters and scrolls without changing serve
         environment, generatedAt: '2026-09-23T12:00:00Z',
         accounts: { total: 1, available: 30, refundAdjustment: 0, recent: [{ userId: 'qa-long-account-id-for-layout-verification', name: 'Synthetic account with a deliberately long display name', available: 30, refundAdjustment: 0, updatedAt: '2026-09-23T12:00:00Z' }] },
         usage: { completed: 3, chargedCredits: 70, pending: 1, reservedCredits: 2, refundedRequests: 1, costCeilingMicroUsd: 790000 },
-        payments: { captures: 2, grossOre: 6800, refundedOre: 2900 },
+        payments: environment === 'DEMO' ? { captures: 0, currencies: [] } : { captures: 7, currencies: ['NOK','USD','EUR','GBP','SEK','DKK'].map(currency => ({ currency,
+          captures: currency === 'NOK' ? 2 : 1, grossMinor: currency === 'NOK' ? 6800 : 10000, refundedMinor: currency === 'NOK' ? 2900 : 2500 })) },
         platformToday: { day: '2026-09-23', reservedMicroUsd: 790000, limitMicroUsd: 5000000, requests: 5, requestLimit: 500 },
       } });
     });
@@ -5086,6 +5087,10 @@ test('S5 owner credit report retries, filters and scrolls without changing serve
     await page.getByLabel('Environment', { exact: true }).selectOption('DEMO');
     await expect(page).toHaveURL(/environment=DEMO/);
     await expect(page.getByText('Demo ledger', { exact: false })).toBeVisible();
+    await expect(page.getByText('No captured payments yet.', { exact: true })).toBeVisible();
+    await page.getByLabel('Environment', { exact: true }).selectOption('SANDBOX');
+    await expect(page.getByText('Sandbox ledger', { exact: false })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Captured payments', exact: true }).getByRole('listitem')).toHaveCount(6);
     await page.getByRole('button', { name: 'Refresh report', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Refresh report', exact: true })).toBeEnabled();
     for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {

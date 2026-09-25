@@ -1,9 +1,10 @@
 /** @fileOverview Current verification evidence shared by settings and Reach. @stability evolving */
-import type { Prisma } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import { dbPrisma } from '@/lib/db';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { calculateVerificationScore, determineUserVerificationTier, VERIFICATION_TIER_MULTIPLIERS } from '@/lib/view-strength';
 import { computeReach } from '@/lib/reach/reach-engine';
+import { recordedCheckoutMoney, recordedCaptureProof, unadjustedPaidCapture } from './payments/checkout-reporting';
 
 /** Never use cached tiers, wallet donation totals or caller-supplied overrides
  * as proof. Read all contributing records from the same database snapshot. */
@@ -21,9 +22,12 @@ export async function loadVerificationEvidence(tx: Prisma.TransactionClient, use
       family: { in: ['EVM', 'SOLANA'] }, verifiedAt: { not: null } }, select: { id: true } }),
     // Sandbox, browser returns, refunded/reversed payments and legacy
     // Payment.status alone are not evidence of a verified Live purchase.
-    tx.checkoutAttempt.findFirst({ where: { userId, environment: 'LIVE', state: 'COMPLETED',
-      totalOre: { gt: 0 }, refundedOre: 0, captureId: { not: null }, completedAt: { not: null },
-      Order: { userId, status: 'COMPLETED' } }, select: { orderId: true } }),
+    tx.$queryRaw<{ orderId: string }[]>(Prisma.sql`
+      SELECT c."orderId" FROM "CheckoutAttempt" c JOIN "Order" o ON o.id = c."orderId"
+      WHERE c."userId" = ${userId} AND c."environment" = 'LIVE'
+        AND ${recordedCheckoutMoney} AND ${recordedCaptureProof} AND ${unadjustedPaidCapture}
+      LIMIT 1
+    `),
   ]);
   const linkedProviders = accounts.map(a => a.provider);
   const flags = {
@@ -32,7 +36,7 @@ export async function loadVerificationEvidence(tx: Prisma.TransactionClient, use
     hasGithubAuth: user.hasGithubAuth && linkedProviders.includes('github'),
     hasDiscordAuth: user.hasDiscordAuth && linkedProviders.includes('discord'),
     hasVerifiedWallet: wallets.length > 0,
-    hasWeb2Payment: !isDemoUserId(userId) && liveCapture != null,
+    hasWeb2Payment: !isDemoUserId(userId) && liveCapture.length > 0,
     // Legacy crypto completion accepts browser claims; no server-owned chain
     // proof is persisted yet. Do not promote it or pending donations to trust.
     hasWeb3Payment: false,

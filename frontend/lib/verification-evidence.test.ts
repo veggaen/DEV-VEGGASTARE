@@ -2,15 +2,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 const m = vi.hoisted(() => ({ user: vi.fn(), accounts: vi.fn(), pending: vi.fn(), wallets: vi.fn(), capture: vi.fn(),
-  update: vi.fn(), transaction: vi.fn(), lock: vi.fn(), auth: vi.fn(), limit: vi.fn() }));
+  update: vi.fn(), transaction: vi.fn(), auth: vi.fn(), limit: vi.fn() }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { $transaction: m.transaction } }));
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/user-auth', () => ({ MyLibUserAuth: m.auth }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: m.limit }));
 import { readVerificationEvidence } from '@/lib/verification-evidence';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
 import { GET, POST } from '@/app/api/users/verification/route';
 const tx = { user: { findUnique: m.user, update: m.update }, account: { findMany: m.accounts },
-  pendingOAuthLink: { findMany: m.pending }, wallet: { findMany: m.wallets }, checkoutAttempt: { findFirst: m.capture }, $queryRaw: m.lock };
+  pendingOAuthLink: { findMany: m.pending }, wallet: { findMany: m.wallets }, $queryRaw: m.capture };
 const user = () => ({ emailVerified: new Date(), phoneVerified: null, phoneNumber: null, isTwoFactorEnabled: false,
   hasGoogleAuth: true, hasGithubAuth: false, hasDiscordAuth: false, web3ModeEnabled: false,
   bankidVerified: null, vippsVerified: null, emailRisk: 'verified', reachLifetime: 0,
@@ -18,7 +19,7 @@ const user = () => ({ emailVerified: new Date(), phoneVerified: null, phoneNumbe
 beforeEach(() => {
   vi.resetAllMocks(); m.transaction.mockImplementation(fn => fn(tx)); m.user.mockResolvedValue(user());
   m.accounts.mockResolvedValue([{ provider: 'google' }, { provider: 'github' }]);
-  m.pending.mockResolvedValue([{ provider: 'github' }]); m.wallets.mockResolvedValue([]); m.capture.mockResolvedValue(null);
+  m.pending.mockResolvedValue([{ provider: 'github' }]); m.wallets.mockResolvedValue([]); m.capture.mockResolvedValue([]);
   m.auth.mockResolvedValue({ id: 'qa-owner' }); m.limit.mockResolvedValue(true);
 });
 describe('canonical verification evidence', () => {
@@ -44,16 +45,16 @@ describe('canonical verification evidence', () => {
     expect(m.wallets.mock.calls[0][0].where).toEqual({ ownerUserId: 'qa-owner', ownerCompanyId: null, family: { in: ['EVM','SOLANA'] }, verifiedAt: { not: null } });
   });
   it('requires a positive unadjusted completed Live capture owned by the same user', async () => {
-    m.capture.mockResolvedValue({ orderId: 'verified-live' });
+    m.capture.mockResolvedValue([{ orderId: 'verified-live' }]);
     expect((await readVerificationEvidence('qa-owner'))!).toMatchObject({ tier: 'WEB2_PAYMENT', score: 45, flags: { hasWeb2Payment: true } });
-    expect(m.capture.mock.calls[0][0].where).toEqual({ userId: 'qa-owner', environment: 'LIVE', state: 'COMPLETED', totalOre: { gt: 0 },
-      refundedOre: 0, captureId: { not: null }, completedAt: { not: null }, Order: { userId: 'qa-owner', status: 'COMPLETED' } });
+    expect(m.capture.mock.calls[0][0].values).toEqual(['qa-owner']);
+    expect(m.capture.mock.calls[0][0].text).toContain('"refundedMinor"');
     expect((await readVerificationEvidence('demo_qa'))!.flags.hasWeb2Payment).toBe(false);
   });
   it('persists exactly the same calculated evidence under a serializable user lock', async () => {
     const snapshot = (await readVerificationEvidence('qa-owner'))!;
     expect(await recalculateVerificationTier('qa-owner')).toEqual({ tier: snapshot.tier, score: snapshot.score });
-    expect(m.lock).toHaveBeenCalledTimes(1);
+    expect(m.capture.mock.calls.some(call => call[0].text?.includes('FOR UPDATE') || String(call[0]).includes('FOR UPDATE'))).toBe(true);
     expect(m.update.mock.calls[0][0].data).toMatchObject({ verificationScore: snapshot.score, verificationTier: snapshot.tier,
       hasVerifiedWallet: false, hasWeb2Payment: false, hasWeb3Payment: false, trueReach: snapshot.reach.trueReach });
     expect(m.transaction.mock.calls[1][1]).toEqual({ isolationLevel: 'Serializable' });

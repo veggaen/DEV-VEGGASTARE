@@ -1,6 +1,7 @@
 import 'server-only';
 import { Prisma } from '@/generated/prisma/client';
 import type { CompanyCheckoutCounts } from './admin-company-policy';
+import { recordedCheckoutMoney, recordedCaptureProof, unadjustedPaidCapture } from './payments/checkout-reporting';
 
 export const emptyCompanyCheckoutCounts = (): CompanyCheckoutCounts => ({ livePaid: 0, liveAdjusted: 0, liveReview: 0, sandbox: 0 });
 
@@ -15,8 +16,7 @@ export async function companyCheckoutCounts(tx: Prisma.TransactionClient, compan
   const rows = await tx.$queryRaw<({ companyId: string } & CompanyCheckoutCounts)[]>(Prisma.sql`
     WITH captures AS (
       SELECT DISTINCT p."companyId", c."orderId", c."environment",
-        (c."state" = 'COMPLETED' AND c."completedAt" IS NOT NULL
-          AND c."refundedOre" = 0 AND o."status" = 'COMPLETED') AS paid,
+        ${unadjustedPaidCapture} AS paid,
         (c."state" IN ('REFUNDED', 'REVERSED') AND c."paymentAdjustedAt" IS NOT NULL
           AND o."status" = 'CANCELLED') AS adjusted,
         (c."state" = 'PAYMENT_REVIEW' AND c."paymentAdjustedAt" IS NOT NULL
@@ -26,12 +26,7 @@ export async function companyCheckoutCounts(tx: Prisma.TransactionClient, compan
       JOIN "Order" o ON o."id" = i."orderId"
       JOIN "CheckoutAttempt" c ON c."orderId" = o."id"
       WHERE p."companyId" IN (${Prisma.join(ids)}) AND i."quantity" > 0
-        AND c."userId" = o."userId" AND left(c."userId", 5) <> 'demo_'
-        AND c."environment" IN ('LIVE', 'SANDBOX') AND c."currency" = 'NOK'
-        AND c."totalOre" > 0 AND c."captureId" IS NOT NULL AND c."captureId" <> ''
-        AND c."paypalOrderId" IS NOT NULL AND c."paypalOrderId" <> ''
-        AND c."merchantId" IS NOT NULL AND c."merchantId" <> ''
-        AND c."refundedOre" BETWEEN 0 AND c."totalOre"
+        AND ${recordedCheckoutMoney} AND ${recordedCaptureProof}
     )
     SELECT "companyId",
       (COUNT(*) FILTER (WHERE "environment" = 'LIVE' AND paid))::int AS "livePaid",

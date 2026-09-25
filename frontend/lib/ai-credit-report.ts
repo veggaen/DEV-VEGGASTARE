@@ -2,6 +2,7 @@
 import 'server-only';
 import { dbPrisma } from '@/lib/db';
 import { platformDailyMicroUsd, AI_PLATFORM_DAILY_REQUEST_LIMIT } from '@/lib/ai-credit-ledger';
+import { readCapturedPaymentTotals } from './payments/checkout-reporting';
 
 export async function readAiCreditReport(environment: 'LIVE' | 'SANDBOX' | 'DEMO', now = new Date()) {
   const day = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
@@ -12,8 +13,7 @@ export async function readAiCreditReport(environment: 'LIVE' | 'SANDBOX' | 'DEMO
         select: { userId: true, balance: true, refundAdjustment: true, updatedAt: true, User: { select: { name: true } } } }),
       tx.aiGenerationReservation.groupBy({ by: ['state'], where: { Account: { is: { environment } } },
         _count: { _all: true }, _sum: { credits: true, reservedMicroUsd: true } }),
-      tx.checkoutAttempt.aggregate({ where: { environment, captureId: { not: null }, state: { in: ['COMPLETED', 'REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'] } },
-        _count: { _all: true }, _sum: { totalOre: true, refundedOre: true } }),
+      readCapturedPaymentTotals(tx, environment),
       tx.aiPlatformSpendDay.findUnique({ where: { date: day }, select: { reservedMicroUsd: true, requests: true } }),
     ]);
     const state = (value: string) => generations.find(row => row.state === value);
@@ -25,7 +25,7 @@ export async function readAiCreditReport(environment: 'LIVE' | 'SANDBOX' | 'DEMO
         pending: state('RESERVED')?._count._all ?? 0, reservedCredits: state('RESERVED')?._sum.credits ?? 0,
         refundedRequests: state('REFUNDED')?._count._all ?? 0,
         costCeilingMicroUsd: generations.reduce((sum, row) => sum + (row._sum.reservedMicroUsd ?? 0), 0) },
-      payments: { captures: captures._count._all, grossOre: captures._sum.totalOre ?? 0, refundedOre: captures._sum.refundedOre ?? 0 },
+      payments: captures,
       platformToday: { day: day.toISOString().slice(0, 10), reservedMicroUsd: budget?.reservedMicroUsd ?? 0,
         limitMicroUsd: platformDailyMicroUsd(), requests: budget?.requests ?? 0, requestLimit: AI_PLATFORM_DAILY_REQUEST_LIMIT },
     };

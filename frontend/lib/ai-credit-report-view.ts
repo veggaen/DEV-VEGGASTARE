@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AiCreditReport } from './ai-credit-report';
+import { SettlementCurrency } from './payments/settlement-money';
 
 export const creditReportEnvironments = ['LIVE', 'SANDBOX', 'DEMO'] as const;
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -13,7 +14,11 @@ const reportSchema = z.object({
   }),
   usage: z.object({ completed: count, chargedCredits: count, pending: count, reservedCredits: count,
     refundedRequests: count, costCeilingMicroUsd: count }),
-  payments: z.object({ captures: count, grossOre: count, refundedOre: count }),
+  payments: z.object({ captures: count, currencies: z.array(z.object({ currency: SettlementCurrency,
+    captures: count.min(1), grossMinor: count.min(1), refundedMinor: count,
+  }).refine(row => row.refundedMinor <= row.grossMinor)).max(6) }).refine(value =>
+    new Set(value.currencies.map(row => row.currency)).size === value.currencies.length &&
+    value.currencies.reduce((sum, row) => sum + row.captures, 0) === value.captures),
   platformToday: z.object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), reservedMicroUsd: count,
     limitMicroUsd: count, requests: count, requestLimit: count }),
 });

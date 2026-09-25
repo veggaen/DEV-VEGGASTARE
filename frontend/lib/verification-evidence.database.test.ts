@@ -7,6 +7,7 @@ import { PrismaClient } from '@/generated/prisma/client';
 import { previewDatabaseUrl } from '@/lib/preview-database';
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock('@/lib/db', () => ({ get dbPrisma() { return state.db; } }));
+vi.mock('server-only', () => ({}));
 import { readVerificationEvidence } from '@/lib/verification-evidence';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
 
@@ -41,7 +42,9 @@ describe.skipIf(process.env.TEST_VERIFICATION_DATABASE !== '1')('real database v
         "createdAt" TIMESTAMP(3), "updatedAt" TIMESTAMP(3));
       CREATE TABLE "CheckoutAttempt" ("orderId" TEXT PRIMARY KEY, "userId" TEXT, "requestKey" TEXT, "environment" TEXT,
         "totalOre" INTEGER, "quote" JSONB, "state" TEXT, "refundedOre" INTEGER DEFAULT 0, "captureId" TEXT, "completedAt" TIMESTAMP(3),
-        "createRequestId" TEXT, "captureRequestId" TEXT);`);
+        "createRequestId" TEXT, "captureRequestId" TEXT, "currency" TEXT DEFAULT 'NOK',
+        "totalMinor" INT, "refundedMinor" INT, "settlementQuoteId" TEXT, "cartFingerprint" TEXT,
+        "paypalOrderId" TEXT DEFAULT 'qa-provider-order', "merchantId" TEXT DEFAULT 'qa-merchant', "paymentAdjustedAt" TIMESTAMP(3));`);
     url.searchParams.set('options', `-c search_path=${schema}`);
     db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), max: 8 }, { schema }) });
     const transaction = db.$transaction.bind(db);
@@ -97,4 +100,15 @@ describe.skipIf(process.env.TEST_VERIFICATION_DATABASE !== '1')('real database v
     expect(await readVerificationEvidence('qa-evidence')).toMatchObject({ tier: 'WEB2_BASIC', score: 10, flags: { hasGoogleAuth: false, hasWeb2Payment: false } });
     expect((await db.user.findUnique({ where: { id: 'qa-evidence' }, select: { verificationTier: true } }))!.verificationTier).toBe('WEB2_PAYMENT');
   });
+  it.each(['NOK','USD','EUR','GBP','SEK','DKK'])('recognizes native %s capture but never its refund or stale completed flag', async currency => {
+    await seedAttempt('native-' + currency);
+    const id = 'qa-native-' + currency;
+    await admin.query(`UPDATE "CheckoutAttempt" SET "currency"=$1,"totalMinor"=10000,"refundedMinor"=0,
+      "settlementQuoteId"=$2,"cartFingerprint"=$3 WHERE "orderId"=$4`, [currency, randomUUID(), 'b'.repeat(64), id]);
+    expect((await readVerificationEvidence('qa-evidence'))!.flags.hasWeb2Payment).toBe(true);
+    await admin.query(`UPDATE "CheckoutAttempt" SET "refundedMinor"=1 WHERE "orderId"=$1`, [id]);
+    expect((await readVerificationEvidence('qa-evidence'))!.flags.hasWeb2Payment).toBe(false);
+    await admin.query(`UPDATE "CheckoutAttempt" SET "refundedMinor"=0,"paymentAdjustedAt"=now() WHERE "orderId"=$1`, [id]);
+    expect((await readVerificationEvidence('qa-evidence'))!.flags.hasWeb2Payment).toBe(false);
+  }, 30000);
 });

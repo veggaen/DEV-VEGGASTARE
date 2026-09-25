@@ -10,11 +10,14 @@ are implemented. Cart spend intent and immutable, serialized order preparation
 now pass real PostgreSQL migration, replay and cross-tab race tests in disposable
 empty schemas on isolated Preview. Version-aware PayPal transport/capture,
 refund reconciliation, native Payment records and original receipts/confirmations
-are integrated in code. Combined regressions pass **468/468 across twenty files**,
+are integrated in code. Owner reporting now separates original cash by currency;
+company counts and payment trust use version-aware refund/proof guards. The report
+UI keeps totals compact with details disclosed on demand; new browser acceptance
+is pending the migrated local build. Combined regressions pass **607/607 across twenty-six files**,
 including real isolated transaction tests with mocked PayPal for all six currencies,
 fresh public FX, legacy NOK compatibility and receipt rendering; lint and TypeScript
 pass. No public database migration, real capture or browser-flow acceptance is claimed.
-Next: currency-grouped reporting, verification/count queries and quote/input UI,
+Next: quote/input routes and UI,
 then local and real Sandbox browser
 acceptance before activation. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping

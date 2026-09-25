@@ -111,15 +111,38 @@ build; do not deploy this intermediate commit against the old public schema.
   not NOK exposure. Server-rendered tests cover USD 100.00 and its USD refund
   with ETH parentheses. The receipt layout itself is unchanged in this slice.
 
-Still incomplete: owner-credit financial reports aggregate `totalOre` as NOK
-cash; company checkout counts exclude foreign currencies; verification-evidence
-queries need explicit v1/v2 refund guards. Update these, plus actual quote/input
-routes and storefront/cart UI, before enabling any v2 customer purchase. This
+Actual quote/input routes and storefront/cart UI remain incomplete. Connect and
+verify those before enabling any v2 customer purchase. This
 integration is not evidence of a real PayPal native-currency Sandbox capture.
 The transport/proof contracts were rechecked against PayPal's
 [capture-order reference](https://developer.paypal.com/api/orders/v2/orders-capture),
 [capture-details reference](https://developer.paypal.com/api/payments/v2/captures-get)
 and [refund-details reference](https://developer.paypal.com/api/payments/v2/refunds-get).
+
+## Currency-aware reporting and verification (not deployed)
+
+- `checkout-reporting.ts` shares read-only, parameterized capture/money predicates
+  across the owner report, company counts and payment-verification evidence.
+  Original v1 NOK cash and v2 native cash are distinguished explicitly; partial
+  upgrades, missing provider bindings and mismatched order owners are excluded.
+- Owner totals contain at most six currency groups. Each has its own capture
+  count, gross amount and refunds/reversals; there is no fabricated cross-currency
+  grand total or conversion of exposure into revenue. Existing NOK and exact NOK
+  combine in one NOK group. Aggregates outside safe integer bounds fail closed.
+- The private report validates currency, unique groups, counts and refund bounds.
+  Its concise panels use semantic lists, tabular figures and existing theme tokens;
+  details stay behind keyboard-accessible disclosures. No access/refresh/identity
+  safeguards were removed. Review followed the
+  [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md).
+- Company paid/adjusted/review counts now recognize all six currencies. Payment
+  trust requires a positive unadjusted Live capture, matching owner, nonempty
+  provider IDs and a completed order. A native refund, even with a stale completed
+  flag, cannot earn payment trust. Sandbox/Demo never earn Live-payment trust.
+- Real disposable-schema tests cover mixed/legacy/native amounts, all six
+  currencies, partial/full/reversed payments, owner mismatches, corrupt money and
+  missing proof. These tests use synthetic records, never production customer rows.
+  Existing Playwright report fixtures now include all six currencies; their new
+  browser run remains pending the migrated local application build.
 
 ## Draft commercial policy (not Live pricing)
 
@@ -183,6 +206,14 @@ The fee policy expires with the existing 24 October review deadline.
   now reflect real stored records, and the runtime wrapper creates dependencies
   only when completion is called. Touched lint and full TypeScript pass after
   these fixes; the failed intermediate run is not counted as a pass.
+- The reporting integration's combined run passes **607/607 across twenty-six
+  files**, no skips. Actual capture/refund factories also feed the real SQL report
+  in the migrated disposable schema for all six currencies. A separate minimal
+  schema tests corrupt/half-upgraded records that the migration would reject.
+  These are mocked provider proofs, not real Sandbox payments. Full TypeScript
+  and touched ESLint pass; updated browser fixtures are not yet executed.
+  After tightening stored quote-ID/fingerprint shape checks, the report/company/
+  verification follow-up also passes **138/138 across six files**, no skips.
 - No Live payment, refund, credit, email, secret, billing or deployment change.
   No new browser acceptance is claimed: the store is not imported by an active
   route yet. Existing production remains `92c5ac7`.
@@ -194,10 +225,9 @@ The fee policy expires with the existing 24 October review deadline.
    currency-aware; then apply the additive migration to isolated Preview before
    building/running the new Prisma client. Apply to production only with the
    verified compatible release. Never backfill/reprice old NOK orders.
-2. Create/capture/refund, native Payment amounts, receipt and confirmation
-   integration are implemented with v1 compatibility tests. Next update owner
-   financial reports to group actual cash by currency, company checkout counts
-   and verification evidence. An exposure valuation is not revenue. Retain
+2. Create/capture/refund, native Payment amounts, receipt/confirmation, grouped
+   owner financial reports, company checkout counts and verification evidence
+   are implemented with v1 compatibility tests. An exposure valuation is not revenue. Retain
    verified webhook signatures, unique capture grants and revocation locks.
 3. Connect product/basket/cart/checkout auto inputs to the server quote. Persist
    spend intent; currency changes require a new quote. Show one native fiat total
