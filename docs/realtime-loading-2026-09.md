@@ -19,6 +19,9 @@ ref rather than reconnecting. This follows Pusher's
 - First mobile test failed because the cart link is inside the mobile drawer;
   the test now opens the actual menu before clicking. This was a test assumption,
   not a reproduced app defect.
+- Existing consent first-paint, responsive consent/scroll release, and
+  no-JavaScript terms checks also pass 3/3 locally. Real Chrome opens the local
+  basket and navigates to the loaded two-product catalog without cart mutations.
 - One cold throttled local homepage sample: JS 1,051,479 bytes versus the prior
   integrated sample's 1,069,283 bytes (17,804 fewer, about 1.7%). LCP/FCP 1,476 ms,
   CLS 0.045813, no page errors or horizontal overflow. Single-run lab evidence,
@@ -33,3 +36,8 @@ npx playwright test --config=playwright.realtime.config.ts --reporter=list
 
 Preview and Live verification remain pending. Do not promote the integrated
 native-currency/schema changes as part of this small loading correction.
+
+Candidate `7af0798` was submitted to isolated Preview as
+`https://dev-veggastare-ao5xv68kb-v3ggas-projects.vercel.app`. Build compilation
+passed and the isolated database reported 55 migrations with none pending;
+readiness and hosted tests must still be checked before alias promotion.
