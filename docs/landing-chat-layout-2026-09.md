@@ -43,6 +43,15 @@ with the consent banner dismissed. Expanded empty chat has no artificial
 scrollbar; compact chat can scroll its suggestions while preserving its heading
 and pinned composer. Artifacts: `test-results-release-landing-welcome-local-final`.
 
+Published source `f5fcf37`, Production `dpl_DbWCX7nrZR7dYj8CkqGW1Wd5dM8x`
+(`dev-veggastare-zyqsltlld-v3ggas-projects.vercel.app`) passed the Vercel strict
+build/TypeScript and candidate health before promotion to www.veggat.com. The
+same four focused checks pass Live **4/4**, 38.9 seconds, retries disabled. Live
+health is healthy. Artifacts: `test-results-release-landing-welcome-live`.
+Real Chrome verified the deployed signed-in dialog at 390px, its nested model
+picker and Close action, without sending a message. Temporary viewport overrides
+were reset. The stable Sandbox Preview was not redeployed for this UI-only slice.
+
 The review follows the existing app's design system and the
 [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md)
 for modal focus, overflow, reduced motion and empty states. Physical-phone keyboard

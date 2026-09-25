@@ -4,12 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Homepage chat: **local acceptance DONE; publication pending**. The empty welcome
+Homepage chat: **local and Live acceptance DONE for this layout fix**. The empty welcome
 no longer auto-scrolls above its panel; expanded chat uses the shared accessible
 dialog above the site header. Four focused tests pass at eight sizes in both
 themes, including nested model selection, focus return and an intercepted streamed
 reply. Strict build/TypeScript and touched lint pass. Real Chrome verifies normal
-motion and the expanded layout. No paid generation or refund occurred.
+motion and the expanded layout. Source `f5fcf37`, Production
+`dpl_DbWCX7nrZR7dYj8CkqGW1Wd5dM8x` is READY at www.veggat.com; the same four
+focused checks pass Live (38.9s), with candidate and Live health healthy.
+No paid generation or refund occurred.
 See [chat layout evidence](landing-chat-layout-2026-09.md).
 
 Interview walkthrough: **DONE for the published introduction and player**.

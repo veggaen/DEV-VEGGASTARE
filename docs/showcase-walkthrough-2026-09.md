@@ -42,14 +42,16 @@ Real Chrome plays the published video. Public video/VTT and frontend health are
 was not redeployed for these static interview assets. No runtime payment/auth code
 or database schema changed.
 
-## Separate UI finding for the next slice
+## Separate UI finding — subsequently fixed
 
 `frontend/components/uicustom/home/LandingChatWidget.tsx:234` — the auto-scroll
 effect runs for an empty conversation. At 1280×800, local welcome-title top is
 519.75px while its scroller begins at 552px, with scrollTop 44: the title is
 clipped on entry. The recording preserves this actual behavior rather than hiding
-it in edited footage. Fix and retest empty-panel alignment separately from the
-walkthrough publication; sending a paid message is unnecessary for that check.
+it in edited footage. This is now fixed and verified locally and Live in source
+`f5fcf37`; see [chat layout acceptance](landing-chat-layout-2026-09.md). The original
+walkthrough remains an honest recording of its earlier release, not edited proof
+of the corrected UI. No paid message was needed to verify the fix.
 
 Review reference: [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md)
 (25 September 2026), particularly empty states, overflow, captions and keyboard controls.
