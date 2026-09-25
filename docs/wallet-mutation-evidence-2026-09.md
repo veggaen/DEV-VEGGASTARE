@@ -57,6 +57,8 @@ Live deployment and Live acceptance are still pending, not implied by these test
 - `actions/seller-payment.ts` set/remove-default actions remain a parallel path:
   they do not use action-scoped email codes or the same atomic primary flags.
   Both user and company settings must be reconciled, not merely the EVM API.
+  **Follow-up:** reconciled and tested locally in the
+  [receiving-choice slice](payout-choice-evidence-2026-09.md), not yet deployed.
 - Wallet login must reject unverified/manual records, consume nonces atomically
   and bind them to the host. Review last-login-method removal/recovery too.
 - Genuine extension signing, production crypto checkout and owner-only provider

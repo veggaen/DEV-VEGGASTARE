@@ -11,10 +11,13 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { getUserById } from '@/data/user';
 import { randomBytes, timingSafeEqual } from 'crypto';
-import { sendPaypalVerificationEmail } from '@/lib/mail';
+import { sendPaypalVerificationEmail, sendTwoFactorTokenEmail } from '@/lib/mail';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 import { isDemoUserId } from '@/lib/demo-policy';
+import { changePayoutWallet, type PayoutTarget, type PayoutChoice } from '@/lib/payout-wallet';
+import { walletActionOrigin } from '@/lib/wallet-action-origin';
+import { WalletLinkError } from '@/lib/wallet-link';
 
 const log = createLogger('seller-payment');
 
@@ -44,13 +47,18 @@ const RemovePaypalEmailSchema = TargetSchema;
 
 const SetDefaultWalletSchema = z.object({
   walletId: z.string().min(1).max(30).regex(CUID_RE, 'Invalid wallet ID'),
+  code: z.string().regex(/^\d{6}$/).optional().nullable(),
 }).and(TargetSchema);
 
-const RemoveDefaultWalletSchema = TargetSchema;
+const RemoveDefaultWalletSchema = z.object({
+  expectedWalletId: z.string().min(1).max(30).regex(CUID_RE, 'Refresh payment settings before clearing the receiving wallet.'),
+  code: z.string().regex(/^\d{6}$/).optional().nullable(),
+}).and(TargetSchema);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 type Result = { error: string } | { success: string };
+export type PayoutWalletResult = Result | { twoFactor: true };
 
 /** Authenticate + rate limit in one call. Returns the DB user or an error. */
 async function authAndRateLimit(): Promise<{ error: string } | { dbUser: { id: string } }> {
@@ -270,101 +278,36 @@ export async function removePaypalEmail(values: z.infer<typeof RemovePaypalEmail
 
 // ─── Set Default Receiving Wallet ────────────────────────────────────────────
 
-export async function setDefaultReceivingWallet(values: z.infer<typeof SetDefaultWalletSchema>): Promise<Result> {
-  const parsed = SetDefaultWalletSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
+async function applyPayoutChoice(values: PayoutTarget & PayoutChoice & { code?: string | null }): Promise<PayoutWalletResult> {
   const auth = await authAndRateLimit();
   if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  const { walletId } = parsed.data;
-
   try {
-    // Verify wallet exists and belongs to the right owner
-    const wallet = await dbPrisma.wallet.findUnique({
-      where: { id: walletId },
-      select: { id: true, ownerUserId: true, ownerCompanyId: true, verifiedAt: true, address: true },
-    });
-
-    if (!wallet) return { error: 'Wallet not found' };
-
-    // Only verified wallets can be used as default receiving wallets
-    if (!wallet.verifiedAt) {
-      return { error: 'Only verified wallets can be set as default. Please verify this wallet first.' };
+    const origin = await walletActionOrigin();
+    const limit = await checkRateLimit(`wallet-user:${auth.dbUser.id}`, 'wallet');
+    if (!limit.success) return { error: 'Too many wallet requests. Please try again shortly.' };
+    const result = await changePayoutWallet({ ...values, userId: auth.dbUser.id, origin });
+    if ('twoFactor' in result) {
+      await sendTwoFactorTokenEmail(result.email, result.code);
+      return { twoFactor: true };
     }
-
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-
-      // Wallet must belong to the company OR to the owner user
-      if (wallet.ownerCompanyId !== companyId && wallet.ownerUserId !== dbUser.id) {
-        return { error: 'Wallet does not belong to this company or you' };
-      }
-
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { defaultReceivingWalletId: walletId },
-      });
-      log.info('Default receiving wallet set (company)', { companyId, walletId, userId: dbUser.id });
-    } else {
-      // Wallet must belong to the authenticated user
-      if (wallet.ownerUserId !== dbUser.id) {
-        return { error: 'Wallet does not belong to you' };
-      }
-
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { defaultReceivingWalletId: walletId },
-      });
-      log.info('Default receiving wallet set (user)', { walletId, userId: dbUser.id });
-    }
-
-    return { success: `Default receiving wallet set to ${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}` };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to set wallet';
-    log.error('setDefaultReceivingWallet failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to set wallet. Please try again.' };
+    return { success: values.action === 'set' ? 'Receiving wallet updated.' : 'Receiving choice cleared. The wallet stays linked.' };
+  } catch (error) {
+    if (error instanceof WalletLinkError) return { error: error.message };
+    log.error('Receiving wallet change could not be confirmed');
+    return { error: 'Unable to confirm this change. Refresh payment settings before trying again.' };
   }
 }
 
-// ─── Remove Default Receiving Wallet ─────────────────────────────────────────
+export async function setDefaultReceivingWallet(values: z.infer<typeof SetDefaultWalletSchema>): Promise<PayoutWalletResult> {
+  const parsed = SetDefaultWalletSchema.safeParse(values);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+  return applyPayoutChoice({ ...parsed.data, action: 'set' });
+}
 
-export async function removeDefaultReceivingWallet(values: z.infer<typeof RemoveDefaultWalletSchema>): Promise<Result> {
+export async function removeDefaultReceivingWallet(values: z.infer<typeof RemoveDefaultWalletSchema>): Promise<PayoutWalletResult> {
   const parsed = RemoveDefaultWalletSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
-  const auth = await authAndRateLimit();
-  if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  try {
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { defaultReceivingWalletId: null },
-      });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { defaultReceivingWalletId: null },
-      });
-    }
-
-    log.info('Default receiving wallet removed', {
-      target: parsed.data.target,
-      userId: dbUser.id,
-      ...(parsed.data.target === 'company' ? { companyId: parsed.data.companyId } : {}),
-    });
-    return { success: 'Default receiving wallet removed' };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to remove wallet';
-    log.error('removeDefaultReceivingWallet failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to remove wallet. Please try again.' };
-  }
+  return applyPayoutChoice({ ...parsed.data, action: 'clear' });
 }
 
 // ─── Get Seller Payment Status ───────────────────────────────────────────────

@@ -5,19 +5,17 @@
  */
 'use client';
 
-import { useEffect, useState, useTransition, useCallback } from 'react';
+import { useEffect, useState, useTransition, useCallback, useId } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PayoutWalletPicker } from './payout-wallet-picker';
 import {
   FiCheckCircle, FiAlertCircle, FiMail, FiTrash2, FiLoader,
-  FiCreditCard,
 } from 'react-icons/fi';
 import {
   savePaypalEmail,
   removePaypalEmail,
-  setDefaultReceivingWallet,
-  removeDefaultReceivingWallet,
   getSellerPaymentStatus,
   type SellerPaymentStatus,
 } from '@/actions/seller-payment';
@@ -43,17 +41,23 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
   const [status, setStatus] = useState<SellerPaymentStatus | null>(null);
   const [paypalInput, setPaypalInput] = useState('');
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const emailId = useId();
 
   // ── Fetch current status ──────────────────────────────────────────────────
 
   const fetchStatus = useCallback(async () => {
     setIsLoadingStatus(true);
-    const res = await getSellerPaymentStatus({ target: 'company', companyId });
-    if ('data' in res) {
-      setStatus(res.data);
-      setPaypalInput(res.data.paypalEmail ?? '');
-    }
-    setIsLoadingStatus(false);
+    setLoadError(null);
+    try {
+      const res = await getSellerPaymentStatus({ target: 'company', companyId });
+      if ('data' in res) {
+        setStatus(res.data);
+        setPaypalInput(res.data.paypalEmail ?? '');
+      } else setLoadError(res.error);
+    } catch { setLoadError('Payment settings could not load. Try again.'); }
+    finally { setIsLoadingStatus(false); }
   }, [companyId]);
 
   useEffect(() => {
@@ -66,68 +70,54 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
 
   const handleSavePaypal = () => {
     if (!paypalInput.trim()) return;
+    setSaveError(null);
     startTransition(async () => {
+      try {
       const res = await savePaypalEmail({ paypalEmail: paypalInput.trim(), target: 'company', companyId });
       if ('error' in res) {
-        toast.error(res.error);
+        setSaveError(res.error);
       } else {
         toast.success(res.success);
         await fetchStatus();
       }
+      } catch { setSaveError('Your change could not be saved. Please try again.'); }
     });
   };
 
   const handleRemovePaypal = () => {
+    if (!window.confirm('Remove this company’s PayPal receiving email? You can add it again later.')) return;
+    setSaveError(null);
     startTransition(async () => {
+      try {
       const res = await removePaypalEmail({ target: 'company', companyId });
       if ('error' in res) {
-        toast.error(res.error);
+        setSaveError(res.error);
       } else {
         toast.success(res.success);
         setPaypalInput('');
         await fetchStatus();
       }
+      } catch { setSaveError('Your change could not be saved. Please try again.'); }
     });
   };
 
-  const handleSetDefaultWallet = (walletId: string) => {
-    startTransition(async () => {
-      const res = await setDefaultReceivingWallet({ walletId, target: 'company', companyId });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        await fetchStatus();
-      }
-    });
-  };
-
-  const handleRemoveDefaultWallet = () => {
-    startTransition(async () => {
-      const res = await removeDefaultReceivingWallet({ target: 'company', companyId });
-      if ('error' in res) {
-        toast.error(res.error);
-      } else {
-        toast.success(res.success);
-        await fetchStatus();
-      }
-    });
-  };
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (isLoadingStatus) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <FiLoader className="h-5 w-5 animate-spin text-zinc-400" />
+      <div role="status" className="flex items-center justify-center gap-3 py-8">
+        <FiLoader aria-hidden="true" className="h-5 w-5 motion-safe:animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Loading payment settings…</span>
       </div>
     );
   }
+  if (loadError) return <div className="space-y-3">
+    <p role="alert" className="text-sm text-destructive">{loadError}</p>
+    <Button className="min-h-11" onClick={() => void fetchStatus()}>Retry payment settings</Button>
+  </div>;
 
   // ── Render ────────────────────────────────────────────────────────────────
-
-  // Company wallets that have been verified
-  const verifiedWallets = wallets.filter((w) => w.verifiedAt);
 
   return (
     <div className="space-y-6">
@@ -139,16 +129,16 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
       </div>
 
       {/* ─── PayPal Email ──────────────────────────────────────────────── */}
-      <div className="rounded-lg border border-black/10 bg-white/50 p-4 dark:border-white/10 dark:bg-white/3">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">
+      <div className="rounded-xl border border-border p-4">
+        <label htmlFor={emailId} className="mb-2 block text-sm font-semibold">
           PayPal Receiving Email
-        </p>
+        </label>
         <p className="mb-3 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
           Verifies inbox ownership for payout records. Automatic PayPal seller routing requires marketplace approval.
         </p>
 
         {status?.paypalEmail && (
-          <div className={`mb-3 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
+          <div className={`mb-3 flex flex-wrap items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
             status.paypalEmailVerified
               ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
               : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
@@ -158,101 +148,46 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
             ) : (
               <FiAlertCircle className="h-4 w-4 shrink-0" />
             )}
-            <span className="font-medium">{status.paypalEmail}</span>
+            <span className="min-w-0 break-all font-medium">{status.paypalEmail}</span>
             <span className="text-xs opacity-70">
               {status.paypalEmailVerified ? '— Verified' : '— Pending verification'}
             </span>
           </div>
         )}
 
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <FiMail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <form onSubmit={event => { event.preventDefault(); handleSavePaypal(); }} className="flex flex-wrap gap-2">
+          <div className="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
+            <FiMail aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id={emailId} name="companyPaypalEmail" autoComplete="email" spellCheck={false} required maxLength={254}
               type="email"
               placeholder="company-paypal@email.com"
               value={paypalInput}
               onChange={(e) => setPaypalInput(e.target.value)}
-              className="pl-10 h-9 text-sm"
+              className="min-h-11 pl-10 text-base"
               disabled={isPending}
             />
           </div>
           <Button
-            onClick={handleSavePaypal}
+            type="submit"
             disabled={isPending || !paypalInput.trim() || paypalInput.trim() === status?.paypalEmail}
-            size="sm"
+            className="min-h-11"
           >
             {status?.paypalEmail ? 'Update' : 'Save & Verify'}
           </Button>
           {status?.paypalEmail && (
-            <Button variant="destructive" size="sm" onClick={handleRemovePaypal} disabled={isPending}>
-              <FiTrash2 className="h-4 w-4" />
+            <Button type="button" variant="destructive" className="min-h-11 min-w-11" aria-label="Remove company PayPal receiving email" onClick={handleRemovePaypal} disabled={isPending}>
+              <FiTrash2 aria-hidden="true" className="h-4 w-4" />
             </Button>
           )}
-        </div>
+        </form>
+        {saveError && <p role="alert" className="mt-2 text-sm text-destructive">{saveError}</p>}
       </div>
 
-      {/* ─── Default Receiving Wallet ──────────────────────────────────── */}
-      <div className="rounded-lg border border-black/10 bg-white/50 p-4 dark:border-white/10 dark:bg-white/3">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">
-          Default Receiving Wallet
-        </p>
-
-        {status?.defaultReceivingWalletAddress && (
-          <div className="mb-3 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-            <FiCreditCard className="h-4 w-4 shrink-0" />
-            <span className="font-mono text-xs">
-              {status.defaultReceivingWalletAddress.slice(0, 6)}…{status.defaultReceivingWalletAddress.slice(-4)}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto h-6 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400"
-              onClick={handleRemoveDefaultWallet}
-              disabled={isPending}
-            >
-              Remove
-            </Button>
-          </div>
-        )}
-
-        {verifiedWallets.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No verified wallets available for this company.
-          </p>
-        ) : (
-          <div className="grid gap-2">
-            {verifiedWallets.map((w) => {
-              const isSelected = status?.defaultReceivingWalletId === w.id;
-              return (
-                <button
-                  key={w.id}
-                  onClick={() => !isSelected && handleSetDefaultWallet(w.id)}
-                  disabled={isPending || isSelected}
-                  className={`flex items-center gap-3 rounded-lg border p-2.5 text-left text-sm transition-all ${
-                    isSelected
-                      ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/5'
-                      : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5'
-                  }`}
-                >
-                  <FiCreditCard className={`h-4 w-4 shrink-0 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`} />
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium text-zinc-900 dark:text-white/90">{w.label}</span>
-                    <span className="ml-2 font-mono text-xs text-zinc-500 dark:text-white/40">
-                      {w.address.slice(0, 6)}…{w.address.slice(-4)}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <PayoutWalletPicker key={companyId} target={{ target: 'company', companyId }}
+        wallets={wallets} selectedId={status?.defaultReceivingWalletId ?? null}
+        selectedAddress={status?.defaultReceivingWalletAddress ?? null}
+        disabled={isPending} onChanged={fetchStatus} />
     </div>
   );
 }

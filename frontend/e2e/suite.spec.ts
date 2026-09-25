@@ -7,6 +7,65 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S6 seller receiving choices require explicit confirmation and fit each screen', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; all Server Actions below are intercepted, no wallet writes or mail');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), changes: Record<string, unknown>[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const wallets = [1,2,3].map(n => ({ id: 'c' + String(n).repeat(24), label: `QA choice ${n}`, address: '0x' + String(n).repeat(40), verifiedAt: n === 3 ? null : new Date().toISOString(), isDefault: n === 1 }));
+  let selected: string | null = wallets[0].id;
+  await page.route('**/api/auth/session', async route => {
+    const response = await route.fetch(), session = await response.json();
+    await route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-display-only', isDemo: false, web3ModeEnabled: true } } });
+  });
+  await page.route('**/api/wallets/evm', route => route.fulfill({ json: { wallets } }));
+  await page.route('**/settings**', async route => {
+    if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.continue();
+    // Mock the React Flight action result only. Never forward a Server Action.
+    const [data] = JSON.parse(route.request().postData()!, (_key, value) => value === '$undefined' ? undefined : value);
+    let result: unknown;
+    if (data.target === 'user' && !data.walletId && !data.expectedWalletId) result = { data: { paypalEmail: null, paypalEmailVerified: false,
+      defaultReceivingWalletId: selected, defaultReceivingWalletAddress: wallets.find(w => w.id === selected)?.address ?? null } };
+    else {
+      changes.push(data);
+      if (!data.code) result = { twoFactor: true };
+      else if (data.code !== '654321') result = { error: 'Incorrect code. Use the six digits for this wallet action.' };
+      else { selected = data.walletId ?? null; result = { success: selected ? 'Receiving wallet updated.' : 'Receiving choice cleared. The wallet stays linked.' }; }
+    }
+    return route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: result, f: [], b: 'qa-browser-only' })}\n` });
+  });
+  try {
+    await page.goto('/settings?section=payments', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const session = page.waitForResponse(r => r.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await session;
+    const region = page.getByRole('region', { name: 'Receiving wallet', exact: true }); await expect(region).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await expect(region.getByRole('button', { name: 'Use QA choice 3 for receiving payments', exact: true })).toHaveCount(0);
+    await region.getByRole('button', { name: 'Use QA choice 2 for receiving payments', exact: true }).click();
+    const code = region.getByRole('textbox', { name: 'Email verification code', exact: true }); await expect(code).toBeVisible();
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await region.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`seller-choice-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(region.getByRole('alert')).toContainText('Incorrect code');
+    await code.fill('654321'); await code.press('Enter');
+    await expect(region.getByRole('button', { name: 'Use QA choice 2 for receiving payments', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await region.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await region.getByRole('button', { name: 'Keep selection', exact: true }).click(); expect(changes).toHaveLength(3);
+    await region.getByRole('button', { name: 'Clear selection', exact: true }).click();
+    await region.getByRole('button', { name: 'Confirm clear selection', exact: true }).click();
+    await code.fill('654321'); await code.press('Enter');
+    await expect(region.getByText('No receiving wallet selected.', { exact: true })).toBeVisible();
+    expect(changes.at(-1)).toMatchObject({ expectedWalletId: wallets[1].id, code: '654321' });
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S6 saved wallet actions stay explicit, cancellable and responsive', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Demo auth with browser-only fixtures; no real wallet changes or emails');
   test.setTimeout(120_000);

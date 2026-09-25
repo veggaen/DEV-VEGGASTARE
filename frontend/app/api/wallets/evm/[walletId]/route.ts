@@ -26,7 +26,7 @@ async function handle(req: NextRequest, ctx: Context, method: 'PATCH' | 'DELETE'
     const parsed = method === 'PATCH' ? patch.safeParse(body) : codeOnly.transform(value => ({ ...value, action: 'unlink' as const })).safeParse(body);
     if (!parsed.success) return walletLinkResponse({ error: 'Check the wallet action, label or six-digit code.' }, 400);
     const result = await mutateWallet({ ...auth, walletId, ...parsed.data });
-    if (result.twoFactor) {
+    if ('twoFactor' in result) {
       await sendTwoFactorTokenEmail(result.email, result.code);
       return walletLinkResponse({ twoFactor: true });
     }

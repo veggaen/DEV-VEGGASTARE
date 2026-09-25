@@ -18,6 +18,7 @@ import { createWalletLinkChallenge, verifyWalletLink } from '@/lib/wallet-link';
 import { POST as issueRoute } from '@/app/api/wallets/evm/challenge/route';
 import { POST as verifyRoute } from '@/app/api/wallets/evm/verify/route';
 import { mutateWallet } from '@/lib/wallet-mutation';
+import { changePayoutWallet } from '@/lib/payout-wallet';
 import { PATCH as patchRoute, DELETE as deleteRoute } from '@/app/api/wallets/evm/[walletId]/route';
 import { POST as createRoute } from '@/app/api/wallets/route';
 
@@ -44,7 +45,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
         "createdAt" TIMESTAMP(3) DEFAULT now(), "updatedAt" TIMESTAMP(3));
       CREATE TABLE "Product" ("id" TEXT PRIMARY KEY, "receiverWalletId" TEXT REFERENCES "Wallet"("id") ON DELETE SET NULL);
       CREATE TABLE "ProductAcceptedToken" ("id" TEXT PRIMARY KEY, "receiverWalletId" TEXT REFERENCES "Wallet"("id") ON DELETE SET NULL);
-      CREATE TABLE "Company" ("id" TEXT PRIMARY KEY, "ownerId" TEXT, "defaultReceivingWalletId" TEXT REFERENCES "Wallet"("id") ON DELETE SET NULL);
+      CREATE TABLE "Company" ("id" TEXT PRIMARY KEY, "ownerId" TEXT, "updatedAt" TIMESTAMP(3), "defaultReceivingWalletId" TEXT REFERENCES "Wallet"("id") ON DELETE SET NULL);
       CREATE TABLE "Donation" ("id" TEXT PRIMARY KEY, "walletId" TEXT REFERENCES "Wallet"("id") ON DELETE CASCADE);`);
     url.searchParams.set('options', `-c search_path=${schema}`);
     db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), max: 6 }, { schema }) }); state.db = db;
@@ -191,7 +192,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
   });
   it('binds an exact, one-use action code to the host, target wallet and action', async () => {
     await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'`);
-    const gate = await change('setPrimary'); expect(gate.twoFactor).toBe(true);
+    const gate = await change('setPrimary'); if (!('code' in gate)) throw new Error('Missing code gate');
     for (const overrides of [{ code: `${gate.code}0` }, { code: gate.code, origin: 'https://www.veggat.com' }, { code: gate.code, walletId: 'qa-first' }]) {
       await expect(change('setPrimary', overrides)).rejects.toThrow('Incorrect code');
     }
@@ -207,6 +208,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     const linked = await createWalletLinkChallenge(input);
     await expect(change('setPrimary', { code: linked.code })).rejects.toThrow('Incorrect code');
     const gate = await change('setPrimary');
+    if (!('code' in gate)) throw new Error('Missing code gate');
     await db.twoFactorToken.updateMany({ where: { email: { startsWith: 'wallet-change:' } }, data: { expires: new Date(0) } });
     await expect(change('setPrimary', { code: gate.code })).rejects.toThrow('expired');
     expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
@@ -214,6 +216,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
   it('rolls back code consumption and wallet flags if the destination write fails', async () => {
     await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'`);
     const gate = await change('setPrimary');
+    if (!('code' in gate)) throw new Error('Missing code gate');
     await admin.query(`ALTER TABLE "User" ADD CONSTRAINT qa_reject_destination CHECK ("defaultReceivingWalletId" IS DISTINCT FROM 'qa-second')`);
     try { await expect(change('setPrimary', { code: gate.code })).rejects.toThrow(); }
     finally { await admin.query(`ALTER TABLE "User" DROP CONSTRAINT qa_reject_destination`); }
@@ -263,6 +266,89 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
     expect((await db.wallet.findUnique({ where: { id: 'qa-other-wallet' } }))?.isDefault).toBe(true);
     expect(await db.wallet.count({ where: { isDefault: true } })).toBe(2);
+  });
+  const payout = (overrides: Partial<Parameters<typeof changePayoutWallet>[0]> = {}) => changePayoutWallet({ userId: input.userId, origin: input.origin, target: 'user', action: 'set', walletId: 'qa-second', ...overrides } as Parameters<typeof changePayoutWallet>[0]);
+  const companyDestination = () => db.company.findUnique({ where: { id: 'qa-company' }, select: { defaultReceivingWalletId: true } });
+  it('keeps wallet-list and seller choices consistent across families and concurrent requests', async () => {
+    await seedWallets();
+    await db.wallet.update({ where: { id: 'qa-first' }, data: { family: 'SOLANA' } });
+    await change('setPrimary');
+    expect(await db.wallet.count({ where: { isDefault: true } })).toBe(1);
+    await Promise.all([payout({ walletId: 'qa-first' }), change('setPrimary'), payout()]);
+    const defaults = await db.wallet.findMany({ where: { isDefault: true } });
+    expect(defaults).toHaveLength(1); expect((await destination())?.defaultReceivingWalletId).toBe(defaults[0].id);
+  });
+  it.each(['owner', 'company', 'unverified', 'disabled', 'demo'])('rejects %s payout choices before issuing a code', async fault => {
+    await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'`);
+    if (fault === 'owner') await db.wallet.update({ where: { id: 'qa-second' }, data: { ownerUserId: 'qa-other' } });
+    if (fault === 'company') await db.wallet.update({ where: { id: 'qa-second' }, data: { ownerCompanyId: 'qa-company' } });
+    if (fault === 'unverified') await db.wallet.update({ where: { id: 'qa-second' }, data: { verifiedAt: null } });
+    if (fault === 'disabled') await db.user.update({ where: { id: input.userId }, data: { web3ModeEnabled: false }, select: { id: true } });
+    await expect(payout(fault === 'demo' ? { userId: 'demo_fixture' } : {})).rejects.toThrow();
+    expect(await db.twoFactorToken.count()).toBe(0); expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
+  });
+  it('clears only the reviewed receiving choice and keeps linked wallets', async () => {
+    await seedWallets();
+    await expect(payout({ action: 'clear', expectedWalletId: 'qa-second' })).rejects.toThrow('changed');
+    await payout({ action: 'clear', expectedWalletId: 'qa-first' });
+    expect((await destination())?.defaultReceivingWalletId).toBeNull();
+    expect(await db.wallet.count()).toBe(2); expect(await db.wallet.count({ where: { isDefault: true } })).toBe(0);
+  });
+  it('scopes payout codes to host, wallet, action, target and the current choice; replay grants once', async () => {
+    await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'; INSERT INTO "Company" ("id","ownerId") VALUES ('qa-company','qa-owner')`);
+    const gate = await payout(); if (!('code' in gate)) throw new Error('Missing code gate');
+    for (const overrides of [{ code: gate.code + '0' }, { origin: 'https://www.veggat.com' }, { walletId: 'qa-first' }, { action: 'clear' as const, expectedWalletId: 'qa-first' }, { target: 'company' as const, companyId: 'qa-company' }]) {
+      await expect(payout({ code: gate.code, ...overrides })).rejects.toThrow('Incorrect code');
+    }
+    await db.user.update({ where: { id: input.userId }, data: { defaultReceivingWalletId: null }, select: { id: true } });
+    await expect(payout({ code: gate.code })).rejects.toThrow('Incorrect code');
+    await db.user.update({ where: { id: input.userId }, data: { defaultReceivingWalletId: 'qa-first' }, select: { id: true } });
+    const results = await Promise.allSettled([payout({ code: gate.code }), payout({ code: gate.code })]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1); expect(await db.twoFactorToken.count()).toBe(0);
+    expect((await destination())?.defaultReceivingWalletId).toBe('qa-second');
+  });
+  it('rejects wallet-action codes for payouts and expired payout codes', async () => {
+    await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'`);
+    const other = await change('setPrimary'); if (!('code' in other)) throw new Error('Missing code gate');
+    await expect(payout({ code: other.code })).rejects.toThrow('Incorrect code');
+    const gate = await payout(); if (!('code' in gate)) throw new Error('Missing code gate');
+    await db.twoFactorToken.updateMany({ where: { email: { startsWith: 'payout-choice:' } }, data: { expires: new Date(0) } });
+    await expect(payout({ code: gate.code })).rejects.toThrow('expired');
+    expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
+  });
+  it('requires current company ownership and keeps personal defaults separate', async () => {
+    await seedWallets(); await admin.query(`INSERT INTO "Company" ("id","ownerId") VALUES ('qa-company','qa-other')`);
+    const target = { target: 'company' as const, companyId: 'qa-company' };
+    await expect(payout(target)).rejects.toThrow('current company owner');
+    await admin.query(`UPDATE "Company" SET "ownerId"='qa-owner' WHERE "id"='qa-company'`);
+    await payout(target);
+    expect((await companyDestination())?.defaultReceivingWalletId).toBe('qa-second');
+    expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
+    expect((await db.wallet.findUnique({ where: { id: 'qa-second' } }))?.isDefault).toBe(false);
+    await db.wallet.create({ data: { id: 'qa-company-wallet', label: 'Company', family: 'EVM', address: '0x' + '9'.repeat(40), ownerCompanyId: 'qa-company', verifiedAt: new Date() } });
+    await payout({ ...target, walletId: 'qa-company-wallet' });
+    expect((await db.wallet.findUnique({ where: { id: 'qa-company-wallet' } }))?.isDefault).toBe(true);
+    await payout({ ...target, action: 'clear', expectedWalletId: 'qa-company-wallet' });
+    expect((await companyDestination())?.defaultReceivingWalletId).toBeNull();
+    expect((await db.wallet.findUnique({ where: { id: 'qa-first' } }))?.isDefault).toBe(true);
+    expect(await db.wallet.count()).toBe(3);
+  });
+  it('lets the current company owner clear a former owner destination without changing that wallet', async () => {
+    await seedWallets(); await admin.query(`INSERT INTO "Company" ("id","ownerId","defaultReceivingWalletId") VALUES ('qa-company','qa-other','qa-first')`);
+    await payout({ userId: 'qa-other', target: 'company', companyId: 'qa-company', action: 'clear', expectedWalletId: 'qa-first' });
+    expect((await companyDestination())?.defaultReceivingWalletId).toBeNull();
+    expect((await db.wallet.findUnique({ where: { id: 'qa-first' } }))?.isDefault).toBe(true);
+    expect((await destination())?.defaultReceivingWalletId).toBe('qa-first');
+  });
+  it('rolls back approval consumption and flags when a company destination write fails', async () => {
+    await seedWallets(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'; INSERT INTO "Company" ("id","ownerId") VALUES ('qa-company','qa-owner')`);
+    const target = { target: 'company' as const, companyId: 'qa-company' };
+    const gate = await payout(target); if (!('code' in gate)) throw new Error('Missing code gate');
+    await admin.query(`ALTER TABLE "Company" ADD CONSTRAINT qa_payout_failure CHECK ("defaultReceivingWalletId" IS DISTINCT FROM 'qa-second')`);
+    try { await expect(payout({ ...target, code: gate.code })).rejects.toThrow(); }
+    finally { await admin.query(`ALTER TABLE "Company" DROP CONSTRAINT qa_payout_failure`); }
+    expect(await db.twoFactorToken.count()).toBe(1); expect((await companyDestination())?.defaultReceivingWalletId).toBeNull();
+    await payout({ ...target, code: gate.code }); expect((await companyDestination())?.defaultReceivingWalletId).toBe('qa-second');
   });
   it('manual company wallets require current ownership and never become defaults', async () => {
     await admin.query(`INSERT INTO "Company" ("id","ownerId") VALUES ('qa-company','qa-other')`);

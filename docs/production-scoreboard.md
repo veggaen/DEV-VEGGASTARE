@@ -4,14 +4,26 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Receiving-wallet settings: **PARTIAL — local verification complete, not deployed**.
+Personal/company setters now share ownership locks, host/action/current-choice
+codes, atomic destination writes and explicit clear confirmation. Wallet list and
+seller defaults stay consistent across families; company choices cannot alter a
+personal default. Shared form handles cancellation, errors and uncertain outcomes.
+Final **138 focused checks (49 isolated PostgreSQL)**, strict build, touched lint
+and local browser **10/10 (20.3s, no retries/skips)** pass. Eight screen sizes and
+real Chrome page/drawer/sidebar scrolling checked. No real payout/email/payment
+changes. Wallet login still needs alignment before combined deployment; company
+page browser acceptance remains separate. See [receiving-choice evidence](payout-choice-evidence-2026-09.md).
+
 Wallet mutations: **PARTIAL — local implementation, not deployed**. Strict
 action parsing, action/host/wallet-scoped one-use codes, transactional receiving
 choices, reference-safe removal and manual-create default isolation are added.
 88 focused checks (36 isolated PostgreSQL), strict build, touched lint and final
 local browser **9/9 (18.6s, no retries/skips)** pass. Real Chrome local phone
 scrolling and targeted responsive screenshots were inspected.
-The parallel seller-payment actions and wallet-login flow still need alignment
-before payout/security acceptance. No real wallet/payout changes were made.
+The parallel seller-payment actions are now aligned locally (follow-up above);
+the wallet-login flow still needs alignment before payout/security acceptance.
+No real wallet/payout changes were made.
 See [wallet mutation evidence](wallet-mutation-evidence-2026-09.md).
 
 Wallet-linking security: **DONE for the focused server-challenge slice;
