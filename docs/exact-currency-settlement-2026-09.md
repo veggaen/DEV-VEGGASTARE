@@ -370,3 +370,42 @@ The fee policy expires with the existing 24 October review deadline.
   requires receiving preferences for currencies the merchant does not hold;
   actual native-currency Sandbox capture/refund remains required before promotion.
   Production is unchanged by this candidate.
+
+## Actual Sandbox acceptance — 25 September 2026
+
+- `fd8ef52` is READY as `dpl_9x51QrgvzDen4cyXsbKeu7ASi5qV` on the stable
+  isolated Preview. Hosted terms acceptance passes **1/1** at eight widths;
+  exact-spend/retry and guarded HTTP tests pass **3/3**, zero retries/skips.
+- Real Chrome, localhost first: order `cmuhgj5fa0003zgt5kn7s7qt1`, PayPal order
+  `6UR508608N1294404`, capture `5XE11789KB5621612`, **USD 103.21**. Separate
+  lines remain **USD 100.00 / 2,545 credits** and **USD 3.21 artwork**. Fresh
+  provider GET confirmed amount, currency, item count, capture and merchant.
+  One purchase entry and two download tokens were created; both files were
+  delivered once through their confirmation dialogs. Anonymous raw downloads
+  returned 401 locally and on Preview. The real receipt shows Sandbox clearly.
+- Hosted Preview: order `cmuhgp8qh000004kz92mu7erh`, PayPal order
+  `0JF69599KL328754P`, capture `3MK54701Y6777354A`, **USD 5.00 / 116 credits**.
+  The exact budget survives product → checkout → PayPal → receipt. One grant;
+  no duplicate credit or new identity. Both purchases obeyed the existing two
+  attempts/day limit; no limit was reset, bypassed or weakened.
+- Both purchases received test-only merchant refunds: `9GV39687E33544824`
+  (USD 103.21) and `719251874X114331U` (USD 5.00). First helper run expected a
+  full refund representation but PayPal returned a minimal response; the refund
+  had succeeded. A fresh provider GET proved it, without issuing it again.
+- Hosted signature-verified refund records `WH-8VV42996G8752493T-1AH092554V773120L`
+  and `WH-5YK32124H1870391J-58D61694L9545060B` record HTTP 200 and REFUNDED.
+  There is exactly one grant and one reversal per purchase. Both file tokens are
+  revoked after their recorded downloads; raw requests now return 403. The
+  pre-test balance of four Sandbox credits is restored, with zero adjustment.
+- Requested one PayPal redelivery per refund, then re-read the ledger: no extra
+  deduction, grant or token. Vercel's scoped webhook request log shows HTTP 200
+  responses. Sandbox event-list indexing lagged behind fulfillment briefly; it
+  was not treated as a missing event or a reason to submit another refund.
+- Sandbox purchase emails are SKIPPED with no provider ID. No Live email,
+  provider generation, new credential, real-money charge/refund or billing change.
+- Production inspection still resolves to `dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu`.
+  Native settlement is **not yet activated in production**. The remaining release
+  check is the Live merchant's receiving preferences, followed by the additive
+  production migration and controlled deployment. PayPal's separate merchant
+  dashboard login is open for the owner; Sandbox settings do not establish Live
+  currency acceptance.

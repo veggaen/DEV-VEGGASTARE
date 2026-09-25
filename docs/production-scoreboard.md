@@ -27,8 +27,8 @@ exact spend, atomic cart persistence, currency-change review, quote expiry/stale
 response guards, and identical-body payment retries. Combined payment/cart/report
 regressions pass **629/629 across 29 files**; the final cross-tab guard follow-up
 passes **23/23**. Browser checks cover USD 100, NOK 1000 and light/dark responsive
-checkout without making payments. Real Sandbox capture is not yet claimed.
-Runtime `ac784e7` is READY on the stable isolated Preview as
+checkout without making payments. These earlier mocked runs did not establish capture.
+The initial UI runtime `ac784e7` was READY on the stable isolated Preview as
 `dpl_8EhTGTcSg8pMiL3KPPgMBPTwgxpX`. Hosted acceptance passes **5/5**, zero skips or
 retries: exact amount/retry, six-currency HTTP quotes, guarded cart edits, flexible
 budgets/light-dark responsive checkout and the 9 NOK starter. Payments are
@@ -36,8 +36,31 @@ intercepted; no paid order, grant or email is created. Real Chrome confirms the
 automatic USD 100 input, signed-in Sandbox checkout and footer scrolling without
 horizontal overflow or captured console errors. The computer-use and testing
 skills guided real-browser observation plus focused automated checks.
-Next: actual native-currency Sandbox capture/refund acceptance and merchant
-receiving settings before production activation. The new generated client requires the additive
+Follow-up runtime `fd8ef52` is now READY as
+`dpl_9x51QrgvzDen4cyXsbKeu7ASi5qV` on the same isolated Preview. Versioned terms
+now describe native fiat settlement and supported media. New purchases require
+current consent; an identical prior checkout survives a terms-version release.
+Focused real-Postgres/policy/HTTP regressions pass **171/171**, touched lint and
+both builds/full TypeScript pass. Local and hosted no-JavaScript terms acceptance
+each pass **1/1** at eight widths; hosted exact-budget and HTTP regressions pass
+**3/3**, without retries.
+
+**Actual native-USD Sandbox capture and refund: DONE locally, then on Preview.**
+Real Chrome completed USD 103.21 (USD 100.00 credits + USD 3.21 artwork) locally,
+then USD 5.00 credits on the hosted Preview. Fresh PayPal API proof confirms both
+captures, currency, totals and merchant binding; grants were 2,545 and 116 test
+credits, each exactly once. Both private files downloaded once; unauthenticated
+raw requests returned 401. Test-only merchant refunds completed for both orders.
+Verified hosted webhooks recorded HTTP 200, removed only those purchases' credits,
+and revoked both file tokens (raw requests now 403). Replay requests caused no
+extra ledger reversal; the pre-test four-credit balance is restored. Transactional
+emails were SKIPPED in Sandbox, not delivered. No real money or Live account state
+changed. The initial refund helper misread PayPal's minimal response; a fresh GET
+confirmed success, and no second refund was submitted for that failure.
+
+Next: verify **Live merchant receiving preferences** before production activation;
+Sandbox USD success does not prove Live currency settings. PayPal's merchant
+dashboard requests a separate sign-in, opened for the owner. The new generated client requires the additive
 migration before its first application run. Production still settles in NOK; keeping
 the draft input at `100` does not yet make a USD 100 charge. See
 [exact-currency settlement work](exact-currency-settlement-2026-09.md).
