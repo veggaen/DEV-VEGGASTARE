@@ -8,6 +8,69 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
+import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
+
+test('S8 company internals reject anonymous and unrelated demo readers while the storefront stays public', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained unrelated demo account required');
+  const anonymous = await browser.newContext({ baseURL });
+  const demo = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  try {
+    const session = await (await demo.request.get('/api/auth/session')).json(); expect(session.user.id).toMatch(/^demo_/);
+    for (const path of [`/api/companies/${SHOWCASE_COMPANY_ID}`, `/api/companies/${SHOWCASE_COMPANY_ID}/warehouses/stock`, `/api/companies/${SHOWCASE_COMPANY_ID}/warehouses/qa-nonexistent`, `/api/companies/${SHOWCASE_COMPANY_ID}/reach`]) {
+      for (const [context, expected] of [[anonymous, 401], [demo, 404]] as const) {
+        const response = await context.request.get(path); expect(response.status()).toBe(expected);
+        expect(response.headers()['cache-control']).toContain('no-store');
+        const body = await response.json(); expect(body).not.toHaveProperty('employees'); expect(body).not.toHaveProperty('wallets'); expect(body).not.toHaveProperty('warehouseLocations'); expect(body).not.toHaveProperty('inventory');
+      }
+    }
+    const page = await anonymous.newPage(); await page.goto(`/companies/${SHOWCASE_COMPANY_ID}`);
+    await expect(page.getByRole('heading', { name: 'Veggat Studio', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible();
+    expect(await page.locator('a[href*="/settings"]').count()).toBe(0);
+    for (const route of ['settings', 'hub']) {
+      const response = await anonymous.request.get(`/companies/${SHOWCASE_COMPANY_ID}/${route}`, { maxRedirects: 0 });
+      expect(response.status()).toBe(307); expect(response.headers().location).toContain('/auth/login?');
+    }
+  } finally { await anonymous.close(); await demo.close(); }
+});
+
+test('S8 company access errors recover cleanly across screen sizes without fetching stock', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo account; browser-only read failures');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [], internalReads: string[] = [];
+  let responseStatus = 500, attempts = 0;
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route(`**/api/companies/${SHOWCASE_COMPANY_ID}`, async route => { attempts++; await route.fulfill({ status: responseStatus, json: { message: 'PRIVATE_DEBUG_MARKER must never render' } }); });
+  page.on('request', request => { if (/\/api\/companies\/[^/]+\/(warehouses|reach)/.test(request.url())) internalReads.push(request.url()); });
+  try {
+    for (const route of ['settings', 'hub']) {
+      responseStatus = 500;
+      await page.goto(`/companies/${SHOWCASE_COMPANY_ID}/${route}`);
+      const heading = page.getByRole('heading', { name: 'Company could not load', exact: true }); await expect(heading).toBeVisible();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+      const beforeRetry = attempts; await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect.poll(() => attempts).toBeGreaterThan(beforeRetry); await expect(heading).toBeVisible();
+      for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+        await page.setViewportSize({ width,height });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const retry = page.getByRole('button', { name: 'Try again', exact: true }); await retry.scrollIntoViewIfNeeded();
+        expect((await retry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        await page.screenshot({ path: info.outputPath(`company-${route}-${width}.png`) });
+      }
+      responseStatus = 404; await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Company access unavailable', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+      await expect(page.getByText('PRIVATE_DEBUG_MARKER', { exact: false })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: 'Public profile', exact: true })).toHaveAttribute('href', `/companies/${SHOWCASE_COMPANY_ID}`);
+      responseStatus = 401; await page.reload();
+      await expect(page.getByRole('heading', { name: 'Sign in to your company', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', `/auth/login?callbackUrl=${encodeURIComponent(`/companies/${SHOWCASE_COMPANY_ID}/${route}`)}`);
+    }
+    expect(internalReads).toEqual([]); expect(errors).toEqual([]);
+    await page.getByRole('link', { name: 'Public profile', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Veggat Studio', exact: true })).toBeVisible();
+  } finally { await context.close(); }
+});
 
 test('S6 Web3 mode loads neutrally and requires responsive explicit approval', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Demo session, browser-only setting and mail fixtures');

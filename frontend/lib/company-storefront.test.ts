@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({ auth: vi.fn(), find: vi.fn() }));
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/db', () => ({ dbPrisma: { company: { findUnique: mocks.find } } }));
 vi.mock('@/lib/mail', () => ({ sendCompanyOrgVerificationEmail: vi.fn() }));
+vi.mock('@/components/providers/ui-preferences', () => ({ useUiPreferences: () => ({ prefs: { preferredFiatCurrency: 'NOK', preferredCryptoCurrency: 'NONE' } }) }));
+vi.mock('@/hooks/useCurrencyRates', () => ({ useCurrencyRates: () => ({ fiatRates: { USD: 1, NOK: 10 }, cryptoPrices: {}, isLoading: false }) }));
 vi.mock('@/components/uicustom/banner/BannerThemeWrapper', () => ({ default: ({ children }: React.PropsWithChildren) => children }));
 vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => React.createElement('img', { alt }) }));
 import CompanyPublicPage from '@/app/companies/[id]/page';

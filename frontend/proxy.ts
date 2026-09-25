@@ -409,7 +409,10 @@ export default async function proxy(req: NextRequest) {
   // and sending is gated at the page/API level. (API routes keep their own auth.)
   const isPublicAiPage = pathname === "/ai" || pathname.startsWith("/ai/");
 
-  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage || isPublicAiPage;
+  // Only the directory and a single CUID storefront are public. Never allow
+  // /create, /settings, /hub or nested warehouse pages through this exception.
+  const isPublicCompanyPage = pathname === '/companies' || /^\/companies\/c[a-z0-9]+$/.test(pathname) && pathname !== '/companies/create';
+  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage || isPublicAiPage || isPublicCompanyPage;
 
   if (isApiAuthRoute) {
     return applySecurityHeaders(

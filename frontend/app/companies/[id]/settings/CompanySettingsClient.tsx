@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -18,6 +18,7 @@ import { FaBriefcase } from 'react-icons/fa';
 import BannerThemeWrapper from '@/components/uicustom/banner/BannerThemeWrapper';
 import { CompanyPaymentSettings } from '@/components/uicustom/settings/company-payment-settings';
 import type { CompanyDetailsResponse } from '@/lib/types/company';
+import { CompanyReadNotice } from '@/components/uicustom/company/company-read-notice';
 
 export interface TagReplacement {
         name: string;
@@ -51,6 +52,8 @@ const CompanySettingsClient = () => {
         const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
         const [loading, setLoading] = useState(true);
         const [loadError, setLoadError] = useState<string | null>(null);
+        const [accessStatus, setAccessStatus] = useState<number | null>(null);
+        const companyRequest = useRef(0);
         const [errorMessages, setErrorMessages] = useState<{ [key: string]: string | null }>({});
         const [selectedEmployee, setSelectedEmployee] = useState<CompanyDetailsResponse['employees'][number] | null>(null);
         const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -78,41 +81,46 @@ const CompanySettingsClient = () => {
 
         const fetchCompanyDetails = useCallback(async () => {
                 if (!companyId) return;
+                const request = ++companyRequest.current;
                 setLoadError(null);
+                setAccessStatus(null);
                 setLoading(true);
                 try {
                         const response = await fetch(`/api/companies/${encodeURIComponent(companyId)}`, {
                                 cache: 'no-store',
+                                signal: AbortSignal.timeout(12_000),
                         });
+                        if (request !== companyRequest.current) return;
                         if (!response.ok) {
-                                const bodyText = await response.text().catch(() => '');
-                                throw new Error(`Failed to fetch company details (${response.status})${bodyText ? `: ${bodyText}` : ''}`);
+                                setAccessStatus(response.status);
+                                throw new Error('Company could not load');
                         }
                         const data = await response.json();
-                        setCompany(data);
-                } catch (error) {
-                        console.error('Error fetching company details:', error);
-                        setLoadError(error instanceof Error ? error.message : 'Failed to fetch company details');
+                        if (request === companyRequest.current) setCompany(data);
+                } catch {
+                        if (request === companyRequest.current) { setCompany(null); setLoadError('Company could not load'); }
                 } finally {
-                        setLoading(false);
+                        if (request === companyRequest.current) setLoading(false);
                 }
         }, [companyId]);
 
         useEffect(() => {
                 if (!companyId) return;
+                const requests = companyRequest;
                 fetchCompanyDetails();
                 const companyInterval = setInterval(() => {
                         fetchCompanyDetails(); // Fetch company details every 30 minutes
                 }, 1800000); // 30 minutes
 
-                return () => clearInterval(companyInterval);
+                return () => { clearInterval(companyInterval); requests.current++; };
         }, [companyId, change, fetchCompanyDetails]);
 
         const fetchWarehouseData = useCallback(async () => {
-                if (!companyId) return;
+                if (!companyId || !company?.usesShipping) return;
                 try {
                         const response = await fetch(`/api/companies/${encodeURIComponent(companyId)}/warehouses/stock`, {
                                 cache: 'no-store',
+                                signal: AbortSignal.timeout(12_000),
                         });
                         if (!response.ok) {
                                 throw new Error('Failed to fetch warehouse data');
@@ -122,17 +130,17 @@ const CompanySettingsClient = () => {
                 } catch (error) {
                         console.error('Error fetching warehouse data:', error);
                 }
-        }, [companyId]);
+        }, [companyId, company?.usesShipping]);
 
         useEffect(() => {
-                if (!companyId) return;
+                if (!companyId || !company?.usesShipping) return;
                 fetchWarehouseData(); // Initial fetch
                 const warehouseInterval = setInterval(() => {
-                        fetchWarehouseData(); // Fetch warehouse data every 30 seconds
-                }, 300000); // 30 seconds
+                        fetchWarehouseData();
+                }, 300000); // Five minutes; only after an authorized company read.
 
                 return () => clearInterval(warehouseInterval);
-        }, [companyId, fetchWarehouseData]);
+        }, [companyId, company?.usesShipping, fetchWarehouseData]);
 
             useEffect(() => {
                 if (!company) return;
@@ -145,17 +153,16 @@ const CompanySettingsClient = () => {
 
         if (!companyId) return <div className="text-center py-4">Invalid company id.</div>;
 
-        if (loading) return <div className="text-center py-4">Loading...</div>;
-        if (loadError) return <div className="text-center py-4">{loadError}</div>;
+        if (loading) return <div role="status" className="mx-auto w-full max-w-7xl px-4 py-8 text-sm text-muted-foreground">Loading company settings…</div>;
+        if (loadError) return <CompanyReadNotice companyId={companyId} status={accessStatus} retry={fetchCompanyDetails} />;
         if (!company) return <div className="text-center py-4">Company not found.</div>;
 
         // Check if user is member/owner of company
         const isOwner = company.ownerId === clientUser?.id;
-        const isCreator = company.creatorId === clientUser?.id;
         const currentEmployee = company.employees.find(employee => employee.userId === clientUser?.id);
         const isMember = !!currentEmployee;
         const isAdminUser = (clientUser as any)?.role === 'ADMIN' || (clientUser as any)?.role === 'OWNER';
-        const hasInternalAccess = isOwner || isCreator || isMember || isAdminUser;
+        const hasInternalAccess = isOwner || isMember || isAdminUser;
 
         // Redirect non-members to public page
         if (!hasInternalAccess) {

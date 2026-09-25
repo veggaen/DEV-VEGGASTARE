@@ -67,7 +67,7 @@ export default async function CompanyPublicPage({
   const userId = session?.user?.id;
   const canManage = userId && (
     company.ownerId === userId ||
-    company.creatorId === userId ||
+    session?.user?.role === 'ADMIN' || session?.user?.role === 'OWNER' ||
     company.Employee.some(e => e.userId === userId)
   );
 

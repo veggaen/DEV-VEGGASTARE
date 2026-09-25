@@ -4,6 +4,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company read boundaries: **PARTIAL — local acceptance passes; hosted release
+pending**. Four internal endpoints now enforce current company membership and
+current privileged role, with private/no-store responses and safe recovery UI.
+The public storefront routing regression is corrected without opening management
+pages. 48 focused units, 37 rolled-back PostgreSQL checks, strict build and local
+browser 2/2 pass. Full company payment/layout acceptance remains separate.
+See [company access evidence](company-access-evidence-2026-09.md).
+
 Combined wallet release: **DONE for deployment and scoped acceptance; S6 remains
 PARTIAL**. Source `07cabde` is READY and promoted as
 `dpl_DbYF6shZVj6jzstPgrbB7Z4XHcLg`. Isolated Preview **16/16** (including actual

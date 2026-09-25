@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { CompanyDetailsResponseSchema } from '@/lib/types/company';
-import { MyLibUserAuth } from '@/lib/user-auth';
+import { companyPrivateJson, companyReadScope, companyReadViewer } from '@/lib/company-read-access';
 import { resolveVisibleEmail } from '@/lib/email-visibility';
-
-const isDev = process.env.NODE_ENV !== 'production';
 
 type CompanyParams = { companyId?: string; companyid?: string };
 
@@ -25,21 +23,20 @@ export async function GET(
   { params }: { params: Promise<CompanyParams> }
 ) {
   try {
-    const viewer = await MyLibUserAuth();
+    const viewer = await companyReadViewer();
+    if (!viewer) return companyPrivateJson({ message: 'Sign in to view company settings.' }, 401);
     const resolvedParams = await params;
     const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
-    console.log('Fetching details for company ID:', companyId);
 
     if (!companyId) {
-      console.error('Invalid request parameters:', { companyId });
-      return NextResponse.json({ message: 'Invalid request parameters' }, { status: 400 });
+      return companyPrivateJson({ message: 'Invalid request parameters' }, 400);
     }
 
-    const company = await dbPrisma.company.findUnique({
-      where: { id: companyId },
+    const company = await dbPrisma.company.findFirst({
+      where: { id: companyId, ...companyReadScope(viewer) },
       include: {
-        User_Company_creatorIdToUser: true,
-        User_Company_ownerIdToUser: true,
+        User_Company_creatorIdToUser: { select: { id: true, name: true, email: true, emailDisplayMode: true, image: true } },
+        User_Company_ownerIdToUser: { select: { id: true, name: true, email: true, emailDisplayMode: true, image: true } },
         Employee: {
           include: {
             User: {
@@ -62,7 +59,7 @@ export async function GET(
             },
           },
         },
-        // ✅ NEW: include wallets so checkout can find a default receiver
+        // Receiving choices are internal. Checkout resolves its own destination.
         Wallet: {
           orderBy: { isDefault: 'desc' },
         },
@@ -70,8 +67,7 @@ export async function GET(
     });
 
     if (!company) {
-      console.error('Company not found for ID:', companyId);
-      return NextResponse.json({ message: 'Company not found' }, { status: 404 });
+      return companyPrivateJson({ message: 'Company unavailable or access restricted.' }, 404);
     }
 
     const toRecordOrUndefined = (val: unknown): Record<string, unknown> | undefined => {
@@ -215,20 +211,13 @@ export async function GET(
 
     const parsed = CompanyDetailsResponseSchema.safeParse(dto);
     if (!parsed.success) {
-      console.error('CompanyDetailsResponseSchema validation failed:', parsed.error);
-      return NextResponse.json(
-        {
-          message: 'Internal Server Error',
-          ...(isDev ? { issues: parsed.error.issues } : {}),
-        },
-        { status: 500 }
-      );
+      console.error('Company details response validation failed');
+      return companyPrivateJson({ message: 'Company settings could not be loaded. Try again.' }, 500);
     }
 
-    console.log('Successfully found company:', company.name);
-    return NextResponse.json(parsed.data, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching company details:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return companyPrivateJson(parsed.data);
+  } catch {
+    console.error('Company details read failed');
+    return companyPrivateJson({ message: 'Company settings could not be loaded. Try again.' }, 500);
   }
 }

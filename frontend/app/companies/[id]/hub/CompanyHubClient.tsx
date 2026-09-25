@@ -11,6 +11,7 @@ import { FiTrendingUp, FiEye, FiUsers, FiZap, FiPackage, FiMessageCircle, FiDoll
 import type { CompanyDetailsResponse } from '@/lib/types/company';
 import type { PillarBreakdown } from '@/components/uicustom/reach/ReachRadarChart';
 import type { ReachBadge } from '@/components/uicustom/reach/ReachBadges';
+import { CompanyReadNotice } from '@/components/uicustom/company/company-read-notice';
 
 // Dynamic imports for chart components (no SSR)
 const ReachRadarChart = dynamic(() => import('@/components/uicustom/reach/ReachRadarChart'), { ssr: false });
@@ -42,31 +43,35 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
   const [reachData, setReachData] = useState<CompanyReachData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessStatus, setAccessStatus] = useState<number | null>(null);
+  const [retry, setRetry] = useState(0);
   const [activeSection, setActiveSection] = useState<'overview' | 'analytics' | 'tax'>('overview');
 
   useEffect(() => {
+    let active = true;
     const fetchData = async () => {
+      setLoading(true); setError(null); setAccessStatus(null);
       try {
-        const [companyRes, reachRes] = await Promise.all([
-          fetch(`/api/companies/${companyId}`),
-          fetch(`/api/companies/${companyId}/reach`),
-        ]);
-        if (!companyRes.ok) throw new Error('Failed to fetch company');
+        const companyRes = await fetch(`/api/companies/${encodeURIComponent(companyId)}`, { cache: 'no-store', signal: AbortSignal.timeout(12_000) });
+        if (!active) return;
+        if (!companyRes.ok) { setAccessStatus(companyRes.status); throw new Error('Company could not load'); }
         const companyData = await companyRes.json();
+        if (!active) return;
         setCompany(companyData);
-
+        const reachRes = await fetch(`/api/companies/${encodeURIComponent(companyId)}/reach`, { cache: 'no-store', signal: AbortSignal.timeout(12_000) });
         if (reachRes.ok) {
           const rd = await reachRes.json();
-          setReachData(rd);
+          if (active) setReachData(rd);
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load company');
+      } catch {
+        if (active) { setCompany(null); setError('Company could not load'); }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     fetchData();
-  }, [companyId]);
+    return () => { active = false; };
+  }, [companyId, retry]);
 
   if (loading) {
     return (
@@ -82,19 +87,13 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
   }
 
   if (error || !company) {
-    return (
-      <div className="w-full">
-        <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
-          <p className="text-red-500">{error || 'Company not found'}</p>
-        </div>
-      </div>
-    );
+    return <CompanyReadNotice companyId={companyId} status={accessStatus} section="hub" retry={() => setRetry(value => value + 1)} />;
   }
 
   // Check access
   const hasAccess = user && (
     company.ownerId === user.id ||
-    company.creatorId === user.id ||
+    user.role === 'ADMIN' || user.role === 'OWNER' ||
     company.employees.some(e => e.userId === user.id)
   );
 
