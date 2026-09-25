@@ -231,13 +231,16 @@ and privileged user-detail mutations remain the next audit targets. See
 [admin directory evidence](admin-directory-evidence-2026-09.md).
 
 People discovery: **DONE for scoped endpoint privacy/mobile placement;
-desktop paint acceptance remains PARTIAL**. Runtime `60e99a9` is promoted as
+blank-post display fault not reproduced by owner**. Runtime `60e99a9` is promoted as
 `dpl_5ZcQot1hG9J4bGZMX7WE8brdiggo`. Exact lookup filters email visibility in the
 query; bounded suggestions and account-safe search/follow feedback replace the
 hover-only panel. 72 focused units, 11 isolated PostgreSQL checks, strict builds,
 and populated local/Preview/Live browser **3/3** each pass without retries/skips.
-Real Chrome confirms phone placement but still captures blank card interiors
-after independent sidebar scrolling. No real follow/payment write was submitted.
+Real Chrome confirms phone placement but captures blank card interiors after
+independent sidebar scrolling. On September 25 the owner checked the actual
+display during reproduction and confirmed that posts remain visible. Treat
+those blank captures as a capture-path artifact, not a CSS fix or display failure.
+No real follow/payment write was submitted.
 See [people discovery evidence](people-discovery-evidence-2026-09.md).
 
 Source publication: **PARTIAL**. The runtime release was 79 commits ahead of its

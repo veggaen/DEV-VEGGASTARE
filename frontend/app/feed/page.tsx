@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams, redirect } from 'next/navigati
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -2787,6 +2787,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
   // Handle click - ignore if user is selecting text
   const handleCardClick = (e: React.MouseEvent) => {
+    // Links and controls keep their native action; they must not also open the card.
+    if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('a, button, input, textarea, select, [contenteditable="true"]'))) return;
     // Check if user has selected any text
     const selection = window.getSelection();
     if (selection && selection.toString().trim().length > 0) {
@@ -2800,7 +2802,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     <article
       ref={viewTrackingRef}
       className={cn(
-        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 transition-[border-color,box-shadow,background-color] duration-200 hover:shadow-md motion-reduce:transition-none",
         isPinnedToFeed
           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
           : "border-border/50 bg-card/60 dark:bg-card/40 hover:border-brand-accent/30 hover:bg-card/80 dark:hover:bg-card/60"
@@ -2823,8 +2825,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           side="right"
           align="start"
         >
-          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
-            <AvatarImage src={item.user?.image || undefined} />
+          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-transparent hover:ring-primary/30 transition-shadow motion-reduce:transition-none">
+            <AvatarImage src={item.user?.image || undefined} alt={`${item.user?.name || 'Anonymous'} profile`} />
             <AvatarFallback>{item.user?.name?.[0] || '?'}</AvatarFallback>
           </Avatar>
         </UserHoverCard>
@@ -2856,8 +2858,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             <div className="ml-auto flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <FiChevronDown className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Pulse options for ${item.user?.name || 'Anonymous'}`}>
+                    <FiChevronDown className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -3116,14 +3118,9 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* Quote embed */}
           {isQuote && item.repostOfConversation && (
-            <div
-              className="mt-2 rounded-xl border border-border/60 bg-background/30 p-3 text-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.location.href = `/conversations/${item.repostOfConversation?.id}`;
-              }}
-              role="button"
-              tabIndex={0}
+            <Link
+              href={`/conversations/${item.repostOfConversation.id}`}
+              className="mt-2 block rounded-xl border border-border/60 bg-background/30 p-3 text-sm hover:border-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -3138,7 +3135,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 </div>
                 <div className="shrink-0 text-xs text-muted-foreground">Open</div>
               </div>
-            </div>
+            </Link>
           )}
 
           {/* ─── Content Warning Overlay (for flagged content) ──────── */}
@@ -3274,14 +3271,15 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           {item.tags && item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {item.tags.map(tag => (
-                <Badge
+                <button
                   key={tag}
-                  variant="secondary"
-                  className="text-xs cursor-pointer hover:bg-primary/20"
+                  type="button"
+                  aria-label={`Filter by #${tag}`}
+                  className={cn(badgeVariants({ variant: 'secondary' }), 'min-h-11 min-w-11 hover:bg-primary/20')}
                   onClick={(e) => { e.stopPropagation(); onTagClick(tag); }}
                 >
                   #{tag}
-                </Badge>
+                </button>
               ))}
             </div>
           )}
@@ -3294,9 +3292,13 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    disabled={!currentUser || isPulsing}
+                    aria-label={`Heartbeat pulse by ${item.user?.name || 'Anonymous'}`}
+                    aria-pressed={localPulse === 'POSITIVE'}
+                    aria-busy={isPulsing}
+                    aria-disabled={!currentUser || isPulsing}
+                    disabled={!currentUser}
                     onClick={() => void handlePulse('POSITIVE')}
-                    className={`group/act -ml-1.5 flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 ${
+                    className={`group/act -ml-1.5 flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
                       localPulse === 'POSITIVE' ? 'text-red-500' : ''
                     } ${!currentUser ? 'opacity-60' : ''}`}
                   >

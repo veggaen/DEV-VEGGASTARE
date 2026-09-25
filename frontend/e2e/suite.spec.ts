@@ -878,6 +878,55 @@ test('S8 people discovery offers responsive search, retry and confirmed follow s
   }finally{await context.close();}
 });
 
+test('S8 Pulse cards provide labelled keyboard actions and responsive touch targets', async ({browser,baseURL},info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo identity; all post writes intercepted');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  const page=await context.newPage(),errors:string[]=[],writes:string[]=[];
+  let releaseHeartbeat:(()=>void)|undefined;
+  page.on('pageerror',error=>errors.push(error.message));
+  const session=await (await context.request.get('/api/auth/session')).json();expect(session.user.id).toMatch(/^demo_/);
+  const post={id:'qa-keyboard-pulse',title:'Keyboard sample',description:'A readable post with keyboard-accessible actions.',type:'PUBLIC_THREAD',tags:['layout'],userId:'qa-author',user:{id:'qa-author',name:'Layout sample',email:''},createdAt:'2026-01-01T12:00:00.000Z',messageCount:1,hasPoll:false,
+    repostOfConversation:{id:'qa-original-pulse',title:'The original post',user:{name:'Original author'}}};
+  await page.route('**/api/auth/session',route=>route.fulfill({json:{...session,user:{...session.user,id:'qa-viewer',isDemo:false,role:'USER'}}}));
+  await page.route('**/api/conversations?**',route=>route.fulfill({json:{conversations:[post],nextCursor:null}}));
+  await page.route('**/api/conversations/*/view',route=>route.fulfill({json:{success:true}}));
+  await page.route('**/api/users/suggestions?**',route=>route.fulfill({json:{suggestions:[]}}));
+  await page.route('**/api/conversations/qa-keyboard-pulse/pulse',async route=>{
+    writes.push(route.request().postData()??'');
+    if(writes.length===1)await new Promise<void>(resolve=>{releaseHeartbeat=resolve;});
+    return route.fulfill({json:{currentPulse:writes.length===1?'POSITIVE':null,positivePulseCount:writes.length===1?1:0}});
+  });
+  try {
+    await page.goto('/pulse',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+    const refreshed=page.waitForResponse(r=>r.url().includes('/api/auth/session'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await refreshed;
+    const card=page.getByRole('feed',{name:'Pulse feed'}).getByRole('article');await expect(card).toHaveCount(1);
+    const options=card.getByRole('button',{name:'Pulse options for Layout sample'});
+    await options.focus();await page.keyboard.press('Enter');
+    await expect(page.getByRole('menu')).toBeVisible();await page.keyboard.press('Escape');await expect(options).toBeFocused();
+    const heartbeat=card.getByRole('button',{name:'Heartbeat pulse by Layout sample'});
+    await expect(heartbeat).toHaveAttribute('aria-pressed','false');
+    await heartbeat.focus();await page.keyboard.press('Space');await expect(heartbeat).toHaveAttribute('aria-busy','true');await expect(heartbeat).toBeFocused();
+    await page.keyboard.press('Space');expect(writes).toHaveLength(1);releaseHeartbeat!();
+    await expect(heartbeat).toHaveAttribute('aria-pressed','true');await expect(heartbeat).toHaveAttribute('aria-busy','false');await expect(heartbeat).toBeFocused();
+    await page.keyboard.press('Space');await expect(heartbeat).toHaveAttribute('aria-pressed','false');await expect(heartbeat).toHaveAttribute('aria-busy','false');expect(writes).toEqual(['{"type":"POSITIVE"}','{"type":"POSITIVE"}']);
+    const tag=card.getByRole('button',{name:'Filter by #layout'});await tag.focus();await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/pulse\?tag=layout$/);await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(card.getByRole('link',{name:/Quoting Original author/})).toHaveAttribute('href','/conversations/qa-original-pulse');
+    await expect(card.getByRole('link',{name:'Open pulse by Layout sample'})).toHaveAttribute('href','/pulse/qa-keyboard-pulse');
+    for(const [width,height] of [[360,800],[390,844],[844,390],[1024,1280],[1280,800],[2560,1440]]) {
+      await page.setViewportSize({width,height});await card.scrollIntoViewIfNeeded();
+      for(const control of [options,heartbeat,tag]){const rect=(await control.boundingBox())!;expect(rect.width).toBeGreaterThanOrEqual(44);expect(rect.height).toBeGreaterThanOrEqual(44);}
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await expect(card).toHaveCSS('transition-property','none');
+      await page.screenshot({path:info.outputPath('pulse-actions-'+width+'.png')});
+    }
+    expect(errors).toEqual([]);
+  }finally{releaseHeartbeat?.();await context.close();}
+});
+
 test('S8 people search is private and demo-safe on the real endpoint', async ({browser,baseURL}) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained unrelated demo identity');
   const anonymous=await browser.newContext({baseURL}), demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});

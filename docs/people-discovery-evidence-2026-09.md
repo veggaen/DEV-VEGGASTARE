@@ -89,7 +89,7 @@ Real Chrome confirms the mobile disclosure above populated Live posts and real
 local/Live search results. No follows, messages, purchases or account settings
 were submitted. Routine feed viewing may update normal view counts.
 
-**Desktop paint acceptance remains PARTIAL.** At 1280x800, scrolling the right
+**Historical capture finding (owner-display clarification below).** At 1280x800, scrolling the right
 people panel still produces screenshots with blank left-card interiors. A fresh
 screenshot repeats it; the article DOM retains text, opacity 1, visibility visible,
 and no backdrop filter or content-visibility suppression. The blur removal did
@@ -98,6 +98,49 @@ resetting the viewport override, so it is not limited to phone/device emulation.
 Owner screen confirmation is requested to distinguish
 an actual display problem from a capture-only issue. No speculative global GPU/CSS
 workaround was applied and the regression is not called fixed.
+
+## Owner-display clarification — September 25
+
+Repeated the Live interaction at a measured 1280x800 in real Chrome. The Explore
+panel moved from scrollTop 0 to 218; the main feed stayed at 0. Both browser
+capture methods showed missing card interiors while the DOM retained its content
+and normal paint properties. Asked the owner to inspect the actual display. The
+owner explicitly confirmed: **"No, posts remain visible."**
+
+This closes the reported user-facing blank-post finding as **not reproduced on
+the actual display**. It is a capture-path artifact in this observed session,
+not evidence that a CSS repair fixed rendering. Keep this limitation when
+interpreting future screenshots; do not mask it with GPU/compositing workarounds.
+The temporary viewport override was reset. No real follows or posts were submitted.
+
+## Post controls — local acceptance
+
+- Post options and heartbeat controls have explicit accessible names and 44px
+  targets. Heartbeat exposes pressed/busy state and keeps keyboard focus during
+  its request; the existing handler still blocks a second in-flight submission.
+- Tags are native buttons; quoted posts are actual links. Clicking a child link
+  no longer also invokes the parent card. Card hover no longer moves the reading
+  surface, and reduced-motion disables its transition. Existing theme tokens
+  and badge styles are reused, with no additional explanatory copy.
+- The first keyboard run exposed focus loss from disabling the active button.
+  The regression now holds the mocked request open, presses Space twice,
+  verifies one request and retained focus, then verifies a second completed
+  toggle. A test hydration race and incorrect CSS-duration assertion were also
+  corrected; neither was an application defect.
+- Final strict local build/TypeScript pass. Touched lint has no errors and one
+  pre-existing internal-navigation warning at `app/feed/page.tsx:2528`.
+  Local browser **3/3, 10.9s**, zero retries/skips: real anonymous/demo discovery
+  boundaries, populated responsive search, and new post-control acceptance.
+  The new case checks 360/390/844-landscape/1024-portrait/1280/2560, keyboard
+  menus/Escape focus, tag URL state, actual quote/detail hrefs, 44px controls,
+  reduced motion and no page errors/horizontal page overflow. Screenshots at
+  360 and 1280 were visually inspected. All reactions/follows are intercepted;
+  no real social writes, payments or emails are submitted.
+- Real Chrome local reload at 2498x1319 shows the isolated empty feed without
+  horizontal page overflow. Populated interaction evidence above is explicitly
+  a Playwright UI fixture, not fabricated persistent posts.
+
+Hosted acceptance is pending; production is unchanged.
 
 Reference: Chrome's [rendering diagnostics](https://developer.chrome.com/docs/devtools/rendering/performance)
 and [compositing explanation](https://developer.chrome.com/blog/inside-browser-part3)
