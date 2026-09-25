@@ -2,6 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Preview performance follow-up — 26 September 2026
+
+**PARTIAL overall; consent first-paint correction verified locally and on Preview.**
+Runtime `11ee500` renders the notice with initial content, preserves saved choices
+without flashing, and disables consent actions until hydration. Focused units pass
+36/36; local and hosted browser acceptance pass 3/3, including consent-gated
+telemetry, eight-width controls and no-JavaScript terms. Build/TypeScript/lint pass.
+Throttled cold homepage LCP moved from the roughly 8-second late notice to about
+1.8 seconds locally and 1.9–2.1 seconds on Preview. Shared script transfer remains
+about 1.07MB and CLS is unchanged; all-route speed and field metrics remain open.
+Production is still `92c5ac7`. See [first-paint evidence](consent-first-paint-2026-09.md).
+
 ## Work in progress — exact selected-currency purchases
 
 **PARTIAL, deployed to isolated Sandbox Preview only; not activated in production.** Server quote arithmetic, fresh reference

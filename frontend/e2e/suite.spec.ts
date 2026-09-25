@@ -3681,11 +3681,13 @@ test('Platform consent paints before app bundles without flashing saved choices 
     },choice);
     const page=await context.newPage(),scripts:string[]=[],errors:string[]=[];
     page.on('pageerror',error=>errors.push(error.message));
-    let release=()=>{};const bundles=new Promise<void>(resolve=>{release=resolve;});
-    await page.route('**/_next/static/**/*.js',async route=>{await bundles;await route.continue();});
+    let release=()=>{},heldBundles=0;const bundles=new Promise<void>(resolve=>{release=resolve;});
+    // Hosted chunk URLs can carry deployment query strings.
+    await page.route(/\/_next\/static\/.*\.js(?:\?.*)?$/,async route=>{heldBundles++;await bundles;await route.continue();});
     await page.route('**/_vercel/**',route=>{scripts.push(new URL(route.request().url()).pathname);return route.fulfill({contentType:'application/javascript',body:''});});
     try{
       await page.goto('/',{waitUntil:'commit'});
+      await expect.poll(()=>heldBundles).toBeGreaterThan(0);
       const panel=page.getByRole('region',{name:'Cookie Preferences',exact:true});
       await expect(page.locator('[data-cookie-banner]')).toHaveCount(1);
       expect(await page.locator('#consent-visibility').evaluate((element:HTMLScriptElement)=>Boolean(element.nonce))).toBe(true);

@@ -71,3 +71,29 @@ The hosted browser checks exposed two issues before acceptance:
 
 The corrected candidate passes **36/36** focused unit tests and the optimized
 build/TypeScript. Final hosted acceptance of the correction is recorded below.
+
+Corrected local browser acceptance: **3/3**, 22.2 seconds, no retries/skips.
+One final local cold sample measured LCP/FCP **1,816ms**, CLS **0.0458**,
+1,214,046 B transferred (1,069,283 B scripts), no page errors or horizontal
+overflow. The early-paint improvement survives the disabled-until-ready safeguard;
+this does not remove the wait for JavaScript interactivity.
+
+Corrected runtime `11ee500` is READY on the stable isolated Preview as
+`dpl_HG387CADYVRrip5FHAaUuCTy3Fyo`. Hosted acceptance passes **3/3** in 43.1
+seconds with zero retries/skips. The pre-hydration test's chunk matcher now handles
+Vercel deployment query strings and asserts that at least one bundle is actually
+held; the prior matcher could let a hosted page hydrate before its assertion.
+That test-harness correction changes no deployed application code. Final touched
+lint passes. Production was inspected and still points to
+`dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu`; no Live payment or schema settings changed.
+
+Final hosted cold samples (same lab conditions, serial, no concurrent test/build):
+
+| Preview | LCP | FCP | CLS | Transferred | Script transfer |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sample 1 | 1,912ms | 1,912ms | 0.0458 | 1,252,205 B | 1,066,359 B |
+| Sample 2 | 2,072ms | 2,072ms | 0.0458 | 1,252,134 B | 1,066,359 B |
+
+Both reached network-idle with no page errors or document overflow. This is a
+Preview-hosted early-paint improvement, not a production deployment, and different
+hosts/caches preclude attributing every millisecond to this change.
