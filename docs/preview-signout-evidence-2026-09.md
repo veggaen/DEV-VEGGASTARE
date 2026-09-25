@@ -45,8 +45,36 @@ cross-tab session refresh can delay confirmed navigation by at most one second.
 - One extended local run hit the existing one-minute gate throttle while
   unnecessarily re-submitting a valid gate login. The runner now reuses its
   app-issued gate cookie; the later full rerun passes. No cap was reset/loosened.
-- Hosted deployment is pending. No production customer was previewed, changed
-  or signed out.
+- No production customer was previewed, changed or signed out.
+
+## Deployed acceptance
+
+Runtime `6f8de52`:
+
+- Preview `dpl_GnoYHHqcKnueqKji9HGLovowndVF`, immutable
+  `https://dev-veggastare-qpsgoncl3-v3ggas-projects.vercel.app`, is assigned to
+  the existing isolated Sandbox alias. Strict remote build and health pass;
+  light **4/4** and dark **4/4** pass with zero skips/retries.
+- Production `dpl_9apZWJjqFi3qeZ8PsDVHCSH1JDLv`, immutable
+  `https://dev-veggastare-2g80u03cp-v3ggas-projects.vercel.app`, passed strict
+  remote build and health before promotion. CLI inspection confirms that
+  `www.veggat.com` resolves to this deployment. Live light **4/4** and dark
+  **4/4** pass with zero skips/retries. No database migration was required.
+- Hosted checks include actual anonymous/demo denial and browser-only failed
+  sign-out/retry fixtures. The positive durable-revocation and copied-cookie
+  checks use real localhost HTTP/Auth.js with disposable isolated principals;
+  they do not mutate a production customer or claim hosted customer logout.
+- Connected real Chrome reloads the existing signed-in OWNER account detail
+  page successfully; its read-only controls remain intact. The rendered
+  desktop screenshot was inspected. No account, role, payment, provider usage
+  or email was changed by this acceptance check. No viewport override was used.
+- The webapp-testing workflow drove the focused light/dark browser checks;
+  computer-use confirmed the existing real-Chrome session without signing the
+  owner out. Staged redacted secret scanning covers only this change, not the
+  historical public-repository exposure. No public GitHub push was made.
+
+Ignored browser artifacts remain in
+`frontend/test-results-release-preview-revocation-{local,preview,live}-{light,dark}`.
 
 ## Limits
 

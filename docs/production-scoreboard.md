@@ -4,6 +4,19 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Preview Sign Out: **DONE for durable preview revocation and honest retry;
+wider account audit remains PARTIAL**. Runtime `6f8de52` is live as
+`dpl_9apZWJjqFi3qeZ8PsDVHCSH1JDLv`. Auth.js-validated sign-out atomically ends
+the exact preview grant with its audit. A failed transaction preserves the
+cookie and visible retry controls instead of reporting success. Normal
+non-preview JWT logout semantics are unchanged. 181 focused tests, nine
+isolated PostgreSQL checks, actual local HTTP/UI copied-cookie acceptance,
+touched lint and strict local/remote builds pass. Local/Preview/Live each pass
+**4/4 in both themes**, zero skips/retries. Real Chrome remains signed in after
+the release; no customer was previewed, changed, charged or signed out.
+No migration was needed. See
+[preview sign-out evidence](preview-signout-evidence-2026-09.md).
+
 End Preview revocation: **DONE for the scoped replay gap; wider session audit
 remains PARTIAL**. Runtime `bd0b5ad` is live as
 `dpl_fb63nooZX4SXo5c4EMVeK4cLewZt`. A durable, version/deadline-bound grant is
@@ -13,8 +26,9 @@ End; concurrent End requests have one winner. 161 focused tests, six isolated
 PostgreSQL checks, actual local UI/HTTP replay tests and strict builds pass.
 Local/Preview/Live each pass **3/3 in both themes**, without skips or retries.
 Real Chrome local/Live sessions remain usable; no customer was previewed or
-edited. Ordinary Sign Out's copied-token behavior, broader read-handler review,
-role-management step-up and retention-safe erasure remain unfinished. See
+edited. The preview Sign Out gap is closed by the follow-up above; normal JWT
+logout behavior, broader read-handler review, role-management step-up and
+retention-safe erasure remain separate work. See
 [preview revocation evidence](account-preview-revocation-evidence-2026-09.md).
 
 Account administration: **DONE for scoped audited edits and responsive recovery;
@@ -50,8 +64,9 @@ and on Live** (custom credits, cart, unpaid receipt, access denial and replay).
 Its stale expanded-terms locator was repaired; a fresh local rerun hit the real
 signup cap, which remains unchanged. CI defaults still use fresh sign-in.
 No customer was impersonated or charged; disposable test principals/audits were
-removed. Per-preview server-side revocation, broader read-handler audit and
-privileged user-detail mutations remain unfinished. See
+removed. Per-preview server-side revocation and scoped privileged user-detail
+mutations were completed by the follow-ups above; broader read-handler audit
+remains unfinished. See
 [account preview evidence](account-preview-evidence-2026-09.md).
 
 Personal account settings: **DONE for deployed validation, scoped service tests
@@ -1707,7 +1722,7 @@ member-to-member delivery remains separate from the mocked error test.
 | Auth | Google | DONE for existing-account local/Live real-Chrome sign-in and logout; automated-browser restriction remains, not bypassed |
 | Auth | GitHub | DONE for existing-account local/Live real-Chrome sign-in and logout; separate email/trust-badge confirmation is not claimed |
 | Auth | Discord | PARTIAL — correct Live callback/S256 consent screen and safe cancellation observed; positive local/Live callback/link requires explicit owner consent |
-| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted personal and audited privileged edits, atomic confirmation, safe request/cancel, version/deadline checks, server-side End Preview revocation and responsive local/Preview/Live UI pass; real credential/email acceptance, verified email replacement, erasure review, role-management step-up, ownership transfer and copied-token revocation on ordinary Sign Out remain |
+| Auth | Account/Security settings and deletion request | PARTIAL — allowlisted personal and audited privileged edits, atomic confirmation, safe request/cancel, version/deadline checks, durable End Preview/preview Sign Out revocation and responsive local/Preview/Live recovery pass; real credential/email acceptance, verified email replacement, erasure review, role-management step-up and ownership transfer remain; ordinary non-preview JWT logout semantics are unchanged |
 | Shop | List, PDP, images | DONE — permanent artwork/AI-credit products and real images verified locally/live |
 | Shop | Cart | DONE — two lines, reload, quantity/removal, stable ordering and badge synchronization locally/live |
 | Shop | Checkout | DONE for verified demo/Sandbox/Live purchase paths — server quotes, custom-credit edits, retries, unpaid-order resume/cancel and request follow-up tested; see separate refund limitation |

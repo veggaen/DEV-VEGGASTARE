@@ -75,10 +75,11 @@ Ignored artifacts: `frontend/test-results-release-preview-revocation-*` and
 
 ## Limits
 
-This change proves End Preview revocation, not global JWT logout revocation.
-Ordinary Sign Out still clears the current cookie; other copies of an active
-preview remain subject to credential versions and its one-hour deadline unless
-End Preview consumed the grant. Already-admitted in-flight reads cannot be
-recalled. Remaining read-handler review, security step-up and retention-safe
+This original change proves End Preview revocation, not global JWT logout
+revocation. The subsequent `6f8de52` release also revokes a preview grant on
+ordinary Sign Out, preserving retry controls when that transaction fails; see
+[preview sign-out evidence](preview-signout-evidence-2026-09.md). Ordinary
+non-preview JWT logout behavior is unchanged. Already-admitted in-flight reads
+cannot be recalled. Remaining read-handler review, security step-up and retention-safe
 account erasure are separate work. Ended grants currently remain as minimal
 records; a bounded retention/cleanup job is not part of this slice.

@@ -110,9 +110,11 @@ paths are denied; the remaining read handlers still need broader review.
 The original release only replaced the current cookie on End Preview. That
 copied-token gap is now closed by a durable server grant in runtime `bd0b5ad`;
 see [follow-up revocation evidence](account-preview-revocation-evidence-2026-09.md).
-Ordinary Sign Out is not covered by that stronger End transaction. Old preview
-cookies without the current proof fields expire on validation; ordinary sessions
-are not intentionally invalidated.
+Ordinary Sign Out of a preview was subsequently covered by its own atomic
+revocation and checked recovery flow in `6f8de52`; see
+[preview sign-out evidence](preview-signout-evidence-2026-09.md). Old preview
+cookies without the current proof fields expire on validation. Ordinary
+non-preview JWT logout semantics are unchanged.
 
 Privileged profile/role edits were subsequently hardened in `f4e1343`; see
 [admin detail evidence](admin-user-detail-evidence-2026-09.md). Verified email
