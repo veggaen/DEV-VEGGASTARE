@@ -4,6 +4,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company checkout reporting: **DONE for verified order counts and balanced
+detail-page layout; full financial accounting and the full-route audit remain
+PARTIAL**. Runtime `13abe73` is promoted as
+`dpl_9GBCFq6iLZiKCL6fTYG2pdMB49BU`. A bounded, same-snapshot aggregate replaces
+the misleading legacy Sales count, with separate Live paid, adjusted, review
+and Sandbox groups. These follow currently linked products, not historical
+seller attribution or revenue. 47 focused tests, nine isolated PostgreSQL
+checks, 132 combined regression tests, touched lint, TypeScript and strict builds
+pass. Local/Preview/Live each pass light **2/2** and dark **2/2**, with no skips
+or retries. Real Chrome confirms two Live paid orders and two Sandbox captures,
+the full collapsed summary at 1280x800, and phone scrolling to the footer. No
+captured console errors; viewport restored. No Live company fields, payments
+or emails were changed. Next: actual 125% browser zoom (manual Chrome-menu
+action requested) and the remaining route interactions. See
+[company checkout reporting evidence](company-checkout-reporting-evidence-2026-09.md).
+
 Company administration: **DONE for working detail/edit routes, audited
 storefront edits and responsive recovery; company sales metrics and wider
 admin/full-route audit remain PARTIAL**. Runtime `ed81eb2` is promoted as

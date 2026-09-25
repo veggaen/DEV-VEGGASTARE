@@ -98,7 +98,26 @@ Screenshot review caught that an initial test scrolled `window`, not the app's
 scroll container; the final checks explicitly bring the heading into view and
 assert it remains visible while the summary fits. The final 1280x800 screenshot
 was visually reviewed with both heading and full collapsed summary visible.
-Hosted layout acceptance and promotion are pending.
+Runtime `13abe73` passed strict Preview/production builds. Preview
+`dpl_QZZAq4RqEPnWb31MnYxKBACq7UaS`
+(`dev-veggastare-3qydf27pg-v3ggas-projects.vercel.app`) passed light **2/2** and
+dark **2/2** before production `dpl_9GBCFq6iLZiKCL6fTYG2pdMB49BU`
+(`dev-veggastare-hvlhq4s32-v3ggas-projects.vercel.app`) was promoted. Live also
+passed light **2/2** and dark **2/2**, with no retries or skips. Both health
+checks were healthy; these single health timings are not performance benchmarks.
+Staged-change gitleaks passed. No new migration was required.
+
+Final real-Chrome review confirms the actual two Live/two Sandbox metrics in
+balanced desktop columns at normal 2498x1319 and temporary 1280x800. The heading
+and full collapsed checkout summary fit at 1280x800. At temporary 390x844,
+scrolling reaches readable totals and the footer. No captured console errors
+were present. Temporary viewport overrides were reset and the page returned to
+its heading. No Live company fields, payments or emails were changed.
+
+The browser shortcut probe did not change its measured viewport or device pixel
+ratio, so it is not a 125% zoom pass. A manual Chrome-menu zoom check was
+requested; it remains unverified pending the user's action. Physical-phone
+keyboard acceptance and full-route audit are likewise separate work.
 
 ## Scope
 
