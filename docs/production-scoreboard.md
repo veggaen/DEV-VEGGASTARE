@@ -2,6 +2,17 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Work in progress — exact selected-currency purchases
+
+**PARTIAL, not activated or deployed.** Server quote arithmetic, fresh reference
+FX, actor/cart/environment-bound attestations and currency-aware PayPal proofs
+are implemented. 278 focused tests and a separate read-only real-FX test pass.
+No new capture or browser-flow acceptance is claimed. Next: persist spend intent,
+wire transactional payment/refund/receipt/report paths, then local and Sandbox
+browser acceptance before activation. Production still settles in NOK; keeping
+the draft input at `100` does not yet make a USD 100 charge. See
+[exact-currency settlement work](exact-currency-settlement-2026-09.md).
+
 ## Current integrated production release — 25 September 2026
 
 Owner AI-credit report: **DONE for compact responsive reporting and private-state
