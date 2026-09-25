@@ -31,6 +31,15 @@ No refund was submitted, money added, bank linked or hold workaround attempted.
 The exact refund review is retained for the owner; do not refund the older
 ten-credit purchase by mistake. Funding or hold resolution requires owner action.
 
+After the owner questioned refunding an already downloaded file, the agent
+explained that this was a controlled reversal test, not automatic refund approval.
+The Live purchase/access must remain intact unless the owner explicitly approves
+that particular refund. Resolving the balance alone is not authorization.
+The current seller-review screen exposes recorded file requests and retained
+consent. Approving review changes only the review record; direct `REFUND` requests
+return 409 even for admins. A fresh 42-case seller-return/security/acknowledgment
+test run passes. No automatic after-download refund policy was added.
+
 Transactional email is ACCEPTED_UNCONFIRMED. One send was accepted; the subsequent
 provider receipt lookup returned 401 (the code explicitly supports sending-only
 keys). This does not establish human inbox delivery. Do not resend a successfully

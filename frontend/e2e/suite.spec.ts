@@ -636,6 +636,12 @@ test('S8 dynamic routes handle unavailable records without crashing', async ({ b
         try {
           const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
           if (route.startsWith('/company/')) await page.waitForURL('**/companies/cqaunavailablerecord0000001');
+          // These legacy pages intentionally stream a server redirect. Inspect
+          // the documented destination, not the shell being replaced.
+          if (/^\/nexus\/company\/cqaunavailablerecord0000001(?:\/(?:hub|settings))?$/.test(route)) {
+            await page.waitForURL(`**${route.replace('/nexus/company/', '/companies/')}`);
+          }
+          if (route.startsWith('/nexus/company/job-box/')) await page.waitForURL('**/jobs/cqaunavailablerecord0000001');
           const gatedAdmin = route.startsWith('/admin/') && new URL(page.url()).pathname === '/gate';
           if (gatedAdmin) {
             expect(new URL(page.url()).searchParams.get('redirect')).toBe(route);

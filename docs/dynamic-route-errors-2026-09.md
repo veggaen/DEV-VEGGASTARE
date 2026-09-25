@@ -23,7 +23,25 @@ checks pass: the full unavailable-record audit and 503 → retry → 404 with a 
 URL, no polling loop, and explicit return to Trading. No database writes are
 requested by these checks. A real Chrome seller-page read also completed.
 
-Artifacts: `test-results-release-dynamic-missing-local-fixed` (2/2, 50.8 seconds).
-The failed baseline runs are retained separately. Production deployment and
-post-deployment verification are pending; successful-record fixtures, physical
-phone testing and every-button audit remain separate work.
+The first Preview inventory encountered an intentional legacy company-hub server
+redirect before geometry measurement. Source inspection confirmed the exact
+destination; the audit now waits for the four documented company/job aliases.
+This is a test correction, not an application/auth change or a swallowed error.
+
+Final results: local **2/2** (49.8s), Preview **2/2** (57.5s), Live **2/2** (1.4m),
+retries disabled. Each inventory includes **44 observations of 22 distinct URLs**
+at 360/2560, with no recorded page errors, server 500s or horizontal overflow.
+Real Chrome also shows the deployed unavailable state and its explicit Back to
+trading action reaches the loaded Trading Hub. No wallet transaction occurred.
+
+App source `77ab6ba`; Production `dpl_5zJCViodSCcBuwHXdqA2qeBnDVqz`, Preview
+`dpl_D4CRjRXxv5Qkn9tBRnoXXSyHL8J6`. Both strict builds and candidate health checks
+pass, with 52 migrations and none pending. Preview passed before Production
+promotion. The corrected audit is a subsequent test-only change.
+
+Artifacts: `test-results-release-dynamic-missing-local-redirects`,
+`test-results-release-dynamic-missing-preview-final`, and
+`test-results-release-dynamic-missing-live-fixed`; each retains JSON observations.
+Failed baseline runs remain separate. Successful-record fixtures, physical
+phone testing, intercepted-modal interaction and every-button audit remain
+separate work. Missing-record coverage is not complete dynamic-feature acceptance.

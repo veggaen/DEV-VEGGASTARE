@@ -4,8 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Dynamic failure paths: **DONE for scoped missing-record acceptance**. App source
+`77ab6ba`, Production `dpl_5zJCViodSCcBuwHXdqA2qeBnDVqz`, stable Preview
+`dpl_D4CRjRXxv5Qkn9tBRnoXXSyHL8J6`. An unavailable trade no longer sends the user
+back automatically. Explicit retry/return and 44 observations across 22 dynamic
+URLs at 360/2560 pass locally, Preview and Live (two focused tests per environment).
+Strict builds, health checks and touched lint pass (one pre-existing callback
+warning). Real Chrome verifies the Live state and return to Trading. No payment,
+refund or wallet mutation occurred. See [scope and evidence](dynamic-route-errors-2026-09.md).
+
 Live digital acceptance: **capture and protected downloads DONE; refund BLOCKED
-on owner merchant funding/hold resolution**.
+on owner approval and merchant funding/hold resolution**.
 The owner paid 29 NOK; capture `0RV7577637864821N` and order
 `cmug9nlar000204l0bjkgz91o` are COMPLETED. Real Chrome downloaded the JPG and TXT;
 both sizes/checksums match. Two entitlements, each used once; raw access 403,
