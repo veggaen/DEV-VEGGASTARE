@@ -92,6 +92,16 @@ test('S8 company admin directory, edit and recovery fit all screens', async ({ b
     }
     await activity.getByText('How orders are counted',{exact:true}).click(); await expect(activity.getByText('Legacy sales records: 7 (separate from checkout).',{exact:true})).toBeVisible();
     await expect(activity.getByText(/not revenue or historical seller attribution/)).toBeVisible();
+    await activity.getByText('How orders are counted',{exact:true}).click();
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height}); await detail.getByRole('heading',{name:'Company details',exact:true}).scrollIntoViewIfNeeded();
+      await expect(detail.getByRole('heading',{name:'Company details',exact:true})).toBeInViewport();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      expect(await detail.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+      await page.screenshot({path:info.outputPath('company-detail-'+width+'.png')});
+      if(width>=1280) { const box=await activity.boundingBox(); expect(box!.y+box!.height).toBeLessThanOrEqual(height); }
+    }
+    await page.setViewportSize({width:390,height:844});
     await expect(detail.getByRole('link',{name:'Public storefront',exact:false})).toHaveAttribute('href','/company/qa-company');
     await detail.getByRole('link',{name:'Edit company',exact:true}).click();
     const form=page.getByRole('form',{name:'Edit company',exact:true}), name=form.getByRole('textbox',{name:'Company name',exact:true});

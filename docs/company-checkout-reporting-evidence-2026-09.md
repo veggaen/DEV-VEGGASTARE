@@ -65,7 +65,40 @@ runner; its Python helper is unavailable in this environment.
   scenarios also pass. Actual 390/1280 UI checks pass and screenshots were
   reviewed. This is not a new physical-phone or 125% zoom acceptance claim.
 
-Hosted acceptance and deployment evidence pending.
+## First reporting deployment
+
+Runtime `12aee0d` passed strict Preview/production builds, with 54 existing
+migrations and none pending. Preview `dpl_2XcknRCHJbf7VoyGoh3o15yXcHzo`
+(`dev-veggastare-dxkq2b059-v3ggas-projects.vercel.app`) was assigned to the
+existing showcase Preview alias. Preview light **2/2** and dark **2/2** passed
+before production `dpl_FZRs8JhpyciGWYdzs5XtYVohvPky`
+(`dev-veggastare-aglpc5xv3-v3ggas-projects.vercel.app`) was promoted. Live then
+passed light **2/2** and dark **2/2**, with no retries or skips. Both health
+checks were healthy. Staged-change gitleaks found no leaks; historical repository
+clearance is not implied.
+
+The first Preview browser launcher invocation used the repository root instead
+of frontend and never launched Playwright. It is not a passing run. The ignored
+helper now sets its own working directory, and the actual runs above passed.
+
+Real signed-in Chrome showed Veggat Studio's actual **2 Live paid orders**,
+**2 Sandbox captures**, zero Live adjustments/reviews and zero legacy sales.
+The disclosure opens and phone-width scrolling reaches the readable metrics
+and footer. Viewing details adds normal VIEW audit records, not payment writes.
+No Live fields were edited, payments initiated or emails sent.
+
+The desktop visual review caught a tall right-only stack of read-only cards,
+with needless unused space on the left. A layout follow-up flattens the saved
+record/activity cards into two balanced desktop columns while retaining the
+stack on smaller screens and the editor's form/sidebar arrangement. Browser
+assertions now cover detail pages at all eight sizes and require the collapsed
+checkout summary to fit without scrolling at 1280x800 and wider test sizes.
+The follow-up strict local build and light/dark **2/2 each** browser checks pass.
+Screenshot review caught that an initial test scrolled `window`, not the app's
+scroll container; the final checks explicitly bring the heading into view and
+assert it remains visible while the summary fits. The final 1280x800 screenshot
+was visually reviewed with both heading and full collapsed summary visible.
+Hosted layout acceptance and promotion are pending.
 
 ## Scope
 
