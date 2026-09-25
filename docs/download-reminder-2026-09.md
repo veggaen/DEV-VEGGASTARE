@@ -54,5 +54,18 @@ local owner account's empty library was checked without replacing its login
 or creating a paid order.
 
 Local artifacts: `frontend/test-results-release-download-reminder-local/`.
-Live acceptance is pending deployment. The existing walkthrough recording is
-not replaced by this fast acceptance run.
+Live acceptance also passes: 3/3 focused checks in 46.6s, no retries, skips or
+flaky results. The real free-demo checkout and protected JPG transfer passed;
+fixture-backed checks cover Cancel/Escape, focus, retry and repeat-download
+behavior at eight sizes in both themes. Live mobile screenshot review found
+no clipping. Artifacts: `frontend/test-results-release-download-reminder-live/`.
+
+Source `273c162`, Production `dpl_9wGrjccRuQiJCoN37rGFHMtHsjiv` is READY and
+promoted to www.veggat.com. Candidate and Live health are healthy. Real Chrome
+verified the owner's signed-in library with available and expired files;
+no additional owner download was requested. The owner's already-used files
+are not first-download cases, so that Chrome check does not prove the new
+dialog by itself. The actual first-request flow is covered by the free-demo
+browser test. No paid purchase, refund, consent change or AI generation occurred.
+The existing published walkthrough recording is not replaced by this fast
+acceptance run.

@@ -4,6 +4,18 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+First-download reminder: **local and Live acceptance DONE for this UI slice**.
+Source `273c162`, Production `dpl_9wGrjccRuQiJCoN37rGFHMtHsjiv` is READY at
+www.veggat.com. Three focused checks pass locally (25.7s) and Live (46.6s):
+Cancel/Escape without a file request, accessible focus, retry, repeat download,
+eight sizes in both themes, library states and actual free-demo checkout to
+protected JPG download. Strict build/TypeScript, touched lint, 40 focused unit
+cases and candidate/Live health pass. Real Chrome verifies the signed-in owner's
+library without consuming more downloads. This informational reminder is not
+a new waiver, retrospective consent or automatic refund restriction. No paid
+purchase or refund occurred. Full legal evidence-chain review remains pending.
+See [download reminder evidence](download-reminder-2026-09.md).
+
 Pulse reading/navigation: **local and Live acceptance DONE for this slice**.
 Source `7a85020`, Production `dpl_EmGgyr8xdfS2NNsTq2Gha7Zdsbrc` is READY at
 www.veggat.com. Four focused checks pass locally (39.1s) and Live (43.1s),
