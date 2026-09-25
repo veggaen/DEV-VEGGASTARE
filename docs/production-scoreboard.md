@@ -4,10 +4,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Realtime loading follow-up — 26 September 2026
 
-**PARTIAL; local and isolated Preview acceptance complete, Live pending.** The shared
+**DONE for this scoped realtime change; full performance audit remains PARTIAL.** The shared
 realtime SDK is lazy-loaded for active subscribers, with per-listener cleanup so
 one component cannot unsubscribe its siblings. Build/TypeScript/lint, nine units,
 and three focused browser checks pass both locally and on READY Preview `7af0798`.
+The same six implementation/test files shipped independently as Live `da0b310`,
+deployment `dpl_79qiW2P4mhYsxg4DtEhjkkGjqPEN`. Exact-candidate local and Live each
+pass three realtime plus six UI regression tests, no retries/skips. Production
+retains 54 migrations, none pending; payments/schema/terms/prices are unchanged.
 Guest homepage JS fell about 17.8KB in one
 local lab sample; this is not an all-route speed claim. See
 [realtime evidence](realtime-loading-2026-09.md).
@@ -15,7 +19,7 @@ local lab sample; this is not an all-route speed claim. See
 ## Current Live UI release — 26 September 2026
 
 **DONE for consent first-paint and Pulse keyboard/touch controls, not all S1–S9.**
-UI-only runtime `fc652ac`, based on Live `92c5ac7`, is READY as
+Prior UI-only runtime `fc652ac`, based on Live `92c5ac7`, was READY as
 `dpl_85HoopHh5RhmpM8G3Bv8fwdEufGf` on www.veggat.com. The separate
 `release/ui-september` worktree includes only these UI fixes and focused tests;
 payments, schema, terms, prices and dependencies are unchanged from the Live base.

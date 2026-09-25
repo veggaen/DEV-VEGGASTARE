@@ -34,8 +34,12 @@ $env:E2E_DEMO_STORAGE_STATE='.private-showcase/release-local-demo.json'
 npx playwright test --config=playwright.realtime.config.ts --reporter=list
 ```
 
-Live verification remains pending. Do not promote the integrated native-currency/
-schema changes as part of this small loading correction.
+Live verification is complete through independent UI runtime `da0b310`, deployment
+`dpl_79qiW2P4mhYsxg4DtEhjkkGjqPEN`. Three realtime checks and six UI regressions
+pass both on the exact candidate locally and Live, with no retries/skips.
+Production retains 54 migrations, none pending. Integrated native-currency/schema
+changes were not promoted. Evidence is in the UI worktree's
+`docs/realtime-production-2026-09.md`.
 
 Candidate `7af0798` is READY on isolated Preview as
 `https://dev-veggastare-ao5xv68kb-v3ggas-projects.vercel.app`. Build compilation
