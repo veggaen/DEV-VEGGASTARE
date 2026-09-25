@@ -27,9 +27,8 @@ export default function InterceptedPulsePage() {
 
   const handleTagClick = useCallback(
     (tag: string) => {
-      // Close modal then navigate to flow with tag filter
-      router.back()
-      setTimeout(() => router.push(`/pulse?filter=all&tag=${encodeURIComponent(tag)}`), 50)
+      // Matching @modal/page clears this slot in the same navigation.
+      router.replace(`/pulse?filter=all&tag=${encodeURIComponent(tag)}`, { scroll: false })
     },
     [router],
   )

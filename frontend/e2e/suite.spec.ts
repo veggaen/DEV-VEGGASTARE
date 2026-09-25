@@ -7,6 +7,99 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S8 Pulse detail preserves feed history, scroll and keyboard navigation', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_PULSE_DETAIL !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session and browser data fixtures; no public posts are created');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  const posts = Array.from({ length: 12 }, (_, index) => ({ id: `qa-pulse-navigation-${index}`, title: `Pulse navigation ${index + 1}`,
+    description: `Pulse navigation ${index + 1}. A public reading sample for navigation and layout checks.`, type: 'PUBLIC_THREAD', tags: ['navigation'], userId: 'qa-pulse-reader',
+    user: { id: 'qa-pulse-reader', name: 'Layout reviewer', email: '' }, createdAt: '2026-01-01T12:00:00.000Z', messageCount: 25, hasPoll: false }));
+  try {
+    const page = await context.newPage(), errors: string[] = [];
+    expect((await (await context.request.get('/api/auth/session')).json()).user?.isDemo).toBe(true);
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api/conversations?**', route => route.fulfill({ json: { conversations: posts, nextCursor: null } }));
+    await page.route('**/api/messages?**', route => {
+      const post = posts.find(item => item.id === new URL(route.request().url()).searchParams.get('conversationId'));
+      return route.fulfill({ json: { conversation: post, messages: Array.from({ length: 25 }, (_, index) => ({ id: `qa-reply-${index}`, content: `Reading paragraph ${index + 1}. A longer conversation should scroll inside its dialog without moving the feed.`, createdAt: '2026-01-01T12:00:00.000Z', sender: post?.user })) } });
+    });
+    await page.route('**/api/advanced-polls?**', route => route.fulfill({ json: { polls: [], total: 0 } }));
+    await page.route('**/api/conversations/*/view', route => route.fulfill({ json: { success: true } }));
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) {
+      await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+    }
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Pulse', exact: true }).click();
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+      { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 },
+      { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+      await page.setViewportSize(size);
+      const feed = page.getByRole('feed', { name: 'Pulse feed' });
+      await expect(feed.getByRole('article')).toHaveCount(12);
+      const card = feed.getByRole('article').filter({ hasText: 'Pulse navigation 4' });
+      const title = card.getByText(posts[3].description, { exact: true });
+      await title.scrollIntoViewIfNeeded();
+      const site = page.locator('[data-site-scroll]'), savedScroll = await site.evaluate(el => el.scrollTop);
+      await title.click();
+      await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeVisible();
+      const dialog = page.getByRole('dialog', { name: 'Pulse details', exact: true });
+      await expect.soft(dialog).toHaveCount(1);
+      await page.keyboard.press('Escape');
+      await expect(page).toHaveURL(/\/pulse$/);
+      await expect(dialog).toHaveCount(0);
+      await expect.poll(() => site.evaluate(el => el.scrollTop)).toBe(savedScroll);
+      await page.goForward({ waitUntil: 'domcontentloaded' });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(/^Reading paragraph 25\./)).toBeAttached();
+      // Wheel coordinates must be measured after the dialog's entry motion.
+      // Reduced motion must suppress that entry transform entirely.
+      expect(await dialog.evaluate(el => el.getAnimations().length)).toBe(0);
+      const labelBox = await dialog.getByText('Pulse', { exact: true }).boundingBox();
+      const shareBox = await dialog.getByRole('button', { name: 'Share', exact: true }).boundingBox();
+      expect(shareBox!.x).toBeGreaterThanOrEqual(labelBox!.x + labelBox!.width + 4);
+      expect(shareBox!.height).toBeGreaterThanOrEqual(44);
+      const scroll = dialog.locator('[data-pulse-detail-scroll]');
+      await expect.poll(() => scroll.evaluate(el => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+      const box = await scroll.boundingBox();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.mouse.wheel(0, 12000);
+      await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+      await expect(dialog.getByText(/^Reading paragraph 25\./)).toBeInViewport();
+      expect(await site.evaluate(el => el.scrollTop)).toBe(savedScroll);
+      expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await expect(dialog.getByRole('button', { name: 'Close pulse', exact: true })).toBeInViewport();
+      await page.screenshot({ path: info.outputPath(`pulse-detail-${size.width}.png`) });
+      await dialog.getByRole('button', { name: 'Close pulse', exact: true }).click();
+      await expect(page).toHaveURL(/\/pulse$/);
+      const openLink = card.getByRole('link', { name: 'Open pulse by Layout reviewer', exact: true });
+      await expect(openLink).toBeFocused();
+      await openLink.press('Enter');
+      await expect(dialog).toBeVisible();
+      const taggedRequest = page.waitForRequest(request => {
+        const url = new URL(request.url());
+        return url.pathname === '/api/conversations' && url.searchParams.get('tag') === 'navigation';
+      });
+      await dialog.getByRole('button', { name: '#navigation', exact: true }).click();
+      await taggedRequest;
+      await expect(page).toHaveURL(/\/pulse\?filter=all&tag=navigation$/);
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Clear tag filter', exact: true })).toBeVisible();
+      // Reading a post must not remove the active tag or reset its feed.
+      await card.getByRole('link', { name: 'Open pulse by Layout reviewer', exact: true }).click();
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page).toHaveURL(/\/pulse\?filter=all&tag=navigation$/);
+      await page.getByRole('button', { name: 'Clear tag filter', exact: true }).click();
+      await expect(page).not.toHaveURL(/tag=/);
+      // All is hidden on small screens; the same reset exists in the menu.
+      await page.getByRole('button', { name: 'Feed filters', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'All Content', exact: true }).click();
+      await expect(page).toHaveURL(/\/pulse$/);
+    }
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S7 landing chat welcome remains reachable before and after expansion', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_LANDING_CHAT_LAYOUT !== '1', 'Focused anonymous layout; never sends an AI request');
   test.setTimeout(180_000);

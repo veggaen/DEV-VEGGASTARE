@@ -279,17 +279,17 @@ const FeedPage: React.FC = () => {
   // Sync filter/sort/poll state with URL for shareable links
   // (Pulse modal is now handled by parallel route @modal slot — no ?pulse= param needed)
   useEffect(() => {
+    // An intercepted post has its own URL, but must not reset the feed behind it.
+    if (pathname !== '/pulse' && pathname !== '/feed') return;
     // Check for filter param (?filter=polls or ?filter=pulses makes link shareable)
     const filterParam = searchParams.get('filter') as ContentFilter | null;
-    if (filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam)) {
-      setFilter(filterParam);
-    }
+    setFilter(filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam) ? filterParam : 'all');
     
     // Check for sort param
     const sortParam = searchParams.get('sort') as SortType | null;
-    if (sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam)) {
-      setSortBy(sortParam);
-    }
+    setSortBy(sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam) ? sortParam : 'recent');
+
+    setTagFilter(searchParams.get('tag')?.trim() || null);
     
     // Check for open param (?open=ID auto-opens pulse modal from standalone page)
     const openParam = searchParams.get('open');
@@ -306,13 +306,15 @@ const FeedPage: React.FC = () => {
       lastOpenedPollId.current = pollParam; // Track for mouse nav
       // Don't change filter - user should stay on whatever feed they were viewing
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, pathname]);
 
   // Handle browser back/forward navigation (popstate) to sync filter state with URL
   // This is needed because searchParams doesn't react to pushState/popstate
   useEffect(() => {
     const handlePopState = () => {
       const url = new URL(window.location.href);
+      if (url.pathname !== '/pulse' && url.pathname !== '/feed') return;
+      setTagFilter(url.searchParams.get('tag')?.trim() || null);
       
       // Sync filter
       const filterParam = url.searchParams.get('filter') as ContentFilter | null;
@@ -373,6 +375,23 @@ const FeedPage: React.FC = () => {
     } else {
       url.searchParams.set('sort', newSort);
     }
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const changeTag = (tag: string | null) => {
+    setTagFilter(tag);
+    const url = new URL(window.location.href);
+    if (tag) url.searchParams.set('tag', tag);
+    else url.searchParams.delete('tag');
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const clearFilters = () => {
+    setFilter('all');
+    setSortBy('recent');
+    setTagFilter(null);
+    const url = new URL(window.location.href);
+    for (const key of ['filter', 'sort', 'tag']) url.searchParams.delete(key);
     window.history.pushState({}, '', url.toString());
   };
 
@@ -496,7 +515,7 @@ const FeedPage: React.FC = () => {
   // Open pulse — navigate to /pulse/[id] (intercepted by @modal parallel slot)
   const openPulse = useCallback((pulseId: string) => {
     lastOpenedPulseId.current = pulseId;
-    router.replace(`/pulse/${pulseId}`, { scroll: false });
+    router.push(`/pulse/${pulseId}`, { scroll: false });
   }, [router]);
 
   // Open poll modal
@@ -901,10 +920,7 @@ const FeedPage: React.FC = () => {
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
             href="/pulse"
-            onClick={() => {
-              changeFilter('all');
-              changeSort('recent');
-            }}
+            onClick={clearFilters}
             aria-label="All Pulse posts"
             className="hidden min-h-11 shrink-0 items-center gap-1.5 rounded text-sm font-semibold text-brand-accent focus-visible:outline focus-visible:outline-2 sm:flex"
           >
@@ -1031,11 +1047,7 @@ const FeedPage: React.FC = () => {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => {
-                      changeFilter('all');
-                      changeSort('recent');
-                      setTagFilter(null);
-                    }}
+                    onClick={clearFilters}
                     className="text-muted-foreground cursor-pointer"
                   >
                     <FiX className="h-4 w-4 mr-2" />
@@ -1067,17 +1079,19 @@ const FeedPage: React.FC = () => {
                 </button>
               </Badge>
             )}
-            {tagFilter && (
-              <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                <span className="max-w-24 truncate">#{tagFilter}</span>
-                <button aria-label="Clear tag filter" onClick={() => setTagFilter(null)} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
-                  <FiX className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
           </div>
         </div>
       </div>
+
+      {tagFilter && (
+        <div className="mb-4 flex min-w-0 items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tag</span>
+          <button type="button" aria-label="Clear tag filter" onClick={() => changeTag(null)}
+            className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border border-border bg-muted/40 px-3 text-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            <span className="truncate">#{tagFilter}</span><FiX aria-hidden="true" className="h-4 w-4 shrink-0" />
+          </button>
+        </div>
+      )}
 
       {/* New pulses banner */}
       <AnimatePresence>
@@ -1857,7 +1871,7 @@ const FeedPage: React.FC = () => {
                   <FeedCard
                     key={item.id}
                     item={item}
-                    onTagClick={(tag) => setTagFilter(tag)}
+                    onTagClick={changeTag}
                     onClick={() => openPulse(item.id)}
                     onRefresh={fetchFeed}
                     onOpenPoll={openPoll}
@@ -2206,7 +2220,7 @@ const FeedPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="font-semibold">Trending tags</div>
                 {tagFilter && (
-                  <Button size="sm" variant="ghost" onClick={() => setTagFilter(null)}>
+                  <Button size="sm" variant="ghost" onClick={() => changeTag(null)}>
                     Clear
                   </Button>
                 )}
@@ -2218,7 +2232,7 @@ const FeedPage: React.FC = () => {
                   {trendingTags.map(({ tag, count }) => (
                     <button
                       key={tag}
-                      onClick={() => setTagFilter(tag)}
+                      onClick={() => changeTag(tag)}
                       className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-sm text-foreground/90 transition hover:bg-background/50"
                     >
                       <span className="font-medium">#{tag}</span>
@@ -3296,10 +3310,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-sky-500/10 hover:text-sky-500 ${!currentUser ? 'opacity-60' : ''}`}>
+                  <Link href={`/pulse/${item.id}`} scroll={false} data-pulse-open={item.id}
+                    aria-label={`Open pulse by ${item.user?.name || 'Anonymous'}`}
+                    className="group/act inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-sky-500/10 hover:text-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                     <FiMessageCircle className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {replyCount}
-                  </span>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {!currentUser ? 'Sign in to comment' : replyCount === 1 ? '1 vibe' : `${replyCount} vibes`}

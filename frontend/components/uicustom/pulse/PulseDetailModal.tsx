@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -113,7 +113,6 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [modalHeight, setModalHeight] = useState<number | null>(null);
   
   // Comment edit/delete state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -532,90 +531,24 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Close on Escape
-  useEffect(() => {
-    if (!pulseId) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pulseId, onClose]);
-
-  // Pre-compute a stable modal height (prevents stutter when content loads)
-  useEffect(() => {
-    if (!pulseId) {
-      setModalHeight(null);
-      return;
-    }
-
-    const compute = () => {
-      // Keep it feeling like a macOS popover: tall enough to read, never full-screen.
-      const vh = window.innerHeight;
-      const target = Math.min(Math.floor(vh * 0.86), 760);
-      setModalHeight(Math.max(520, target));
-    };
-
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, [pulseId]);
-
-  const handleOverlayPointerDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) onClose();
-    },
-    [onClose]
-  );
-
   const isOpen = Boolean(pulseId);
-
-  const modalEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
-  const compactHeight = 210;
-  const expandedHeight = modalHeight ?? 640;
 
   return (
     <>
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop with blur */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.22, ease: modalEase }}
-            className="fixed inset-0 z-80 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
-            style={{ 
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: '100vw',
-              height: '100vh',
-            }}
-          />
-
-          {/* Modal overlay (keeps it centered on all screens) */}
-          <div
-            className="fixed inset-0 z-90 flex items-center justify-center p-4"
-            onMouseDown={handleOverlayPointerDown}
-            onTouchStart={handleOverlayPointerDown}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 10, height: compactHeight }}
-              animate={{ opacity: 1, y: 0, height: expandedHeight }}
-              exit={{ opacity: 0, y: 8, height: compactHeight }}
-              transition={{ duration: 0.24, ease: modalEase }}
-              className="w-full max-w-2xl max-h-[90dvh] overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl bg-white dark:bg-zinc-900 flex flex-col"
-              style={{
-                transformOrigin: '50% 50%',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              }}
-            >
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent accessibleTitle="Pulse details" aria-describedby={undefined} hideCloseButton
+        className="flex h-[min(86dvh,760px)] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-2xl p-0 motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none"
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          requestAnimationFrame(() => {
+            // The feed stays mounted; return focus without shifting its scroll.
+            const trigger = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-pulse-open]'))
+              .find(link => link.dataset.pulseOpen === pulseId);
+            trigger?.focus({ preventScroll: true });
+          });
+        }}>
             {/* Header */}
-            <div className="relative flex items-center justify-between border-b border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 px-5 py-4">
+            <div className="relative flex shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3 py-2 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20">
                   <FiTrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -627,25 +560,28 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                   variant="ghost"
                   size="sm"
                   onClick={copyLink}
-                  className="h-8 gap-1.5 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  aria-label={copied ? 'Copied link' : 'Share'}
+                  className="min-h-11 gap-1.5 text-muted-foreground hover:bg-muted hover:text-foreground max-sm:size-11 max-sm:p-0"
                 >
                   {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-500" /> : <FiCopy className="h-3.5 w-3.5" />}
-                  <span className="text-xs">{copied ? 'Copied!' : 'Share'}</span>
+                  <span className="hidden text-xs sm:inline">{copied ? 'Copied!' : 'Share'}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={openFullPage}
-                  className="h-8 gap-1.5 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  aria-label="Expand"
+                  className="min-h-11 gap-1.5 text-muted-foreground hover:bg-muted hover:text-foreground max-sm:size-11 max-sm:p-0"
                 >
                   <FiExternalLink className="h-3.5 w-3.5" />
-                  <span className="text-xs">Expand</span>
+                  <span className="hidden text-xs sm:inline">Expand</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8 text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+                  aria-label="Close pulse"
+                  className="size-11 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <FiX className="h-4 w-4" />
                 </Button>
@@ -718,7 +654,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                 {/* Scrollable content */}
                 <div
                   ref={scrollRef}
-                  className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
+                  data-pulse-detail-scroll
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
                 >
                   <div className="p-5">
                     {loading ? (
@@ -796,17 +733,16 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                           {pulse.tags && pulse.tags.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-2">
                               {pulse.tags.map(tag => (
-                                <Badge
+                                <button type="button"
                                   key={tag}
-                                  variant="secondary"
-                                  className="cursor-pointer border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-700 dark:hover:text-emerald-200 transition-colors"
+                                  className="inline-flex min-h-11 items-center rounded-full border border-primary/20 bg-primary/10 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                                   onClick={() => {
-                                    onTagClick?.(tag);
-                                    onClose();
+                                    if (onTagClick) onTagClick(tag);
+                                    else onClose();
                                   }}
                                 >
                                   #{tag}
-                                </Badge>
+                                </button>
                               ))}
                             </div>
                           )}
@@ -1189,11 +1125,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                 )}
               </div>
             )}
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+      </DialogContent>
+    </Dialog>
 
     {/* Report Dialog */}
     {pulse && (
