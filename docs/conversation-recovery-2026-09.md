@@ -28,6 +28,19 @@ valid group conversation, each at 390/1280; back navigation, no page errors and 
 horizontal overflow are asserted. A retained isolated demo session is used;
 message reads are intercepted. No message or conversation is created/deleted.
 
-Hosted acceptance, explicit stale-response race regression, real populated
-conversation fixtures and members-panel responsive interaction remain pending.
-Do not treat these four tests as acceptance of all conversation features.
+Follow-up: the fixed 300px inline members panel reduced a phone composer from
+356px to 56px. It now reuses the existing AI chat Sheet, with focus restoration,
+44px trigger, safe-area padding, independent scrolling and no width animation.
+Guideline review used the current
+[Vercel interface guidelines](https://github.com/vercel-labs/web-interface-guidelines/blob/main/command.md).
+
+Expanded local browser acceptance passes 17/17 in 28.4 seconds, no retries/skips,
+at 360, 390, 844 landscape, 768, 1024, 1280, 1920 and 2560 pixels. The composer
+width stays unchanged while the sheet opens; closing restores focus. Screenshot
+inspection confirms phone/landscape bounds. The stale-response regression proves
+that leaving a held request aborts it and the next thread remains visible after
+the old transport response is released. All data are intercepted fixtures.
+
+Hosted acceptance and real populated conversations remain pending. This is not
+acceptance of all messaging/voice functions. Separate audit finding to reproduce:
+the inbox's Edit action links to a route not present in the current route tree.

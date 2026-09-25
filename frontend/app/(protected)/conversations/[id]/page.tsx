@@ -15,6 +15,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useConfirm } from '@/components/providers/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser, FiBellOff } from 'react-icons/fi';
 import {
@@ -74,6 +75,7 @@ function ConversationThread() {
   const [muted, setMuted] = useState(false);
   // Right rail (members + voice channel) toggle.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const membersButtonRef = useRef<HTMLButtonElement>(null);
 
   const currentUser = useCurrentUser();
 
@@ -257,7 +259,7 @@ function ConversationThread() {
   }));
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-var(--app-header-offset,64px))]">
+    <div className="relative flex min-w-0 flex-col h-[calc(100dvh-var(--app-header-offset,64px))]">
       {/* Header — OPEN, no second bar. A soft top-down fade (no border, no solid
           fill) so it melts into the thread/landing background instead of reading
           as a chunky toolbar stacked under the global topbar. */}
@@ -329,11 +331,14 @@ function ConversationThread() {
         )}
 
         <button
+          ref={membersButtonRef}
           onClick={() => setSidebarOpen((v) => !v)}
           aria-label="Members & voice"
+          aria-haspopup="dialog"
+          aria-expanded={sidebarOpen}
           title="Members & voice"
           className={cn(
-            'grid place-items-center h-9 w-9 rounded-full transition-colors',
+            'grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             sidebarOpen
               ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10'
               : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10',
@@ -445,17 +450,12 @@ function ConversationThread() {
           </div>
         </div>
 
-        {/* Right rail — shared ChatSidebar (members + Discord-like voice) */}
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
-              className="border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
-            >
-              <div className="w-[300px] h-full">
+        {/* Reuse the AI conversation sheet; never squeeze the transcript. */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="right" accessibleTitle="Members & voice" accessibleDescription="Conversation members and experimental voice tools."
+            onCloseAutoFocus={event => { event.preventDefault(); membersButtonRef.current?.focus(); }}
+            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col border-border bg-background p-0 pt-14 pb-[env(safe-area-inset-bottom)] dark:bg-background">
+              <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-16">
                 <ChatSidebar
                   roomId={conversationId!}
                   self={{ id: currentUser?.id ?? 'me', name: currentUser?.name ?? 'You', image: currentUser?.image ?? null }}
@@ -464,9 +464,8 @@ function ConversationThread() {
                   members={dmMembers}
                 />
               </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );
