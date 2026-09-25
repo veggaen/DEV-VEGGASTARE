@@ -80,8 +80,7 @@ export default function LoginPage() {
     </Form>
     {!showTwoFactor && <div className="mt-6 space-y-4 border-t border-border pt-6">
       <DemoLoginButton />
-      {IS_WEB3_CONFIGURED ? <WalletConnectChooser><Button type="button" variant="outline" className="min-h-11 w-full">Connect with Web3</Button></WalletConnectChooser> :
-        <p className="text-center text-sm text-muted-foreground">Wallet sign-in is unavailable. Use email or a provider above.</p>}
+      <WalletConnectChooser><Button type="button" variant="outline" className="min-h-11 w-full">Connect with Web3</Button></WalletConnectChooser>
     </div>}
   </AuthPageShell>;
 }

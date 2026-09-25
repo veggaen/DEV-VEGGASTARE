@@ -2,6 +2,7 @@
 import { dbPrisma } from '@/lib/db';
 import { lockedWalletUser, WalletLinkError } from '@/lib/wallet-link';
 import { walletActionCode } from '@/lib/wallet-action-code';
+import { isAddress } from 'viem';
 
 type Mutation = { action: 'rename'; label: string } | { action: 'setPrimary' | 'unlink'; code?: string | null };
 
@@ -23,6 +24,21 @@ export async function mutateWallet(input: { userId: string; origin: string; wall
       throw new WalletLinkError('Verify this wallet before using it for sales.', 409);
     }
     if (input.action === 'unlink') {
+      if (wallet.verifiedAt) {
+        const account = await tx.user.findUnique({ where: { id: user.id }, select: {
+          password: true, emailVerified: true, Account: { where: { provider: { in: ['google', 'github', 'discord'] } }, select: { id: true } },
+        } });
+        if (!(account?.password && account.emailVerified) && !account?.Account.length) {
+          const alternatives = await tx.wallet.findMany({ where: { id: { not: wallet.id }, ownerUserId: user.id, ownerCompanyId: null, family: 'EVM', verifiedAt: { not: null } }, select: { address: true } });
+          let canSignIn = false;
+          for (const alternative of alternatives) {
+            if (!isAddress(alternative.address)) continue;
+            const ambiguous = await tx.wallet.findFirst({ where: { family: 'EVM', ownerCompanyId: null, ownerUserId: { not: user.id }, verifiedAt: { not: null }, address: { equals: alternative.address, mode: 'insensitive' } }, select: { id: true } });
+            if (!ambiguous) { canSignIn = true; break; }
+          }
+          if (!canSignIn) throw new WalletLinkError('Add another sign-in method before unlinking your last sign-in wallet.', 409);
+        }
+      }
       const references = await tx.wallet.findUnique({ where: { id: wallet.id }, select: { _count: { select: {
         Product: true, AcceptedTokenReceivers: true, Donation: true, DefaultWalletForCompanies: true,
         DefaultWalletForUsers: { where: { id: { not: user.id } } },

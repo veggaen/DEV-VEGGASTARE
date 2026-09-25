@@ -5,6 +5,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { dbPrisma } from '@/lib/db';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { walletLinkMessage, WALLET_LINK_TTL } from '@/lib/wallet-link-message';
+import { lockWalletIdentity } from '@/lib/wallet-identity-lock';
 
 export class WalletLinkError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -74,7 +75,13 @@ export async function verifyWalletLink(input: {
   try { valid = await verifyMessage({ address: getAddress(challenge.address), message: challenge.message, signature: input.signature }); } catch { /* invalid proof */ }
   if (!valid) throw new WalletLinkError('Signature did not match. Check the selected wallet and try again.');
   return dbPrisma.$transaction(async tx => {
+    await lockWalletIdentity(tx, challenge.address);
     const user = await lockedWalletUser(tx, input.userId);
+    const otherOwner = await tx.wallet.findFirst({ where: {
+      family: 'EVM', ownerCompanyId: null, ownerUserId: { not: user.id }, verifiedAt: { not: null },
+      address: { equals: challenge.address, mode: 'insensitive' },
+    }, select: { id: true } });
+    if (otherOwner) throw new WalletLinkError('This wallet is already linked to another account. Sign in to that account to manage it.', 409);
     const expected = walletLinkMessage({ ...challenge, origin: input.origin, chainId: challenge.chainId!, twoFactor: user.isTwoFactorEnabled });
     if (challenge.message !== expected || challenge.createdAt.getTime() > Date.now()
       || challenge.expires.getTime() - challenge.createdAt.getTime() !== WALLET_LINK_TTL) {

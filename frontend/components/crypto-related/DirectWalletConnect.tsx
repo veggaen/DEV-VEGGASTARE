@@ -12,11 +12,12 @@
  */
 
 import * as React from "react";
-import { useConnect } from "wagmi";
+import { useConfig, useConnect } from "wagmi";
 import Image from "next/image";
 import { toast } from "sonner";
 import { FiLoader } from "react-icons/fi";
 import { useWalletSignIn } from "@/hooks/use-wallet-sign-in";
+import { WalletSignInProgress } from './WalletSignInProgress';
 
 // Friendly metadata per connector id (icons live in /public/wallets).
 const WALLET_META: Record<string, { label: string; icon?: string; emoji?: string }> = {
@@ -37,7 +38,9 @@ export default function DirectWalletConnect({
   onConnected?: () => void;
 }) {
   const { connectAsync, connectors, isPending, variables } = useConnect();
-  const { signInWithAddress, signingIn: authing } = useWalletSignIn();
+  const config = useConfig();
+  const flow = useWalletSignIn();
+  const { signInWithAddress, signingIn: authing } = flow;
   const [error, setError] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState<Record<string, boolean>>({});
   React.useEffect(() => {
@@ -58,7 +61,10 @@ export default function DirectWalletConnect({
   const handleConnect = async (connector: (typeof connectors)[number]) => {
     setError(null);
     try {
-      const result = await connectAsync({ connector });
+      // A cancelled signature/code leaves the extension connected. An explicit
+      // retry should sign again, not fail with ConnectorAlreadyConnectedError.
+      const existing = [...config.state.connections.values()].find(connection => connection.connector.uid === connector.uid);
+      const result = existing || await connectAsync({ connector });
       const account = result.accounts?.[0];
       if (!account) throw new Error("No account returned");
       if (!authenticateOnConnect) {
@@ -68,7 +74,7 @@ export default function DirectWalletConnect({
       }
       // Shared SIWE flow (wagmi useSignMessage under the hood) — same path the
       // AppKit bridge uses, so there's one implementation.
-      if (await signInWithAddress(account)) onConnected?.();
+      if (await signInWithAddress(account, connector.uid)) onConnected?.();
     } catch (e) {
       const msg = (e as Error)?.message ?? "";
       setError(/reject|denied|cancel/i.test(msg)
@@ -114,8 +120,9 @@ export default function DirectWalletConnect({
 
   return (
     <div className={`grid grid-cols-1 gap-2 ${className}`}>
+      {authenticateOnConnect && <WalletSignInProgress flow={flow} />}
       {error && <p role="alert" className="rounded-lg border border-border p-3 text-sm text-muted-foreground">{error}</p>}
-      {direct.map((w) => {
+      {!authing && direct.map((w) => {
         const busy = (isPending && variables?.connector === w.connector) || authing;
         const pending = busy;
         const unavailable = w.connector.type === 'injected' && !ready[w.connector.uid];
@@ -130,14 +137,14 @@ export default function DirectWalletConnect({
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-background">
               {pending ? (
-                <FiLoader className="h-4 w-4 animate-spin text-muted-foreground" />
+                <FiLoader aria-hidden="true" className="h-4 w-4 motion-safe:animate-spin text-muted-foreground" />
               ) : w.icon ? (
                 <Image src={w.icon} alt={w.label} width={20} height={20} unoptimized className="rounded" />
               ) : (
                 <span className="text-base leading-none">{w.emoji}</span>
               )}
             </span>
-            <span className="min-w-0 flex-1 text-left">{authing ? "Sign in your wallet…" : pending ? "Connecting…" : w.label}
+            <span className="min-w-0 flex-1 text-left">{authing ? "Sign-in in progress…" : pending ? "Connecting…" : w.label}
               {unavailable && <span className="block text-xs font-normal text-muted-foreground">No extension detected in this browser</span>}
             </span>
           </button>

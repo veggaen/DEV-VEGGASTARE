@@ -3,7 +3,7 @@ import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vites
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@/generated/prisma/client';
+import { PrismaClient, UserRole, IdentityNameSource, IdentityImageSource, EmailDisplayMode, UserVerificationTier, CostBasisMethod } from '@/generated/prisma/client';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import { previewDatabaseUrl } from '@/lib/preview-database';
 import { parseSiweMessage } from 'viem/siwe';
@@ -19,6 +19,7 @@ import { POST as issueRoute } from '@/app/api/wallets/evm/challenge/route';
 import { POST as verifyRoute } from '@/app/api/wallets/evm/verify/route';
 import { mutateWallet } from '@/lib/wallet-mutation';
 import { changePayoutWallet } from '@/lib/payout-wallet';
+import { createWalletLoginChallenge, prepareWalletLogin, authenticateWalletLogin } from '@/lib/wallet-login';
 import { PATCH as patchRoute, DELETE as deleteRoute } from '@/app/api/wallets/evm/[walletId]/route';
 import { POST as createRoute } from '@/app/api/wallets/route';
 
@@ -33,9 +34,23 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     admin = new Client({ connectionString: url.toString() }); await admin.connect();
     if (!/^qa_wallet_link_[a-f0-9]{32}$/.test(schema)) throw new Error('Invalid disposable schema');
     await admin.query(`CREATE SCHEMA "${schema}"`); await admin.query(`SET search_path TO "${schema}"`);
+    for (const [name, values] of Object.entries({ UserRole, IdentityNameSource, IdentityImageSource, EmailDisplayMode, UserVerificationTier, CostBasisMethod })) {
+      if (!/^[A-Za-z]+$/.test(name) || Object.values(values).some(value => !/^[A-Z0-9_]+$/.test(value))) throw new Error('Unexpected fixture enum');
+      await admin.query(`CREATE TYPE "${name}" AS ENUM (${Object.values(values).map(value => `'${value}'`).join(',')})`);
+    }
     await admin.query(`CREATE TYPE "ChainFamily" AS ENUM ('EVM','SOLANA');
       CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT DEFAULT 'qa@example.test', "name" TEXT DEFAULT 'QA',
-        "web3ModeEnabled" BOOLEAN DEFAULT TRUE, "isTwoFactorEnabled" BOOLEAN DEFAULT FALSE, "defaultReceivingWalletId" TEXT, "updatedAt" TIMESTAMP(3));
+        "web3ModeEnabled" BOOLEAN DEFAULT TRUE, "isTwoFactorEnabled" BOOLEAN DEFAULT FALSE, "defaultReceivingWalletId" TEXT, "updatedAt" TIMESTAMP(3),
+        "emailVerified" TIMESTAMP(3), "password" TEXT, "image" TEXT, "verificationTier" TEXT DEFAULT 'ANONYMOUS',
+        "role" TEXT DEFAULT 'USER', "createdAt" TIMESTAMP(3) DEFAULT now(), "identityNameSource" TEXT DEFAULT 'AUTO',
+        "identityImageSource" TEXT DEFAULT 'AUTO', "emailDisplayMode" TEXT DEFAULT 'PRIMARY',
+        "hasDiscordAuth" BOOLEAN DEFAULT FALSE, "hasGithubAuth" BOOLEAN DEFAULT FALSE, "hasGoogleAuth" BOOLEAN DEFAULT FALSE,
+        "hasVerifiedWallet" BOOLEAN DEFAULT FALSE, "hasWeb2Payment" BOOLEAN DEFAULT FALSE, "hasWeb3Payment" BOOLEAN DEFAULT FALSE,
+        "siteNoticeDismissedVersion" INTEGER DEFAULT 0, "verificationScore" INTEGER DEFAULT 0,
+        "reachLifetime" DOUBLE PRECISION DEFAULT 0, "reachMomentum" DOUBLE PRECISION DEFAULT 0, "trueReach" DOUBLE PRECISION DEFAULT 0,
+        "riskScore" INTEGER DEFAULT 0, "tokenVersion" INTEGER DEFAULT 0, "taxHelperEnabled" BOOLEAN DEFAULT FALSE, "taxCostBasisMethod" TEXT DEFAULT 'FIFO');
+      CREATE TABLE "Account" ("id" TEXT PRIMARY KEY, "userId" TEXT, "provider" TEXT);
+      CREATE TABLE "WalletLoginNonce" ("id" TEXT PRIMARY KEY, "address" TEXT, "nonce" TEXT, "message" TEXT, "expires" TIMESTAMP(3), "usedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) DEFAULT now());
       CREATE TABLE "WalletVerificationChallenge" ("id" TEXT PRIMARY KEY, "userId" TEXT REFERENCES "User"("id"), "family" "ChainFamily",
         "address" TEXT, "chainId" INTEGER, "solanaCluster" TEXT, "nonce" TEXT, "message" TEXT, "expires" TIMESTAMP(3), "usedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) DEFAULT now(), "updatedAt" TIMESTAMP(3));
       CREATE TABLE "TwoFactorToken" ("id" TEXT PRIMARY KEY, "email" TEXT, "token" TEXT UNIQUE, "expires" TIMESTAMP(3), "createdAt" TIMESTAMP(3) DEFAULT now(), "updatedAt" TIMESTAMP(3));
@@ -59,7 +74,7 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
   });
   beforeEach(async () => {
     state.codeMail.mockReset().mockResolvedValue(undefined); state.linkedMail.mockReset().mockResolvedValue(undefined);
-    await admin.query(`TRUNCATE "Product","ProductAcceptedToken","Company","Donation","WalletVerificationChallenge","Wallet","TwoFactorToken","User";
+    await admin.query(`TRUNCATE "Product","ProductAcceptedToken","Company","Donation","WalletVerificationChallenge","WalletLoginNonce","Account","Wallet","TwoFactorToken","User";
       INSERT INTO "User" ("id") VALUES ('qa-owner'), ('qa-other');`);
   });
   const issue = async (overrides = {}) => {
@@ -358,5 +373,122 @@ describe.skipIf(process.env.TEST_WALLET_LINK_DATABASE !== '1')('wallet linking i
     await admin.query(`UPDATE "Company" SET "ownerId"='qa-owner' WHERE "id"='qa-company'`);
     const created = await createRoute(request()); expect(created.status).toBe(201);
     expect(await created.json()).toMatchObject({ ownerUserId: null, ownerCompanyId: 'qa-company', isDefault: false, verifiedAt: null });
+  });
+const browser = 'a'.repeat(64);
+  const login = async (overrides = {}) => {
+    const context = { origin: input.origin, browser, ...overrides };
+    const c = await createWalletLoginChallenge({ ...input, ...context });
+    return { ...context, challengeId: c.challengeId, signature: await account.signMessage({ message: c.message }) };
+  };
+  const linkOwner = async () => { await verifyWalletLink(await signed()); };
+  it.each(['http://localhost:3000', 'https://preview.example.test', 'https://www.veggat.com'])('login binds browser, host, chain and lifetime for %s', async origin => {
+    await linkOwner();
+    const proof = await login({ origin });
+    const stored = await db.walletLoginNonce.findUniqueOrThrow({ where: { id: proof.challengeId } });
+    expect(parseSiweMessage(stored.message)).toMatchObject({ domain: new URL(origin).host, uri: `${origin}/auth/login`, chainId: 1, version: '1' });
+    expect(stored.message).not.toContain(browser);
+    expect(await prepareWalletLogin(proof)).toBeNull();
+    expect((await authenticateWalletLogin(proof)).id).toBe(input.userId);
+    await expect(authenticateWalletLogin(proof)).rejects.toThrow();
+  });
+  it.each(['origin', 'browser', 'signature', 'expired', 'tampered', 'disabled', 'ambiguous'])('login rejects %s without consuming proof', async fault => {
+    await linkOwner(); const proof = await login();
+    if (fault === 'origin') proof.origin = 'https://www.veggat.com';
+    if (fault === 'browser') proof.browser = 'b'.repeat(64);
+    if (fault === 'signature') proof.signature = await privateKeyToAccount(generatePrivateKey()).signMessage({ message: 'wrong' });
+    if (fault === 'expired') await db.walletLoginNonce.update({ where: { id: proof.challengeId }, data: { expires: new Date(0) } });
+    if (fault === 'tampered') await db.walletLoginNonce.update({ where: { id: proof.challengeId }, data: { message: 'old custom message' } });
+    if (fault === 'disabled') await admin.query(`UPDATE "User" SET "web3ModeEnabled"=FALSE WHERE "id"='qa-owner'`);
+    if (fault === 'ambiguous') await db.wallet.create({ data: { label: 'Legacy duplicate', family: 'EVM', address: account.address, ownerUserId: 'qa-other', verifiedAt: new Date() } });
+    await expect(authenticateWalletLogin(proof)).rejects.toThrow();
+    expect((await db.walletLoginNonce.findUniqueOrThrow({ where: { id: proof.challengeId } })).usedAt).toBeNull();
+  });
+  it('login concurrent replay succeeds once without changing the receiving wallet', async () => {
+    await linkOwner(); const before = await destination(), proof = await login();
+    const results = await Promise.allSettled([authenticateWalletLogin(proof), authenticateWalletLogin(proof), authenticateWalletLogin(proof)]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(await destination()).toEqual(before); expect(await db.user.count()).toBe(2);
+  });
+  it('login from two browsers does not invalidate the other browser challenge', async () => {
+    await linkOwner(); const first = await login(), second = await login({ browser: 'b'.repeat(64) });
+    expect((await authenticateWalletLogin(first)).id).toBe(input.userId);
+    expect((await authenticateWalletLogin(second)).id).toBe(input.userId);
+  });
+  it('login requires exact, purpose-scoped 2FA and consumes it atomically once', async () => {
+    await linkOwner(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"emailVerified"=now() WHERE "id"='qa-owner'`);
+    const proof = await login(), gate = await prepareWalletLogin(proof); expect(gate).not.toBeNull();
+    await expect(authenticateWalletLogin(proof)).rejects.toThrow();
+    await expect(authenticateWalletLogin({ ...proof, code: gate!.code + '0' })).rejects.toThrow();
+    const another = await login(); await expect(authenticateWalletLogin({ ...another, code: gate!.code })).rejects.toThrow();
+    const results = await Promise.allSettled([authenticateWalletLogin({ ...proof, code: gate!.code }), authenticateWalletLogin({ ...proof, code: gate!.code })]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1); expect(await db.twoFactorToken.count()).toBe(0);
+  });
+  it('login refuses 2FA without a verified email and never issues a token', async () => {
+    await linkOwner(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE WHERE "id"='qa-owner'`);
+    const proof = await login(); await expect(prepareWalletLogin(proof)).rejects.toThrow();
+    await expect(authenticateWalletLogin(proof)).rejects.toThrow(); expect(await db.twoFactorToken.count()).toBe(0);
+  });
+  it('login code consumption rolls back if nonce consumption fails', async () => {
+    await linkOwner(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"emailVerified"=now() WHERE "id"='qa-owner'`);
+    const proof = await login(), gate = await prepareWalletLogin(proof);
+    await admin.query(`ALTER TABLE "WalletLoginNonce" ADD CONSTRAINT qa_nonce_failure CHECK ("usedAt" IS NULL)`);
+    try { await expect(authenticateWalletLogin({ ...proof, code: gate!.code })).rejects.toThrow(); }
+    finally { await admin.query(`ALTER TABLE "WalletLoginNonce" DROP CONSTRAINT qa_nonce_failure`); }
+    expect(await db.twoFactorToken.count()).toBe(1);
+    expect((await authenticateWalletLogin({ ...proof, code: gate!.code })).id).toBe(input.userId);
+  });
+  it('linking cannot give an already-linked identity to a second account', async () => {
+    await linkOwner(); const proof = await signed({ userId: 'qa-other' });
+    await expect(verifyWalletLink({ ...proof, userId: 'qa-other' })).rejects.toThrow('another account');
+    expect(await db.wallet.count()).toBe(1);
+  });
+  it('cannot unlink the last login wallet without another verified sign-in method', async () => {
+    await linkOwner(); const wallet = await db.wallet.findFirstOrThrow();
+    const remove = () => mutateWallet({ userId: input.userId, origin: input.origin, walletId: wallet.id, action: 'unlink' });
+    await expect(remove()).rejects.toThrow('another sign-in method');
+    await admin.query(`UPDATE "User" SET "password"='qa-hash' WHERE "id"='qa-owner'`);
+    await expect(remove()).rejects.toThrow('another sign-in method');
+    await admin.query(`UPDATE "User" SET "emailVerified"=now() WHERE "id"='qa-owner'`);
+    await remove(); expect(await db.wallet.count()).toBe(0);
+  });
+  it.each(['manual', 'company', 'solana', 'unowned'])('fresh login never claims a %s wallet record', async kind => {
+    const original = await db.wallet.create({ data: { label: 'Not a login', family: kind === 'solana' ? 'SOLANA' : 'EVM',
+      address: account.address, ownerUserId: kind === 'unowned' ? null : 'qa-owner',
+      ownerCompanyId: kind === 'company' ? 'qa-company' : null, verifiedAt: kind === 'manual' ? null : new Date() } });
+    const proof = await login(); const user = await authenticateWalletLogin(proof);
+    expect(user.id).not.toBe('qa-owner'); expect(user.id).not.toBe('qa-other');
+    expect(await db.wallet.findUnique({ where: { id: original.id } })).toEqual(original);
+    expect(await db.wallet.count()).toBe(2);
+    expect((await db.user.findUnique({ where: { id: user.id }, select: { defaultReceivingWalletId: true } }))?.defaultReceivingWalletId).toBeNull();
+  });
+  it('different simultaneous first-login challenges create only one account', async () => {
+    const proofs = await Promise.all([login(), login({ browser: 'b'.repeat(64) })]);
+    const users = await Promise.all(proofs.map(authenticateWalletLogin));
+    expect(new Set(users.map(u => u.id)).size).toBe(1); expect(await db.wallet.count()).toBe(1); expect(await db.user.count()).toBe(3);
+  });
+  it('first login rolls back both new user and nonce when the wallet write fails', async () => {
+    const proof = await login();
+    await admin.query(`ALTER TABLE "Wallet" ADD CONSTRAINT qa_login_write_failure CHECK ("connectorType" IS DISTINCT FROM 'wallet-login')`);
+    try { await expect(authenticateWalletLogin(proof)).rejects.toThrow(); }
+    finally { await admin.query(`ALTER TABLE "Wallet" DROP CONSTRAINT qa_login_write_failure`); }
+    expect(await db.user.count()).toBe(2); expect(await db.wallet.count()).toBe(0);
+    expect((await db.walletLoginNonce.findUniqueOrThrow({ where: { id: proof.challengeId } })).usedAt).toBeNull();
+    await authenticateWalletLogin(proof); expect(await db.user.count()).toBe(3);
+  });
+  it('concurrent first sign-in and account linking cannot assign the same identity twice', async () => {
+    const link = await signed(), proof = await login();
+    const [, result] = await Promise.allSettled([verifyWalletLink(link), authenticateWalletLogin(proof)]);
+    expect(result.status).toBe('fulfilled');
+    expect(await db.wallet.count({ where: { verifiedAt: { not: null }, ownerCompanyId: null } })).toBe(1);
+  });
+  it('wallet login rejects ordinary email codes and expired purpose-scoped codes', async () => {
+    await linkOwner(); await admin.query(`UPDATE "User" SET "isTwoFactorEnabled"=TRUE,"emailVerified"=now() WHERE "id"='qa-owner'`);
+    const proof = await login();
+    await db.twoFactorToken.create({ data: { email: 'qa@example.test', token: '123456', expires: new Date(Date.now() + 300000) } });
+    await expect(authenticateWalletLogin({ ...proof, code: '123456' })).rejects.toThrow();
+    const gate = await prepareWalletLogin(proof);
+    await db.twoFactorToken.updateMany({ where: { email: { startsWith: 'wallet-login:' } }, data: { expires: new Date(0) } });
+    await expect(authenticateWalletLogin({ ...proof, code: gate!.code })).rejects.toThrow();
+    expect((await db.walletLoginNonce.findUniqueOrThrow({ where: { id: proof.challengeId } })).usedAt).toBeNull();
   });
 });

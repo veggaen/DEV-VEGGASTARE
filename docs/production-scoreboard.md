@@ -4,6 +4,16 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Wallet sign-in: **PARTIAL — local implementation, not deployed**. Browser/host-
+bound one-use EOA proof, verified personal-wallet identity resolution, atomic
+signup/2FA, shared address locks and last-wallet recovery checks replace the old
+address-only path. **214 focused checks (73 isolated PostgreSQL)** pass. Local
+real-signature sign-in/logout/replay and responsive code-form acceptance passed
+in a **12/12** focused browser run; final compact-UI follow-up recorded in
+[wallet sign-in evidence](wallet-login-evidence-2026-09.md). Real Chrome retained
+the signed-in owner session with no wallet changes. Web3 enable/disable security
+actions need alignment next, followed by combined Preview/live acceptance.
+
 Receiving-wallet settings: **PARTIAL — local verification complete, not deployed**.
 Personal/company setters now share ownership locks, host/action/current-choice
 codes, atomic destination writes and explicit clear confirmation. Wallet list and

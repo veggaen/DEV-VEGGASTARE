@@ -6,6 +6,111 @@ import { emptySaleCounts, SellerOrderList } from '../lib/payments/seller-orders'
 import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import { hexToString, type Hex } from 'viem';
+
+test('S2 wallet login proves a disposable wallet through the real local auth handler', async ({ browser, baseURL }, info) => {
+  test.skip(baseURL !== 'http://localhost:3000', 'Creates one disposable wallet-only user in the isolated local test database, never live');
+  const account = privateKeyToAccount(generatePrivateKey());
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [];
+  let signatures = 0, transactions = 0, proof: Record<string,string> | undefined;
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (request.url().includes('/api/auth/callback/wallet')) proof = Object.fromEntries(new URLSearchParams(request.postData() || ''));
+  });
+  await page.exposeFunction('__qaWalletSign', async (raw: string) => { signatures++; return account.signMessage({ message: raw.startsWith('0x') ? hexToString(raw as Hex) : raw }); });
+  await page.exposeFunction('__qaNoTransaction', () => { transactions++; throw new Error('QA forbids transactions'); });
+  await context.addInitScript(({ address }) => {
+    let connected = false;
+    const provider = {
+      request: async ({ method, params }: { method: string; params?: string[] }) => {
+        if (method === 'eth_chainId') return '0x1';
+        if (method === 'eth_accounts') return connected ? [address] : [];
+        if (method === 'eth_requestAccounts') { connected = true; return [address]; }
+        if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }];
+        if (method === 'personal_sign') return (window as unknown as { __qaWalletSign: (value: string) => Promise<string> }).__qaWalletSign(params![0]);
+        if (/sendTransaction/i.test(method)) return (window as unknown as { __qaNoTransaction: () => never }).__qaNoTransaction();
+        throw Object.assign(new Error('Unsupported QA method'), { code: 4200 });
+      }, on: () => {}, removeListener: () => {},
+    };
+    const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: { info: {
+      uuid: '98192f35-fbcf-4a24-82a9-55543a93a567', name: 'Veggat QA Login Wallet', icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', rdns: 'test.veggat.login',
+    }, provider } }));
+    window.addEventListener('eip6963:requestProvider', announce); announce();
+  }, { address: account.address });
+  try {
+    await page.goto('/auth/login');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Connect with Web3', exact: true }).click();
+    const chooser = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+    await chooser.getByRole('button', { name: /Veggat QA Login Wallet/ }).click();
+    await expect(page).toHaveURL(/\/products$/);
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user.id).toBeTruthy(); expect(session.user.email).toBeFalsy();
+    expect(signatures).toBe(1); expect(transactions).toBe(0); expect(errors).toEqual([]);
+    await info.attach('isolated-wallet-result', { body: JSON.stringify({ userId: session.user.id, address: account.address, environment: 'localhost / isolated Preview database' }), contentType: 'application/json' });
+    const csrf = await (await context.request.get('/api/auth/csrf')).json();
+    await context.request.post('/api/auth/signout', { form: { csrfToken: csrf.csrfToken, callbackUrl: '/auth/login' } });
+    expect(await (await context.request.get('/api/auth/session')).json()).toBeNull();
+    const newCsrf = await (await context.request.get('/api/auth/csrf')).json();
+    const replay = await context.request.post('/api/auth/callback/wallet', { headers: { origin: baseURL!, 'X-Auth-Return-Redirect': '1' }, form: { ...proof!, csrfToken: newCsrf.csrfToken }, maxRedirects: 0 });
+    expect((await replay.json()).url).toContain('CredentialsSignin');
+    expect(await (await context.request.get('/api/auth/session')).json()).toBeNull();
+  } finally { await context.close(); }
+});
+
+test('S2 wallet email code is responsive and cancellable without a real signature or email', async ({ browser, baseURL }, info) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), attempts: Record<string,string>[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await context.addInitScript(() => {
+    let connected = false;
+    const address = '0x' + '1'.repeat(40);
+    const provider = { request: async ({ method }: { method: string }) => {
+      if (method === 'eth_chainId') return '0x1';
+      if (method === 'eth_accounts') return connected ? [address] : [];
+      if (method === 'eth_requestAccounts') { connected = true; return [address]; }
+      if (method === 'wallet_requestPermissions' || method === 'wallet_getPermissions') return [{ parentCapability: 'eth_accounts' }];
+      if (method === 'personal_sign') return '0x' + '1'.repeat(130);
+      throw Object.assign(new Error('Unsupported QA method; transactions forbidden'), { code: 4200 });
+    }, on: () => {}, removeListener: () => {} };
+    const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: { provider, info: {
+      uuid: '8dc599ca-e3fb-46ac-bbc0-8b5e02f595cf', name: 'Veggat QA Code Wallet', rdns: 'test.veggat.code', icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>',
+    } } }));
+    window.addEventListener('eip6963:requestProvider', announce); announce();
+  });
+  await page.route('**/api/auth/wallet/nonce', route => route.fulfill({ json: { challengeId: 'qa-code-fixture', message: 'QA display fixture only', expires: new Date(Date.now() + 600000).toISOString() } }));
+  await page.route('**/api/auth/wallet/prepare', route => route.fulfill({ json: { twoFactor: true } }));
+  await page.route('**/api/auth/callback/wallet**', route => {
+    attempts.push(Object.fromEntries(new URLSearchParams(route.request().postData() || '')));
+    return route.fulfill({ status: 401, json: { url: `${baseURL}/auth/error?error=CredentialsSignin` } });
+  });
+  try {
+    await page.goto('/auth/login');
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await page.getByRole('button', { name: 'Connect with Web3', exact: true }).click();
+    const chooser = page.getByRole('dialog', { name: 'Connect a wallet', exact: true });
+    await chooser.getByRole('button', { name: /Veggat QA Code Wallet/ }).click();
+    const code = chooser.getByRole('textbox', { name: 'Email code', exact: true }); await expect(code).toBeVisible();
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await code.scrollIntoViewIfNeeded();
+      expect((await code.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await chooser.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const submit = chooser.getByRole('button', { name: 'Verify and sign in', exact: true });
+      await submit.scrollIntoViewIfNeeded(); await expect(submit).toBeInViewport();
+      await page.screenshot({ path: info.outputPath(`wallet-login-code-${width}.png`) });
+    }
+    await code.fill('123456'); await code.press('Enter'); await expect(chooser.getByRole('alert')).toContainText('Code incorrect or expired');
+    expect(attempts).toHaveLength(1); expect(attempts[0]).toMatchObject({ challengeId: 'qa-code-fixture', code: '123456' });
+    await chooser.getByRole('button', { name: 'Cancel sign-in', exact: true }).click(); await expect(code).toHaveCount(0);
+    await chooser.getByRole('button', { name: /Veggat QA Code Wallet/ }).click(); await expect(code).toBeVisible();
+    await chooser.getByRole('button', { name: 'Cancel sign-in', exact: true }).click();
+    await page.keyboard.press('Escape'); await expect(chooser).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Connect with Web3', exact: true })).toBeFocused(); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
 
 test('S6 seller receiving choices require explicit confirmation and fit each screen', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; all Server Actions below are intercepted, no wallet writes or mail');

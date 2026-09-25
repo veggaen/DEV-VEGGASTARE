@@ -73,7 +73,7 @@ export default function WalletConnectChooser({
         <DialogHeader className="pr-10 text-left">
           <DialogTitle className="text-lg">Connect a wallet</DialogTitle>
           <DialogDescription>
-            Connect a browser wallet or use WalletConnect. Connecting alone does not authorize a payment.
+            {authenticateDirect ? 'Sign in with your EVM wallet. No payment or gas fee.' : 'Choose your wallet. Connecting does not authorize a payment.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -106,7 +106,7 @@ export default function WalletConnectChooser({
             </div>
           ) : <div className="rounded-xl border border-border bg-muted/30 p-4">
             <p className="text-sm font-medium">WalletConnect unavailable</p>
-            <p className="mt-1 text-sm text-muted-foreground">QR and mobile-wallet connections are not configured for this deployment. A detected browser wallet can still connect below.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Use a detected browser wallet below.</p>
           </div>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
@@ -117,7 +117,7 @@ export default function WalletConnectChooser({
             </p>
             <DirectWalletConnect authenticateOnConnect={authenticateDirect} onConnected={() => changeOpen(false)} />
             <p className="mt-2 text-[11px] text-muted-foreground/70">
-              Goes straight to your wallet — no third-party picker.
+              {authenticateDirect ? 'EOA wallets only. Contract-wallet sign-in is not supported yet.' : 'Goes straight to your wallet — no third-party picker.'}
             </p>
           </div>
         </div>

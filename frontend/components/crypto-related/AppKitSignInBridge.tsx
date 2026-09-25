@@ -19,11 +19,13 @@ import * as React from "react";
 import { useAccount } from "wagmi";
 import { useSession } from "next-auth/react";
 import { useWalletSignIn } from "@/hooks/use-wallet-sign-in";
+import { WalletSignInProgress } from './WalletSignInProgress';
 
 export default function AppKitSignInBridge({ callbackUrl = "/products" }: { callbackUrl?: string }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const { status } = useSession();
-  const { signInWithAddress } = useWalletSignIn(callbackUrl);
+  const flow = useWalletSignIn(callbackUrl);
+  const { signInWithAddress } = flow;
   const triedRef = React.useRef<string | null>(null);
   // Snapshot whether a wallet was ALREADY connected on mount — we must only
   // auto-sign on a FRESH connection (disconnected → connected this session),
@@ -42,9 +44,11 @@ export default function AppKitSignInBridge({ callbackUrl = "/products" }: { call
     if (!isConnected || !address) return;
     if (wasConnectedOnMount.current) return; // was already connected before this page — ignore
     if (triedRef.current === address) return; // one attempt per fresh address
+    // Direct connectors own their explicit button flow. Only bridge AppKit.
+    if (connector?.id !== 'walletConnect' && connector?.type !== 'walletConnect' && connector?.id !== 'auth' && connector?.type !== 'auth') return;
     triedRef.current = address;
-    void signInWithAddress(address);
-  }, [isConnected, address, status, signInWithAddress]);
+    void signInWithAddress(address, connector.uid);
+  }, [isConnected, address, status, signInWithAddress, connector]);
 
-  return null;
+  return <WalletSignInProgress flow={flow} />;
 }
