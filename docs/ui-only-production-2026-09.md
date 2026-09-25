@@ -24,4 +24,33 @@ production terms have not been changed or assertions weakened.
 No CSS workaround is included for blank Pulse screenshot interiors: the owner
 confirmed actual posts remain visible while scrolling Explore.
 
-Live deployment and acceptance are recorded after completion.
+## Acceptance
+
+Runtime `fc652ac` is READY in production as
+`dpl_85HoopHh5RhmpM8G3Bv8fwdEufGf`, aliased to `https://www.veggat.com`.
+Vercel confirmed 54 migrations and none pending; no database migration ran.
+Local acceptance passes **6/6** (25.8 seconds); Live passes **6/6** (48.6
+seconds), no retries or skips. Standalone TypeScript and the dedicated test lint
+also pass. The retained Live demo session remained authenticated; no new grant.
+
+Real Chrome loads the signed-in Pulse route, shows 25 labelled post-option
+controls, opens a post menu, and dismisses it with Escape. No post/reaction,
+payment, refund, email, credit grant or provider call was submitted.
+
+Reproduce with `node node_modules/@playwright/test/cli.js test
+--config=playwright.ui-promotion.config.ts` from frontend, setting `E2E_BASE_URL`,
+`E2E_CONSENT=1`, `E2E_TERMS=1`, and `E2E_DEMO_STORAGE_STATE` to an ignored,
+authenticated demo session. Missing opt-in flags/session intentionally skip their
+tests; acceptance requires all six passing, not skipped.
+
+This closes these UI fixes locally then Live, not the full S1–S9 scoreboard.
+Native-currency activation and remaining owner-only checks stay open.
+
+## Live timing follow-up
+
+Two serial anonymous cold homepage samples at 390x844, 4x CPU, 1.6Mbps down,
+750Kbps up, 150ms latency and disabled cache measured LCP/FCP 2,284ms and
+2,332ms. Both had CLS 0, no page errors and no document overflow. Script
+transfer remains 1,061,830 B: this fixes late notice presentation, not the shared
+JavaScript cost. The earlier Live baseline was 8,312ms LCP. These are bounded
+lab observations, not field percentiles or proof that every route is fast.
