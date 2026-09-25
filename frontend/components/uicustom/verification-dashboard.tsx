@@ -49,7 +49,7 @@ const TIER_DISPLAY: Record<string, { label: string; icon: string; color: string;
   SOCIAL_BASIC:     { label: 'Social Connected',  icon: '🔵', color: '#06b6d4', description: 'Discord or GitHub OAuth'         },
   SOCIAL_VERIFIED:  { label: 'Social Verified',   icon: '✓',  color: '#10b981', description: 'Google OAuth verified'           },
   MULTI_SOCIAL:     { label: 'Multi-Social',      icon: '🔗', color: '#14b8a6', description: '2+ OAuth providers linked'       },
-  WEB2_PAYMENT:     { label: 'Payment Verified',  icon: '💳', color: '#f59e0b', description: 'Card payment on file'            },
+  WEB2_PAYMENT:     { label: 'Payment Verified',  icon: '💳', color: '#f59e0b', description: 'Verified Live PayPal purchase'   },
   WEB3_VERIFIED:    { label: 'Web3 Verified',     icon: '🏆', color: '#8b5cf6', description: 'Google + Verified wallet'        },
   WEB3_PAYMENT:     { label: 'Crypto Payments',   icon: '₿',  color: '#f97316', description: 'Crypto transaction verified'     },
   PAYMENT_VERIFIED: { label: 'Full Payment',      icon: '💰', color: '#eab308', description: 'Multiple payment methods'        },
@@ -82,7 +82,7 @@ const CHECKLIST: ChecklistItem[] = [
   { key: 'hasDiscordAuth',     label: 'Link Discord',           description: 'Connect your Discord account',                  points: 10,  icon: '🟣', action: 'discord' },
   { key: 'hasVerifiedWallet',  label: 'Verify Wallet',          description: 'Connect and sign with your crypto wallet',      points: 15,  icon: '⛓️', action: 'wallet' },
   { key: 'hasWeb2Payment',     label: 'Make a PayPal Purchase', description: 'Complete a verified PayPal purchase',          points: 15,  icon: '💳', action: 'purchase' },
-  { key: 'hasWeb3Payment',     label: 'Make a Crypto Purchase', description: 'Complete a purchase with cryptocurrency',       points: 15,  icon: '₿',  action: 'purchase' },
+  { key: 'hasWeb3Payment',     label: 'Crypto payment verification', description: 'Unavailable — server verification is not configured', points: 15, icon: '₿' },
   { key: 'phoneVerified',      label: 'Verify Phone',           description: 'Confirm your phone number via SMS',             points: 20,  icon: '📱', action: 'phone' },
   { key: 'isTwoFactorEnabled', label: 'Enable 2FA',             description: 'Enable two-factor authentication',              points: 5,   icon: '🔐', action: '2fa' },
 ];
@@ -376,10 +376,7 @@ export function VerificationDashboard() {
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
-      const res = await fetch('/api/users/verification', { method: 'POST' });
-      if (!res.ok) throw new Error();
-      toast.success('Verification recalculated');
-      await fetchVerification();
+      if (await fetchVerification()) toast.success('Verification refreshed');
     } catch {
       toast.error('Recalculation failed');
     } finally {
@@ -535,8 +532,8 @@ export function VerificationDashboard() {
             onClick={handleRecalculate}
             disabled={isRecalculating}
             className="text-muted-foreground hover:text-foreground"
-            title="Recalculate verification tier"
-            aria-label="Recalculate verification tier"
+            title="Refresh verification"
+            aria-label="Refresh verification"
           >
             <FiRefreshCw className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
           </Button>

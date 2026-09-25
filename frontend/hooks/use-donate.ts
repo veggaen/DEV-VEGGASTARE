@@ -7,8 +7,8 @@
  * Supports EVM (ETH, PLS) via wagmi + viem.
  * Solana support is scaffolded but disabled until tested.
  *
- * After a successful donation, the backend increments
- * `Wallet.donationTotalUsd` and recalculates the user's verification tier.
+ * The backend records a pending claim only. No trust, credits, or verified
+ * donation balance is awarded without server-side verification.
  *
  * @stability experimental
  */

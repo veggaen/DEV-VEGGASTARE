@@ -290,12 +290,8 @@ async function createOrUpdateWallet(
 		}).catch((err) => console.error('[wallet-verify] Failed to send linked email:', err));
 	}
 
-	// Recalculate verification tier (wallet linked = hasVerifiedWallet: true)
-	recalculateVerificationTier(
-		me.id,
-		{ hasVerifiedWallet: true },
-		'Wallet linked'
-	).catch((err) => console.error('[wallet-verify] Failed to recalculate tier:', err));
+	// Read committed signature evidence instead of overriding a cached flag.
+	await recalculateVerificationTier(me.id);
 
 	const walletDto = {
 		id: wallet.id,

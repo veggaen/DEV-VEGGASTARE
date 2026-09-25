@@ -4,6 +4,15 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Verification-evidence follow-up: **PARTIAL — implementation and 68 focused
+tests pass (55 units, 13 isolated PostgreSQL cases)**. Settings and Reach share
+current provider/wallet/Live-capture evidence. Refresh is read-only; pending
+donation claims cannot increase verified totals. The PostgreSQL race found and
+fixed a Prisma raw-query retry gap. Final strict build and local browser **2/2**
+pass (16.2s). Focused lint passes; the wallet/E2E lint process is still running.
+Live deployment/acceptance is pending. No email, purchase, refund or credit grant occurred. See
+[verification-evidence notes](verification-evidence-2026-09.md).
+
 Account-verification follow-up: **PARTIAL, guarded link fix deployed**.
 Truthful pending/expired badges, real resend action, scanner-safe confirmation,
 atomic token use and last-login preservation are implemented. **55 units + 2

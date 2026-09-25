@@ -277,7 +277,7 @@ export const {
             await dbPrisma.pendingOAuthLink.deleteMany({
               where: { userId: user.id, provider },
             });
-            await recalculateVerificationTier(user.id, { [flagKey]: true });
+            await recalculateVerificationTier(user.id);
             return;
           }
 

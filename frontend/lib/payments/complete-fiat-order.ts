@@ -231,23 +231,9 @@ export async function completePaidOrder(
   console.log(`[completePaidOrder] Order ${orderId} completed via ${opts.source}`);
   await publishWarehouseInventoryUpdates(inventoryUpdates);
 
-  try {
-    if (opts.paymentKind === 'web3') {
-      await dbPrisma.user.update({
-        where: { id: order.userId },
-        data: { hasWeb3Payment: true },
-      });
-      await recalculateVerificationTier(order.userId, { hasWeb3Payment: true });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: order.userId },
-        data: { hasWeb2Payment: true },
-      });
-      await recalculateVerificationTier(order.userId, { hasWeb2Payment: true });
-    }
-  } catch (err) {
-    console.error('[completePaidOrder] Failed to set payment verification flag:', err);
-  }
+  // Legacy completion is not independent payment evidence. The shared reader
+  // awards trust only for a server-verified Live capture.
+  await recalculateVerificationTier(order.userId);
 
   const items = order.OrderItem ?? [];
   let downloadTokens: Awaited<ReturnType<typeof generateDownloadTokensForOrder>> = [];

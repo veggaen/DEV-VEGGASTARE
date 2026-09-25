@@ -1,149 +1,41 @@
-/**
- * Verification Tier Recalculation Utility
- * 
- * Shared function to recalculate a user's verification tier and score.
- * Used by: auth.ts (OAuth link), order routes (payment completion),
- * payment webhooks, phone verification, and manual recalculation.
- */
-
+/** @fileOverview Persist derived verification caches from current evidence only. @stability evolving */
 import { dbPrisma } from '@/lib/db';
-import { 
-  determineUserVerificationTier, 
-  calculateVerificationScore,
-  VERIFICATION_TIER_MULTIPLIERS
-} from '@/lib/view-strength';
-import { sendAuthLevelChangeEmail } from '@/lib/mail';
-import { computeReach, type ReachInputs, type WalletSignal } from '@/lib/reach/reach-engine';
+import { loadVerificationEvidence } from '@/lib/verification-evidence';
 
-const LOG_PREFIX = '[verification-recalc]';
+function serializationConflict(error: unknown) {
+  if (!error || typeof error !== 'object' || !('code' in error)) return false;
+  if (error.code === 'P2034') return true;
+  // PostgreSQL reports a conflicting FOR UPDATE through Prisma's raw-query
+  // error, rather than P2034. Retry only the specific serialization SQLSTATE.
+  if (error.code !== 'P2010' || !('meta' in error) || !error.meta || typeof error.meta !== 'object') return false;
+  if ('code' in error.meta && error.meta.code === '40001') return true;
+  const adapter = 'driverAdapterError' in error.meta ? error.meta.driverAdapterError : null;
+  const cause = adapter && typeof adapter === 'object' && 'cause' in adapter ? adapter.cause : null;
+  return cause != null && typeof cause === 'object' && 'originalCode' in cause && cause.originalCode === '40001';
+}
 
-/**
- * Recalculate and persist a user's verification tier + score.
- * 
- * @param userId  — The user ID to recalculate for
- * @param overrides — Optional partial overrides to apply before calculation
- *                    (e.g. { hasGoogleAuth: true } when we know a flag just changed)
- * @returns The new tier and score, or null on error
- */
-export async function recalculateVerificationTier(
-  userId: string,
-  overrides?: Partial<{
-    hasGoogleAuth: boolean;
-    hasDiscordAuth: boolean;
-    hasGithubAuth: boolean;
-    hasVerifiedWallet: boolean;
-    hasWeb2Payment: boolean;
-    hasWeb3Payment: boolean;
-    phoneVerified: Date | null;
-    emailVerified: Date | null;
-    isTwoFactorEnabled: boolean;
-  }>,
-  triggerAction?: string
-): Promise<{ tier: string; score: number } | null> {
-  try {
-    const user = await dbPrisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        name: true,
-        email: true,
-        hasGoogleAuth: true,
-        hasDiscordAuth: true,
-        hasGithubAuth: true,
-        hasVerifiedWallet: true,
-        hasWeb2Payment: true,
-        hasWeb3Payment: true,
-        phoneVerified: true,
-        emailVerified: true,
-        isTwoFactorEnabled: true,
-        web3ModeEnabled: true,
-        verificationTier: true,
-        verificationScore: true,
-        // True Reach engine inputs
-        bankidVerified: true,
-        vippsVerified: true,
-        emailRisk: true,
-        reachLifetime: true,
-      },
-    });
-
-    if (!user) {
-      console.error(LOG_PREFIX, `User ${userId} not found`);
+/** Cache maintenance is silent: explicit auth/wallet actions own their emails.
+ * No override parameter can turn a client claim into a verified flag. */
+export async function recalculateVerificationTier(userId: string): Promise<{ tier: string; score: number } | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await dbPrisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+        const evidence = await loadVerificationEvidence(tx, userId);
+        if (!evidence) return null;
+        const { flags, tier, score, reach } = evidence;
+        await tx.user.update({ where: { id: userId }, data: {
+          hasGoogleAuth: flags.hasGoogleAuth, hasGithubAuth: flags.hasGithubAuth, hasDiscordAuth: flags.hasDiscordAuth,
+          hasVerifiedWallet: flags.hasVerifiedWallet, hasWeb2Payment: flags.hasWeb2Payment, hasWeb3Payment: flags.hasWeb3Payment,
+          verificationTier: tier, verificationScore: score, trueReach: reach.trueReach, riskScore: reach.riskScore,
+        }, select: { id: true } });
+        return { tier, score };
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (serializationConflict(error) && attempt < 2) continue;
+      console.error('[verification-recalc] Unable to refresh verification cache');
       return null;
     }
-
-    // Query wallets for donation-based trust + reach-engine provenance signals.
-    let maxWalletDonationUsd = 0;
-    let walletSignals: WalletSignal[] = [];
-    try {
-      const wallets = await dbPrisma.wallet.findMany({
-        where: { ownerUserId: userId },
-        select: { donationTotalUsd: true, verifiedAt: true, riskTier: true },
-      });
-      maxWalletDonationUsd = wallets.reduce((m, w) => Math.max(m, w.donationTotalUsd ?? 0), 0);
-      walletSignals = wallets.map((w) => ({
-        verified: w.verifiedAt != null,
-        riskTier: (w.riskTier as WalletSignal['riskTier']) ?? 'neutral',
-        hasHistory: (w.donationTotalUsd ?? 0) > 0 || w.riskTier === 'kyc',
-      }));
-    } catch {
-      // columns may not exist yet (pre-migration) — ignore
-    }
-
-    // Merge current DB state with any overrides (for just-changed flags)
-    const merged = { ...user, ...overrides };
-    const donationOpts = { maxWalletDonationUsd };
-
-    const tier = determineUserVerificationTier(merged, donationOpts);
-    const score = calculateVerificationScore(merged, donationOpts);
-
-    // ── True Reach engine (lib/reach) — class-based trust + risk + reach ──
-    const reachInputs: ReachInputs = {
-      bankidVerified: merged.bankidVerified != null,
-      vippsVerified: merged.vippsVerified != null,
-      phoneVerified: merged.phoneVerified != null,
-      hasCardPayment: !!merged.hasWeb2Payment,
-      hasWeb3Spend: !!merged.hasWeb3Payment,
-      hasGoogle: !!merged.hasGoogleAuth,
-      hasGithub: !!merged.hasGithubAuth,
-      hasDiscord: !!merged.hasDiscordAuth,
-      emailVerified: merged.emailVerified != null && merged.emailRisk !== 'unverified',
-      wallets: walletSignals,
-      emailDisposable: merged.emailRisk === 'disposable',
-      emailPresentButUnverified: merged.emailRisk === 'unverified',
-      behaviorReach: merged.reachLifetime ?? 0,
-    };
-    const reach = computeReach(reachInputs);
-
-    await dbPrisma.user.update({
-      where: { id: userId },
-      data: {
-        verificationTier: tier,
-        verificationScore: score,
-        trueReach: reach.trueReach,
-        riskScore: reach.riskScore,
-      },
-    });
-
-    console.log(LOG_PREFIX, `User ${userId}: tier=${tier}, score=${score}`);
-
-    // Send email notification if tier actually changed
-    const previousTier = user.verificationTier ?? 'ANONYMOUS';
-    if (tier !== previousTier && user.email) {
-      type TierKey = keyof typeof VERIFICATION_TIER_MULTIPLIERS;
-      const multiplier = VERIFICATION_TIER_MULTIPLIERS[tier as TierKey] ?? 0.1;
-      sendAuthLevelChangeEmail(user.email, {
-        userName: user.name,
-        previousTier,
-        newTier: tier,
-        newScore: score,
-        newMultiplier: multiplier,
-        triggerAction: triggerAction ?? 'Verification recalculation',
-      }).catch((err) => console.error(LOG_PREFIX, 'Failed to send auth level email:', err));
-    }
-
-    return { tier, score };
-  } catch (error) {
-    console.error(LOG_PREFIX, `Error recalculating for user ${userId}:`, error);
-    return null;
   }
+  return null;
 }

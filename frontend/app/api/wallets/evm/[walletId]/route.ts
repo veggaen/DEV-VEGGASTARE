@@ -228,15 +228,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ walletId
 		}
 	});
 
-	// Recalculate hasVerifiedWallet: check if user still has any verified wallets
-	const remainingVerified = await dbPrisma.wallet.count({
-		where: { ownerUserId: dbUser.id, verifiedAt: { not: null } },
-	});
-	recalculateVerificationTier(
-		dbUser.id,
-		{ hasVerifiedWallet: remainingVerified > 0 },
-		'Wallet unlinked'
-	).catch((err) => console.error('[wallet-delete] recalc failed:', err));
+	await recalculateVerificationTier(dbUser.id);
 
 	// Send wallet unlinked confirmation email (fire-and-forget)
 	if (dbUser.email) {

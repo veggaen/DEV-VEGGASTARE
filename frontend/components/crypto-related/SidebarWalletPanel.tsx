@@ -1587,8 +1587,6 @@ function VerifyActionRow({
 function DonateActionRow({
   step,
   error,
-  ctaText,
-  onDonate,
   onReset,
 }: {
   step: DonateStep;
@@ -1601,7 +1599,7 @@ function DonateActionRow({
     return (
       <div className="text-center">
         <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">
-          ✓ Donation recorded!
+          Submitted · verification pending
         </span>
       </div>
     );
@@ -1662,16 +1660,17 @@ function DonateActionRow({
     );
   }
 
-  // idle — show donate CTA
+  // Do not invite a transfer for rewards we cannot verify or deliver yet.
   return (
     <div className="text-center">
       <button
         type="button"
-        onClick={onDonate}
-        className="text-[9px] text-amber-500 dark:text-amber-400 hover:underline transition-colors"
+        disabled
+        className="text-[10px] text-muted-foreground disabled:cursor-not-allowed"
       >
-        {ctaText}
+        Donation rewards unavailable
       </button>
+      <p className="text-[10px] text-muted-foreground">Server verification is not configured.</p>
     </div>
   );
 }

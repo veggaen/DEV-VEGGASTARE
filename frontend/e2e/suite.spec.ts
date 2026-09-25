@@ -7,6 +7,48 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S2 verification refresh uses current read-only evidence at mobile and desktop sizes', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_VERIFICATION_EVIDENCE !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session; no emails, identity changes or purchases');
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, reducedMotion: 'reduce' });
+  const page = await context.newPage(), errors: string[] = [], writes: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.url().includes('/api/users/verification') && request.method() !== 'GET') writes.push(request.method()); });
+  try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    expect(session.user?.isDemo).toBe(true);
+    const response = await context.request.get('/api/users/verification');
+    expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toContain('no-store');
+    const evidence = await response.json(), f = evidence.flags;
+    expect(f.hasWeb2Payment).toBe(false); expect(f.hasWeb3Payment).toBe(false);
+    const socials = [f.hasGoogleAuth, f.hasGithubAuth, f.hasDiscordAuth].filter(Boolean).length;
+    const expected = (f.emailVerified ? 10 : 0) + (f.hasGoogleAuth ? 20 : 0) + (f.hasGithubAuth ? 12 : 0) + (f.hasDiscordAuth ? 10 : 0)
+      + Math.max(0, socials - 1) * 5 + (f.hasVerifiedWallet ? 15 : 0) + (f.phoneVerified ? 20 : 0) + (f.isTwoFactorEnabled ? 5 : 0);
+    expect(evidence.score).toBe(Math.min(100, expected));
+    const reachResponse = await context.request.get(`/api/users/${session.user.id}/reach`);
+    expect(reachResponse.status()).toBe(200);
+    const reach = (await reachResponse.json()).trueReach;
+    expect(reach.verificationTier).toBe(evidence.tier);
+    expect(reach.classes.find((c: { key: string }) => c.key === 'payment')).toMatchObject({ verified: false, value: 0 });
+    for (const [width, height] of [[390,844], [1280,800], [360,800], [2560,1440]]) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/settings?section=verification', { waitUntil: 'domcontentloaded' });
+      if (!await page.evaluate(() => localStorage.getItem('veggat:cookieConsent'))) await page.getByRole('button', { name: 'Essential Only', exact: true }).click();
+      const refresh = page.getByRole('button', { name: 'Refresh verification', exact: true });
+      await expect(refresh).toBeEnabled();
+      const refreshed = page.waitForResponse(r => r.url().includes('/api/users/verification') && r.request().method() === 'GET');
+      await refresh.click(); expect((await refreshed).status()).toBe(200);
+      await expect(page.getByText('Verification refreshed', { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.getByRole('heading', { name: 'Verification & Trust', exact: true }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath(`evidence-${width}.png`) });
+      await page.getByRole('link', { name: 'Salgsvilkår', exact: true }).scrollIntoViewIfNeeded();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    expect(writes).toEqual([]); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
 test('S2 linked-account states and confirmation review are honest and responsive', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_OAUTH_LINKS !== '1' || !process.env.E2E_DEMO_STORAGE_STATE, 'App-issued demo with read-only state fixtures; no OAuth links or emails created');
   test.setTimeout(120_000);
@@ -18,7 +60,7 @@ test('S2 linked-account states and confirmation review are honest and responsive
   let attemptedWrites = 0;
   try {
     expect((await (await context.request.get('/api/auth/session')).json()).user?.isDemo).toBe(true);
-    await page.route('**/api/users/verification', route => route.fulfill({ json: { flags, linkedProviders: ['google', 'github', 'discord'], pendingProviders: ['discord'], tier: 'WEB2_BASIC', score: 10, multiplier: .2, phoneNumber: null } }));
+    await page.route('**/api/users/verification', route => route.fulfill({ json: { flags, linkedProviders: ['google', 'github', 'discord'], pendingProviders: ['discord'], tier: 'SOCIAL_VERIFIED', score: 30, multiplier: .7, phoneNumber: null } }));
     // Intercept server actions: test failure/retry UX without sending mail or changing any account.
     await page.route('**/settings?**', route => {
       if (route.request().method() === 'POST') { attemptedWrites++; return route.fulfill({ status: 503, body: 'Controlled test failure' }); }
