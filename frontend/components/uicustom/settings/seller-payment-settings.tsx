@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useEffect, useState, useTransition, useCallback } from 'react';
+import { useEffect, useState, useTransition, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,6 @@ import { isDemoUserId } from '@/lib/demo-policy';
 import { PayoutWalletPicker } from './payout-wallet-picker';
 import {
   FiCheckCircle, FiAlertCircle, FiMail, FiTrash2, FiLoader,
-  FiCreditCard, FiExternalLink,
 } from 'react-icons/fi';
 import {
   savePaypalEmail,
@@ -23,16 +22,6 @@ import {
   getSellerPaymentStatus,
   type SellerPaymentStatus,
 } from '@/actions/seller-payment';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface EvmWallet {
-  id: string;
-  label: string;
-  address: string;
-  isDefault: boolean;
-  verifiedAt: string | null;
-}
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
@@ -68,44 +57,36 @@ function EditableSellerPayments() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [status, setStatus] = useState<SellerPaymentStatus | null>(null);
-  const [wallets, setWallets] = useState<EvmWallet[]>([]);
   const [paypalInput, setPaypalInput] = useState('');
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-  const [isLoadingWallets, setIsLoadingWallets] = useState(true);
-  const [walletLoadError, setWalletLoadError] = useState(false);
+  const requestSequence = useRef(0), emailEdited = useRef(false);
 
   // ── Fetch current status ──────────────────────────────────────────────────
 
   const fetchStatus = useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     setIsLoadingStatus(true);
     setLoadError(null);
     try {
-      const res = await getSellerPaymentStatus({ target: 'user' });
+      const res = await Promise.race([getSellerPaymentStatus({ target: 'user' }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 12_000); })]);
+      if (sequence !== requestSequence.current) return false;
       if ('data' in res) {
         setStatus(res.data);
-        setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
+        if (!emailEdited.current) setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
+        return true;
       } else setLoadError(res.error);
-    } catch { setLoadError('Payment settings could not load. Try again.'); }
-    finally { setIsLoadingStatus(false); }
-  }, []);
-
-  const fetchWallets = useCallback(async () => {
-    setIsLoadingWallets(true);
-    setWalletLoadError(false);
-    try {
-      const res = await fetch('/api/wallets/evm');
-      if (!res.ok) throw new Error('Unable to load wallets');
-      const data = await res.json();
-      setWallets(data.wallets ?? []);
-    } catch {
-      setWalletLoadError(true);
-    }
-    setIsLoadingWallets(false);
+    } catch { if (sequence === requestSequence.current) setLoadError('Payment settings could not load. Try again.'); }
+    finally { if (timer) clearTimeout(timer); if (sequence === requestSequence.current) setIsLoadingStatus(false); }
+    return false;
   }, []);
 
   useEffect(() => {
-    void Promise.all([fetchWallets(), fetchStatus()]);
-  }, [fetchStatus, fetchWallets]);
+    const sequence = requestSequence; // Request counter, not a DOM ref.
+    void fetchStatus();
+    return () => { sequence.current++; };
+  }, [fetchStatus]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -115,7 +96,7 @@ function EditableSellerPayments() {
       try {
         const res = await action();
         if ('error' in res) setSaveError(res.error);
-        else { toast.success(res.success); await fetchStatus(); }
+        else { toast.success(res.success); emailEdited.current = false; await fetchStatus(); }
       } catch { setSaveError('Your change could not be saved. Please try again.'); }
     });
   };
@@ -133,7 +114,7 @@ function EditableSellerPayments() {
   if (isLoadingStatus && !status) {
     return (
       <div role="status" className="flex items-center justify-center gap-3 py-16">
-        <FiLoader className="h-6 w-6 animate-spin text-zinc-400" />
+        <FiLoader aria-hidden="true" className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" />
         <span className="text-sm text-muted-foreground">Loading payment settings…</span>
       </div>
     );
@@ -191,20 +172,20 @@ function EditableSellerPayments() {
         <label htmlFor="seller-paypal-email" className="block text-sm font-medium">Receiving email</label>
         <form onSubmit={event => { event.preventDefault(); handleSavePaypal(); }} className="flex flex-wrap items-start gap-2">
           <div className="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
-            <FiMail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <FiMail aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="email"
               id="seller-paypal-email" name="paypalEmail" autoComplete="email" spellCheck={false} required maxLength={254}
               placeholder="your-paypal@email.com"
               value={paypalInput}
-              onChange={(e) => setPaypalInput(e.target.value)}
+              onChange={(e) => { emailEdited.current = true; setPaypalInput(e.target.value); }}
               className="min-h-11 pl-10 text-base"
-              disabled={isPending}
+              disabled={isPending || isLoadingStatus}
             />
           </div>
           <Button
             type="submit" className="min-h-11"
-            disabled={isPending || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
+            disabled={isPending || isLoadingStatus || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
             size="sm"
           >
             {isPending ? 'Sending…' : status?.pendingPaypalEmail ? 'Resend verification' : 'Send verification'}
@@ -215,20 +196,20 @@ function EditableSellerPayments() {
               size="sm"
               onClick={handleRemovePaypal}
               type="button" aria-label="Remove PayPal receiving email" className="size-11"
-              disabled={isPending}
+              disabled={isPending || isLoadingStatus}
             >
-              <FiTrash2 className="h-4 w-4" />
+              <FiTrash2 aria-hidden="true" className="h-4 w-4" />
             </Button>
           )}
         </form>
         {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       </div>
 
-      <PayoutWalletPicker target={{ target: 'user' }}
-        wallets={wallets} selectedId={status?.defaultReceivingWalletId ?? null}
+      <PayoutWalletPicker key={`${status?.defaultReceivingWalletId}:${status?.walletChangesAllowed}`} target={{ target: 'user' }}
+        wallets={status?.receivingWallets ?? []} selectedId={status?.defaultReceivingWalletId ?? null}
         selectedAddress={status?.defaultReceivingWalletAddress ?? null}
-        loading={isLoadingWallets} loadError={walletLoadError} onRetry={() => void fetchWallets()}
-        disabled={isPending} onChanged={fetchStatus} />
+        loading={isLoadingStatus} web3Disabled={status?.walletChangesAllowed === false}
+        disabled={isPending} onChanged={async () => { if (!await fetchStatus()) throw new Error('Refresh failed'); }} />
 
       {/* ─── Info ──────────────────────────────────────────────────────────── */}
       <details className="rounded-xl border border-border p-4 text-sm">
