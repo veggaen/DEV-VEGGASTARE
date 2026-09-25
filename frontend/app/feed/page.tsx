@@ -2200,6 +2200,11 @@ const FeedPage: React.FC = () => {
           /></Suspense>}
         </div>
 
+        {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card lg:hidden">
+          <summary className="min-h-11 cursor-pointer rounded-2xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">Find people</summary>
+          <div className="[&_section]:border-0 [&_section]:bg-transparent [&_section]:pt-1 [&_h2]:sr-only"><DiscoverPeople /></div>
+        </details>}
+
         {/* Explore sidebar */}
         <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
           <div data-pulse-explore-scroll tabIndex={0} aria-label="Explore Pulse panels" className="sticky top-[76px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-92px)] space-y-4 overflow-y-auto overscroll-contain rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">

@@ -10,6 +10,89 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 people discovery endpoints do not expose real members to anonymous or demo readers', async ({browser,baseURL}) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo identity');
+  const anonymous=await browser.newContext({baseURL}), demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});
+  try {
+    for (const [context,status] of [[anonymous,401],[demo,403]] as const) {
+      const exact=await context.request.post('/api/validate-user',{data:{input:'Veggat'}});
+      expect(exact.status()).toBe(status);expect(exact.headers()['cache-control']).toContain('no-store');expect(exact.headers()['vary']).toContain('Cookie');
+      expect(await exact.json()).toMatchObject(status===403?{error:'DEMO_READ_ONLY'}:{isValid:false});
+      const suggested=await context.request.get('/api/users/suggestions?limit=5');
+      expect(suggested.status()).toBe(status===401?401:200);expect(suggested.headers()['cache-control']).toContain('no-store');
+      if(status!==401) expect(await suggested.json()).toEqual({suggestions:[]});
+    }
+    expect((await demo.request.get('/api/users/suggestions?limit=-1')).status()).toBe(400);
+  } finally {await anonymous.close();await demo.close();}
+});
+
+test('S8 people discovery offers responsive search, retry and confirmed follow states', async ({browser,baseURL},info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained demo identity; all follow writes intercepted');
+  const context=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE,viewport:{width:390,height:844},reducedMotion:'reduce'});
+  if(process.env.E2E_PEOPLE_THEME==='dark') await context.addInitScript(()=>localStorage.setItem('veggat:theme','dark'));
+  const session=await (await context.request.get('/api/auth/session')).json();expect(session.user.id).toMatch(/^demo_/);
+  const page=await context.newPage(), errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  let demoSession=false, suggestionFailure=true, followFailure=true, followWrites=0, suggestionReads=0;
+  const row={id:'qa-person',name:'Alex Example',email:null,image:'/users/avatar.webp',bio:null,followerCount:2,isFollowing:false};
+  await page.route('**/api/auth/session',route=>route.fulfill({json:demoSession?session:{...session,user:{...session.user,id:'qa-viewer',isDemo:false,role:'USER'}}}));
+  await page.route('**/api/users/suggestions?**',route=>{suggestionReads++;return route.fulfill(suggestionFailure?{status:503,json:{error:'Unavailable'}}:{json:{suggestions:[{...row,reason:'Recent chat',priority:1}]}});});
+  await page.route('**/api/users/search?**',async route=>{
+    const term=new URL(route.request().url()).searchParams.get('q');
+    if(term==='slow') await new Promise(resolve=>setTimeout(resolve,800));
+    if(term==='error') return route.fulfill({status:429,json:{error:'Wait'}});
+    return route.fulfill({json:{users:term==='nobody'?[]:[{...row,role:null,name:term==='slow'?'Stale result':'Taylor Example'}],count:term==='nobody'?0:1}});
+  });
+  await page.route('**/api/users/qa-person/follow',async route=>{
+    followWrites++;await new Promise(resolve=>setTimeout(resolve,200));
+    return route.fulfill(followFailure?{status:503,json:{error:'Unavailable'}}:{json:{success:true,isFollowing:route.request().method()==='POST',followerCount:3,followingCount:1}});
+  });
+  try {
+    await page.goto('/pulse',{waitUntil:'domcontentloaded'});
+    await expect(page.getByRole('button',{name:'Open menu',exact:true})).toBeEnabled();
+    const consent=page.getByRole('button',{name:'Essential Only',exact:true});if(await consent.isVisible())await consent.click();
+    const refreshed=page.waitForResponse(r=>r.url().includes('/api/auth/session'));
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await refreshed;
+    expect(suggestionReads).toBe(0);
+    await page.locator('details > summary').filter({hasText:'Find people'}).click();
+    const panel=page.getByRole('region',{name:'Find people',exact:true}).filter({visible:true});
+    await expect(panel.getByText('People could not be loaded. Try again.')).toBeVisible();
+    expect(suggestionReads).toBe(1);
+    suggestionFailure=false;await panel.getByRole('button',{name:'Retry people'}).click();
+    await expect(panel.getByRole('link',{name:/Alex Example/})).toBeVisible();
+    await expect(panel.getByRole('link',{name:/Alex Example/})).toHaveAttribute('href','/profile/qa-person');
+    await expect(panel.locator('a[href="/users"]')).toHaveCount(0);
+    const follow=panel.getByRole('button',{name:'Follow Alex Example'});
+    await expect(follow).toHaveCSS('opacity','1');expect((await follow.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await follow.focus();await page.keyboard.press('Enter');
+    await expect(panel.getByRole('alert')).toContainText('Could not confirm');expect(followWrites).toBe(1);await expect(follow).toBeDisabled();
+    await panel.getByRole('button',{name:'Refresh people'}).click();await expect(follow).toBeEnabled();
+    followFailure=false;await follow.click();await expect(panel.getByRole('button',{name:'Unfollow Alex Example'})).toBeVisible();expect(followWrites).toBe(2);
+    const input=panel.getByRole('searchbox',{name:'Search people'});
+    await input.fill('slow');await page.waitForRequest(r=>r.url().includes('q=slow'));
+    await input.fill('Taylor');await expect(panel.getByRole('link',{name:/Taylor Example/})).toBeVisible();
+    await expect(panel.getByText('Stale result')).toHaveCount(0);
+    await input.fill('error');await expect(panel.getByText('Too many searches. Wait a moment, then retry.')).toBeVisible();
+    await input.fill('nobody');await expect(panel.getByText('No people found.')).toBeVisible();
+    await input.fill('a');await expect(panel.getByText('Type at least 2 characters.')).toBeVisible();await input.fill('Alex');
+    for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1024,1280],[1280,800],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({width,height});
+      const shown=page.getByRole('region',{name:'Find people',exact:true}).filter({visible:true});
+      await shown.scrollIntoViewIfNeeded();
+      if(width>=1024){await shown.getByRole('searchbox').fill('Alex');}
+      await expect(shown.getByRole('link',{name:/Taylor Example/})).toBeVisible();
+      const box=await shown.boundingBox();expect(box!.width).toBeGreaterThan(220);expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(width+1);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      const button=shown.getByRole('button',{name:'Follow Taylor Example'});await expect(button).toHaveCSS('opacity','1');expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({path:info.outputPath('people-'+width+'.png')});
+    }
+    // Account transition clears private UI instead of retaining the previous person's list.
+    demoSession=true;const reset=page.waitForResponse(r=>r.url().includes('/api/auth/session'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await reset;
+    await expect(panel.getByText('People search is off in the demo.')).toBeVisible();await expect(panel.getByRole('searchbox')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
 test('S8 people search is private and demo-safe on the real endpoint', async ({browser,baseURL}) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE,'Retained unrelated demo identity');
   const anonymous=await browser.newContext({baseURL}), demo=await browser.newContext({baseURL,storageState:process.env.E2E_DEMO_STORAGE_STATE});

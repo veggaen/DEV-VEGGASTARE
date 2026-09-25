@@ -374,7 +374,7 @@ export default async function proxy(req: NextRequest) {
     const isAccountLink = pathname.startsWith('/api/auth/') &&
       !['/api/auth/session', '/api/auth/csrf', '/api/auth/providers', '/api/auth/signout', '/api/auth/callback/demo'].includes(pathname);
     if ((isWrite && !allowsDemoMutation(pathname)) || isAccountLink) {
-      return NextResponse.json({ error: 'DEMO_READ_ONLY', message: 'This action is unavailable in demo mode. Browse products and preview your cart, or exit the demo to use your own account.' }, { status: 403 });
+      return NextResponse.json({ error: 'DEMO_READ_ONLY', message: 'This action is unavailable in demo mode. Browse products and preview your cart, or exit the demo to use your own account.' }, { status: 403, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
     }
   }
 

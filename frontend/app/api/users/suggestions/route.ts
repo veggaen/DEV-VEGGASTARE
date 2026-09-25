@@ -1,209 +1,90 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { UserSuggestionsResponseSchema } from '@/lib/types/users';
-import { resolveVisibleEmail } from '@/lib/email-visibility';
+import { isDemoUserId, DEMO_ID_PREFIX } from '@/lib/demo-policy';
+import { checkRateLimit } from '@/lib/rate-limit';
 
-const isDev = process.env.NODE_ENV !== 'production';
+const querySchema = z.object({ limit: z.coerce.number().int().min(1).max(30).default(10) });
+const selectPerson = { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true } as const;
+type Person = { id: string; name: string | null; email: string | null; emailDisplayMode?: string | null; image: string | null; bio: string | null };
+function reply(body: unknown, status = 200, extra: Record<string, string> = {}) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', ...extra } });
+}
 
-// GET - Get user suggestions for starting a conversation
-// Priority: Recent chats > Friends > Following > Colleagues
-export async function GET(request: NextRequest) {
-  const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 30);
-
+/** Suggestions use existing relationships, never a global directory fallback. */
+export async function GET(request: Request) {
   try {
-    const suggestions: Array<{
-      id: string;
-      name: string | null;
-      email: string | null;
-      emailDisplayMode?: 'PRIMARY' | 'HIDE' | null;
-      image: string | null;
-      bio: string | null;
-      reason: string;
-      priority: number;
-    }> = [];
+    const viewer = await MyLibUserAuth();
+    if (!viewer?.id) return reply({ error: 'Sign in to find people.' }, 401);
+    const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+    if (!parsed.success) return reply({ error: 'Invalid suggestion options.' }, 400);
+    if (isDemoUserId(viewer.id)) return reply({ suggestions: [] });
+    const rate = await checkRateLimit('people-suggestions:' + viewer.id, 'read');
+    if (!rate.success) return reply({ error: 'Please wait before refreshing people.' }, 429, { 'Retry-After': String(Math.max(1, rate.resetIn)) });
 
-    const addedIds = new Set<string>();
-
-    // 1. Recent conversation partners (highest priority)
-    const recentConversations = await dbPrisma.conversation.findMany({
-      where: {
-        OR: [
-          { userId: session.id },
-          { participants: { has: session.id } },
-        ],
-        type: { in: ['PRIVATE_DM', 'GROUP'] },
-      },
-      orderBy: { lastActivityAt: 'desc' },
-      take: 20,
-      select: {
-        participants: true,
-        userId: true,
-      },
-    });
-
-    const recentUserIds = new Set<string>();
-    for (const conv of recentConversations) {
-      const participants = conv.participants as string[];
-      for (const id of participants) {
-        if (id !== session.id) recentUserIds.add(id);
-      }
-      if (conv.userId !== session.id) recentUserIds.add(conv.userId);
-    }
-
-    if (recentUserIds.size > 0) {
-      const recentUsers = await dbPrisma.user.findMany({
-        where: { id: { in: Array.from(recentUserIds) } },
-        select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
-        take: 5,
-      });
-      for (const user of recentUsers) {
-        if (!addedIds.has(user.id)) {
-          suggestions.push({ ...user, reason: 'Recent chat', priority: 1 });
-          addedIds.add(user.id);
-        }
-      }
-    }
-
-    // 2. Friends (second priority)
-    const friendships = await dbPrisma.friendship.findMany({
-      where: {
-        OR: [
-          { userAId: session.id },
-          { userBId: session.id },
-        ],
-      },
-      take: 10,
-    });
-
-    const friendIds = friendships.map(f => 
-      f.userAId === session.id ? f.userBId : f.userAId
-    ).filter(id => !addedIds.has(id));
-
-    if (friendIds.length > 0) {
-      const friends = await dbPrisma.user.findMany({
-        where: { id: { in: friendIds } },
-        select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
-      });
-      for (const user of friends) {
-        if (!addedIds.has(user.id)) {
-          suggestions.push({ ...user, reason: 'Friend', priority: 2 });
-          addedIds.add(user.id);
-        }
-      }
-    }
-
-    // 3. People you follow (third priority)
-    const following = await dbPrisma.follow.findMany({
-      where: { followerId: session.id },
-      include: {
-        following: {
-          select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
-        },
-      },
-      take: 10,
-    });
-
-    for (const f of following) {
-      if (!addedIds.has(f.following.id)) {
-        suggestions.push({ ...f.following, reason: 'Following', priority: 3 });
-        addedIds.add(f.following.id);
-      }
-    }
-
-    // 4. Colleagues (same company)
-    const employments = await dbPrisma.employee.findMany({
-      where: { userId: session.id },
-      select: { companyId: true },
-    });
-
-    if (employments.length > 0) {
-      const colleagues = await dbPrisma.employee.findMany({
-        where: {
-          companyId: { in: employments.map(e => e.companyId) },
-          userId: { not: session.id },
-        },
-        include: {
-          User: {
-            select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, bio: true },
-          },
-        },
-        take: 10,
-      });
-
-      for (const c of colleagues) {
-        if (!addedIds.has(c.User.id)) {
-          suggestions.push({ ...c.User, reason: 'Colleague', priority: 4 });
-          addedIds.add(c.User.id);
-        }
-      }
-    }
-
-    // Sort by priority and limit
-    const sortedSuggestions = suggestions
-      .sort((a, b) => a.priority - b.priority)
-      .slice(0, limit);
-
-    // Fetch follower counts for all suggestions
-    const suggestionIds = sortedSuggestions.map(s => s.id);
-    const followerCounts = await dbPrisma.follow.groupBy({
-      by: ['followingId'],
-      where: { followingId: { in: suggestionIds } },
-      _count: { followingId: true },
-    });
-
-    const countMap = new Map(
-      followerCounts.map(f => [f.followingId, f._count.followingId])
-    );
-
-    // Check which users the current user is following
-    const followingStatus = await dbPrisma.follow.findMany({
-      where: {
-        followerId: session.id,
-        followingId: { in: suggestionIds },
-      },
-      select: { followingId: true },
-    });
-    const followingSet = new Set(followingStatus.map(f => f.followingId));
-
-    const enrichedSuggestions = sortedSuggestions.map(s => ({
-      id: s.id,
-      name: s.name,
-      email: resolveVisibleEmail({
-        targetUserId: s.id,
-        targetEmail: s.email,
-        targetEmailDisplayMode: s.emailDisplayMode,
-        viewerUserId: session.id,
-        viewerRole: session.role,
+    const eligible = (id: string) => id !== viewer.id && !isDemoUserId(id);
+    const excludeDemo = { id: { not: { startsWith: DEMO_ID_PREFIX.replace(/[\\%_]/g, '\\$&') } } };
+    // Independent bounded relationship reads start together.
+    const [conversations, friendships, following, employments] = await Promise.all([
+      dbPrisma.conversation.findMany({
+        where: { OR: [{ userId: viewer.id }, { participants: { has: viewer.id } }], type: { in: ['PRIVATE_DM', 'GROUP'] } },
+        orderBy: [{ lastActivityAt: 'desc' }, { id: 'asc' }], take: 20,
+        select: { participants: true, userId: true },
       }),
-      image: s.image,
-      bio: s.bio,
-      reason: s.reason,
-      priority: s.priority,
-      followerCount: countMap.get(s.id) || 0,
-      isFollowing: followingSet.has(s.id),
-    }));
-
-    const payload = { suggestions: enrichedSuggestions };
-
-    const validated = UserSuggestionsResponseSchema.safeParse(payload);
-    if (!validated.success) {
-      console.error('[api/users/suggestions] Invalid DTO:', validated.error);
-      return NextResponse.json(
-        { error: 'Failed to fetch suggestions', ...(isDev ? { issues: validated.error.issues } : {}) },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(validated.data);
-  } catch (error) {
-    console.error('[api/users/suggestions] Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch suggestions' }, { status: 500 });
+      dbPrisma.friendship.findMany({
+        where: { OR: [{ userAId: viewer.id }, { userBId: viewer.id }] },
+        select: { userAId: true, userBId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: 10,
+      }),
+      dbPrisma.follow.findMany({
+        where: { followerId: viewer.id, following: excludeDemo },
+        select: { following: { select: selectPerson } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: 10,
+      }),
+      dbPrisma.employee.findMany({
+        where: { userId: viewer.id }, select: { companyId: true }, orderBy: { id: 'asc' }, take: 30,
+      }),
+    ]);
+    const recentIds = [...new Set(conversations.flatMap(row => [row.userId, ...row.participants]).filter(eligible))].slice(0, 100);
+    const friendIds = friendships.map(row => row.userAId === viewer.id ? row.userBId : row.userAId).filter(eligible);
+    const [recent, friends, colleagues] = await Promise.all([
+      recentIds.length ? dbPrisma.user.findMany({ where: { id: { in: recentIds } }, select: selectPerson, orderBy: { id: 'asc' }, take: 100 }) : [],
+      friendIds.length ? dbPrisma.user.findMany({ where: { id: { in: friendIds } }, select: selectPerson, orderBy: { id: 'asc' }, take: 10 }) : [],
+      employments.length ? dbPrisma.employee.findMany({
+        where: { companyId: { in: employments.map(row => row.companyId) }, userId: { not: viewer.id }, User: excludeDemo },
+        select: { User: { select: selectPerson } }, orderBy: [{ userId: 'asc' }, { id: 'asc' }], take: 10,
+      }) : [],
+    ]);
+    const rows: (Person & { reason: string; priority: number })[] = [];
+    const seen = new Set<string>();
+    const add = (people: Person[], reason: string, priority: number) => {
+      for (const person of people) if (eligible(person.id) && !seen.has(person.id)) {
+        seen.add(person.id); rows.push({ ...person, reason, priority });
+      }
+    };
+    // Preserve conversation recency rather than the order of the database IN query.
+    const recentMap = new Map(recent.map(person => [person.id, person]));
+    add(recentIds.flatMap(id => recentMap.has(id) ? [recentMap.get(id)!] : []).slice(0, 5), 'Recent chat', 1);
+    add(friends, 'Friend', 2);
+    add(following.map(row => row.following), 'Following', 3);
+    add(colleagues.map(row => row.User), 'Colleague', 4);
+    const selected = rows.slice(0, parsed.data.limit);
+    if (!selected.length) return reply({ suggestions: [] });
+    const ids = selected.map(row => row.id);
+    const [counts, status] = await Promise.all([
+      dbPrisma.follow.groupBy({ by: ['followingId'], where: { followingId: { in: ids } }, _count: { followingId: true } }),
+      dbPrisma.follow.findMany({ where: { followerId: viewer.id, followingId: { in: ids } }, select: { followingId: true } }),
+    ]);
+    const countMap = new Map(counts.map(row => [row.followingId, row._count.followingId]));
+    const followed = new Set(status.map(row => row.followingId));
+    const privileged = viewer.role === 'ADMIN' || viewer.role === 'OWNER';
+    return reply(UserSuggestionsResponseSchema.parse({ suggestions: selected.map(person => ({
+      id: person.id, name: person.name, image: person.image, bio: person.bio,
+      email: privileged || person.id === viewer.id || person.emailDisplayMode === 'PRIMARY' ? person.email : null,
+      reason: person.reason, priority: person.priority, followerCount: countMap.get(person.id) || 0, isFollowing: followed.has(person.id),
+    })) }));
+  } catch {
+    console.error('[api/users/suggestions] Suggestions failed');
+    return reply({ error: 'People suggestions are temporarily unavailable.' }, 500);
   }
 }
