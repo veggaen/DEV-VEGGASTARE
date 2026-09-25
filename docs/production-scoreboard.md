@@ -4,13 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
-Wallet-display follow-up: **PARTIAL — local acceptance passes**. Removed
+Wallet-display follow-up: **DONE for this focused local/Live slice**. Removed
 email-based address/proof merging and automatic metadata POSTs during render.
 Local development-chain probes are cancellable and retain their prior status.
 Full touched-file lint now passes with no disabled rules, resolving the prior
 wallet lint gap. 22 units, final strict build and focused local browser **5/5**
 (14.2s) pass. The latter caught and fixed an 8px delayed-panel layout shift;
-both 360/390px scroll checks now pass. Live deployment pending. No wallet
+both 360/390px scroll checks now pass. Source `7101bd3` is promoted as
+`dpl_91FYRUpZa1UD71DgMYxifXgYr1qE`; Live browser **5/5** passes (26.9s,
+no retries/skips). Real Chrome confirms mobile drawer scrolling locally and
+both saved verified owner wallets intact on Live. Real signing and production
+crypto checkout remain separate, incomplete acceptance items. No wallet
 signature, transfer, account permission, payment or secret changed. See
 [wallet-display evidence](wallet-display-evidence-2026-09.md).
 

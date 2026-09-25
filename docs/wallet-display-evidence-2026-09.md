@@ -35,10 +35,16 @@ not performed by this slice.
   browser batch **5/5 passes**, 14.2s, no retries/skips. Both delayed-panel
   widths now preserve exact scroll height/position. Identity/activation tests
   cover 360/390/1280/2560; cancellation and disconnect preserve app login.
-  Live acceptance pending.
+  Live browser batch **5/5 passes**, 26.9s, no retries/skips.
+  Source `7101bd3` is promoted to `https://www.veggat.com` as
+  `dpl_91FYRUpZa1UD71DgMYxifXgYr1qE`. Candidate health is healthy.
 - Real Chrome local chooser opens and presents detected browser wallets plus
   a truthful unavailable WalletConnect state for the local configuration.
   No wallet connection, signing or permission prompt was accepted.
+- Real Chrome also verifies local drawer scrolling at 390×844 and the Live
+  owner's two distinct saved verified addresses at 2498px. Both wallet cards
+  and their controls remain reachable; no horizontal page overflow was found.
+  Owner activation, removal, signing and transfers were not exercised.
 
 The composition skill informed separation of display calculations; the testing
 skill informed the focused regression batch. The layout pass used
