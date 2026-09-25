@@ -7,6 +7,107 @@ import { SessionRailResponse } from '../lib/ai-chat/session-list';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
+test('S7 landing chat welcome remains reachable before and after expansion', async ({ browser, baseURL }, info) => {
+  test.skip(process.env.E2E_LANDING_CHAT_LAYOUT !== '1', 'Focused anonymous layout; never sends an AI request');
+  test.setTimeout(180_000);
+  const observations: unknown[] = [];
+  for (const theme of ['dark', 'light'] as const) {
+    const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce', colorScheme: theme });
+    try {
+      await context.addInitScript(selected => localStorage.setItem('veggat:theme', selected), theme);
+      const page = await context.newPage(), errors: string[] = [];
+      let generationRequests = 0;
+      page.on('pageerror', error => errors.push(error.message));
+      await page.route('**/api/ai-chat', route => { generationRequests++; return route.abort(); });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('button', { name: /^Choose AI model:/ })).toBeEnabled();
+      const consent = page.getByRole('button', { name: 'Essential Only', exact: true });
+      await expect(consent).toBeVisible({ timeout: 15_000 });
+      await consent.click();
+      await expect(consent).toHaveCount(0);
+      for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 },
+        { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
+        await page.setViewportSize(size);
+        const panel = page.getByRole('complementary', { name: 'AI chat', exact: true });
+        const title = panel.getByText('Ask anything about Veggat', { exact: true });
+        await panel.scrollIntoViewIfNeeded();
+        const geometry = await title.evaluate(element => {
+          let scroller = element.parentElement!;
+          while (scroller.parentElement && !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+          const heading = element.getBoundingClientRect(), bounds = scroller.getBoundingClientRect();
+          return { headingTop: heading.top, headingBottom: heading.bottom, scrollTop: scroller.scrollTop,
+            scrollerTop: bounds.top, scrollerBottom: bounds.bottom, documentOverflow: document.documentElement.scrollWidth > innerWidth };
+        });
+        observations.push({ theme, ...size, ...geometry });
+        expect.soft(geometry.headingTop, `${theme} ${size.width}px welcome top`).toBeGreaterThanOrEqual(geometry.scrollerTop);
+        expect.soft(geometry.headingBottom, `${theme} ${size.width}px welcome bottom`).toBeLessThanOrEqual(geometry.scrollerBottom);
+        expect.soft(geometry.documentOverflow).toBe(false);
+        // Scroll the panel itself, select a suggested prompt, but never send it.
+        const rect = await panel.boundingBox();
+        await page.mouse.move(rect!.x + rect!.width / 2, rect!.y + rect!.height / 2);
+        await page.mouse.wheel(0, 400);
+        await panel.getByRole('button', { name: 'Which AI models are available?', exact: true }).click();
+        await expect(panel.getByRole('textbox', { name: 'AI message', exact: true })).toHaveValue('Which AI models are available?');
+        await panel.getByRole('textbox', { name: 'AI message', exact: true }).fill('');
+        await panel.getByRole('button', { name: 'Expand chat', exact: true }).click();
+        const expanded = page.getByRole('dialog', { name: 'AI chat expanded', exact: true });
+        await expect(expanded).toBeVisible();
+        await expect(expanded.getByText('Ask anything about Veggat', { exact: true })).toBeInViewport();
+        if (size.height >= 800) {
+          const extraScroll = await expanded.getByText('Ask anything about Veggat', { exact: true }).evaluate(element => {
+            let scroller = element.parentElement!;
+            while (scroller.parentElement && !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+            return scroller.scrollHeight - scroller.clientHeight;
+          });
+          expect.soft(extraScroll, `${theme} ${size.width}px empty expanded panel`).toBeLessThanOrEqual(1);
+        }
+        await expanded.getByRole('button', { name: /^Choose AI model:/ }).click();
+        await expect(page.getByRole('textbox', { name: 'Search models', exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('textbox', { name: 'Search models', exact: true })).toHaveCount(0);
+        await expect(expanded).toBeVisible();
+        await expanded.getByRole('button', { name: 'Close chat', exact: true }).click();
+        await expect(expanded).toHaveCount(0);
+        await expect(title).toBeVisible();
+        await expect(panel.getByRole('button', { name: 'Expand chat', exact: true })).toBeFocused();
+        if ([390, 1280].includes(size.width)) await page.screenshot({ path: info.outputPath(`welcome-${theme}-${size.width}.png`) });
+      }
+      expect(errors).toEqual([]); expect(generationRequests).toBe(0);
+    } finally { await context.close(); }
+  }
+  await info.attach('welcome-geometry', { body: JSON.stringify(observations), contentType: 'application/json' });
+});
+
+test('S7 landing chat still follows a streamed reply after welcome alignment', async ({ browser, baseURL }) => {
+  test.skip(process.env.E2E_LANDING_CHAT_LAYOUT !== '1', 'Browser-only response fixture, no provider request');
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  try {
+    const page = await context.newPage();
+    let calls = 0;
+    await page.route('**/api/ai-chat', route => {
+      calls++;
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `data: ${JSON.stringify({ text: Array.from({ length: 25 }, (_, index) => `QA paragraph ${index + 1}.`).join('\n\n') + '\n\nQA response complete.' })}\n\ndata: [DONE]\n\n` });
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const panel = page.getByRole('complementary', { name: 'AI chat', exact: true });
+    await panel.scrollIntoViewIfNeeded();
+    await panel.getByRole('textbox', { name: 'AI message', exact: true }).fill('Layout fixture only');
+    await panel.getByRole('button', { name: 'Send', exact: true }).click();
+    const reply = panel.getByText(/QA paragraph 1\./).last();
+    await expect(reply).toContainText('QA response complete.');
+    await expect.poll(() => reply.evaluate(element => {
+      const text = element.firstChild!;
+      const range = document.createRange();
+      range.setStart(text, (text.textContent?.length ?? 0) - 'QA response complete.'.length);
+      range.setEnd(text, text.textContent?.length ?? 0);
+      let scroller = element.parentElement!;
+      while (scroller.parentElement && !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      return range.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().bottom;
+    })).toBe(true);
+    expect(calls).toBe(1);
+  } finally { await context.close(); }
+});
+
 test('S9 public walkthrough player is responsive, captioned and starts only on request', async ({ browser, baseURL }, info) => {
   test.skip(process.env.E2E_WALKTHROUGH_PLAYER !== '1', 'Opt-in static video acceptance; no account or payment');
   test.setTimeout(120_000);

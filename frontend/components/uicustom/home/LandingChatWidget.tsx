@@ -17,8 +17,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';
 import { useAiCreditConfig, type AiCreditConfig } from '@/hooks/use-ai-credit-config';
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -223,6 +223,7 @@ export default function LandingChatWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const expandTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // The landing chat intentionally starts fresh on every page load — we do NOT
   // restore previous messages from localStorage. Clear any history left over
@@ -231,8 +232,9 @@ export default function LandingChatWidget({
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
-  // Scroll to bottom
+  // Follow replies, not an empty panel: its welcome heading must stay visible.
   useEffect(() => {
+    if (state.messages.length === 0) return;
     const el = messagesEndRef.current;
     if (!el) return;
     const container = el.closest(".overflow-y-auto");
@@ -262,8 +264,9 @@ export default function LandingChatWidget({
     }
   }, [viewMode]);
 
-  const handleExpand = useCallback(() => {
+  const handleExpand = useCallback((trigger?: HTMLButtonElement) => {
     if (viewMode === "widget") {
+      expandTriggerRef.current = trigger ?? null;
       setViewMode("expanded");
     } else {
       // From expanded → go to full chat route
@@ -547,36 +550,22 @@ export default function LandingChatWidget({
   return (
     <>
       {/* ═══════ EXPANDED MODAL OVERLAY ═══════ */}
-      <AnimatePresence>
-        {viewMode === "expanded" && (
-          <motion.div
-            key="expanded-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) handleClose();
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{
-                duration: 0.22,
-                ease: [0.25, 0.46, 0.45, 0.94],
-              }}
-              className="w-full max-w-4xl h-[85vh] flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
-              role="dialog"
-              aria-label="AI chat expanded"
-            >
-              <ChatPanelInner {...panelProps} desktopMode />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Dialog open={viewMode === "expanded"} onOpenChange={open => { if (!open) handleClose(); }}>
+        <DialogContent accessibleTitle="AI chat expanded" aria-describedby={undefined} hideCloseButton
+          className="flex h-[85dvh] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl p-0 motion-reduce:animate-none"
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            requestAnimationFrame(() => {
+              // The inline panel remounts after the dialog closes, so the
+              // original trigger can be detached. Focus its visible successor.
+              const trigger = expandTriggerRef.current?.isConnected ? expandTriggerRef.current :
+                Array.from(document.querySelectorAll<HTMLButtonElement>('[data-landing-chat-expand]')).find(button => button.getClientRects().length > 0);
+              trigger?.focus({ preventScroll: true });
+            });
+          }}>
+          <ChatPanelInner {...panelProps} desktopMode />
+        </DialogContent>
+      </Dialog>
 
       {/* ═══════ MOBILE (< md landscape) ═══════ */}
       <div className="portrait:hidden md:hidden">
@@ -724,7 +713,7 @@ interface ChatPanelInnerProps {
   reduceMotion: boolean;
   onSend: () => void;
   onClose: () => void;
-  onExpand: () => void;
+  onExpand: (trigger?: HTMLButtonElement) => void;
   onSuggest: (text: string) => void;
   desktopMode?: boolean;
   // BYOK
@@ -853,7 +842,7 @@ function ChatPanelInner({
           )}
           {/* Expand */}
           <button
-            onClick={onExpand}
+            onClick={event => onExpand(event.currentTarget)}
             className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
             title={
               viewMode === "widget"
@@ -863,6 +852,7 @@ function ChatPanelInner({
             aria-label={
               viewMode === "widget" ? "Expand chat" : "Go to full chat"
             }
+            data-landing-chat-expand={viewMode === "widget" ? '' : undefined}
           >
             <svg
               width="13"
@@ -1107,9 +1097,9 @@ function ChatPanelInner({
       </AnimatePresence>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3 min-h-0">
         {state.messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+          <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
             <div
               className={`text-sky-400 dark:text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}
             >
@@ -1181,7 +1171,7 @@ function ChatPanelInner({
               )}
           </>
         )}
-        <div ref={messagesEndRef} />
+        {state.messages.length > 0 && <div ref={messagesEndRef} />}
       </div>
 
       {/* ── Error banner ── */}
