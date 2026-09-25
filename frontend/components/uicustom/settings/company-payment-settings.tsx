@@ -54,7 +54,7 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
       const res = await getSellerPaymentStatus({ target: 'company', companyId });
       if ('data' in res) {
         setStatus(res.data);
-        setPaypalInput(res.data.paypalEmail ?? '');
+        setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
       } else setLoadError(res.error);
     } catch { setLoadError('Payment settings could not load. Try again.'); }
     finally { setIsLoadingStatus(false); }
@@ -73,7 +73,7 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
     setSaveError(null);
     startTransition(async () => {
       try {
-      const res = await savePaypalEmail({ paypalEmail: paypalInput.trim(), target: 'company', companyId });
+      const res = await savePaypalEmail({ paypalEmail: paypalInput.trim(), expectedEmail: status?.paypalEmail ?? null, target: 'company', companyId });
       if ('error' in res) {
         setSaveError(res.error);
       } else {
@@ -85,11 +85,11 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
   };
 
   const handleRemovePaypal = () => {
-    if (!window.confirm('Remove this company’s PayPal receiving email? You can add it again later.')) return;
+    if (!window.confirm('Remove this company’s receiving email and any pending verification? You can add an address again later.')) return;
     setSaveError(null);
     startTransition(async () => {
       try {
-      const res = await removePaypalEmail({ target: 'company', companyId });
+      const res = await removePaypalEmail({ expectedEmail: status?.paypalEmail ?? null, expectedPendingEmail: status?.pendingPaypalEmail ?? null, target: 'company', companyId });
       if ('error' in res) {
         setSaveError(res.error);
       } else {
@@ -104,7 +104,7 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
-  if (isLoadingStatus) {
+  if (isLoadingStatus && !status) {
     return (
       <div role="status" className="flex items-center justify-center gap-3 py-8">
         <FiLoader aria-hidden="true" className="h-5 w-5 motion-safe:animate-spin text-muted-foreground" />
@@ -120,16 +120,13 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Payment Setup</p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Configure how this company receives payments from buyers.
-        </p>
+    <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+      <div className="lg:col-span-2">
+        <h2 className="text-lg font-semibold">Payment setup</h2>
       </div>
 
       {/* ─── PayPal Email ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border p-4">
+      <div className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
         <label htmlFor={emailId} className="mb-2 block text-sm font-semibold">
           PayPal Receiving Email
         </label>
@@ -155,6 +152,9 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
           </div>
         )}
 
+        {status?.pendingPaypalEmail && <p role="status" className="mb-3 break-words text-sm text-muted-foreground">
+          Check <span className="font-medium text-foreground">{status.pendingPaypalEmail}</span> for a verification link. Your current address stays unchanged until you confirm.
+        </p>}
         <form onSubmit={event => { event.preventDefault(); handleSavePaypal(); }} className="flex flex-wrap gap-2">
           <div className="relative min-w-0 basis-full sm:flex-1 sm:basis-auto">
             <FiMail aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -170,12 +170,12 @@ export function CompanyPaymentSettings({ companyId, wallets = [] }: CompanyPayme
           </div>
           <Button
             type="submit"
-            disabled={isPending || !paypalInput.trim() || paypalInput.trim() === status?.paypalEmail}
+            disabled={isPending || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
             className="min-h-11"
           >
-            {status?.paypalEmail ? 'Update' : 'Save & Verify'}
+            {isPending ? 'Sending…' : status?.pendingPaypalEmail ? 'Resend verification' : 'Send verification'}
           </Button>
-          {status?.paypalEmail && (
+          {(status?.paypalEmail || status?.pendingPaypalEmail) && (
             <Button type="button" variant="destructive" className="min-h-11 min-w-11" aria-label="Remove company PayPal receiving email" onClick={handleRemovePaypal} disabled={isPending}>
               <FiTrash2 aria-hidden="true" className="h-4 w-4" />
             </Button>

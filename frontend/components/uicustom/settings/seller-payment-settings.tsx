@@ -83,7 +83,7 @@ function EditableSellerPayments() {
       const res = await getSellerPaymentStatus({ target: 'user' });
       if ('data' in res) {
         setStatus(res.data);
-        setPaypalInput(res.data.paypalEmail ?? '');
+        setPaypalInput(res.data.pendingPaypalEmail ?? res.data.paypalEmail ?? '');
       } else setLoadError(res.error);
     } catch { setLoadError('Payment settings could not load. Try again.'); }
     finally { setIsLoadingStatus(false); }
@@ -120,17 +120,17 @@ function EditableSellerPayments() {
     });
   };
   const handleSavePaypal = () => {
-    if (paypalInput.trim()) runUpdate(() => savePaypalEmail({ paypalEmail: paypalInput.trim(), target: 'user' }));
+    if (paypalInput.trim()) runUpdate(() => savePaypalEmail({ paypalEmail: paypalInput.trim(), expectedEmail: status?.paypalEmail ?? null, target: 'user' }));
   };
   const handleRemovePaypal = () => {
-    if (window.confirm('Remove your PayPal receiving email? You can add it again later.'))
-      runUpdate(() => removePaypalEmail({ target: 'user' }));
+    if (window.confirm('Remove your receiving email and any pending verification? You can add an address again later.'))
+      runUpdate(() => removePaypalEmail({ expectedEmail: status?.paypalEmail ?? null, expectedPendingEmail: status?.pendingPaypalEmail ?? null, target: 'user' }));
   };
 
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
-  if (isLoadingStatus) {
+  if (isLoadingStatus && !status) {
     return (
       <div role="status" className="flex items-center justify-center gap-3 py-16">
         <FiLoader className="h-6 w-6 animate-spin text-zinc-400" />
@@ -184,6 +184,9 @@ function EditableSellerPayments() {
           </div>
         )}
 
+        {status?.pendingPaypalEmail && <p role="status" className="mb-3 break-words text-sm text-muted-foreground">
+          Check <span className="font-medium text-foreground">{status.pendingPaypalEmail}</span> for a verification link. Your current address stays unchanged until you confirm.
+        </p>}
         {/* Input + actions */}
         <label htmlFor="seller-paypal-email" className="block text-sm font-medium">Receiving email</label>
         <form onSubmit={event => { event.preventDefault(); handleSavePaypal(); }} className="flex flex-wrap items-start gap-2">
@@ -201,12 +204,12 @@ function EditableSellerPayments() {
           </div>
           <Button
             type="submit" className="min-h-11"
-            disabled={isPending || !paypalInput.trim() || paypalInput.trim() === status?.paypalEmail}
+            disabled={isPending || !paypalInput.trim() || (paypalInput.trim().toLowerCase() === status?.paypalEmail && status.paypalEmailVerified && !status.pendingPaypalEmail)}
             size="sm"
           >
-            {status?.paypalEmail ? 'Update & Verify' : 'Save & Verify'}
+            {isPending ? 'Sending…' : status?.pendingPaypalEmail ? 'Resend verification' : 'Send verification'}
           </Button>
-          {status?.paypalEmail && (
+          {(status?.paypalEmail || status?.pendingPaypalEmail) && (
             <Button
               variant="destructive"
               size="sm"

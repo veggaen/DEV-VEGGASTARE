@@ -44,7 +44,7 @@ it('a failed save retains the draft and displays actionable feedback', async () 
   const input = host.querySelector('input')!;
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'new@example.test'); input.dispatchEvent(new Event('input', { bubbles: true })); });
   await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
-  expect(m.save).toHaveBeenCalledWith({ target: 'company', companyId: 'company-qa', paypalEmail: 'new@example.test' });
+  expect(m.save).toHaveBeenCalledWith({ target: 'company', companyId: 'company-qa', paypalEmail: 'new@example.test', expectedEmail: status.paypalEmail });
   expect(input.value).toBe('new@example.test'); expect(host.querySelector('[role="alert"]')?.textContent).toContain('could not be saved');
   expect(host.textContent).not.toContain('private provider error');
 });

@@ -1,117 +1,50 @@
-/**
- * @fileOverview  PayPal email verification callback page.
- *                User lands here from the email link → verifies the token.
- * @stability     experimental
- */
+/** @fileOverview Explicit, owner-bound approval of a receiving email; opening a link never changes it. @stability evolving */
 'use client';
-
 import { useEffect, useState, useTransition } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { verifyPaypalEmail } from '@/actions/seller-payment';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { reviewPaypalEmail, verifyPaypalEmail } from '@/actions/seller-payment';
 import { Button } from '@/components/ui/button';
-import { FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
+import { FiCheckCircle, FiMail } from 'react-icons/fi';
 
 export default function VerifyPaypalPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ success?: string; error?: string } | null>(null);
-
-  const rawToken = searchParams.get('token') ?? '';
-  const rawType = searchParams.get('type') ?? '';
-  const rawId = searchParams.get('id') ?? '';
-
-  // Client-side validation — reject obviously bad params before calling server
-  const TOKEN_RE = /^[0-9a-f]{64}$/;
-  const CUID_RE = /^c[a-z0-9]{24}$/;
-  const isValidType = rawType === 'user' || rawType === 'company';
-  const isValidToken = TOKEN_RE.test(rawToken);
-  const isValidId = rawType === 'company' ? CUID_RE.test(rawId) : true;
-  const paramsValid = isValidType && isValidToken && isValidId;
-
-  const entityType = isValidType ? (rawType as 'user' | 'company') : null;
-
+  const params = useSearchParams();
+  const token = params.get('token') ?? '', type = params.get('type') ?? '', id = params.get('id') ?? '';
+  const valid = /^[0-9a-f]{64}$/.test(token) && (type === 'user' || type === 'company') && (type !== 'company' || /^c[a-z0-9]{24,29}$/.test(id));
+  const [review, setReview] = useState<{ email?: string; error?: string; success?: string } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [pending, startTransition] = useTransition();
+  const settings = type === 'company' && /^c[a-z0-9]{24,29}$/.test(id) ? `/companies/${id}/settings` : '/settings?section=payments';
   useEffect(() => {
-    if (!paramsValid || !entityType) return;
-
-    startTransition(async () => {
-      const target = entityType === 'company'
-        ? { target: 'company' as const, companyId: rawId }
-        : { target: 'user' as const };
-
-      const res = await verifyPaypalEmail({ token: rawToken, ...target });
-      setResult(res);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!paramsValid || !entityType) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <FiAlertCircle className="mx-auto mb-2 h-10 w-10 text-red-500" />
-            <h1 className="text-xl font-semibold">Invalid Link</h1>
-          </CardHeader>
-          <CardContent className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-            This verification link is missing required parameters or has expired.
-          </CardContent>
-        </Card>
+    if (!valid) return;
+    let disposed = false;
+    const timer = setTimeout(() => {
+      if (!disposed) { disposed = true; setReview({ error: 'Verification could not load. Try again.' }); }
+    }, 12_000);
+    const target = type === 'company' ? { target: 'company' as const, companyId: id } : { target: 'user' as const };
+    void reviewPaypalEmail({ ...target, token }).then(result => {
+      if (!disposed) { clearTimeout(timer); setReview('data' in result ? result.data : result); }
+    }).catch(() => { if (!disposed) { clearTimeout(timer); setReview({ error: 'Verification could not load. Try again.' }); } });
+    return () => { disposed = true; clearTimeout(timer); };
+  }, [valid, type, id, token, attempt]);
+  const verify = () => startTransition(async () => {
+    const target = type === 'company' ? { target: 'company' as const, companyId: id } : { target: 'user' as const };
+    try { setReview(await verifyPaypalEmail({ ...target, token })); }
+    catch { setReview({ error: 'Verification could not complete. Request a new link in payment settings.' }); }
+  });
+  return <section className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 sm:py-12">
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-8">
+      {review?.success ? <FiCheckCircle aria-hidden="true" className="size-8 text-emerald-500" /> : <FiMail aria-hidden="true" className="size-8 text-muted-foreground" />}
+      <h1 className="text-balance text-2xl font-semibold">{review?.success ? 'Receiving email verified' : 'Verify receiving email'}</h1>
+      {!valid ? <p role="alert" className="text-sm text-destructive">Invalid link. Request a new one in payment settings.</p>
+        : review?.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p>
+        : review?.email ? <><p className="break-all font-medium">{review.email}</p><p className="text-sm text-muted-foreground">Confirm this as your receiving email. This verifies inbox access only.</p></>
+        : !review?.success ? <p role="status" className="text-sm text-muted-foreground">Checking verification link…</p> : null}
+      <div className="flex flex-wrap gap-3">
+        {review?.email && <Button className="min-h-11" disabled={pending} onClick={verify}>{pending ? 'Verifying…' : 'Verify this email'}</Button>}
+        {valid && review?.error && <Button className="min-h-11" variant="outline" onClick={() => { setReview(null); setAttempt(value => value + 1); }}>Retry verification</Button>}
+        <Button asChild variant={review?.success ? 'default' : 'outline'} className="min-h-11"><Link href={settings}>Payment settings</Link></Button>
       </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          {isPending ? (
-            <>
-              <FiLoader className="mx-auto mb-2 h-10 w-10 animate-spin text-blue-500" />
-              <h1 className="text-xl font-semibold">Verifying…</h1>
-            </>
-          ) : result?.success ? (
-            <>
-              <FiCheckCircle className="mx-auto mb-2 h-10 w-10 text-emerald-500" />
-              <h1 className="text-xl font-semibold">PayPal Email Verified!</h1>
-            </>
-          ) : (
-            <>
-              <FiAlertCircle className="mx-auto mb-2 h-10 w-10 text-red-500" />
-              <h1 className="text-xl font-semibold">Verification Failed</h1>
-            </>
-          )}
-        </CardHeader>
-        <CardContent className="text-center">
-          {isPending ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Checking your verification token…
-            </p>
-          ) : result?.success ? (
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">{result.success}</p>
-              <Button
-                onClick={() => router.push(
-                  entityType === 'company'
-                    ? `/companies/${encodeURIComponent(rawId)}/settings`
-                    : '/settings?section=payments'
-                )}
-                className="w-full"
-              >
-                Go to Settings
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-red-600 dark:text-red-400">{result?.error ?? 'Unknown error'}</p>
-              <Button variant="outline" onClick={() => router.push('/settings?section=payments')} className="w-full">
-                Back to Settings
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
-  );
+  </section>;
 }

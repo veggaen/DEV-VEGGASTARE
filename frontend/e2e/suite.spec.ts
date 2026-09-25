@@ -10,6 +10,87 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { hexToString, type Hex } from 'viem';
 import { SHOWCASE_COMPANY_ID } from '../lib/showcase-catalog';
 
+test('S8 company payment settings are compact, responsive and preserve the reviewed address', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo session with browser-only owner and mail fixtures');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), writes: Record<string, unknown>[] = [], errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const identity = { id: 'qa-display-only', name: 'QA studio owner', image: null, email: 'qa@example.test' };
+  const now = new Date().toISOString(); let pendingEmail: string | null = null;
+  await page.route('**/api/auth/session', async route => { const response = await route.fetch(), session = await response.json(); await route.fulfill({ json: { ...session, user: { ...session.user, ...identity, isDemo: false } } }); });
+  await page.route(`**/api/companies/${SHOWCASE_COMPANY_ID}`, route => route.fulfill({ json: {
+    id: SHOWCASE_COMPANY_ID, name: 'QA studio', ownerId: identity.id, creatorId: identity.id, owner: identity, creator: identity,
+    logo: [], bannerImage: [], description: 'A private company settings fixture.', websiteUrl: 'javascript:alert(1)', usesShipping: false,
+    orgType: 'ENK', orgNumber: '123456789', employmentNoticeDays: 14, createdAt: now, updatedAt: now, wallets: [], warehouseLocations: [],
+    employees: [{ id: 'qa-employee', userId: identity.id, user: identity, role: 'OWNER', permissions: {}, createdAt: now, updatedAt: now }],
+  } }));
+  await page.route(`**/companies/${SHOWCASE_COMPANY_ID}/settings`, async route => {
+    if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.continue();
+    const [data] = JSON.parse(route.request().postData()!); let result: unknown;
+    if (data.paypalEmail) { writes.push(data); pendingEmail = data.paypalEmail; result = { success: 'Verification email requested.' }; }
+    else if ('expectedEmail' in data) { writes.push(data); result = { error: 'The receiving email changed. Refresh payment settings and review it.' }; }
+    else result = { data: { paypalEmail: 'old@example.test', paypalEmailVerified: true, pendingPaypalEmail: pendingEmail, defaultReceivingWalletId: null, defaultReceivingWalletAddress: null } };
+    await route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: result, f: [], b: 'qa-browser-only' })}\n` });
+  });
+  try {
+    await page.goto(`/companies/${SHOWCASE_COMPANY_ID}/settings`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const session = page.waitForResponse(response => response.url().includes('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await session;
+    const input = page.getByRole('textbox', { name: 'PayPal Receiving Email', exact: true }); await expect(input).toBeVisible();
+    const consent = page.getByRole('button', { name: 'Essential Only', exact: true }); if (await consent.isVisible()) await consent.click();
+    await expect(page.getByRole('heading', { name: 'Payment setup', exact: true })).toBeVisible();
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[768,1024],[1024,1280],[1920,1080],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await input.scrollIntoViewIfNeeded();
+      expect((await input.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (width >= 1280) { await page.locator('[data-app-scroll-container]:visible').evaluate(el => el.scrollTo(0,0)); await expect(input).toBeInViewport(); await expect(page.getByRole('button', { name: 'Send verification', exact: true })).toBeInViewport(); }
+      expect(await page.locator('[data-app-scroll-container]:visible').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`company-payment-${width}.png`) });
+    }
+    await input.fill('new@example.test'); await input.press('Enter');
+    await expect(page.getByRole('button', { name: 'Resend verification', exact: true })).toBeVisible();
+    await expect(page.getByText('old@example.test', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Check new@example.test' })).toBeVisible();
+    expect(writes).toEqual([{ target: 'company', companyId: SHOWCASE_COMPANY_ID, paypalEmail: 'new@example.test', expectedEmail: 'old@example.test' }]);
+    page.once('dialog', dialog => dialog.dismiss()); await page.getByRole('button', { name: 'Remove company PayPal receiving email', exact: true }).click(); expect(writes).toHaveLength(1);
+    page.once('dialog', dialog => dialog.accept()); await page.getByRole('button', { name: 'Remove company PayPal receiving email', exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'receiving email changed' })).toBeVisible(); expect(writes.at(-1)).toMatchObject({ expectedEmail: 'old@example.test', expectedPendingEmail: 'new@example.test' });
+    await page.getByText('Company details', { exact: true }).click(); await expect(page.getByRole('link', { name: 'Company website', exact: false })).toHaveCount(0);
+    await page.getByText('Team · 1', { exact: true }).click(); await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('heading', { name: 'Add an employee', exact: true }).scrollIntoViewIfNeeded();
+    const scroller = page.locator('[data-app-scroll-container]:visible'); await scroller.evaluate(el => el.scrollTo(0,0));
+    await page.mouse.move(280,450); await page.mouse.wheel(0,600); await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
+
+test('S4 receiving-email links review first and mutate only after explicit confirmation', async ({ browser, baseURL }, info) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained session and intercepted verification; never sends mail or changes a real address');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(), calls: string[] = []; let reviewAction = '';
+  await page.route('**/settings/verify-paypal**', async route => {
+    const action = route.request().headers()['next-action']; if (route.request().method() !== 'POST' || !action) return route.continue();
+    if (!reviewAction) reviewAction = action; calls.push(action);
+    const result = action === reviewAction ? { data: { email: 'new@example.test' } } : { success: 'Receiving email verified.' };
+    await route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: result, f: [], b: 'qa-browser-only' })}\n` });
+  });
+  try {
+    await page.goto(`/settings/verify-paypal?type=company&id=${SHOWCASE_COMPANY_ID}&token=${'a'.repeat(64)}`);
+    const approve = page.getByRole('button', { name: 'Verify this email', exact: true }); await expect(approve).toBeVisible();
+    expect(calls).toEqual([reviewAction]);
+    for (const [width,height] of [[390,844],[1280,800],[360,800],[844,390],[1024,1280],[2560,1440]]) {
+      await page.setViewportSize({ width,height }); await approve.scrollIntoViewIfNeeded(); expect((await approve.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`paypal-review-${width}.png`) });
+    }
+    await approve.click(); await expect(page.getByRole('heading', { name: 'Receiving email verified', exact: true })).toBeVisible();
+    expect(calls).toHaveLength(2); expect(calls[1]).not.toBe(reviewAction);
+    await expect(page.getByRole('link', { name: 'Payment settings', exact: true })).toHaveAttribute('href', `/companies/${SHOWCASE_COMPANY_ID}/settings`);
+    await page.goto('/settings/verify-paypal?type=company&id=bad&token=bad'); await expect(page.getByRole('alert').filter({ hasText: 'Invalid link' })).toBeVisible(); expect(calls).toHaveLength(2);
+  } finally { await context.close(); }
+});
+
 test('S8 company internals reject anonymous and unrelated demo readers while the storefront stays public', async ({ browser, baseURL }) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained unrelated demo account required');
   const anonymous = await browser.newContext({ baseURL });

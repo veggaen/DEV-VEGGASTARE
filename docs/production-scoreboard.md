@@ -4,6 +4,14 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Company PayPal settings: **PARTIAL — local implementation verified; deployment next**.
+The permanent company ID is accepted; pending email changes preserve the current
+address and use owner/site-bound, atomic one-use verification with explicit approval.
+Company settings is payment-first and responsive. Strict build, 72 focused tests,
+16 isolated PostgreSQL tests and local Playwright 4/4 pass without retries/skips.
+No real receiving details or emails were changed. See
+[company PayPal evidence](company-paypal-evidence-2026-09.md).
+
 Company read boundaries: **DONE for this scoped slice — deployed as `cc31221`,
 `dpl_C4eiasxJTxHeGd63WqtrLPY1WyCj`**. Four internal endpoints enforce current company membership and
 current privileged role, with private/no-store responses and safe recovery UI.

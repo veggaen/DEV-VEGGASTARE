@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { MyNewEmployeeForm } from '@/components/uicustom/company/form/new-employee-form';
 import { RemoveEmployeeButton } from '@/components/uicustom/company/remove-employee-btn';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Button } from '@/components/ui/button';
 import DeleteCompanyBtn from '@/components/uicustom/company/delete-company-btn';
 import type { EmployeePermissions } from '@/lib/types/company-permissions';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,7 +15,7 @@ import { MdAddCircleOutline, MdDelete, MdEdit, MdRemoveCircleOutline, MdPostAdd 
 import ProgressBar from '@/components/bars/progress-bar';
 import EditEmployeePermissionsModal from '@/components/uicustom/company/edit-employee-permission';
 import { FaBriefcase } from 'react-icons/fa';
-import BannerThemeWrapper from '@/components/uicustom/banner/BannerThemeWrapper';
+
 import { CompanyPaymentSettings } from '@/components/uicustom/settings/company-payment-settings';
 import type { CompanyDetailsResponse } from '@/lib/types/company';
 import { CompanyReadNotice } from '@/components/uicustom/company/company-read-notice';
@@ -51,11 +51,11 @@ const CompanySettingsClient = () => {
         const [change, setChange] = useState(false);
         const [company, setCompany] = useState<CompanyDetailsResponse | null>(null);
         const [loading, setLoading] = useState(true);
+        const registrationDirty = useRef(false);
         const [loadError, setLoadError] = useState<string | null>(null);
         const [accessStatus, setAccessStatus] = useState<number | null>(null);
         const companyRequest = useRef(0);
         const [errorMessages, setErrorMessages] = useState<{ [key: string]: string | null }>({});
-        const [selectedEmployee, setSelectedEmployee] = useState<CompanyDetailsResponse['employees'][number] | null>(null);
         const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
     // Optional company metadata (org type / org number / notice days)
@@ -143,7 +143,7 @@ const CompanySettingsClient = () => {
         }, [companyId, company?.usesShipping, fetchWarehouseData]);
 
             useEffect(() => {
-                if (!company) return;
+                if (!company || registrationDirty.current) return;
                 setRegOrgType(company.orgType ?? '');
                 setRegOrgNumber(((company as any).orgNumber ?? '') as string);
                 setRegNoticeDays(((company as any).employmentNoticeDays ?? 14) as number);
@@ -153,7 +153,7 @@ const CompanySettingsClient = () => {
 
         if (!companyId) return <div className="text-center py-4">Invalid company id.</div>;
 
-        if (loading) return <div role="status" className="mx-auto w-full max-w-7xl px-4 py-8 text-sm text-muted-foreground">Loading company settings…</div>;
+        if (loading && !company) return <div role="status" className="mx-auto w-full max-w-7xl px-4 py-8 text-sm text-muted-foreground">Loading company settings…</div>;
         if (loadError) return <CompanyReadNotice companyId={companyId} status={accessStatus} retry={fetchCompanyDetails} />;
         if (!company) return <div className="text-center py-4">Company not found.</div>;
 
@@ -222,6 +222,7 @@ const CompanySettingsClient = () => {
                                 const msg = (data && (data.error || data.message)) || `Failed to update registration (${res.status})`;
                                 throw new Error(msg);
                         }
+                registrationDirty.current = false;
                 setRegSuccess('Company metadata updated.');
                         setChange((v) => !v);
                 } catch (e: any) {
@@ -255,14 +256,6 @@ const CompanySettingsClient = () => {
                 console.log('Employee was added. Refreshing list...');
         };
 
-        const handleEmployeeClick = (employee: CompanyDetailsResponse['employees'][number]) => {
-                setSelectedEmployee(employee);
-        };
-
-        const sortedEmployees = company.employees.slice().sort((a, b) => {
-                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        });
-
         const sortedEmployeesRole = company.employees.slice().sort((a, b) => {
                 return rolePriority[a.role] - rolePriority[b.role];
         });
@@ -273,91 +266,36 @@ const CompanySettingsClient = () => {
                 return formatDistanceToNow(new Date(date), { addSuffix: true });
         };
 
-        const banner = company.bannerImage?.[0] ?? null;
+        let website: string | null = null;
+        try { const url = new URL(company.websiteUrl ?? ''); if (['https:', 'http:'].includes(url.protocol)) website = url.href; } catch { /* no public website */ }
+        const canManageTeam = isOwner || isAdminUser;
+        const disclosure = "min-h-11 cursor-pointer rounded-md py-2 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-        return (
-            <BannerThemeWrapper bannerUrl={banner} className="w-full">
-                <div className="relative mx-auto w-full max-w-screen-2xl px-4 py-6">
-                    <div className="overflow-hidden rounded-lg border border-black/10 bg-white/60 backdrop-blur-sm transition-[border-radius] duration-200 hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
-                        <div className="relative w-full">
-                            {company.bannerImage?.[0] ? (
-                                <AspectRatio ratio={3 / 1}>
-                                    <Image
-                                        src={company.bannerImage[0]}
-                                        layout="fill"
-                                        objectFit="cover"
-                                        alt={`${company.name} banner`}
-                                        className="object-cover"
-                                    />
-                                </AspectRatio>
-                            ) : (
-                                <div className="h-44 w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
-                            )}
-                            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
-
-                            <div className="absolute inset-0 flex items-end justify-between gap-4 p-4 md:p-6">
-                                <div className="flex items-end gap-4">
-                                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-white/20 bg-white/10 md:h-24 md:w-24">
-                                        <Image
-                                            src={company.logo?.[0] || "/users/avatar.webp"}
-                                            layout="fill"
-                                            objectFit="cover"
-                                            alt={`${company.name} logo`}
-                                            className="object-cover"
-                                        />
-                                    </div>
-                                    <div className="pb-1">
-                                        <h1 className="text-xl font-semibold tracking-tight text-white md:text-3xl">{company.name}</h1>
-                                        <div className="mt-1 flex items-center gap-3 text-sm text-white/80">
-                                            <span>Company Settings</span>
-                                            <span className="opacity-50">•</span>
-                                            <Link href={`/companies/${company.id}`} className="hover:text-white hover:underline underline-offset-2">
-                                                Public profile
-                                            </Link>
-                                            <span className="opacity-50">•</span>
-                                            <Link href={`/companies/${company.id}/hub`} className="hover:text-white hover:underline underline-offset-2">
-                                                Hub
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {company.ownerId === clientUser?.id ? (
-                                    <div className="pb-1">
-                                        <DeleteCompanyBtn
-                                            companyId={company.id}
-                                            companyName={company.name}
-                                            onCompanyDeleted={() => handleSuccess(company.id)}
-                                            employeePermissions={currentUserPermissions as EmployeePermissions}
-                                        />
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-
-                        <div className="px-4 py-5 md:px-6">
-                            <div className="mb-8">
-                                <p className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">Description</p>
-                                <p className="text-base text-zinc-700 dark:text-zinc-300 mb-4">{company.description}</p>
-                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                                    <span className="font-medium">Website:</span>{' '}
-                                    {company.websiteUrl ? (
-                                        <a
-                                            href={company.websiteUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-sky-700 hover:underline dark:text-sky-300"
-                                        >
-                                            {company.websiteUrl}
-                                        </a>
-                                    ) : (
-                                        <span className="opacity-80">No URL provided</span>
-                                    )}
-                                </div>
-                            </div>
-
+        return <section className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+            <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Image src={company.logo?.[0] || '/users/avatar.webp'} width={56} height={56} alt="" className="size-14 shrink-0 rounded-xl border border-border object-cover" />
+                    <div className="min-w-0"><p className="text-sm text-muted-foreground">Company settings</p><h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">{company.name}</h1></div>
+                </div>
+                <nav aria-label="Company navigation" className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline" className="min-h-11"><Link href={`/companies/${company.id}`}>Public profile</Link></Button>
+                    <Button asChild variant="outline" className="min-h-11"><Link href={`/companies/${company.id}/hub`}>Company hub</Link></Button>
+                </nav>
+            </header>
+            {isOwner && <CompanyPaymentSettings companyId={company.id} wallets={company.wallets?.map(w => ({
+                id: w.id, label: w.label, address: w.address, isDefault: w.isDefault, verifiedAt: w.verifiedAt ?? null,
+            })) ?? []} />}
+            <details className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                <summary className={disclosure}>Company details</summary>
+                <div className="space-y-4 pt-3 text-sm">
+                    {company.description && <p className="max-w-prose break-words text-muted-foreground">{company.description}</p>}
+                    {website && <a href={website} target="_blank" rel="noreferrer" className="inline-flex min-h-11 max-w-full items-center break-all text-primary underline underline-offset-4">Company website ↗</a>}
+                    <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {[['Company ID', company.id], ['Owner', company.owner.name], ['Founded by', company.creator.name], ['Shipping', company.usesShipping ? 'Enabled' : 'Not used'], ['Founded', formatDate(company.createdAt)], ['Updated', formatDate(company.updatedAt)]].map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-muted-foreground">{label}</dt><dd className="mt-1 break-words font-medium">{value || 'Not specified'}</dd></div>)}
+                    </dl>
+                </div>
                             {showRegistrationPrompt ? (
-                                <div className="mb-8 rounded-lg border border-black/10 bg-white/50 p-4 text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-white">
+                                <div className="pt-4">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-base font-semibold">Optional company metadata</p>
@@ -372,9 +310,9 @@ const CompanySettingsClient = () => {
                                             <span className="text-sm font-medium">Organization type (optional)</span>
                                             <select
                                                 value={regOrgType}
-                                                onChange={(e) => setRegOrgType(e.target.value)}
+                                                onChange={(e) => { registrationDirty.current = true; setRegOrgType(e.target.value); }}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="min-h-11 min-w-0 rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             >
                                                 <option value="">Not specified</option>
                                                 <option value="ENK">Enkeltpersonforetak (ENK)</option>
@@ -392,13 +330,13 @@ const CompanySettingsClient = () => {
                                             <span className="text-sm font-medium">Org number (optional)</span>
                                             <input
                                                 value={regOrgNumber}
-                                                onChange={(e) => setRegOrgNumber(e.target.value)}
+                                                onChange={(e) => { registrationDirty.current = true; setRegOrgNumber(e.target.value); }}
                                                 disabled={!canUpdateRegistration || regSaving}
                                                 inputMode="numeric"
                                                 pattern="\d*"
                                                 maxLength={9}
                                                 placeholder="123456789"
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="min-h-11 min-w-0 rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             />
                                         </label>
 
@@ -409,252 +347,60 @@ const CompanySettingsClient = () => {
                                                 min={0}
                                                 max={365}
                                                 value={regNoticeDays}
-                                                onChange={(e) => setRegNoticeDays(Number(e.target.value))}
+                                                onChange={(e) => { registrationDirty.current = true; setRegNoticeDays(Number(e.target.value)); }}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="min-h-11 min-w-0 rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             />
                                         </label>
                                     </div>
 
-                                    <div className="mt-4 flex items-center gap-3">
+                                    <div className="mt-4 flex flex-wrap items-center gap-3">
                                         <button
                                             type="button"
                                             onClick={saveRegistration}
                                             disabled={!canUpdateRegistration || regSaving}
-                                            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900"
+                                            className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         >
                                             {regSaving ? 'Saving…' : 'Save'}
                                         </button>
-                                        {regError ? <span className="text-sm text-red-700 dark:text-red-300">{regError}</span> : null}
-                                        {regSuccess ? <span className="text-sm text-emerald-700 dark:text-emerald-300">{regSuccess}</span> : null}
+                                        {regError ? <span role="alert" className="text-sm text-destructive">{regError}</span> : null}
+                                        {regSuccess ? <span role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{regSuccess}</span> : null}
                                         {!canUpdateRegistration ? (
                                             <span className="text-sm opacity-80">Only the company owner (or admins) can update this.</span>
                                         ) : null}
                                     </div>
                                 </div>
                             ) : null}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company ID:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.id || 'N/A'}</p>
-                                    </div>
-                                )}
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded by:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.creator.name || 'N/A'}</p>
-                                </div>
-                                {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company Owner:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.owner.name || 'N/A'}</p>
-                                    </div>
-                                )}
-                                {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Color Scheme:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
-                                    </div>
-                                )}
-                                {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Uses Shipping:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
-                                    </div>
-                                )}
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.createdAt)}</p>
-                                </div>
-                                {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Last Updated:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.updatedAt)}</p>
-                                    </div>
-                                )}
-                                {!hasInternalAccess && company.employees && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Team Size:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.employees.length} {company.employees.length === 1 ? 'member' : 'members'}</p>
-                                    </div>
-                                )}
-                            </div>
-                            {/* ─── Payment Setup (owner only) ─── */}
-                            {isOwner && (
-                                <div className="mb-8">
-                                    <CompanyPaymentSettings
-                                        companyId={company.id}
-                                        wallets={(company as any).wallets?.map((w: any) => ({
-                                            id: w.id,
-                                            label: w.label,
-                                            address: w.address,
-                                            isDefault: w.isDefault,
-                                            verifiedAt: w.verifiedAt ?? null,
-                                        })) ?? []}
-                                    />
-                                </div>
-                            )}
-                            {hasInternalAccess && company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
-                            <div className='flex justify-start items-center w-full h-10'>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Warehouse Locations:</h2>
-                                    </div>
-                                    <ul className="space-y-6">
-                                        {warehouses.map((warehouseLocation, index) => {
-                                            console.log(`Warehouse ${index + 1}: Initial Total Stock: ${warehouseLocation.initialStock}, Current Total Stock: ${warehouseLocation.currentStock}`); // Debug log
-                        
-                                            return (
-                                                <li
-                                                    key={index}
-                                                    className="border border-black/10 bg-white/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
-                                                >
-                                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                                                        {warehouseLocation.address}, {warehouseLocation.city}, {warehouseLocation.country}
-                                                    </p>
-                                                    <p className="text-gray-700 dark:text-gray-300 mb-2">
-                                                        Initial Stock: <span className="font-semibold">{warehouseLocation.initialStock || 'N/A'}</span>
-                                                    </p>
-                                                    <p className="text-gray-700 dark:text-gray-300 mb-4">
-                                                        Current Stock: <span className="font-semibold">{warehouseLocation.currentStock || 'N/A'}</span>
-                                                    </p>
-                                                    {/* Add the overall progress bar */}
-                                                    <ProgressBar value={warehouseLocation.currentStock} max={warehouseLocation.initialStock} />
-                                                    <Link href={`/companies/${company.id}/warehouse/${warehouseLocation.id}`} className="mt-2 text-blue-600 hover:underline">View Inventory</Link>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            )}
-                            {hasInternalAccess && company.employees && company.employees.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
-                                    <div className='flex justify-start items-center w-full h-10'>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employees:</h2>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {sortedEmployeesRole.map((employee) => (
-                                                <div
-                                                    key={employee.id}
-                                                    className="border border-black/10 bg-white/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
-                                                >
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className='flex gap-2'>
-                                                            <div className="shrink-0">
-                                                                {employee.user.image ? (
-                                                                    <Image 
-                                                                        src={employee.user.image} 
-                                                                        width={80} 
-                                                                        height={80} 
-                                                                        className="rounded-full" 
-                                                                        alt={`${employee.user.name} avatar`} 
-                                                                    />
-                                                                ) : (
-                                                                    <Image 
-                                                                        src="/users/avatar.webp" 
-                                                                        width={80} 
-                                                                        height={80} 
-                                                                        className="rounded-full" 
-                                                                        alt="Default avatar" 
-                                                                    />
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-lg font-semibold text-gray-900 dark:text-white">{employee.user.name}</div>
-                                                                <p className="text-gray-600 dark:text-gray-400">{employee.user.email}</p>
-                                                                <p className="text-gray-600 dark:text-gray-400">{employee.role}</p>
-                                                                {(employee as any).jobTitle ? (
-                                                                    <p className="text-gray-500 dark:text-gray-400 text-sm">{(employee as any).jobTitle}</p>
-                                                                ) : null}
-                                                            </div>
-                                                        </div>
-                                                        <div className="mt-2">
-                                                            <p className="font-semibold">Permissions</p>
-                                                            <div className="space-y-2">
-                                                                {Object.keys(employee.permissions ?? {}).length === 0 ? (
-                                                                        <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
-                                                                ) : (
-                                                                    Object.entries(employee.permissions ?? {}).map(([key, value]) => {
-                                                                        const tag = tagReplacements[key] || { name: key, description: '', icon: null };
-                                                                        return (
-                                                                            <div 
-                                                                                    key={key} 
-                                                                                    className="flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded"
-                                                                            >
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    {tag.icon}
-                                                                                    <p>{tag.name}</p>
-                                                                                </div>
-                                                                                <p className={`px-2 py-1 rounded ${value === true ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-                                                                                    {value !== null && value !== undefined ? value.toString() : 'N/A'}
-                                                                                </p>
-                                                                            </div>
-                                                                        );
-                                                                    })
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="mt-4 text-gray-600 dark:text-gray-400">
-                                                            <div className="flex justify-between">
-                                                                <span className="font-semibold">Created At</span>
-                                                                <span>{formatDate(employee.createdAt)}</span>
-                                                            </div>
-                                                            <div className="flex justify-between mt-2">
-                                                                <span className="font-semibold">Updated At</span>
-                                                                <span>{formatDate(employee.updatedAt)}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-4 flex gap-2">
-                                                    {errorMessages[employee.userId] && (
-                                                        <div className="text-red-500 dark:text-red-400">{errorMessages[employee.userId]}</div>
-                                                    )}
-                                                    {clientUser && (
-                                                    <div className='flex gap-2 w-full' onClick={() => handleEmployeeClick(employee)}>
-                                                        <EditEmployeePermissionsModal 
-                                                            company={company} 
-                                                            selectedEmployee={selectedEmployee!!} 
-                                                            setCompany={setCompany} 
-                                                        />
-                                                        <RemoveEmployeeButton
-                                                            userId={employee.userId}
-                                                            companyId={company.id}
-                                                            onSuccess={handleSuccess}
-                                                            onError={(message) => updateErrorMessage(employee.userId, message)}
-                                                        />
-                                                    </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            {hasInternalAccess && (
-                                <div className="border-t border-gray-200 dark:border-gray-700">
-                                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>
-                                    <MyNewEmployeeForm
-                                        companyId={company.id}
-                                        handleNewEmployee={handleNewEmployee}
-                                        change={change}
-                                        setChange={setChange}
-                                    />
-                                </div>
-                            )}
-                            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                <Link 
-                                    href="/companies" 
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                >
-                                    Back to Companies
-                                </Link>
-                            </div>
-                        </div>
+
+            </details>
+            {company.usesShipping && <details className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                <summary className={disclosure}>Warehouses · {company.warehouseLocations?.length ?? 0}</summary>
+                <ul className="grid gap-4 pt-3 sm:grid-cols-2">{warehouses.map(warehouse => <li key={warehouse.id} className="min-w-0 space-y-3 rounded-lg border border-border p-4 text-sm">
+                    <p className="break-words font-medium">{warehouse.address}, {warehouse.city}, {warehouse.country}</p>
+                    <p className="text-muted-foreground">Stock: {warehouse.currentStock.toLocaleString()} / {warehouse.initialStock.toLocaleString()}</p>
+                    <ProgressBar value={warehouse.currentStock} max={warehouse.initialStock} />
+                    <Button asChild variant="outline" className="min-h-11"><Link href={`/nexus/company/${company.id}/warehouse/${warehouse.id}`}>View inventory</Link></Button>
+                </li>)}</ul>
+            </details>}
+            <details className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                <summary className={disclosure}>Team · {company.employees.length}</summary>
+                <div className="grid gap-4 pt-3 md:grid-cols-2 xl:grid-cols-3">{sortedEmployeesRole.map(employee => <article key={employee.id} className="min-w-0 space-y-3 rounded-lg border border-border p-4">
+                    <div className="flex min-w-0 items-center gap-3"><Image src={employee.user.image || '/users/avatar.webp'} width={40} height={40} className="size-10 shrink-0 rounded-full object-cover" alt="" />
+                        <div className="min-w-0"><h2 className="break-words font-semibold">{employee.user.name || 'Team member'}</h2><p className="break-all text-sm text-muted-foreground">{employee.user.email}</p></div>
                     </div>
-                </div>
-            </BannerThemeWrapper>
-        );
+                    <p className="text-sm text-muted-foreground">{employee.role.replaceAll('_', ' ')}</p>
+                    <details><summary className={disclosure}>Permissions</summary><dl className="space-y-2 text-sm">{Object.entries(employee.permissions ?? {}).map(([key,value]) => <div key={key} className="flex items-start justify-between gap-3"><dt className="min-w-0 break-words text-muted-foreground">{tagReplacements[key]?.name || key.replaceAll('_',' ')}</dt><dd className="shrink-0 font-medium">{value === true ? 'Allowed' : 'Not allowed'}</dd></div>)}</dl></details>
+                    {errorMessages[employee.userId] && <p role="alert" className="text-sm text-destructive">{errorMessages[employee.userId]}</p>}
+                    <div className="flex flex-wrap gap-2">
+                        {(canManageTeam || currentUserPermissions?.CAN_EDIT_PERMISSION === true) && <EditEmployeePermissionsModal company={company} selectedEmployee={employee} setCompany={setCompany} />}
+                        {(canManageTeam || currentUserPermissions?.CAN_REMOVE_EMPLOYEE === true) && <RemoveEmployeeButton userId={employee.userId} companyId={company.id} onSuccess={handleSuccess} onError={message => updateErrorMessage(employee.userId, message)} />}
+                    </div>
+                </article>)}</div>
+                {(canManageTeam || currentUserPermissions?.CAN_ADD_EMPLOYEE === true) && <div className="mt-5 border-t border-border pt-5"><h2 className="mb-4 text-lg font-semibold">Add an employee</h2><MyNewEmployeeForm companyId={company.id} handleNewEmployee={handleNewEmployee} change={change} setChange={setChange} /></div>}
+            </details>
+            {isOwner && <details className="rounded-xl border border-border p-4 sm:p-5"><summary className={disclosure}>Delete company</summary><div className="pt-3"><DeleteCompanyBtn companyId={company.id} companyName={company.name} onCompanyDeleted={() => handleSuccess(company.id)} employeePermissions={currentUserPermissions as EmployeePermissions} /></div></details>}
+            <Button asChild variant="ghost" className="min-h-11"><Link href="/companies">All companies</Link></Button>
+        </section>;
 };
 
 export default CompanySettingsClient;
