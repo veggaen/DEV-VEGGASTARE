@@ -97,3 +97,21 @@ Final hosted cold samples (same lab conditions, serial, no concurrent test/build
 Both reached network-idle with no page errors or document overflow. This is a
 Preview-hosted early-paint improvement, not a production deployment, and different
 hosts/caches preclude attributing every millisecond to this change.
+
+## Production promotion
+
+The UI-only candidate `fc652ac` (based on existing Live `92c5ac7`) was deployed
+as `dpl_85HoopHh5RhmpM8G3Bv8fwdEufGf` to www.veggat.com. It includes the
+consent and Pulse controls but no native-currency code, payment/schema/terms or
+dependency changes. Local then Live acceptance each passed 6/6; 36 units,
+build/TypeScript and zero-error lint passed. The focused legal test is bound to
+the Live-base terms, not Preview's newer settlement wording.
+
+## Live timing follow-up
+
+Two serial anonymous cold homepage samples at 390x844, 4x CPU, 1.6Mbps down,
+750Kbps up, 150ms latency and disabled cache measured LCP/FCP 2,284ms and
+2,332ms. Both had CLS 0, no page errors and no document overflow. Script
+transfer remains 1,061,830 B: this fixes late notice presentation, not the shared
+JavaScript cost. The earlier Live baseline was 8,312ms LCP. These are bounded
+lab observations, not field percentiles or proof that every route is fast.

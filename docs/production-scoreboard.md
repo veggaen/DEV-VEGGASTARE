@@ -2,6 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Current Live UI release — 26 September 2026
+
+**DONE for consent first-paint and Pulse keyboard/touch controls, not all S1–S9.**
+UI-only runtime `fc652ac`, based on Live `92c5ac7`, is READY as
+`dpl_85HoopHh5RhmpM8G3Bv8fwdEufGf` on www.veggat.com. The separate
+`release/ui-september` worktree includes only these UI fixes and focused tests;
+payments, schema, terms, prices and dependencies are unchanged from the Live base.
+54 migrations, none pending. Local and Live each pass **6/6** scoped browser checks
+without retries/skips; 36 unit tests, build/TypeScript and zero-error lint pass.
+Real Chrome confirms signed-in Pulse and post-menu open/Escape dismissal. Native
+currency code remains on this integrated branch and isolated Preview, not Live.
+
 ## Preview performance follow-up — 26 September 2026
 
 **PARTIAL overall; consent first-paint correction verified locally and on Preview.**
@@ -12,7 +24,8 @@ telemetry, eight-width controls and no-JavaScript terms. Build/TypeScript/lint p
 Throttled cold homepage LCP moved from the roughly 8-second late notice to about
 1.8 seconds locally and 1.9–2.1 seconds on Preview. Shared script transfer remains
 about 1.07MB and CLS is unchanged; all-route speed and field metrics remain open.
-Production is still `92c5ac7`. See [first-paint evidence](consent-first-paint-2026-09.md).
+The UI correction has since shipped separately as `fc652ac`; see the current Live
+release above and [first-paint evidence](consent-first-paint-2026-09.md).
 
 ## Work in progress — exact selected-currency purchases
 
