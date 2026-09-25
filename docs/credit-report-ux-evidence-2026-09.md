@@ -31,7 +31,7 @@ loaded account figures disappearing into skeletons during refresh.
   timestamps and unbounded account lists. It does not fabricate zero totals or
   display raw server/HTML errors.
 
-## Verification in progress
+## Verification
 
 The existing TypeScript Playwright runner is used as the webapp-testing skill's
 Python helper is unavailable. The baseline against the previous built app failed
@@ -66,7 +66,28 @@ pass. Only the disposable test user's role changed; no ledger/order/payment was
 written. The exact principal was removed afterwards. The owner-report API and
 report queries remain unchanged.
 
-Preview, Live and final real-Chrome acceptance are pending.
+Runtime `92c5ac7` passed both hosted environments: **2/2 light and 2/2 dark**
+in Preview and Live, with zero retries/skips. Hosted browser fixtures exercise
+view recovery without granting server permissions; the actual signed-in demo
+remains forbidden by the report API.
+
+- Preview: `dpl_Dtv7BooMcrCKAuksAriubF5JPBAQ`, assigned to the existing isolated
+  `dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app` alias.
+- Production: `dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu`, promoted to `www.veggat.com`
+  after Preview acceptance. Both health checks were healthy. Their single
+  database latency samples are not performance benchmarks.
+- Deployment checks found 54 existing migrations with none pending. This
+  release introduced no schema migration.
+
+Real signed-in Chrome showed the actual Live owner report, including the
+existing two captures totaling NOK 38 and the unchanged USD 5 daily application
+ceiling. Refresh retained figures while showing progress. Safety and metric
+disclosures opened and closed. The actual 1280x800 viewport showed the compact
+summary; the 390x844 viewport retained a single-row environment/Refresh toolbar.
+Phone-width scrolling reached the account card and normally flowing footer.
+No console errors were captured. The temporary viewport was reset and the report
+tab was retained for the owner. No payment, refund, email, credit grant, key or
+billing setting changed during this acceptance.
 
 ## Remaining limits
 

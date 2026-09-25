@@ -2,8 +2,10 @@
 
 Status: **ledger, two-generation concurrency control and payment refund/reversal
 reconciliation deployed**. Demo debit, persistence and zero-credit denial are
-verified locally and live; actual Sandbox funding/refund is verified, while owner
-Live-funded acceptance remains open. See [the current release scoreboard](production-scoreboard.md)
+verified locally and live. Recorded acceptance includes Sandbox funding/refund,
+the owner-approved Live 9 NOK starter and purchased credits used by OpenAI/Grok
+(10 → 8 → 0). Separate authorized Live image/video acceptance exhausted its
+86-credit QA grant, not a PayPal purchase. See [the current release scoreboard](production-scoreboard.md)
 for authoritative deployment and evidence, and [commercial decisions](credit-commercial-policy.md)
 for the reviewed Grok recommendations and the distinction between bounded costs
 and guaranteed profit.
@@ -34,10 +36,12 @@ original `cd99962` ledger deployment is historical, not the current release.
 - User credit reservations refund once on provider failure, empty/incomplete/error
   streams, timeout or early cancellation. Abandoned reservations older than two
   minutes recover on the account's next balance or reservation operation.
-- Text input is capped at 10,000 UTF-8 bytes including the system prompt, with at
+- The text-generation path caps input at 10,000 UTF-8 bytes including the system prompt, with at
   most 20 recent messages; output is capped at 2,048 tokens including reasoning
   where supported. No tools, images, search or other separately billed operations
-  are requested. Upstream timeout is 40 seconds; responses are size-bounded.
+  are requested by that path. Upstream timeout is 40 seconds; responses are size-bounded.
+  Image/video requests use a separate fixed-parameter media boundary while sharing
+  the same platform fuse and account reservations; see [Studio safeguards](ai-studio-2026-09.md).
 - A completed, nonempty terminal stream settles success. Structured poll output
   is validated before settlement. There are no automatic billable retries.
 - The reviewed price/model allowance expires **2026-10-24 UTC**. Review official
@@ -82,9 +86,11 @@ accounts can use configured free models at zero credits within daily limits.
 
 Configured project model-list APIs confirmed OpenAI Luna/Astra, Groq GPT-OSS 20B
 and Grok 4.7 IDs. A listed model is not evidence of a successful generation.
-Anthropic is disabled without a configured platform key.
+Anthropic is disabled without a configured platform key. Provider-project hard
+caps/alerts still require owner acceptance; application reservations are not an
+absolute billing guarantee.
 
-## Verification
+## Original ledger verification (historical)
 
 - **19/19** ledger tests: last-credit concurrency, replay rejection, duplicate
   refunds, no refund after successful settlement, lease recovery, one-time demo

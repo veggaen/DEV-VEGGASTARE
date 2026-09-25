@@ -4,6 +4,22 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Owner AI-credit report: **DONE for compact responsive reporting and private-state
+recovery; provider billing/cap acceptance and the full-route audit remain
+PARTIAL**. Runtime `92c5ac7` is promoted as
+`dpl_3GCyDg5BuzBghdjkSnhKut2J7cdu`. Same-scope refresh retains figures, while
+scope/identity changes and access loss clear stale private state. Financial
+responses are validated; request labels include images/video. 35 focused tests,
+touched lint, TypeScript, strict builds and actual isolated Auth.js/API/UI
+acceptance pass. Local/Preview/Live each pass light **2/2** and dark **2/2**,
+with zero retries/skips. Real Chrome confirms actual owner figures, refresh,
+disclosures, 1280/390 layouts and phone-width footer scrolling. No captured
+console errors; viewport restored. No payments, grants, emails, limits or keys
+changed. The design-guidelines review informed concise disclosures, touch targets
+and bounded panels. Next: remaining checkout budget UX and owner-only acceptance
+checks, including provider caps and actual 125% browser zoom. See
+[credit-report evidence](credit-report-ux-evidence-2026-09.md).
+
 Company checkout reporting: **DONE for verified order counts and balanced
 detail-page layout; full financial accounting and the full-route audit remain
 PARTIAL**. Runtime `13abe73` is promoted as
