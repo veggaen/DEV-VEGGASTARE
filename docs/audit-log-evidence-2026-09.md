@@ -38,7 +38,7 @@ surfaces and overflow handling; see the
 The webapp-testing workflow uses the repository's existing TypeScript Playwright
 runner (the Python helper is unavailable in this environment).
 
-## Verification so far
+## Verification
 
 - 64 focused API/policy/directory regression tests pass. Touched lint passes.
 - Initial strict local production build and full TypeScript pass.
@@ -62,8 +62,36 @@ runner (the Python helper is unavailable in this environment).
   and scrolls inside the short detail dialog. Screenshots were reviewed in
   phone, desktop and landscape layouts. No horizontal page/dialog overflow.
 - Local real Chrome opens the correct URL but stops at the unchanged admin
-  gate. It is not counted as a signed-in local Chrome pass. Hosted acceptance
-  remains pending.
+  gate. It is not counted as a signed-in local Chrome pass.
+- Preview and Live each pass light **2/2** and dark **2/2**, without retries
+  or skips. Hosted privileged UI cases use browser-only fixtures; they do not
+  promote the retained demo account or mutate customer records. Actual hosted
+  anonymous/demo reads remain denied.
+- Real Chrome uses the retained signed-in production owner session. The
+  owner's administrator filter loads ten existing entries; selecting View
+  returns four. Opening the latest own-user View entry loads a read-only
+  detail with Before/After honestly marked Not recorded. At 390x844 the
+  dialog fits without horizontal overflow; Close returns focus to its exact
+  Details button. Real wheel scrolling reaches the phone footer. The normal
+  desktop viewport is restored and the filtered page is retained. No captured
+  console errors were returned for this check. No customer account, audit
+  entry, payment, provider call or email was changed.
+
+## Deployment
+
+Runtime commit `69b21de` is deployed:
+
+- Preview `dpl_5qBm1537RrjM1gUzveQqCmmQYQVy`, immutable
+  `https://dev-veggastare-37amoqu3x-v3ggas-projects.vercel.app`, assigned to
+  the existing showcase-ai-revival Preview alias.
+- Production `dpl_Br5VH55HrqRSyHHqkVfYF2uxbSbW`, immutable
+  `https://dev-veggastare-nngtokdox-v3ggas-projects.vercel.app`, promoted only
+  after Preview acceptance. Inspection confirms `www.veggat.com` points here.
+- Both strict remote builds and health checks pass. All 54 existing migrations
+  are applied; this slice adds no migration. The staged-change secret scan
+  passes; this is not clearance of the repository's historical contents.
+- Previous production rollback candidate:
+  `dpl_9apZWJjqFi3qeZ8PsDVHCSH1JDLv` (`6f8de52`).
 
 ## Limits
 
@@ -71,3 +99,6 @@ This is owner read/UI acceptance, not a comprehensive guarantee of all historic
 audit content, write completeness, retention or tamper resistance. Existing
 legacy audit writers and remaining administrative routes need their own audit.
 No full-app completion or measured field-loading improvement is claimed.
+Next scoped route defect: company-admin View/Edit links target detail/edit
+pages that are absent from the route inventory. They are not fixed by this
+audit-log release.

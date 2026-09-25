@@ -4,6 +4,21 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Current integrated production release — 25 September 2026
 
+Owner audit log: **DONE for private read access, filters, recovery and responsive
+details; wider admin/full-route audit remains PARTIAL**. Runtime `69b21de` is
+live as `dpl_Br5VH55HrqRSyHHqkVfYF2uxbSbW`. Invalid empty select options no
+longer crash the route. Validated, rate-limited, private/no-store reads return
+compact summaries; bounded credential-redacted details load on demand. Access
+loss removes private data, and failed retry cannot restore it. 64 focused tests,
+touched lint, strict local/remote builds and actual isolated local HTTP/UI
+acceptance pass. Local/Preview/Live each pass light **2/2** and dark **2/2**,
+zero retries/skips. Real Chrome confirms the signed-in owner's filtered entries,
+phone detail/focus recovery, footer scrolling and normal desktop layout; its
+viewport is restored. No customer records, payments or emails were changed.
+The design-guidelines review informed labels, touch targets, token surfaces and
+overflow handling. Next: company-admin View/Edit dead links. See
+[audit-log evidence](audit-log-evidence-2026-09.md).
+
 Preview Sign Out: **DONE for durable preview revocation and honest retry;
 wider account audit remains PARTIAL**. Runtime `6f8de52` is live as
 `dpl_9apZWJjqFi3qeZ8PsDVHCSH1JDLv`. Auth.js-validated sign-out atomically ends
