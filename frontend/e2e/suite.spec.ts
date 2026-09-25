@@ -4965,26 +4965,92 @@ test('S5 buyer credit history requires sign-in and remains readable across scree
   } finally { await context.close(); await anonymous.close(); }
 });
 
-test('S5 owner credit report retries, filters and scrolls without changing server permissions', async ({ browser, baseURL }) => {
+test('S5 owner credit report preserves refresh state and clears private data on access or identity loss', async ({ browser, baseURL }) => {
+  test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo; owner responses are browser-only fixtures');
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE });
+  if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+  await openDirectoryGate(context);
+  const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user.isDemo).toBe(true);
+  const page = await context.newPage(), errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let ownerId = 'qa-credit-owner-one', responseMode = 'ok', reads = 0, holdNext = false;
+  let release: (() => void) | undefined;
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, id: ownerId, role: 'OWNER', isDemo: false, isImpersonating: false } } }));
+  await page.route(url => url.pathname === '/api/admin/ai-credits', async route => {
+    reads++;
+    const environment = new URL(route.request().url()).searchParams.get('environment') ?? 'SANDBOX';
+    const mode = responseMode;
+    if (holdNext) { holdNext = false; await new Promise<void>(resolve => { release = resolve; }); }
+    if (mode === 'denied') return route.fulfill({ status: 403, json: { error: 'Do not display raw server text' } });
+    if (mode === 'failure') return route.fulfill({ status: 503, contentType: 'text/html', body: '<h1>Private database connection error</h1>' });
+    return route.fulfill({ json: {
+      environment: mode === 'mismatch' ? 'LIVE' : environment, generatedAt: mode === 'malformed' ? 'invalid timestamp' : '2026-09-25T12:00:00Z',
+      accounts: { total: 1, available: environment === 'DEMO' ? 44 : 30, refundAdjustment: 0, recent: [{ userId: 'private-account-id', name: 'Private QA credit account', available: 30, refundAdjustment: 0, updatedAt: '2026-09-25T12:00:00Z' }] },
+      usage: { completed: 3, chargedCredits: 70, pending: 1, reservedCredits: 2, refundedRequests: 1, costCeilingMicroUsd: 790000 },
+      payments: { captures: 2, grossOre: 6800, refundedOre: 2900 },
+      platformToday: { day: '2026-09-25', reservedMicroUsd: 790000, limitMicroUsd: 5000000, requests: 5, requestLimit: 500 },
+    } });
+  });
+  try {
+    await page.goto('/admin/ai-credits', { waitUntil: 'domcontentloaded' });
+    await expect.poll(async () => { if (!reads) await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); return reads; }).toBeGreaterThan(0);
+    await expect(page.getByText('Private QA credit account', { exact: true })).toBeVisible();
+    const refresh = page.getByRole('button', { name: 'Refresh report', exact: true });
+    const creditPosition = page.getByRole('heading', { name: 'Available credits', exact: true }).locator('..');
+    const beforeRefresh = await creditPosition.boundingBox();
+    holdNext = true; await refresh.click();
+    await expect(refresh).toBeDisabled();
+    await expect(page.getByText('Private QA credit account', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading credit report', exact: true })).toHaveCount(0);
+    expect(Math.abs((await creditPosition.boundingBox())!.y - beforeRefresh!.y)).toBeLessThanOrEqual(1);
+    release!(); release = undefined; await expect(refresh).toBeEnabled();
+    responseMode = 'failure'; await refresh.click();
+    await expect(page.getByRole('region', { name: 'AI credits & usage', exact: true }).getByRole('alert')).toContainText('Showing the last loaded report');
+    await expect(page.getByText('Private database connection error')).toHaveCount(0);
+    await expect(page.getByText('Private QA credit account', { exact: true })).toBeVisible();
+    responseMode = 'ok'; holdNext = true; await refresh.click();
+    await expect(refresh).toBeDisabled();
+    await page.getByLabel('Environment', { exact: true }).selectOption('DEMO');
+    await expect(page.getByText('Demo ledger', { exact: false })).toBeVisible();
+    release!(); release = undefined;
+    await expect(page.getByRole('heading', { name: 'Available credits', exact: true }).locator('..')).toContainText('44');
+    for (const mode of ['mismatch', 'malformed']) {
+      responseMode = mode; await refresh.click();
+      await expect(page.getByRole('region', { name: 'AI credits & usage', exact: true }).getByRole('alert')).toContainText('The report could not be loaded. Try again.');
+      await expect(page.getByRole('heading', { name: 'Available credits', exact: true }).locator('..')).toContainText('44');
+    }
+    responseMode = 'denied'; await refresh.click();
+    await expect(page.getByRole('heading', { name: 'Owner access required', exact: true })).toBeVisible();
+    await expect(page.getByText('Private QA credit account', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Credit position', exact: true })).toHaveCount(0);
+    responseMode = 'failure'; await page.getByRole('button', { name: 'Retry access', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Retry access', exact: true })).toBeEnabled();
+    await expect(page.getByText('Private QA credit account', { exact: true })).toHaveCount(0);
+    responseMode = 'ok'; await page.getByRole('button', { name: 'Retry access', exact: true }).click();
+    await expect(page.getByText('Private QA credit account', { exact: true })).toBeVisible();
+    ownerId = 'qa-credit-owner-two'; responseMode = 'failure';
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.getByRole('region', { name: 'AI credits & usage', exact: true }).getByRole('alert')).toContainText('The report could not be loaded. Try again.');
+    await expect(page.getByText('Private QA credit account', { exact: true })).toHaveCount(0);
+    expect(errors).toEqual([]);
+    expect((await context.request.get('/api/admin/ai-credits')).status()).toBe(403);
+  } finally { release?.(); await page.unrouteAll({ behavior: 'ignoreErrors' }); await context.close(); }
+});
+
+test('S5 owner credit report retries, filters and scrolls without changing server permissions', async ({ browser, baseURL }, info) => {
   test.skip(!process.env.E2E_DEMO_STORAGE_STATE, 'Retained demo required; owner UI uses browser-only fixtures');
   test.setTimeout(120_000);
   const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   try {
+    await openDirectoryGate(context);
     const session = await (await context.request.get('/api/auth/session')).json();
     expect(session.user.role).not.toBe('OWNER');
-    let denied = await context.request.get('/api/admin/ai-credits');
-    if (denied.status() === 401 && process.env.GATE_PASSWORD) {
-      // Demo sessions deliberately cannot POST; authenticate the gate before adding the demo session.
-      const gateContext = await browser.newContext({ baseURL });
-      try {
-        expect((await gateContext.request.post('/api/access-gate', { data: { password: process.env.GATE_PASSWORD } })).ok()).toBe(true);
-        await context.addCookies(await gateContext.cookies());
-      } finally { await gateContext.close(); }
-      denied = await context.request.get('/api/admin/ai-credits');
-    }
+    const denied = await context.request.get('/api/admin/ai-credits');
     expect(denied.status()).toBe(403);
-    await page.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, role: 'OWNER' } } }));
+    if (process.env.E2E_ADMIN_THEME === 'dark') await context.addInitScript(() => localStorage.setItem('veggat:theme', 'dark'));
+    const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, id: 'qa-credit-owner', role: 'OWNER', isDemo: false, isImpersonating: false } } }));
     let requests = 0;
     await page.route(url => url.pathname === '/api/admin/ai-credits', async route => {
       requests++;
@@ -4992,7 +5058,7 @@ test('S5 owner credit report retries, filters and scrolls without changing serve
       const environment = new URL(route.request().url()).searchParams.get('environment') ?? 'SANDBOX';
       return route.fulfill({ json: {
         environment, generatedAt: '2026-09-23T12:00:00Z',
-        accounts: { total: 1, available: 30, refundAdjustment: 0, recent: [{ userId: 'qa-long-account-id-for-layout-verification', name: 'Synthetic reviewer with a deliberately long display name', available: 30, refundAdjustment: 0, updatedAt: '2026-09-23T12:00:00Z' }] },
+        accounts: { total: 1, available: 30, refundAdjustment: 0, recent: [{ userId: 'qa-long-account-id-for-layout-verification', name: 'Synthetic account with a deliberately long display name', available: 30, refundAdjustment: 0, updatedAt: '2026-09-23T12:00:00Z' }] },
         usage: { completed: 3, chargedCredits: 70, pending: 1, reservedCredits: 2, refundedRequests: 1, costCeilingMicroUsd: 790000 },
         payments: { captures: 2, grossOre: 6800, refundedOre: 2900 },
         platformToday: { day: '2026-09-23', reservedMicroUsd: 790000, limitMicroUsd: 5000000, requests: 5, requestLimit: 500 },
@@ -5011,19 +5077,34 @@ test('S5 owner credit report retries, filters and scrolls without changing serve
     await page.getByRole('button', { name: 'Retry report', exact: true }).click();
     await expect(page.getByText('Sandbox ledger', { exact: false })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Available credits', exact: true }).locator('..')).toContainText('30');
+    await expect(page.getByRole('heading', { name: 'Completed requests', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Verified reviewer payments', exact: true })).toHaveCount(0);
+    await page.getByText('About these figures', { exact: true }).click();
+    await expect(page.getByText('Completed requests include chat, images and video.', { exact: false })).toBeVisible();
+    await page.getByText('About these figures', { exact: true }).press('Enter');
+    await expect(page.getByText('Completed requests include chat, images and video.', { exact: false })).toBeHidden();
     await page.getByLabel('Environment', { exact: true }).selectOption('DEMO');
     await expect(page).toHaveURL(/environment=DEMO/);
     await expect(page.getByText('Demo ledger', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Refresh report', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Refresh report', exact: true })).toBeEnabled();
-    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }, { width: 2560, height: 1440 }]) {
+    for (const size of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 768, height: 1024 }, { width: 1024, height: 1366 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }]) {
       await page.setViewportSize(size);
       await page.getByRole('heading', { name: 'Recent credit accounts', exact: true }).scrollIntoViewIfNeeded();
-      await expect(page.getByText('Synthetic reviewer with a deliberately long display name', { exact: true })).toBeVisible();
+      await expect(page.getByText('Synthetic account with a deliberately long display name', { exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.getByRole('heading', { name: 'AI credits & usage', exact: true }).scrollIntoViewIfNeeded();
-      if ([390, 2560].includes(size.width)) await page.screenshot({ path: `test-results/credit-report-${size.width}.png`, fullPage: true });
+      const filterBox = await page.getByLabel('Environment', { exact: true }).boundingBox();
+      const refreshBox = await page.getByRole('button', { name: 'Refresh report', exact: true }).boundingBox();
+      expect(Math.abs(filterBox!.y + filterBox!.height - refreshBox!.y - refreshBox!.height)).toBeLessThanOrEqual(1);
+      if (size.width === 390) await info.attach('credit-heading-rendering', { contentType: 'application/json', body: JSON.stringify(await page.getByRole('heading', { name: 'AI credits & usage', exact: true }).evaluate(element => {
+        const rows = []; let node: Element | null = element;
+        while (node) { const style = getComputedStyle(node); rows.push({ tag: node.tagName, className: node.className, color: style.color, background: style.backgroundColor, opacity: style.opacity, visibility: style.visibility }); node = node.parentElement; }
+        return rows;
+      })) });
+      if ([390, 1280, 2560].includes(size.width)) await page.screenshot({ path: info.outputPath(`credit-report-${size.width}.png`) });
     }
+    expect(errors).toEqual([]);
     expect(requests).toBeGreaterThanOrEqual(4);
     // Browser fixture cannot confer an owner role on the real API.
     expect((await context.request.get('/api/admin/ai-credits')).status()).toBe(403);
