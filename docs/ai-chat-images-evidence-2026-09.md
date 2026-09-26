@@ -1,6 +1,6 @@
 # Private chat images — 26 September 2026
 
-Status: **local verified; hosted release pending.** This extends the already-Live
+Status: **Live for this scoped feature.** This extends the already-Live
 [clean chat canvas](ai-canvas-evidence-2026-09.md). It is not an all-route readiness claim.
 
 ## Scope
@@ -45,13 +45,44 @@ Status: **local verified; hosted release pending.** This extends the already-Liv
   because the extension lacks file-URL permission; this is not claimed as a passed
   real-Chrome attachment test. Synthetic image upload works in Playwright.
 
+## Hosted release verification
+
+The production-safe source is `e146a51`, deployed as
+`dpl_8HzKaddUEbAKMPfcznPBQ3gYvmQQ` to https://www.veggat.com.
+Only the two private-image migrations were applied. The pending native-currency
+payment migration and integration changes were excluded; payment configuration,
+prices and Production credit balances were not changed.
+
+- Exact production-safe candidate: 75 unit tests and 24 browser checks pass
+  locally (6 attachments, 12 canvas, 6 shared UI/consent regressions).
+- Hosted Preview: 18 browser checks pass (6 attachments, 12 canvas), without
+  retries/skips. The first run exposed a collapsed image placeholder; explicit
+  dimensions fixed it before the successful rerun.
+- Live: 18 browser checks pass (12 canvas, 6 shared UI), without retries/skips.
+  Generation in these UI tests is intercepted, not paid provider verification.
+- Unmocked Live checks: health 200, image quote available, anonymous image 401,
+  demo upload 403, private image inaccessible to demo, cron 401, new image privacy
+  section published. Zero generation calls and zero Production grants.
+- Real signed-in Chrome: clean desktop canvas, configured model selection and
+  disabled premium send at 0 credits verified. Temporary unsent QA text was
+  cleared; no Live message was sent. File-URL permission still prevents automated
+  selection in the Chrome extension; Playwright attachments and the single real
+  local provider test above remain separate evidence.
+- Strict local and hosted builds/TypeScript pass. Touched ESLint has zero errors;
+  the privacy page retains one pre-existing internal-navigation warning.
+
 ## Limits / follow-up
 
-Hosted Preview/Live verification and promotion remain pending. Homepage attachment
-handoff, cross-reload/cross-device drafts, other providers' vision support and
+Actual paid vision inference was not repeated Live; the owner balance is 0.
+Homepage attachment handoff, cross-reload/cross-device drafts, other providers' vision support and
 physical-device keyboard testing are not delivered by this slice. The homepage
 retains its clean text composer. Participant auto-response in image chats directs
 users to the priced main composer rather than silently dropping image context.
+
+The authenticated image-read proxy still needs an explicit per-user read limiter;
+upload/count/byte quotas do not replace read-egress protection. Composer default
+model and quick-select availability need a follow-up consistency check (the server
+already fails closed for unconfigured providers). These are not claimed complete.
 
 Image input pricing and bounds were reviewed against the
 [OpenAI vision guide](https://developers.openai.com/api/docs/guides/images-vision),

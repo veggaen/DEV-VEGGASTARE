@@ -4,13 +4,20 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Private chat images — 26 September 2026
 
-**PARTIAL — local verified; hosted release pending.** Per-chat image/model drafts,
+**DONE for the scoped private-chat-image release; wider hardening remains PARTIAL.**
+Production-safe runtime `e146a51` is Live as `dpl_8HzKaddUEbAKMPfcznPBQ3gYvmQQ`.
+Per-chat image/model drafts,
 private attachment storage, server-side image normalization, reviewed vision costs,
 bounded streams and cleanup are implemented. Build/TypeScript/lint, 75 units and
-18 browser checks pass. One real local image reply debited 3 isolated QA credits;
-zero-balance and unauthorized/private-storage checks passed. Production is unchanged.
+24 local, 18 Preview and 18 Live browser checks pass without retries/skips.
+One real local image reply debited 3 isolated QA credits;
+zero-balance and unauthorized/private-storage checks passed. Only two private-image
+migrations were promoted; pending payment/schema changes were excluded. No Live
+generation or QA grants were made. Actual paid vision inference remains local evidence.
 Real Chrome text drafts pass; automated file selection needs extension file-URL
-permission. [Scope and evidence](ai-chat-images-evidence-2026-09.md).
+permission. Live real Chrome model selection and zero-credit blocking pass.
+Read-egress limits, unavailable-default-model UX, homepage attachments and durable
+drafts remain follow-ups. [Scope and evidence](ai-chat-images-evidence-2026-09.md).
 
 ## AI canvas and independent drafts — 26 September 2026
 
