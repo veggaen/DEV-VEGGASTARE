@@ -2,6 +2,17 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## AI canvas and independent drafts — 26 September 2026
+
+**PARTIAL: local acceptance passed, production promotion pending.** `/ai` opens
+a centered composer; the homepage shares the restrained input design. Text drafts
+are isolated by account/conversation, with mouse/keyboard/tap reordering and safe
+Markdown. Build, TypeScript, touched lint, 55 focused units and 12 light/4 targeted
+dark browser checks pass. Landscape transcript space is explicitly checked.
+Attachments, cross-device draft/order persistence and the full-route audit remain
+unfinished. No payment, schema, pricing or ledger changes. See
+[scope and evidence](ai-canvas-evidence-2026-09.md).
+
 ## Conversation detail recovery — 26 September 2026
 
 **DONE for this scoped recovery and responsive-sheet change; full Messages QA remains PARTIAL.** A 503

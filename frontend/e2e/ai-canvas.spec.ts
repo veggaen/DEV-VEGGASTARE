@@ -1,7 +1,9 @@
 import { expect, test, type Page, type Browser, type BrowserContext } from '@playwright/test';
 
+const viewportHeight = (width: number) => width === 844 ? 390 : width >= 1920 ? 1080 : width === 1024 ? 1600 : width === 1280 ? 800 : 844;
+
 async function setup(browser: Browser, baseURL: string | undefined, width = 1280, guest = false) {
-  const context = await browser.newContext({ baseURL, colorScheme: process.env.E2E_THEME === 'dark' ? 'dark' : 'light', storageState: guest ? undefined : process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: width === 844 ? 390 : width >= 1920 ? 1080 : 844 } });
+  const context = await browser.newContext({ baseURL, colorScheme: process.env.E2E_THEME === 'dark' ? 'dark' : 'light', storageState: guest ? undefined : process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: viewportHeight(width) } });
   if (!guest) { const identity = await (await context.request.get('/api/auth/session')).json(); expect(identity.user?.isDemo).toBe(true); }
   const page = await context.newPage();
   const state = { creates: 0, sends: 0, saves: 0, fail: false, delay: false };
@@ -42,7 +44,7 @@ for (const width of [360, 390, 844, 768, 1024, 1280, 1920, 2560]) test(`blank ca
     expect(state.creates).toBe(0); expect(state.sends).toBe(0);
     await expect(page.locator('[data-ai-composer]').filter({ visible: true })).toHaveCount(1);
     const composer = await page.locator('[data-ai-composer]').filter({ visible: true }).boundingBox();
-    expect(composer!.x).toBeGreaterThanOrEqual(0); expect(composer!.x + composer!.width).toBeLessThanOrEqual(width); expect(composer!.y + composer!.height).toBeLessThanOrEqual(width === 844 ? 390 : width >= 1920 ? 1080 : 844);
+    expect(composer!.x).toBeGreaterThanOrEqual(0); expect(composer!.x + composer!.width).toBeLessThanOrEqual(width); expect(composer!.y + composer!.height).toBeLessThanOrEqual(viewportHeight(width));
     await page.screenshot({ path: info.outputPath('new-chat.png') });
     await (await rail(page)).getByRole('link', { name: 'Alpha', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Result', exact: true })).toBeVisible();
