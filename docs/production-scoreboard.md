@@ -10,11 +10,13 @@ company/product workflows, physical/digital fulfillment, jobs, persistent paper
 trading, two-party P2P and local-chain settlement. The prior 77-route pass did not
 test those complete workflows. Product lifecycle authorization, independent
 permissions, private specifications, archive/download preservation and company-form
-hydration are corrected locally and on isolated hosted Preview. 108 unit, six isolated
+hydration are corrected locally, on isolated hosted Preview and Live. 108 unit, six isolated
 database and four actual-server browser workflows (360/390/1280/2560) pass locally
 and on Preview, with two additional public read-only checks per environment. See
-[scope and limits](product-lifecycle-evidence-2026-09.md). Production promotion pending;
-broader feature and layout acceptance remains open.
+[scope and limits](product-lifecycle-evidence-2026-09.md). Production deployment
+`dpl_6kjc269HVdSyDXcQGxxg1t4CczMV` passes both read-only public checks at 390/2560.
+Real Chrome confirms form typing/scrolling; Live account mutations were not tested.
+Broader feature and layout acceptance remains open.
 
 ## Conversation management and legacy privacy — 26 September 2026
 
