@@ -24,7 +24,7 @@ No payment, credit, price-list, database-schema or customer-data changes.
 ## Evidence
 
 - Five original authorization regressions failed before the fix.
-- 74 focused unit tests pass across product lifecycle, publishing, reads and specification boundaries.
+- 108 focused unit tests pass across product lifecycle, publishing, reads, catalogue/purchase state and specification boundaries.
 - Six isolated PostgreSQL tests pass. They join company creation, adding an employee,
   permission grants, physical/digital publication, inventory association, lifecycle
   operations and author revocation. They also cover personal ownership, foreign
@@ -63,4 +63,15 @@ fulfillment**. Those scenarios, the team dialog's complete joined UI flow, advan
 permission flags, stock editing consistency, full responsive design acceptance, jobs,
 paper trading, P2P and local-chain settlement remain PARTIAL in the acceptance contract.
 
-Deployment verification is recorded separately below when completed.
+## Hosted verification
+
+Runtime `305d48b` was cherry-picked into integrated Preview as `57d96bc` and deployed
+as `dpl_3HaG2EGW2ER3bAfYbnpeRezyeMgJ`. All four real-account workflows pass there
+at 360/390/1280/2560 (2.4 minutes). Two additional read-only public-access/browser
+checks pass locally and on Preview (390/2560): no private specs, no anonymous
+integration access/writes, no management controls or horizontal document overflow.
+The disposable company/user records are removed; real Chrome's refreshed company
+directory shows only the permanent studio. Release secret scan passes.
+
+Production promotion pending. The integrated Preview's extra payment/schema work
+is not part of the safe release worktree or its 56-migration production deployment.
