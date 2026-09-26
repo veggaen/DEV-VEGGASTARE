@@ -25,10 +25,16 @@ it('denies guest, non-member, removed member and missing conversations', async (
   expect(mocks.authorize).not.toHaveBeenCalled();
 });
 it('allows a guest to subscribe to a public thread but not deletion-hidden content', async () => {
-  mocks.session.mockResolvedValue(null); mocks.conversation.mockResolvedValue({ ...conversation, visibility: 'PUBLIC' });
+  mocks.session.mockResolvedValue(null); mocks.conversation.mockResolvedValue({ ...conversation, type: 'PUBLIC_THREAD', visibility: 'PUBLIC' });
   expect((await POST(request())).status).toBe(200);
-  mocks.conversation.mockResolvedValue({ ...conversation, visibility: 'PUBLIC', deletionVisibility: 'PRIVATE', deletionRequestedAt: new Date() });
+  mocks.conversation.mockResolvedValue({ ...conversation, type: 'PUBLIC_THREAD', visibility: 'PUBLIC', deletionVisibility: 'PRIVATE', deletionRequestedAt: new Date() });
   expect((await POST(request())).status).toBe(403);
+});
+it.each(['PRIVATE_DM', 'GROUP'])('denies legacy public %s subscriptions to guests and non-members', async type => {
+  mocks.conversation.mockResolvedValue({ ...conversation, type, visibility: 'PUBLIC', participants: [] });
+  expect((await POST(request())).status).toBe(403);
+  mocks.session.mockResolvedValue(null); expect((await POST(request())).status).toBe(403);
+  expect(mocks.authorize).not.toHaveBeenCalled();
 });
 it('only authorizes the current user’s notification channel', async () => {
   expect((await POST(request('private-preview__user_member'))).status).toBe(200);
