@@ -2,6 +2,21 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Header Messages preview — 26 September 2026
+
+**DONE for the scoped header menu and skeleton release; full messaging remains PARTIAL.**
+Runtime `6190eb4` is Live as `dpl_BtXbs2dMQRqg1YS7xRrrvj5GkeqP`. The preview
+works on phones, uses real participant/latest-message fields, keeps account
+responses isolated and offers working search, retry, close and New chat links.
+Skeleton geometry matches loaded rows. A Live early-click failure was reproduced
+and fixed by disabling the trigger until hydration. Strict build/TypeScript/lint,
+31 unit/API tests, 39 local, 33 Preview and 39 Live scoped browser checks pass.
+Real Chrome verifies the populated final Live menu and navigation. Payments,
+credit balances, prices and schema are unchanged. Next: message-send and realtime
+privacy/security, then the remaining route interactions. Physical phone keyboards
+and actual 125% browser zoom remain coverage gaps.
+See [scope, failures and final evidence](messages-preview-evidence-2026-09.md).
+
 ## Messages inbox — 26 September 2026
 
 **DONE for the scoped inbox release; full messaging and route audit remain PARTIAL.**
