@@ -4,13 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Conversation management and legacy privacy — 26 September 2026
 
-**PARTIAL — candidate in verification, not yet deployed.** Creator/admin management
+**DONE for scoped management/privacy; full route audit remains PARTIAL.** Runtime
+`9fb2eb2` (test-only follow-up `5ad9bd3`) is Live as
+`dpl_6768rGqHuWB9E8Fax8cYRxwrS3he`. Creator/admin management
 now uses current-session checks, locked/idempotent writes and bounded validation.
 Legacy direct/group chats cannot leak through broad visibility or nested reposts.
 Delete/cancel failures are recoverable; pending-deletion composers preserve drafts
 while disabled. Misleading Mute controls were removed. 151 focused unit tests and
 touched-file lint, strict build/TypeScript, the real isolated-database lifecycle,
-and 22 local browser cases pass. Preview/Live acceptance remains pending.
+and 22 browser cases each locally, on Preview and Live pass. Real Chrome confirms
+the retained self-chat, corrected menu and cancellation of the delete warning;
+no customer message was changed. Release secret scanning passes.
 No payment, credit, price or schema changes. See [scoped evidence](conversation-management-evidence-2026-09.md).
 
 ## Route-by-route audit restart and conversation creation — 26 September 2026

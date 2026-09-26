@@ -1,6 +1,12 @@
 # Conversation management acceptance — 26 September 2026
 
-Status: **local verification passed; hosted checks pending. Not an all-messaging certification.**
+Status: **scoped acceptance passed locally, on Preview and Live. Not an all-messaging certification.**
+
+Runtime `9fb2eb2`, plus test-only follow-up `5ad9bd3`, is Live as
+`dpl_6768rGqHuWB9E8Fax8cYRxwrS3he` at https://www.veggat.com.
+Preview runtime `0fa52bd` is `dpl_2bWWcVdtoCdJNYkP5sMunyqhrirc` at the retained
+isolated Sandbox alias. Production used the 56-migration UI release tree;
+Preview retained its 57-migration integration tree. Neither had pending migrations.
 
 ## Scope
 
@@ -33,10 +39,15 @@ credit, credential or billing change.
 ## Verification record
 
 151 focused unit/API tests, touched-file ESLint, strict production build/TypeScript
-and all 22 local browser cases pass. The real isolated-database lifecycle test
-passed in 18.4 seconds. Hosted checks remain pending. Local evidence is under
+and all 22 browser cases each locally, on Preview and Live pass. The real
+isolated-database lifecycle test passed in 18.4 seconds. Evidence is under
 `frontend/test-results/conversation-management-local-privacy-final` and
-`frontend/test-results/conversation-management-db-final` (ignored artifacts).
+`frontend/test-results/conversation-management-db-final`, plus
+`conversation-management-preview` and `conversation-management-live` (ignored
+artifacts). Release secret scanning found no leaks. Real signed-in Chrome
+confirmed the retained self-thread, the corrected menu, and opening/cancelling
+the explicit shared-conversation deletion warning. Its messages were untouched;
+the empty composer and thread remain open. No viewport override was left active.
 The wider regressions include message reads, header previews, subscriptions and
 private-channel authorization. The old public-subscription fixture incorrectly
 used a GROUP type; it now uses PUBLIC_THREAD, with explicit legacy private-type
