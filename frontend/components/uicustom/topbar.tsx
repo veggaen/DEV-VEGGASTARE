@@ -470,18 +470,15 @@ const MyTopBar = () => {
 											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
 										</Tooltip>
 
-										{/* Chat lite dropdown */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div data-nav-key="conversations" className="relative">
-													<ChatLiteDropdown />
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Messages</TooltipContent>
-										</Tooltip>
+
 									</>
 								)}
 							</div>
+							{clientUser && (
+								<div data-nav-key="conversations" className="relative">
+									<ChatLiteDropdown />
+								</div>
+							)}
 							</TooltipProvider>
 							<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
 								<SheetTrigger asChild>
