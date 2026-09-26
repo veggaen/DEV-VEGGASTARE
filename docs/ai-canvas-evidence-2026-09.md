@@ -1,7 +1,9 @@
 # AI chat canvas — 26 September 2026
 
-Status: **Live for this scoped canvas/text-draft change**; image attachments and
-full-route production readiness remain incomplete.
+Status: **Live for this scoped canvas/text-draft change**. The subsequent
+[private image attachment release](ai-chat-images-evidence-2026-09.md) is also
+Live; the attachment limitations below describe this earlier text-only release,
+not the current implementation. Full-route production readiness remains incomplete.
 
 Runtime `85dc830` (test follow-up `5fd91e5`) is deployed as
 `dpl_3BvBmVYkht32cq525oEy9XHdWbWx` at https://www.veggat.com.
