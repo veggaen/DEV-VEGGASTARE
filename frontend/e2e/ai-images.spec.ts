@@ -1,8 +1,10 @@
 import { expect, test, type Browser } from '@playwright/test';
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ioAAAAASUVORK5CYII=', 'base64');
-const image = { id: 'cqaimage000000000000000001', width: 1, height: 1 };
+const image = { id: 'cqaimage000000000000000001', width: 160, height: 160 };
 async function setup(browser: Browser, width: number, balance = 100) {
-  const context = await browser.newContext({ baseURL: 'http://localhost:3000', storageState: '.private-showcase/image-qa-local.json', colorScheme: 'dark', viewport: { width, height: width === 844 ? 390 : width >= 1280 ? 800 : 844 } });
+  const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+  expect(['http://localhost:3000', 'https://dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app']).toContain(baseURL);
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_IMAGE_QA_STATE || '.private-showcase/image-qa-local.json', colorScheme: 'dark', viewport: { width, height: width === 844 ? 390 : width >= 1280 ? 800 : 844 } });
   const user = (await (await context.request.get('/api/auth/session')).json()).user;
   expect(user?.id).toMatch(/^cqaimage/); // Only the disposable isolated fixture.
   const page = await context.newPage();
@@ -24,7 +26,7 @@ async function setup(browser: Browser, width: number, balance = 100) {
   });
   await page.route('**/api/ai-chat/images**', async route => {
     if (route.request().method() === 'POST') { state.uploads++; await route.fulfill(state.failImage ? { status: 503, json: { message: 'Image upload unavailable. Please retry.' } } : { json: image }); }
-    else await route.fulfill({ contentType: 'image/png', body: pixel });
+    else { await new Promise(resolve => setTimeout(resolve, 600)); await route.fulfill({ contentType: 'image/png', body: pixel }); }
   });
   await page.route('**/api/ai-chat', async route => {
     state.sends++;
@@ -89,6 +91,8 @@ test('upload failure and truncated reply preserve the image; retry saves it once
     await page.getByRole('button', { name: 'Send message', exact: true }).click();
     await expect(page).toHaveURL(/\/ai\/qa-created$/);
     await expect(page.getByRole('link', { name: 'Open attached image 1' })).toBeVisible();
+    const imageBox = await page.getByRole('link', { name: 'Open attached image 1' }).boundingBox();
+    expect(imageBox!.width).toBeGreaterThanOrEqual(150); expect(imageBox!.height).toBeGreaterThanOrEqual(150);
     await expect(page.getByRole('button', { name: 'Choose AI model: GPT-5.6 Luna', exact: true })).toBeVisible();
     expect(state.uploads).toBe(2); expect(state.saves).toBe(1); expect(state.imageIds).toEqual([image.id]);
   } finally { await context.close(); }
