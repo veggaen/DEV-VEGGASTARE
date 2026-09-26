@@ -53,7 +53,11 @@ for (const width of [390, 844, 1280, 2560]) test(`image drafts stay private to e
     await (await rail()).getByRole('link', { name: 'Alpha', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Alpha', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Remove new.png' })).toHaveCount(0);
-    await page.getByLabel('Choose chat images').setInputFiles({ name: 'alpha.png', mimeType: 'image/png', buffer: pixel });
+    // Exercise clipboard and drag/drop too, not just the file picker.
+    await page.getByRole('textbox', { name: 'AI message' }).evaluate((element, { bytes, pasted }) => {
+      const files = new DataTransfer(); files.items.add(new File([Uint8Array.from(bytes)], 'alpha.png', { type: 'image/png' }));
+      element.dispatchEvent(pasted ? new ClipboardEvent('paste', { clipboardData: files, bubbles: true }) : new DragEvent('drop', { dataTransfer: files, bubbles: true, cancelable: true }));
+    }, { bytes: [...pixel], pasted: width < 1000 });
     await (await rail()).getByRole('link', { name: 'Beta', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Beta', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Remove alpha.png' })).toHaveCount(0);
@@ -61,6 +65,10 @@ for (const width of [390, 844, 1280, 2560]) test(`image drafts stay private to e
     await expect(page.getByRole('button', { name: 'Remove alpha.png' })).toBeVisible();
     await page.getByRole('button', { name: 'Choose GPT-5.6 Luna', exact: true }).click();
     await expect(page.getByText('Up to 3 credits / message', { exact: true })).toBeVisible();
+    await (await rail()).getByRole('link', { name: 'Beta', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Beta', exact: true })).toBeVisible();
+    await (await rail()).getByRole('link', { name: 'Alpha', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Choose AI model: GPT-5.6 Luna', exact: true })).toBeVisible();
     expect(state.uploads).toBe(0); expect(state.sends).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
     const composer = await page.locator('[data-ai-composer]').filter({ visible: true }).boundingBox();
