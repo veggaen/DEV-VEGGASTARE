@@ -26,9 +26,11 @@ export function DraftImages({ images, remove, busy }: { images: DraftImage[]; re
 }
 export function MessageImages({ images }: { images: ChatImageView[] }) {
   return <div className="mb-2 flex flex-wrap justify-end gap-2">
-    {images.map((image, index) => <a key={image.id} href={`/api/ai-chat/images/${image.id}`} target="_blank" rel="noopener noreferrer" className="max-w-64 overflow-hidden rounded-xl border border-border focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Open attached image ${index + 1}`}>
+    {images.map((image, index) => <a key={image.id} href={`/api/ai-chat/images/${image.id}`} target="_blank" rel="noopener noreferrer"
+      style={{ width: Math.min(image.width, 256, image.width * 256 / image.height), aspectRatio: `${image.width} / ${image.height}` }}
+      className="block max-w-full overflow-hidden rounded-xl border border-border bg-muted focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Open attached image ${index + 1}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/api/ai-chat/images/${image.id}`} alt={`Attached image ${index + 1}`} width={image.width} height={image.height} loading="lazy" className="max-h-64 w-auto max-w-full object-contain" />
+      <img src={`/api/ai-chat/images/${image.id}`} alt={`Attached image ${index + 1}`} width={image.width} height={image.height} loading="lazy" className="h-full w-full object-contain" />
     </a>)}
   </div>;
 }
