@@ -91,13 +91,13 @@ export default function NewConversationPage() {
   if (!user) return <section className="mx-auto max-w-xl px-4 py-8"><h1 className="text-2xl font-semibold">Sign in to message</h1>
     <Button asChild className="mt-4 min-h-11"><Link href="/auth/login?callbackUrl=%2Fconversations%2Fnew">Sign in</Link></Button></section>;
 
-  return <section className="mx-auto w-full min-w-0 max-w-xl px-4 py-6 sm:px-6 lg:py-8">
-    <header className="mb-6">
-      <Link href="/conversations" className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <FiArrowLeft aria-hidden="true" /> Back to Messages
+  return <section className="mx-auto w-full min-w-0 max-w-xl px-4 py-6 sm:px-6">
+    <header className="mb-5 flex items-start gap-3">
+      <Link href="/conversations" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <FiArrowLeft aria-hidden="true" /><span className="sr-only">Back to Messages</span>
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New Conversation</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Start a private message or a small group chat.</p>
+      <div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New Conversation</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Private messages and small group chats.</p></div>
     </header>
     {demo && <aside aria-label="Demo messaging preview" className="mb-6 rounded-xl border border-border bg-muted/40 p-4 text-sm">
       <p className="font-medium">Messaging preview</p>
@@ -105,7 +105,7 @@ export default function NewConversationPage() {
       <Link href="/ai" className="mt-2 inline-flex min-h-11 items-center rounded-md font-medium text-primary underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring">Open AI chat</Link>
     </aside>}
     <form onSubmit={submit} aria-label="New conversation" className="min-w-0">
-      <fieldset className="mb-6">
+      <fieldset className="mb-4">
         <legend className="mb-2 text-sm font-medium">Conversation type</legend>
         <div className="grid grid-cols-2 gap-3">
           {([{ value: 'PRIVATE_DM', label: 'Direct Message', Icon: FiMessageCircle }, { value: 'GROUP', label: 'Group Chat', Icon: FiUsers }] as const).map(({ value, label, Icon }) =>
@@ -116,7 +116,7 @@ export default function NewConversationPage() {
             </button>)}
         </div>
       </fieldset>
-      {type === 'GROUP' && <div className="mb-6">
+      {type === 'GROUP' && <div className="mb-4">
         <label htmlFor="group-name" className="mb-2 block text-sm font-medium">Group name</label>
         <Input id="group-name" name="groupName" autoComplete="off" required maxLength={100} disabled={demo || creating}
           value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Give your group a name" className={fieldClass} />
@@ -129,7 +129,7 @@ export default function NewConversationPage() {
             onClick={() => setSelected((previous) => previous.filter((candidate) => candidate.id !== recipient.id))}><FiX aria-hidden="true" /></Button>
         </li>)}</ul>
       </div>}
-      {(type === 'GROUP' && selected.length < 49 || !selected.length) && <div className="mb-6">
+      {(type === 'GROUP' && selected.length < 49 || !selected.length) && <div className="mb-4">
         <label htmlFor="recipient-search" className="mb-2 block text-sm font-medium">{type === 'GROUP' ? 'Add people' : 'Find someone'}</label>
         <div className="relative"><FiSearch aria-hidden="true" className="pointer-events-none absolute left-3 top-4 size-4 text-muted-foreground" />
           <Input id="recipient-search" name="recipient" autoComplete="off" maxLength={100} disabled={demo || creating} aria-describedby="recipient-help"
@@ -146,13 +146,13 @@ export default function NewConversationPage() {
           </button></li>)}
         </ul>}
       </div>}
-      <div className="mb-6">
+      <div className="mb-4">
         <label htmlFor="initial-message" className="mb-2 block text-sm font-medium">Message (optional)</label>
         <Textarea id="initial-message" name="message" value={message} onChange={(event) => setMessage(event.target.value)} disabled={demo || creating}
           maxLength={4000} rows={4} placeholder="Write your first message…" className={`min-h-28 resize-y text-base md:text-base ${neutralFocus}`} />
       </div>
       {createError && <p role="alert" className="mb-4 text-sm text-destructive">{createError}</p>}
-      <div className="sticky bottom-0 border-t border-border bg-background/95 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+      <div className="sticky bottom-0 border-t border-border bg-background/95 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:static">
         <Button type="submit" disabled={demo || creating || !selected.length || (type === 'GROUP' && !groupName.trim())} className="h-12 w-full text-base">
           <FiCheck aria-hidden="true" className="size-4" />{creating ? 'Starting…' : demo ? 'Sending unavailable in demo' : 'Start Conversation'}
         </Button>
