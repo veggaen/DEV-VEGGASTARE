@@ -8,7 +8,7 @@ export async function realtimePublication(channel: string, event: string, data: 
   if (target?.kind === 'conversation') {
     // Never publish message bodies, even for public threads: visibility can
     // change between a database read and delivery to an already-open socket.
-    if (['new-message', 'edit-message', 'delete-message'].includes(event)) return { channel: scoped, event: 'conversation-updated', data: {} };
+    if (['new-message', 'edit-message', 'delete-message', 'conversation-updated'].includes(event)) return { channel: scoped, event: 'conversation-updated', data: {} };
     const conversation = await dbPrisma.conversation.findUnique({ where: { id: target.id }, select: { visibility: true, deletionVisibility: true, deletionRequestedAt: true } });
     if (!conversation) throw new Error('Realtime conversation unavailable');
     // Already-authorized sockets may outlive membership. They get no new private

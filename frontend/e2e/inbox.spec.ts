@@ -61,6 +61,9 @@ for (const width of [360, 390, 844, 768, 1024, 1280, 1920, 2560]) test(`inbox la
 for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) test(`inbox action feedback, pagination and privacy recovery (${width}px ${theme})`, async ({ browser, baseURL }, info) => {
   const { context, userId } = await setup(browser, baseURL, width, theme);
   try {
+    const session = await (await context.request.get('/api/auth/session')).json();
+    // Only the client fixture is writable; real hosted identity stays read-only demo.
+    await context.route('**/api/auth/session', route => route.fulfill({ json: { ...session, user: { ...session.user, isDemo: false } } }));
     const page = await context.newPage(); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     let state: 'ready' | 'scheduled' | 'deleted' = 'ready'; let failure = false; let accessLost = false; let listFailure = true; let pageFailure = true; let copies = 0; let deletes = 0;
     await page.exposeFunction('qaCopy', () => { copies++; if (copies === 1) throw new Error('Clipboard unavailable'); });
@@ -86,6 +89,9 @@ for (const [width, theme] of [[390, 'light'], [1280, 'dark']] as const) test(`in
     await expect(page.getByRole('main').getByRole('alert')).toContainText('Could not load messages');
     listFailure = false; await page.getByRole('button', { name: 'Try again', exact: true }).click();
     const actions = page.getByRole('button', { name: 'Actions for Project notes', exact: true }); await expect(actions).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeEnabled();
+    const refreshed = page.waitForResponse(response => response.url().endsWith('/api/auth/session'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
     await actions.click(); await page.getByRole('menuitem', { name: 'Copy link', exact: true }).click();
     await expect(page.getByText('Could not copy the link. Open the conversation and copy its address.', { exact: true })).toBeVisible();
     await actions.click(); await page.getByRole('menuitem', { name: 'Copy link', exact: true }).click(); await expect(page.getByText('Link copied', { exact: true })).toBeVisible();

@@ -2,6 +2,17 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Conversation management and legacy privacy — 26 September 2026
+
+**PARTIAL — candidate in verification, not yet deployed.** Creator/admin management
+now uses current-session checks, locked/idempotent writes and bounded validation.
+Legacy direct/group chats cannot leak through broad visibility or nested reposts.
+Delete/cancel failures are recoverable; pending-deletion composers preserve drafts
+while disabled. Misleading Mute controls were removed. 126 focused unit tests and
+touched-file lint, strict build/TypeScript, the real isolated-database lifecycle,
+and 22 local browser cases pass. Preview/Live acceptance remains pending.
+No payment, credit, price or schema changes. See [scoped evidence](conversation-management-evidence-2026-09.md).
+
 ## Route-by-route audit restart and conversation creation — 26 September 2026
 
 **DONE for conversation creation; full route audit remains PARTIAL.** Runtime

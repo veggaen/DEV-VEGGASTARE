@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser, FiBellOff } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser } from 'react-icons/fi';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -70,9 +70,10 @@ function ConversationThread() {
   const readRequest = useRef<AbortController | null>(null);
   const [conversation, setConversation] = useState<ConversationDetails | null>(null);
   const [isCancellingDeletion, setIsCancellingDeletion] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [managementError, setManagementError] = useState<string | null>(null);
+  const managementBusy = useRef(false);
   const [hasPoll, setHasPoll] = useState(false);
-  // Local mute preference (UI-level notification toggle for this thread).
-  const [muted, setMuted] = useState(false);
   // Right rail (members + voice channel) toggle.
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const membersButtonRef = useRef<HTMLButtonElement>(null);
@@ -168,51 +169,57 @@ function ConversationThread() {
   }, [currentUser?.id]));
 
   const handleCancelDeletion = async () => {
-    if (!conversationId) return;
+    if (!conversationId || managementBusy.current) return;
+    managementBusy.current = true;
+    setManagementError(null);
     setIsCancellingDeletion(true);
     try {
       const response = await fetch(`/api/conversations/${conversationId}?cancel=true`, {
         method: 'DELETE',
       });
       if (response.ok) {
-        fetchMessages();
-      }
-    } catch (error) {
-      console.error('Error cancelling deletion:', error);
+        await fetchMessages();
+      } else setManagementError('Could not confirm cancellation. Try again.');
+    } catch {
+      setManagementError('Could not confirm cancellation. Try again.');
     } finally {
       setIsCancellingDeletion(false);
+      managementBusy.current = false;
     }
   };
 
   // Request deletion of the whole conversation, then return to the list. Mirrors
   // the existing DELETE endpoint (the `?cancel=true` variant undoes it).
   const handleDeleteConversation = async () => {
-    if (!conversationId) return;
-    if (!(await confirm({
-      title: 'Delete this conversation?',
-      description: 'This will start the deletion process.',
-      confirmLabel: 'Delete',
-      destructive: true,
-    }))) return;
+    if (!conversationId || managementBusy.current) return;
+    managementBusy.current = true;
+    setManagementError(null);
     try {
+      if (!(await confirm({
+        title: 'Delete this conversation?',
+        description: 'This deletes the shared conversation for everyone. Some conversations have a cancellation period.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
+      setIsDeleting(true);
       const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
       if (res.ok) {
         router.push('/conversations');
       } else {
-        const { toast } = await import('sonner');
-        toast.error('Could not delete the conversation.');
+        setManagementError('Could not confirm deletion. Try again.');
       }
-    } catch (error) {
-      console.error('Error deleting conversation:', error);
-      const { toast } = await import('sonner');
-      toast.error('Could not delete the conversation.');
+    } catch {
+      setManagementError('Could not confirm deletion. Try again.');
+    } finally {
+      setIsDeleting(false);
+      managementBusy.current = false;
     }
   };
 
-  const canManage = conversation && currentUser && (
+  const canManage = conversation && currentUser && !currentUser.isDemo && !currentUser.isImpersonating && (
     currentUser.id === conversation.userId ||
     currentUser.id === conversation.originalUserId ||
-    (currentUser as any).role === 'ADMIN'
+    currentUser.role === 'ADMIN' || currentUser.role === 'OWNER'
   );
 
   if (loading) {
@@ -327,12 +334,6 @@ function ConversationThread() {
           </div>
         )}
 
-        {muted && (
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-black/5 dark:bg-white/8 px-2 py-1 text-[10px] text-muted-foreground">
-            <FiBellOff className="h-3 w-3" /> Muted
-          </span>
-        )}
-
         <button
           ref={membersButtonRef}
           onClick={() => setSidebarOpen((v) => !v)}
@@ -350,7 +351,7 @@ function ConversationThread() {
           <FiUsers className="h-4.5 w-4.5" />
         </button>
 
-        <DropdownMenu>
+        {(canManage || (conversation.type === 'PRIVATE_DM' && otherParticipant)) && <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
@@ -369,15 +370,12 @@ function ConversationThread() {
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setMuted((m) => !m)} className="cursor-pointer">
-              <FiBellOff className="mr-2 h-4 w-4" />
-              {muted ? 'Unmute notifications' : 'Mute notifications'}
-            </DropdownMenuItem>
             {canManage && (
               <>
-                <DropdownMenuSeparator />
+                {conversation.type === 'PRIVATE_DM' && otherParticipant && <DropdownMenuSeparator />}
                 <DropdownMenuItem
                   onClick={handleDeleteConversation}
+                  disabled={isDeleting || isCancellingDeletion}
                   className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
                 >
                   <FiTrash2 className="mr-2 h-4 w-4" /> Delete conversation
@@ -385,32 +383,34 @@ function ConversationThread() {
               </>
             )}
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
         </div>
       </motion.header>
 
+      {managementError && <div role="alert" className="shrink-0 border-b border-border text-sm text-red-700 dark:text-red-400"><p className="mx-auto w-full max-w-3xl px-4 py-3">{managementError}</p></div>}
+
       {/* Deletion Warning Banner */}
       {conversation.deletionScheduledFor && (
-        <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-orange-400">
-            <FiTrash2 className="h-4 w-4" />
+        <div className="shrink-0 border-b border-orange-500/20 bg-orange-500/10">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-orange-700 dark:text-orange-400">
+            <FiTrash2 aria-hidden className="h-4 w-4 shrink-0" />
             <span>
-              This conversation will be deleted in{' '}
-              {formatDistanceToNowStrict(new Date(conversation.deletionScheduledFor))}
+              {new Date(conversation.deletionScheduledFor) <= new Date() ? 'Deletion pending' : `Deletes in ${formatDistanceToNowStrict(new Date(conversation.deletionScheduledFor))}`} · Replies paused
             </span>
           </div>
-          {canManage && (
+          {canManage && new Date(conversation.deletionScheduledFor) > new Date() && (
             <Button
               size="sm"
               variant="outline"
               onClick={handleCancelDeletion}
-              disabled={isCancellingDeletion}
-              className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+              disabled={isCancellingDeletion || isDeleting}
+              className="min-h-11 shrink-0 border-orange-500/30 text-orange-700 hover:bg-orange-500/10 dark:text-orange-400"
             >
               {isCancellingDeletion ? 'Cancelling...' : 'Cancel Deletion'}
             </Button>
           )}
-        </div>
+        </div></div>
       )}
 
       {/* Poll (if exists) */}
@@ -447,11 +447,13 @@ function ConversationThread() {
                   </div>
                 )}
               </AnimatePresence>
+              <fieldset disabled={!!conversation.deletionScheduledFor} aria-label="Message composer" className="m-0 min-w-0 border-0 p-0 disabled:opacity-60">
               <MessageInput
                 conversationId={conversationId!}
                 onMessageSent={fetchMessages}
                 allowImages={false}
               />
+              </fieldset>
             </div>
           </div>
         </div>

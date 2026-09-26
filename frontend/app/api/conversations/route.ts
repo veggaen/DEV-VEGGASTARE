@@ -12,6 +12,7 @@ import {
   type ConversationsListResponse,
 } from '@/lib/types/conversations';
 import { createConversation } from '@/lib/conversation-create';
+import { buildVisibilityWhereClause, canViewConversation, privateConversationTypes } from '@/lib/conversation-permissions';
 
 const LOG_PREFIX = '[api/conversations]';
 
@@ -58,7 +59,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    let whereClause: Record<string, unknown>;
+    let whereClause: Prisma.ConversationWhereInput;
+    const viewer = session?.id ? { id: session.id, role: session.role } : null;
 
     // If creatorId is specified, filter by that user's created posts
     if (creatorId) {
@@ -170,6 +172,12 @@ export async function GET(req: Request) {
       whereClause = { visibility: 'PUBLIC' };
     }
 
+    // Apply the same read policy as direct message access before pagination.
+    // Public feeds/profile activity never publish DMs, even to their own creator.
+    const publicScope = !!creatorId || filter === 'public' || !userId;
+    whereClause = { AND: [whereClause, buildVisibilityWhereClause(viewer),
+      ...(publicScope ? [{ type: { notIn: [...privateConversationTypes] } }] : [])] };
+
     // Build orderBy based on sort parameter
     // "Reach over followers" philosophy: prioritize actual engagement over vanity metrics
     let orderBy: Prisma.ConversationOrderByWithRelationInput[];
@@ -236,7 +244,7 @@ export async function GET(req: Request) {
 
     // Stable tie-breaking matters when loading the next page of an inbox.
     orderBy.push({ id: 'desc' });
-    const conversations = await dbPrisma.conversation.findMany({
+    const page = await dbPrisma.conversation.findMany({
       where: whereClause,
       include: {
         Message: {
@@ -247,6 +255,9 @@ export async function GET(req: Request) {
         Conversation: {
           select: {
             id: true,
+            userId: true, participants: true, type: true, visibility: true, replyPermission: true,
+            allowedRoles: true, customViewers: true, visibleToUserIds: true, isLocked: true,
+            deletionRequestedAt: true, deletionVisibility: true,
             title: true,
             createdAt: true,
             User: {
@@ -299,6 +310,12 @@ export async function GET(req: Request) {
       take: limit,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
+
+    // Defense in depth for returned records and nested repost previews.
+    const conversations = page.filter(conversation => canViewConversation(viewer, conversation))
+      .map(conversation => ({ ...conversation,
+        Conversation: conversation.Conversation && canViewConversation(viewer, conversation.Conversation) ? conversation.Conversation : null,
+      }));
 
     // These independent lookups must not form a serial Railway round-trip chain.
     const conversationIds = conversations.map(conversation => conversation.id);
@@ -436,7 +453,7 @@ export async function GET(req: Request) {
         isAnonymized: (conversation as any).isAnonymized ?? undefined,
         originalUserId: (conversation as any).originalUserId ?? null,
 
-        repostOfConversationId: (conversation as any).repostOfConversationId ?? null,
+        repostOfConversationId: conversation.Conversation?.id ?? null,
         repostOfConversation,
         Conversation: repostOfConversation,
 
@@ -516,8 +533,8 @@ export async function GET(req: Request) {
     });
 
     // Return with next cursor for pagination
-    const nextCursor = conversations.length === limit
-      ? conversations[conversations.length - 1]?.id
+    const nextCursor = page.length === limit
+      ? page[page.length - 1]?.id
       : null;
 
     const responsePayload: ConversationsListResponse = {

@@ -21,6 +21,9 @@ export async function allowMessageWrite(identity: string, request: Request): Pro
 export async function allowConversationCreate(identity: string, request: Request): Promise<boolean> {
   return allowAttempt('conversation-create', identity, request, 60, 20);
 }
+export async function allowConversationManagement(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('conversation-management', identity, request, 120, 40);
+}
 export async function allowRealtimeAuthorization(identity: string, request: Request): Promise<boolean> {
   return allowAttempt('realtime-authorization', identity, request, 300, 150);
 }
