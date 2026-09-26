@@ -2,6 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## AI canvas and independent drafts — 26 September 2026
+
+**DONE for the scoped text-chat canvas; attachments/full-route readiness remain
+PARTIAL.** Runtime `85dc830` is Live as `dpl_3BvBmVYkht32cq525oEy9XHdWbWx`.
+Centered new chat, private per-conversation text drafts, accessible reordering,
+safe Markdown and compact landscape composition pass build/TypeScript/lint,
+55 focused unit tests and 25 browser checks each locally and Live. Real Chrome
+confirms the clean canvas, mobile drawer and unsent draft navigation. Payments,
+ledger, prices and schema are unchanged. See [evidence](ai-canvas-evidence-2026-09.md).
+
 ## Current integrated production release — 25 September 2026
 
 Company checkout reporting: **DONE for verified order counts and balanced

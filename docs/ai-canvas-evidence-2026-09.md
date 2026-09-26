@@ -1,6 +1,14 @@
 # AI chat canvas — 26 September 2026
 
-Status: local acceptance passed; hosted acceptance and image attachments pending.
+Status: **Live for this scoped canvas/text-draft change**; image attachments and
+full-route production readiness remain incomplete.
+
+Runtime `85dc830` (test follow-up `5fd91e5`) is deployed as
+`dpl_3BvBmVYkht32cq525oEy9XHdWbWx` at https://www.veggat.com.
+The production build confirms 54 migrations and no pending migrations.
+Exact-candidate local and Live each pass **12 light + 7 targeted dark + 6 shared-UI
+browser checks**, without retries/skips. 55 focused UI/streaming/request unit tests
+pass. Live includes 1024×1600 portrait and 1280×800 desktop, plus phone landscape.
 This is not certification that all Veggat routes are production-ready.
 
 ## Scope
@@ -56,6 +64,16 @@ Do not represent image attachments as completed because text drafts work.
 - Real Chrome verifies new/existing-chat draft separation and the public-share
   confirmation (cancelled, nothing published). Temporary unsent QA text was
   cleared. No provider request or credit charge was made during this UI check.
+- Live real Chrome verifies the clean canvas, populated transcript, mobile drawer
+  and draft restoration through app navigation at measured 390×844. A fresh
+  normal-sized tab verifies the desktop canvas at 2498×1263. The browser sizing
+  reset was called; the retained old test tab stayed 390px, so the deliverable is
+  the fresh normal-sized tab. No Live messages or conversations were created.
+
+Next attachment implementation must reserve bounded image-input cost before any
+provider request. [Official OpenAI vision guidance](https://developers.openai.com/api/docs/guides/images-vision)
+confirms images are billable input, with model-specific sizing and detail limits.
+This research is not evidence that Veggat already accepts image attachments.
 
 ## Design references
 
