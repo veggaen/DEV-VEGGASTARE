@@ -359,6 +359,17 @@ export async function GET(req: Request) {
   const userId = session?.id;
   const userRole = session?.role;
 
+  // A missing profile target must never fall through to an unrestricted query.
+  if ((filter === 'created' || filter === 'participated') && !creatorId) {
+    return NextResponse.json({ message: 'Choose a profile to view its public activity.' }, { status: 400, headers: { 'Cache-Control': 'private, no-store' } });
+  }
+  if (filter === 'private' && !userId) {
+    return NextResponse.json({ message: 'Sign in to view your messages.' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } });
+  }
+  if (creatorId && !['created', 'participated', 'public'].includes(filter ?? 'mine')) {
+    return NextResponse.json({ message: 'Profile filters only support public activity.' }, { status: 400, headers: { 'Cache-Control': 'private, no-store' } });
+  }
+
   try {
     let whereClause: Record<string, unknown>;
 
@@ -468,7 +479,8 @@ export async function GET(req: Request) {
       // Not authenticated - only show public
       whereClause = { visibility: 'PUBLIC' };
     } else {
-      whereClause = {};
+      // Fail closed if a new filter is ever added without an explicit policy.
+      whereClause = { visibility: 'PUBLIC' };
     }
 
     // Build orderBy based on sort parameter
@@ -535,12 +547,15 @@ export async function GET(req: Request) {
         break;
     }
 
+    // Stable tie-breaking matters when loading the next page of an inbox.
+    orderBy.push({ id: 'desc' });
     const conversations = await dbPrisma.conversation.findMany({
       where: whereClause,
       include: {
         Message: {
           take: 1,
-          orderBy: { createdAt: 'asc' },  // Get FIRST message (original pulse), not last (comment)
+          // Pulse keeps the original post; the private inbox needs the newest reply.
+          orderBy: [{ createdAt: filter === 'private' ? 'desc' : 'asc' }, { id: filter === 'private' ? 'desc' : 'asc' }],
         },
         Conversation: {
           select: {
