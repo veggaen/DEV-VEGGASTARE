@@ -15,7 +15,7 @@ describe('bounded provider requests', () => {
     expect(r.url).not.toContain(base.apiKey);
     expect(JSON.stringify(r.body)).not.toContain('"tools"');
     const b = r.body as Record<string, any>;
-    expect(b.max_tokens ?? b.max_completion_tokens ?? b.generationConfig?.maxOutputTokens).toBe(MAX_AI_OUTPUT_TOKENS);
+    expect(b.max_tokens ?? b.max_completion_tokens ?? b.max_output_tokens ?? b.generationConfig?.maxOutputTokens).toBe(MAX_AI_OUTPUT_TOKENS);
     expect(item.reserveMicroUsd).toBeGreaterThan(0);
     expect(item.reserveMicroUsd).toBeLessThanOrEqual(1_000_000);
   });
@@ -23,6 +23,14 @@ describe('bounded provider requests', () => {
     const r = providerRequest({ ...base, model: 'gpt-6-astra' });
     expect(r.body).toMatchObject({ reasoning_effort: 'low', max_completion_tokens: 2048, service_tier: 'default' });
     expect(r.body).not.toHaveProperty('temperature');
+  });
+  it.each(['grok-4.5', 'grok-4.6', 'grok-4.7'])('bounds reasoning and output together for %s', model => {
+    const r = providerRequest({ ...base, provider: 'GROK', model });
+    expect(r.url).toBe('https://api.x.ai/v1/responses');
+    expect(r.body).toMatchObject({ model, max_output_tokens: 2048, store: false, stream: true, reasoning: { effort: 'low' } });
+    expect(r.body).not.toHaveProperty('max_tokens');
+    expect(r.body).not.toHaveProperty('max_completion_tokens');
+    expect(r.body).not.toHaveProperty('tools');
   });
   it('disables thinking for the funded Gemini Lite model', () => {
     expect(providerRequest({ ...base, provider: 'GOOGLE', model: 'gemini-2.5-flash-lite' }).body)
@@ -46,6 +54,24 @@ describe('bounded provider requests', () => {
 });
 
 describe('settlement follows provider output, not HTTP 200 alone', () => {
+  it('settles a Grok response only after completed status, without exposing reasoning', async () => {
+    const events = [{ type: 'response.reasoning_text.delta', delta: 'Private reasoning' },
+      { type: 'response.output_text.delta', delta: 'Hello' },
+      { type: 'response.completed', response: { status: 'completed', usage: { output_tokens: 100 } } }];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(upstream(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''))));
+    const settle = vi.fn().mockResolvedValue(true);
+    const output = await (await streamBoundedProvider({ ...base, provider: 'GROK', model: 'grok-4.6', settle })).text();
+    expect(output).toContain('Hello'); expect(output).toContain('[DONE]'); expect(output).not.toContain('Private reasoning');
+    expect(settle).toHaveBeenCalledExactlyOnceWith(true);
+  });
+  it.each(['response.failed', 'response.incomplete', 'missing', 'over-budget'])('refunds Grok %s instead of treating HTTP 200 as success', async terminal => {
+    const events = [{ type: 'response.output_text.delta', delta: 'Partial' },
+      ...(terminal === 'missing' ? [] : terminal === 'over-budget' ? [{ type: 'response.completed', response: { status: 'completed', usage: { output_tokens: 2049 } } }] : [{ type: terminal }])];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(upstream(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') + 'data: [DONE]\n\n')));
+    const settle = vi.fn().mockResolvedValue(true);
+    expect(await (await streamBoundedProvider({ ...base, provider: 'GROK', model: 'grok-4.6', settle })).text()).toContain('AI_STREAM_FAILED');
+    expect(settle).toHaveBeenCalledExactlyOnceWith(false);
+  });
   it('refunds a bounded-output violation', async () => {
     const event = `data: ${JSON.stringify({ choices: [{ delta: { content: 'x'.repeat(128001) } }] })}\n\ndata: [DONE]\n\n`;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(upstream(event)));

@@ -23,6 +23,21 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 describe('metered generation boundary', () => {
+  it.each(['grok-4.5', 'grok-4.6'])('reserves %s before a provider call and blocks insufficient credits', async model => {
+    vi.stubEnv('GROK_API_KEY', 'fixture-platform-key');
+    m.reserve.mockResolvedValueOnce({ id: 'reservation-1', credits: 8 });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('data: {"type":"response.output_text.delta","delta":"Hello"}\n\ndata: {"type":"response.completed","response":{"status":"completed"}}\n\n'));
+    const args = { ...input(), provider: 'GROK' as const, model };
+    const response = await generateMeteredStream(args);
+    await response.text();
+    expect(response.headers.get('X-Ai-Credits')).toBe('8');
+    expect(m.reserve).toHaveBeenCalledWith(expect.objectContaining({ credits: 8, reservedMicroUsd: 80000 }));
+    expect(m.reserve.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(fetch).mock.invocationCallOrder[0]);
+    vi.mocked(fetch).mockClear();
+    m.reserve.mockRejectedValueOnce(new AiCreditError('AI_CREDITS_REQUIRED', 402));
+    await expect(generateMeteredStream(args)).rejects.toMatchObject({ code: 'AI_CREDITS_REQUIRED' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it('reserves images in addition to text before spending, including repeated context', async () => {
     const response = await generateMeteredStream({ ...input(), messages: [{ role: 'user', content: 'Describe', images: ['data:image/jpeg;base64,/9j/'] }] });
     await response.text();

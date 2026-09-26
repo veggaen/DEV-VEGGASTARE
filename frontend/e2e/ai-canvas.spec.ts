@@ -4,6 +4,7 @@ const viewportHeight = (width: number) => width === 844 ? 390 : width >= 1920 ? 
 
 async function setup(browser: Browser, baseURL: string | undefined, width = 1280, guest = false) {
   const context = await browser.newContext({ baseURL, colorScheme: process.env.E2E_THEME === 'dark' ? 'dark' : 'light', storageState: guest ? undefined : process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: viewportHeight(width) } });
+  await context.addInitScript(theme => localStorage.setItem('veggat:theme', theme), process.env.E2E_THEME === 'dark' ? 'dark' : 'light');
   if (!guest) { const identity = await (await context.request.get('/api/auth/session')).json(); expect(identity.user?.isDemo).toBe(true); }
   const page = await context.newPage();
   const state = { creates: 0, sends: 0, saves: 0, fail: false, delay: false };
@@ -57,8 +58,44 @@ for (const width of [360, 390, 844, 768, 1024, 1280, 1920, 2560]) test(`blank ca
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
     await page.screenshot({ path: info.outputPath('conversation.png') });
     await page.getByRole('button', { name: /Choose AI model:/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Choose AI model', exact: true })).toBeVisible();
-    await page.getByRole('dialog', { name: 'Choose AI model', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
+    await expect(picker).toBeVisible();
+    await expect.poll(async () => {
+      const box = (await picker.boundingBox())!;
+      return box.y >= 12 && box.x >= 12 && box.y + box.height <= viewportHeight(width) - 12 && box.height <= 641;
+    }).toBe(true);
+    const pickerStyle = await picker.evaluate(element => {
+      const style = getComputedStyle(element);
+      return { border: style.borderColor, text: style.color, bottomRadius: parseFloat(style.borderBottomLeftRadius) };
+    });
+    expect(pickerStyle.border).not.toBe(pickerStyle.text);
+    expect(pickerStyle.bottomRadius).toBeGreaterThanOrEqual(12);
+    const search = picker.getByRole('textbox', { name: 'Search models' });
+    const lastModel = picker.getByRole('button', { name: /Llama 3\.3 70B \(via OR\)/ });
+    await lastModel.scrollIntoViewIfNeeded();
+    await expect(lastModel).toBeInViewport();
+    await expect(search).toBeInViewport();
+    await expect(picker.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+    await search.fill('grok');
+    await expect(picker.getByRole('heading', { name: 'Grok (xAI)', exact: true })).toBeInViewport();
+    await expect.poll(() => picker.locator('[data-ai-model-scroll]').evaluate(element => element.scrollTop)).toBe(0);
+    await expect(picker.getByRole('button', { name: /Grok 4\.6/ })).toBeVisible();
+    await expect(picker.getByRole('button', { name: /Grok 4\.5/ })).toBeVisible();
+    await page.screenshot({ path: info.outputPath('model-picker.png') });
+    await search.fill('no-model-has-this-name');
+    await expect(picker.getByText('No models found.')).toBeVisible();
+    await search.fill('gpt-5.6-luna');
+    await picker.getByRole('button', { name: /GPT-5\.6 Luna/ }).click();
+    await expect(picker).toBeHidden();
+    await page.getByRole('button', { name: /Choose AI model:/ }).click();
+    await expect(search).toHaveValue('');
+    await picker.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(picker).toBeHidden();
+    const input = page.getByRole('textbox', { name: 'AI message', exact: true });
+    await input.click();
+    await expect(input).toBeFocused();
+    expect(await input.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none');
+    await expect.poll(() => input.evaluate(element => getComputedStyle(element.parentElement!).outlineStyle)).toBe('solid');
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });
@@ -74,11 +111,15 @@ test('text drafts stay separate and reorder supports mouse and keyboard', async 
     await page.getByRole('link', { name: 'Back to AI chats', exact: true }).click(); await expect(page.getByRole('heading', { name: 'New chat', exact: true })).toBeVisible(); await expect(input).toHaveValue('Unsent new chat');
     let nav = await rail(page); await nav.getByRole('button', { name: 'Options for Alpha' }).click(); await page.getByRole('menuitem', { name: 'Move down', exact: true }).click();
     await expect(nav.locator('a[href^="/ai/qa-chat-"]')).toHaveText(['Beta', 'Alpha']);
-    await nav.getByRole('button', { name: 'Reorder Alpha', exact: true }).press('ArrowUp');
+    await expect(nav.getByRole('button', { name: /^Reorder / })).toHaveCount(0);
+    await nav.getByRole('link', { name: 'Alpha', exact: true }).press('Alt+ArrowUp');
     await expect(nav.locator('a[href^="/ai/qa-chat-"]')).toHaveText(['Alpha', 'Beta']);
-    await nav.getByRole('button', { name: 'Reorder Beta', exact: true }).dragTo(nav.getByRole('button', { name: 'Reorder Alpha', exact: true }));
+    await nav.getByRole('link', { name: 'Beta', exact: true }).dragTo(nav.getByRole('link', { name: 'Alpha', exact: true }));
     await expect(nav.locator('a[href^="/ai/qa-chat-"]')).toHaveText(['Beta', 'Alpha']);
+    await expect(page).toHaveURL(/\/ai$/);
     await page.reload(); nav = await rail(page); await expect(nav.locator('a[href^="/ai/qa-chat-"]')).toHaveText(['Beta', 'Alpha']);
+    await nav.getByRole('link', { name: 'Beta', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Beta', exact: true })).toBeVisible();
   } finally { await context.close(); }
 });
 
@@ -104,6 +145,7 @@ for (const width of [390, 1280]) test(`guest home exposes clean usable composer 
   try {
     await page.goto('/'); const input = page.getByRole('textbox', { name: 'AI message', exact: true });
     await expect(input).toBeVisible(); await input.fill('An unsent homepage draft');
+    expect(await input.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none');
     expect(state.sends).toBe(0); expect(state.creates).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
     await page.screenshot({ path: info.outputPath('home-composer.png') });
