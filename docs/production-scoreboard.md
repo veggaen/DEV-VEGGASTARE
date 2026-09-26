@@ -2,6 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Paper-account reads and older history — 26 September 2026
+
+**PARTIAL — read recovery verified; full trading acceptance remains open.** Failed
+reads no longer impersonate missing accounts, history loads beyond 50 rows, and
+missing/stale quotes no longer create false 100% losses. 16 unit tests, touched-file
+lint, strict build/TypeScript and eight actual-server browser checks each locally
+and on isolated Preview pass (phone/landscape/portrait/desktop/ultrawide).
+Two-account/fresh-password-session checks run at 360/1280; other widths repeat
+read/failure/layout coverage. Disposable fixtures are removed. No execution,
+balance, price, schema or payment changes. Production promotion pending.
+See [evidence and unresolved execution risks](paper-account-read-evidence-2026-09.md).
+
 ## Expanded business workflows and product lifecycle — 26 September 2026
 
 **PARTIAL — full production readiness is not established.** The new

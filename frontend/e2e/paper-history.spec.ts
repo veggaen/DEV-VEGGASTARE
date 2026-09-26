@@ -1,7 +1,7 @@
 /** @fileOverview Actual isolated paper-account persistence, pagination and failure UI. @stability experimental */
 import { expect, test, type BrowserContext } from '@playwright/test';
 
-for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1024, 768], [1280, 800], [1920, 1080], [2560, 1080]]) {
+for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1024, 1600], [1280, 800], [1920, 1080], [2560, 1080]]) {
   test(`isolated paper history workflow (${width}px)`, async ({ browser, baseURL }, info) => {
     test.skip(process.env.E2E_BUSINESS_DB !== 'isolated-preview', 'Requires disposable isolated Preview fixtures');
     test.setTimeout(180_000);
