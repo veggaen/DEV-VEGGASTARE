@@ -73,5 +73,8 @@ integration access/writes, no management controls or horizontal document overflo
 The disposable company/user records are removed; real Chrome's refreshed company
 directory shows only the permanent studio. Release secret scan passes.
 
-Production promotion pending. The integrated Preview's extra payment/schema work
-is not part of the safe release worktree or its 56-migration production deployment.
+Production `dpl_6kjc269HVdSyDXcQGxxg1t4CczMV` is Ready and aliased to www.veggat.com.
+The two read-only public boundary/browser checks pass on Live at 390/2560. Real
+Chrome verifies company-form typing and scrolling; the unsaved draft was cleared.
+Live two-account mutations were not performed. The integrated Preview's extra
+payment/schema work is excluded: Production found 56 migrations, none pending.
