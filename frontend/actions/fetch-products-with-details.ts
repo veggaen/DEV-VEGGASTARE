@@ -6,6 +6,7 @@ import type { ProductsListItem } from '@/lib/types/products';
 import { publicCatalogWhere } from '@/lib/public-catalog';
 import { catalogPriceWhere } from '@/lib/catalog-price-filter';
 import { getExchangeRates } from '@/lib/currency-rates';
+import { publicProductSpecifications } from '@/lib/product-specifications';
 
 const toIsoString = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString();
@@ -158,7 +159,7 @@ export const fetchProductsWithDetails = async ({
         stock: typeof p.stock === 'number' ? p.stock : Number(p.stock),
         shipFromPostalId: String(p.shipFromPostalId),
         image: Array.isArray(p.image) ? p.image : [],
-        specifications: (p as any).specifications ?? null,
+        specifications: publicProductSpecifications(p.specifications),
         userId: String(p.userId),
         companyId: p.companyId ? String(p.companyId) : null,
         productType: p.productType ?? 'PHYSICAL',

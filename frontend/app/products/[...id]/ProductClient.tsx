@@ -31,9 +31,7 @@ import { fetchCoordsFromPostalCode } from "@/components/uicustom/product/postal-
 import { PostalCodeAutocomplete } from "@/components/uicustom/postal-code-autocomplete";
 import { cn, getCountryCode, haversineDistance } from "@/lib/utils";
 import ProductSkeleton from "@/components/uicustom/skeletons/product-skeleton";
-import { fetchUserEmployeePermissions } from "@/actions/user-company-permissions";
-import { MyDeleteProductAction, MySetProductVisibilityAction } from "@/actions/products";
-import type { EmployeePermissions } from "@/lib/types/company-permissions";
+import { MyDeleteProductAction, MySetProductVisibilityAction, getProductManagementAccess } from "@/actions/products";
 import { Archive, ArrowLeft, CreditCard, Eye, EyeOff, Pencil, Share2, ShieldCheck, ShoppingCart, Trash2, Loader2, Navigation, Flag, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/uicustom/report/ReportDialog";
@@ -122,36 +120,25 @@ function ProductDetails({ product }: { product: Product }) {
   const purchaseError = purchaseFailure || (cartError ? 'We could not verify your saved basket. Open your basket and refresh it before purchasing.' : '');
   const reduceMotion = useReducedMotion();
 
-  const [companyEditAllowed, setCompanyEditAllowed] = useState(false);
-  const [companyLifecycleAllowed, setCompanyLifecycleAllowed] = useState(false);
+  const [managementAccess, setManagementAccess] = useState<{ key: string; edit: boolean; visibility: boolean; archive: boolean } | null>(null);
   const [currentVisibility, setCurrentVisibility] = useState<ProductVisibility>(product.visibility ?? "PUBLIC");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
-  const sessionUserId = (session as any)?.user?.id as string | undefined;
-  const sessionRole = (session as any)?.user?.role as string | undefined;
-  const isAdminLike = sessionRole === "ADMIN" || sessionRole === "OWNER";
+  const sessionUserId = session?.user?.id;
+  const accessKey = `${sessionUserId ?? ''}:${product.id}`;
+  const access = managementAccess?.key === accessKey ? managementAccess : null;
 
   useEffect(() => {
     setCurrentVisibility(product.visibility ?? "PUBLIC");
   }, [product.visibility]);
 
-  const canEditProduct = useMemo(() => {
-    if (!sessionUserId) return false;
-    if (isAdminLike) return true;
-    if (product.userId === sessionUserId) return true;
-    if (product.companyId && companyEditAllowed) return true;
-    return false;
-  }, [companyEditAllowed, isAdminLike, product.companyId, product.userId, sessionUserId]);
-
-  const canManageProductLifecycle = useMemo(() => {
-    if (!sessionUserId) return false;
-    if (canEditProduct) return true;
-    if (product.companyId && companyLifecycleAllowed) return true;
-    return false;
-  }, [canEditProduct, companyLifecycleAllowed, product.companyId, sessionUserId]);
+  const canEditProduct = !!access?.edit;
+  const canChangeVisibility = !!access?.visibility;
+  const canArchiveProduct = !!access?.archive;
+  const canManageProductLifecycle = canEditProduct || canChangeVisibility || canArchiveProduct;
 
   const handleDeleteProduct = useCallback(async () => {
     setIsDeleting(true);
@@ -199,32 +186,18 @@ function ProductDetails({ product }: { product: Product }) {
     (async () => {
       try {
         if (!sessionUserId || session?.user?.isDemo) return;
-        if (!product.companyId) return;
-        // Ask server for employee permissions
-        const res = await fetchUserEmployeePermissions({ id: sessionUserId }, product.companyId);
+        const res = await getProductManagementAccess(product.id);
         if (!alive) return;
-        if (!res.success) {
-          setCompanyEditAllowed(false);
-          setCompanyLifecycleAllowed(false);
-          return;
-        }
-        const perms = (res.permissions ?? {}) as EmployeePermissions;
-        setCompanyEditAllowed(perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true);
-        setCompanyLifecycleAllowed(
-          perms?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
-            perms?.CAN_DELETE_PRODUCT === true ||
-            perms?.CAN_MANAGE_PRODUCT_VISIBILITY === true
-        );
+        setManagementAccess({ key: accessKey, ...res });
       } catch {
         if (!alive) return;
-        setCompanyEditAllowed(false);
-        setCompanyLifecycleAllowed(false);
+        setManagementAccess(null);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [product.companyId, sessionUserId, session?.user?.isDemo]);
+  }, [accessKey, product.id, sessionUserId, session?.user?.isDemo]);
 
   const [userPostalCode, setUserPostalCode] = useState<string | null>(null);
   const [userCity, setUserCity] = useState<string | null>(null);
@@ -453,7 +426,7 @@ function ProductDetails({ product }: { product: Product }) {
                     </Link>
                   </Button>
                 )}
-                {currentVisibility === "PUBLIC" ? (
+                {canChangeVisibility && (currentVisibility === "PUBLIC" ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -489,8 +462,8 @@ function ProductDetails({ product }: { product: Product }) {
                     {isUpdatingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
                     Restore hidden
                   </Button>
-                )}
-                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                ))}
+                {canArchiveProduct && <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
@@ -528,7 +501,7 @@ function ProductDetails({ product }: { product: Product }) {
                       </Button>
                     </DialogFooter>
                   </DialogContent>
-                </Dialog>
+                </Dialog>}
               </div>
             )}
           </motion.div>

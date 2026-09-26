@@ -29,7 +29,7 @@ const serverSchema = MyProductCreateSchema.extend({
   category: z.string().trim().min(1).max(200), categories: z.array(CategoryTagSchema).max(5).default([]),
   price: z.number().finite().min(0).max(1_000_000), quantity: z.number().int().min(1).max(1_000_000),
   image: z.array(z.string().url().max(2048).refine(value => new URL(value).protocol === 'https:')).min(1).max(8),
-  specifications: z.array(z.object({ key: z.string().trim().min(1).max(200), value: z.union([z.string().max(2000), z.number().finite()]) })).max(200).optional(),
+  specifications: z.array(z.object({ key: z.string().trim().min(1).max(200).refine(key => !key.startsWith('__')), value: z.union([z.string().max(2000), z.number().finite()]) })).max(200).optional(),
   acceptedTokens: z.array(AcceptedTokenSchema).max(20).default([]),
 });
 

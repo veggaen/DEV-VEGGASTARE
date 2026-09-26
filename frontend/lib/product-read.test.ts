@@ -1,8 +1,11 @@
 /** @fileOverview Product visibility, minimal reads and retryable failure boundaries. @stability stable */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ product: vi.fn(), employee: vi.fn(), auth: vi.fn() }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { product: { findUnique: mocks.product }, employee: { findFirst: mocks.employee } } }));
+const mocks = vi.hoisted(() => ({ product: vi.fn(), employee: vi.fn(), auth: vi.fn(), user: vi.fn(), company: vi.fn(), query: vi.fn() }));
+vi.mock('@/lib/db', () => {
+  const tx = { product: { findUnique: mocks.product }, employee: { findUnique: mocks.employee }, user: { findUnique: mocks.user }, company: { findUnique: mocks.company }, $queryRaw: mocks.query };
+  return { dbPrisma: { ...tx, $transaction: async (fn: (db: typeof tx) => unknown) => fn(tx) } };
+});
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 import { GET } from '@/app/api/products/[...id]/route';
 
@@ -21,6 +24,8 @@ const read = (id = ['product-test']) => GET(new Request('http://localhost:3000/a
 beforeEach(() => {
   vi.clearAllMocks(); mocks.product.mockResolvedValue(fixture()); mocks.auth.mockResolvedValue(null);
   mocks.employee.mockResolvedValue(null); vi.spyOn(console, 'error').mockImplementation(() => {});
+  mocks.company.mockResolvedValue({ ownerId: 'company-owner' });
+  mocks.user.mockImplementation(async () => { const session = await mocks.auth(); return session?.user ? { ...session.user, tokenVersion: 0 } : null; });
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -45,19 +50,19 @@ it.each(['HIDDEN', 'ARCHIVED'])('hides %s products from anonymous users and does
   expect(response.headers.get('cache-control')).toBe('private, no-store');
 });
 it.each([
-  ['seller', 'USER'], ['company-owner', 'USER'], ['admin', 'ADMIN'], ['owner', 'OWNER'],
+  ['company-owner', 'USER'], ['admin', 'ADMIN'], ['owner', 'OWNER'],
 ])('permits the authorized private reader %s / %s', async (id, role) => {
   mocks.product.mockResolvedValue({ ...fixture(), visibility: 'HIDDEN' });
-  mocks.auth.mockResolvedValue({ user: { id, role } }); expect((await read()).status).toBe(200);
+  mocks.auth.mockResolvedValue({ user: { id, role, sessionVersion: 0 } }); expect((await read()).status).toBe(200);
 });
 it('checks company permission and fails closed on unrelated or string-valued permissions', async () => {
   mocks.product.mockResolvedValue({ ...fixture(), visibility: 'HIDDEN' });
-  mocks.auth.mockResolvedValue({ user: { id: 'employee', role: 'USER' } });
+  mocks.auth.mockResolvedValue({ user: { id: 'employee', role: 'USER', sessionVersion: 0 } });
   mocks.employee.mockResolvedValue({ permissions: { CAN_MANAGE_PRODUCT_VISIBILITY: 'true' } });
   expect((await read()).status).toBe(404);
   mocks.employee.mockResolvedValue({ permissions: { CAN_MANAGE_PRODUCT_VISIBILITY: true } });
   expect((await read()).status).toBe(200);
-  expect(mocks.employee).toHaveBeenCalledWith({ where: { userId: 'employee', companyId: 'company' }, select: { permissions: true } });
+  expect(mocks.employee).toHaveBeenCalledWith({ where: { userId_companyId: { userId: 'employee', companyId: 'company' } }, select: { permissions: true } });
 });
 it('distinguishes a missing row from a database failure without exposing error details', async () => {
   mocks.product.mockResolvedValueOnce(null); expect((await read()).status).toBe(404);
@@ -70,12 +75,23 @@ it('distinguishes a missing row from a database failure without exposing error d
 it('does not reuse a public or authorized result after visibility/session changes', async () => {
   expect((await read()).status).toBe(200);
   mocks.product.mockResolvedValue({ ...fixture(), visibility: 'HIDDEN' });
-  mocks.auth.mockResolvedValue({ user: { id: 'seller', role: 'USER' } }); expect((await read()).status).toBe(200);
+  mocks.auth.mockResolvedValue({ user: { id: 'company-owner', role: 'USER', sessionVersion: 0 } }); expect((await read()).status).toBe(200);
   mocks.auth.mockResolvedValue(null); expect((await read()).status).toBe(404);
-  expect(mocks.product).toHaveBeenCalledTimes(3);
+  expect(mocks.product).toHaveBeenCalledTimes(5);
+});
+it('former authors cannot read hidden company products; personal ownership still works', async () => {
+  mocks.product.mockResolvedValue({ ...fixture(), visibility: 'HIDDEN' });
+  mocks.auth.mockResolvedValue({ user: { id: 'seller', role: 'USER', sessionVersion: 0 } });
+  expect((await read()).status).toBe(404);
+  mocks.product.mockResolvedValue({ ...fixture(), companyId: null, visibility: 'HIDDEN' });
+  expect((await read()).status).toBe(200);
 });
 it('normalizes legacy JSON without turning a malformed specification into not-found', async () => {
   mocks.product.mockResolvedValue({ ...fixture(), specifications: '{not json', features: '[{"text":"Included"}]' });
   const response = await read(); expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ specifications: null, features: [{ text: 'Included' }] });
+});
+it('never returns private delivery specifications in a public product response', async () => {
+  mocks.product.mockResolvedValue({ ...fixture(), specifications: JSON.stringify([{ key: '__repo_access', value: 'private configuration' }, { key: 'Format', value: 'PNG' }]) });
+  expect((await (await read()).json()).specifications).toEqual([{ key: 'Format', value: 'PNG' }]);
 });

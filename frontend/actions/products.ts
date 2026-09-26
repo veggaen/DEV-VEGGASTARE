@@ -1,7 +1,6 @@
 'use server';
 
 import { auth } from '@/auth';
-import { dbPrisma } from "@/lib/db";
 import { MyProductCreateSchema } from "@/schemas";
 import { Prisma } from "@/generated/prisma/browser";
 import { z } from "zod";
@@ -9,13 +8,16 @@ import { revalidatePath } from "next/cache";
 import { checkRateLimit } from '@/lib/rate-limit';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { publishProduct, ProductPublishingError } from '@/lib/product-publishing';
+import { productRequestActor, withProductAccess, productLifecycleFailure, ProductLifecycleError, NO_PRODUCT_ACCESS } from '@/lib/product-lifecycle';
+import { replacePublicProductSpecifications } from '@/lib/product-specifications';
 
 type CreateProductResult = { error: string } | { success: string; productId: string };
-type UpdateProductResult = { error: string } | { success: string };
+type UpdateProductResult = { error: string; success?: never } | { success: string; error?: never };
 type EnsureOwnerTestProductResult =
   | { error: string }
   | { success: string; productId: string; created: boolean };
 type ProductVisibilityValue = 'PUBLIC' | 'HIDDEN' | 'ARCHIVED';
+type VisibilityResult = { error: string; success?: never; visibility?: never } | { success: string; visibility: ProductVisibilityValue; error?: never };
 
 const ProductAcceptedTokenInputSchema = z
   .object({
@@ -31,7 +33,7 @@ const ProductAcceptedTokenInputSchema = z
 
 const SpecificationInputSchema = z
   .object({
-    key: z.string().min(1).max(200),
+    key: z.string().trim().min(1).max(200).refine(key => !key.startsWith('__')),
     value: z.union([z.string().max(2000), z.number().finite()]),
   })
   .strict();
@@ -49,67 +51,29 @@ const ProductUpdatePatchSchema = z
     title: z.string().trim().min(1).max(200).optional(),
     description: z.string().trim().min(1).max(8000).optional(),
     category: z.string().trim().min(1).max(200).optional(),
-    price: z.number().finite().optional(),
+    price: z.number().finite().min(0).max(1_000_000).optional(),
     priceCurrency: z.enum(['USD', 'NOK', 'EUR', 'GBP']).optional(),
     acceptedFiatCurrencies: z.array(z.enum(['USD', 'NOK', 'EUR', 'GBP'])).optional(),
     condition: z.enum(['NEW', 'AS_NEW', 'GOOD', 'FAIR', 'POOR']).optional(),
     stock: z.number().int().min(0).max(1_000_000).optional(),
     shipFromPostalId: z.string().trim().min(0).max(2000).optional(),
-    image: z.array(z.string().trim().min(1).max(4000)).max(20).optional(),
+    image: z.array(z.string().url().max(2048).refine(value => new URL(value).protocol === 'https:')).min(1).max(8).optional(),
     specifications: z.array(SpecificationInputSchema).max(200).optional(),
     features: z.array(FeatureInputSchema).max(50).optional(),
-    acceptedTokens: z.array(ProductAcceptedTokenInputSchema).optional(),
+    acceptedTokens: z.array(ProductAcceptedTokenInputSchema).max(20).optional(),
   })
   .strict();
 
 const ProductVisibilitySchema = z.enum(['PUBLIC', 'HIDDEN', 'ARCHIVED']);
 
-async function canManageProductLifecycle(productId: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { allowed: false as const, error: 'Unauthorized' };
-  }
+export async function getProductManagementAccess(productId: string) {
+  try { return await withProductAccess(await productRequestActor(false), productId, 'read', async (_tx, _product, access) => access); }
+  catch { return NO_PRODUCT_ACCESS; }
+}
 
-  const sessionUserId = session.user.id;
-  const role = session.user.role;
-  const product = await dbPrisma.product.findUnique({
-    where: { id: productId },
-    select: {
-      id: true,
-      userId: true,
-      companyId: true,
-      title: true,
-      Company: { select: { ownerId: true } },
-    },
-  });
-
-  if (!product) {
-    return { allowed: false as const, error: 'Product not found' };
-  }
-
-  const isAdminLike = role === 'ADMIN' || role === 'OWNER';
-  const isProductOwner = product.userId === sessionUserId;
-  const isCompanyOwner = product.Company?.ownerId === sessionUserId;
-  let allowed = isAdminLike || isProductOwner || isCompanyOwner;
-
-  if (!allowed && product.companyId) {
-    const employee = await dbPrisma.employee.findFirst({
-      where: { userId: sessionUserId, companyId: product.companyId },
-      select: { permissions: true },
-    });
-
-    const p: any = employee?.permissions ?? {};
-    allowed =
-      p?.CAN_DELETE_PRODUCT === true ||
-      p?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
-      p?.CAN_MANAGE_PRODUCT_VISIBILITY === true;
-  }
-
-  if (!allowed) {
-    return { allowed: false as const, error: 'Forbidden - You do not have permission to manage this product' };
-  }
-
-  return { allowed: true as const, product };
+function refreshProduct(productId: string) {
+  try { revalidatePath('/products'); revalidatePath(`/products/${productId}`); revalidatePath('/my-sales'); }
+  catch { console.error('[products] Post-save cache refresh deferred'); }
 }
 
 // Kept as a compatibility endpoint for already-open owner pages. It performs
@@ -146,51 +110,15 @@ export const MyUpdateProductAction = async (
   patch: z.infer<typeof ProductUpdatePatchSchema>
 ): Promise<UpdateProductResult> => {
   try {
-    const session = await auth();
-    const sessionUserId = session?.user?.id;
-    const role = session?.user?.role;
-    if (!sessionUserId) {
-      return { error: 'Unauthorized' };
-    }
+    const actor = await productRequestActor();
+    const sessionUserId = actor.id;
 
     const parsedPatch = ProductUpdatePatchSchema.safeParse(patch);
     if (!parsedPatch.success) {
       return { error: 'Invalid update payload' };
     }
 
-    const product = await dbPrisma.product.findUnique({
-      where: { id: productId },
-      select: { 
-        id: true, 
-        userId: true, 
-        companyId: true,
-        Company: { select: { ownerId: true } },
-      },
-    });
-
-    if (!product) return { error: 'Product not found' };
-
-    const isAdminLike = role === 'ADMIN' || role === 'OWNER';
-    const isProductOwner = product.userId === sessionUserId;
-    const isCompanyOwner = product.Company?.ownerId === sessionUserId;
-    let allowed = isAdminLike || isProductOwner || isCompanyOwner;
-
-    // Check employee permissions if not already allowed
-    if (!allowed && product.companyId) {
-      const employee = await dbPrisma.employee.findFirst({
-        where: { userId: sessionUserId, companyId: product.companyId },
-        select: { permissions: true },
-      });
-
-      const p: any = employee?.permissions ?? {};
-      const canEdit = p?.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true;
-      allowed = canEdit;
-    }
-
-    if (!allowed) {
-      return { error: 'Forbidden' };
-    }
-
+    await withProductAccess(actor, productId, 'edit', async (tx, product) => {
     const acceptedTokens = parsedPatch.data.acceptedTokens;
     if (acceptedTokens) {
       const requestedReceiverWalletIds = new Set(
@@ -199,12 +127,12 @@ export const MyUpdateProductAction = async (
           .filter((id): id is string => typeof id === 'string' && id.length > 0)
       );
       if (requestedReceiverWalletIds.size > 0) {
-        const wallets = await dbPrisma.wallet.findMany({
+        const wallets = await tx.wallet.findMany({
           where: {
             id: { in: [...requestedReceiverWalletIds] },
             verifiedAt: { not: null },
             OR: [
-              { ownerUserId: sessionUserId, ownerCompanyId: null },
+              ...(!product.companyId ? [{ ownerUserId: sessionUserId, ownerCompanyId: null }] : []),
               ...(product.companyId ? [{ ownerCompanyId: product.companyId }] : []),
             ],
           },
@@ -213,13 +141,12 @@ export const MyUpdateProductAction = async (
         const allowedReceiverWalletIds = new Set(wallets.map((wallet) => wallet.id));
         const invalidWalletId = [...requestedReceiverWalletIds].find((id) => !allowedReceiverWalletIds.has(id));
         if (invalidWalletId) {
-          return { error: 'Choose a verified receiving wallet that belongs to this seller.' };
+          throw new ProductLifecycleError('Choose a verified receiving wallet that belongs to this seller.');
         }
       }
     }
 
-    await dbPrisma.$transaction(async (tx) => {
-      const nextPriceCurrency = (parsedPatch.data.priceCurrency ?? undefined) as any;
+      const nextPriceCurrency = parsedPatch.data.priceCurrency;
         const nextAcceptedFiatCurrencies = Array.isArray(parsedPatch.data.acceptedFiatCurrencies)
           ? parsedPatch.data.acceptedFiatCurrencies
           : undefined;
@@ -232,10 +159,11 @@ export const MyUpdateProductAction = async (
           return undefined;
         })();
 
-      const specificationsPatched = (() => {
-        if (!Array.isArray(parsedPatch.data.specifications)) return undefined;
-        return JSON.stringify(parsedPatch.data.specifications);
-      })();
+      let specificationsPatched: string | undefined;
+      if (parsedPatch.data.specifications) {
+        const existing = await tx.product.findUniqueOrThrow({ where: { id: productId }, select: { specifications: true } });
+        specificationsPatched = JSON.stringify(replacePublicProductSpecifications(existing.specifications, parsedPatch.data.specifications));
+      }
 
       const featuresPatched = (() => {
         if (!Array.isArray(parsedPatch.data.features)) return undefined;
@@ -265,14 +193,14 @@ export const MyUpdateProductAction = async (
             ...(typeof parsedPatch.data.description === 'string' ? { description: parsedPatch.data.description } : {}),
             ...(typeof parsedPatch.data.category === 'string' ? { category: parsedPatch.data.category } : {}),
             ...(typeof parsedPatch.data.price === 'number' ? { price: parsedPatch.data.price } : {}),
-            ...(typeof parsedPatch.data.priceCurrency === 'string' ? { priceCurrency: parsedPatch.data.priceCurrency as any } : {}),
-            ...(acceptedFiatCurrenciesPatched ? { acceptedFiatCurrencies: acceptedFiatCurrenciesPatched as any } : {}),
-            ...(typeof parsedPatch.data.condition === 'string' ? { condition: parsedPatch.data.condition as any } : {}),
+            ...(typeof parsedPatch.data.priceCurrency === 'string' ? { priceCurrency: parsedPatch.data.priceCurrency } : {}),
+            ...(acceptedFiatCurrenciesPatched ? { acceptedFiatCurrencies: acceptedFiatCurrenciesPatched } : {}),
+            ...(typeof parsedPatch.data.condition === 'string' ? { condition: parsedPatch.data.condition } : {}),
             ...(typeof parsedPatch.data.stock === 'number' ? { stock: parsedPatch.data.stock } : {}),
             ...(typeof parsedPatch.data.shipFromPostalId === 'string' ? { shipFromPostalId: parsedPatch.data.shipFromPostalId } : {}),
             ...(Array.isArray(parsedPatch.data.image) ? { image: parsedPatch.data.image } : {}),
-            ...(typeof specificationsPatched === 'string' ? { specifications: specificationsPatched as any } : {}),
-            ...(typeof featuresPatched === 'string' ? { features: featuresPatched as any } : {}),
+            ...(typeof specificationsPatched === 'string' ? { specifications: specificationsPatched } : {}),
+            ...(typeof featuresPatched === 'string' ? { features: featuresPatched } : {}),
           },
         });
       }
@@ -309,13 +237,13 @@ export const MyUpdateProductAction = async (
             where: {
               productId_family_symbol: {
                 productId,
-                family: t.family as any,
+                family: t.family,
                 symbol: t.symbol,
               },
             },
             create: {
               productId,
-              family: t.family as any,
+              family: t.family,
               symbol: t.symbol,
               decimals: t.decimals,
               tokenAddress: t.tokenAddress,
@@ -335,31 +263,27 @@ export const MyUpdateProductAction = async (
       }
     });
 
+    refreshProduct(productId);
     return { success: 'Product updated successfully.' };
   } catch (error) {
-    console.error('Error updating product: ', error);
-    return { error: 'Failed to update product.' };
+    return productLifecycleFailure(error);
   }
 };
 
 export const MySetProductVisibilityAction = async (
   productId: string,
   visibility: ProductVisibilityValue
-) => {
+): Promise<VisibilityResult> => {
   try {
     const parsedVisibility = ProductVisibilitySchema.safeParse(visibility);
     if (!parsedVisibility.success) {
       return { error: 'Invalid product visibility' };
     }
 
-    const access = await canManageProductLifecycle(productId);
-    if (!access.allowed) {
-      return { error: access.error };
-    }
-
     const nextVisibility = parsedVisibility.data;
+    const product = await withProductAccess(await productRequestActor(), productId, nextVisibility === 'ARCHIVED' ? 'archive' : 'visibility', async (tx, product) => {
     const now = new Date();
-    const data: any = {
+    const data: Prisma.ProductUpdateInput = {
       visibility: nextVisibility,
       updatedAt: now,
     };
@@ -377,16 +301,17 @@ export const MySetProductVisibilityAction = async (
     if (nextVisibility === 'ARCHIVED') {
       data.hiddenAt = null;
       data.archivedAt = now;
-      data.downloadsEnabled = false;
+      // Archiving stops new sales, not previously purchased download access.
     }
 
-    await dbPrisma.product.update({
+    await tx.product.update({
       where: { id: productId },
       data,
     });
 
-    revalidatePath('/products');
-    revalidatePath(`/products/${productId}`);
+    return product;
+    });
+    refreshProduct(productId);
 
     const action =
       nextVisibility === 'PUBLIC'
@@ -396,23 +321,16 @@ export const MySetProductVisibilityAction = async (
           : 'archived';
 
     return {
-      success: `Product "${access.product.title}" was ${action}. Existing orders and download records were preserved.`,
+      success: `Product "${product.title}" was ${action}. Existing orders and download records were preserved.`,
       visibility: nextVisibility,
     };
   } catch (error) {
-    console.error('Error updating product visibility: ', error);
-    return { error: 'Failed to update product visibility.' };
+    return productLifecycleFailure(error);
   }
 };
 
 /**
  * Archive a product (requires ownership or company permission)
  */
-export const MyDeleteProductAction = async (productId: string) => {
-  try {
-    return await MySetProductVisibilityAction(productId, 'ARCHIVED');
-  } catch (error) {
-    console.error('Error deleting product: ', error);
-    return { error: 'Failed to archive product.' };
-  }
-};
+export const MyDeleteProductAction = async (productId: string): Promise<VisibilityResult> =>
+  MySetProductVisibilityAction(productId, 'ARCHIVED');
