@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { AiChatShell } from "./AiChatShell";
 import { isDemoUserId } from '@/lib/demo-policy';
+import { AiDraftProvider } from '@/components/uicustom/ai/AiDrafts';
 
 export const metadata: Metadata = {
   title: "AI Chat",
@@ -16,5 +17,5 @@ export const metadata: Metadata = {
  */
 export default async function AiLayout({ children }: { children: React.ReactNode }) {
   const user = await MyLibUserAuth();
-  return <AiChatShell key={user?.id ?? 'anonymous'} isLoggedIn={!!user} isDemo={isDemoUserId(user?.id)}>{children}</AiChatShell>;
+  return <AiDraftProvider key={user?.id ?? 'anonymous'}><AiChatShell userId={user?.id ?? null} isLoggedIn={!!user} isDemo={isDemoUserId(user?.id)}>{children}</AiChatShell></AiDraftProvider>;
 }
