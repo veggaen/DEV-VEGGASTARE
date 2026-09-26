@@ -54,7 +54,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initialImageUrl);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isTextareaScrollable, setIsTextareaScrollable] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const draftKey = useMemo(() => `chat_draft:${currentUser?.id ?? 'guest'}:${conversationId}`, [currentUser?.id, conversationId]);
@@ -234,8 +233,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     el.style.height = 'auto';
     const nextHeight = Math.min(el.scrollHeight, TEXTAREA_MAX_HEIGHT);
     el.style.height = `${nextHeight}px`;
-    // Only show scrollbar when content exceeds our max height.
-    setIsTextareaScrollable(el.scrollHeight > TEXTAREA_MAX_HEIGHT + 1);
   };
 
   useEffect(() => {
@@ -355,7 +352,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         className={cn(
           'group/composer relative rounded-[22px] border bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md',
           'border-zinc-200/80 dark:border-white/10',
-          'shadow-sm transition-all duration-200',
+          'shadow-sm transition-[border-color,box-shadow] duration-200',
           'focus-within:border-sky-400/60 dark:focus-within:border-emerald-400/40',
           'focus-within:shadow-[0_0_0_4px_rgba(56,189,248,0.10)] dark:focus-within:shadow-[0_0_0_4px_rgba(52,211,153,0.10)]',
           isTooLong && 'border-red-400/70 dark:border-red-500/50 focus-within:border-red-400/70',
@@ -415,14 +412,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Textarea — flush in the surface, full width */}
         <textarea
           ref={textareaRef}
+          aria-label="Message"
           value={content}
           onChange={(e) => handleContentChange(e.target.value)}
           placeholder="Write a message…"
           className={cn(
-            'w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-relaxed',
+            'w-full max-h-[min(180px,25dvh)] resize-none overflow-y-auto bg-transparent px-4 pt-3.5 pb-1 text-base leading-relaxed',
             'text-zinc-900 dark:text-white',
             'placeholder:text-zinc-400 dark:placeholder:text-white/40 focus:outline-none',
-            isTextareaScrollable ? 'overflow-y-auto' : 'overflow-y-hidden',
           )}
           disabled={isSending}
           rows={1}
@@ -507,7 +504,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </AnimatePresence>
 
         {/* Toolbar row — ghost icon controls left, hint + counter center, send right */}
-        <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">
+        <div className="flex flex-wrap items-center gap-1 px-2.5 pb-2.5 pt-1">
           <IconButton onClick={open} disabled={isSending || !allowImages} label={allowImages ? 'Attach image' : 'Private images temporarily unavailable'}>
             <FaFileUpload className="h-4.5 w-4.5" />
           </IconButton>
@@ -548,7 +545,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               aria-pressed={listening}
               title={listening ? 'Release to stop dictation' : 'Hold to dictate message'}
               className={cn(
-                'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+                'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
                 listening
                   ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
@@ -593,7 +590,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           {/* Hint + counter — fade in once the field is active */}
           <div
             className={cn(
-              'ml-1 flex-1 min-w-0 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-white/35 transition-opacity duration-150',
+              'ml-1 flex-1 min-w-0 flex items-center gap-2 text-[11px] text-muted-foreground transition-opacity duration-150',
               showMeta ? 'opacity-100' : 'opacity-0',
             )}
           >
@@ -634,15 +631,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
 
           {/* Send — springs to brand accent the moment a message is sendable */}
-          <motion.button
+          <button
             type="submit"
             disabled={isSending || !canSend || isTooLong}
             aria-disabled={isSending || !canSend || isTooLong}
-            animate={{ scale: canSend && !isTooLong ? 1 : 0.9 }}
-            whileTap={canSend && !isTooLong ? { scale: 0.85 } : undefined}
-            transition={{ type: 'spring', stiffness: 600, damping: 22 }}
             className={cn(
-              'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+              'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               canSend && !isTooLong && !isSending
                 ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400 shadow-md shadow-sky-500/25 dark:shadow-emerald-500/25'
                 : 'bg-zinc-200 text-zinc-400 dark:bg-white/10 dark:text-white/30 cursor-not-allowed',
@@ -655,7 +649,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             ) : (
               <FiArrowUp className="h-5 w-5" />
             )}
-          </motion.button>
+          </button>
         </div>
       </div>
     </form>
@@ -677,7 +671,7 @@ const IconButton: React.FC<{
     aria-label={label}
     title={label}
     className={cn(
-      'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+      'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
       active
         ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
