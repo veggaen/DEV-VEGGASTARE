@@ -1,5 +1,6 @@
 /** @fileOverview Bounded direct-provider streaming with explicit success/failure settlement. @stability experimental */
 import 'server-only';
+import { imageAllowance, CHAT_IMAGE_STORED_BYTES, CHAT_IMAGES_PER_CONTEXT } from './image-policy';
 import type { AiProvider } from '@/lib/ai-models';
 import { buildGeminiContents, stripHtml } from './safety';
 import { AI_PROVIDER_TIMEOUT_MS, MAX_AI_OUTPUT_TOKENS, type ChatMessage } from './credit-policy';
@@ -13,7 +14,14 @@ export function providerRequest(input: Omit<StreamInput, 'settle' | 'signal'>) {
   const { provider, model, apiKey, messages, systemPrompt } = input;
   if (!/^[A-Za-z0-9_./:-]{1,120}$/.test(model)) throw new Error('INVALID_MODEL');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiMessages = [{ role: 'system', content: systemPrompt }, ...messages];
+  const imageCount = messages.reduce((sum, message) => sum + (message.images?.length ?? 0), 0);
+  if (imageCount > CHAT_IMAGES_PER_CONTEXT || (imageCount && !imageAllowance(provider, model))) throw new Error('IMAGE_MODEL_REQUIRED');
+  for (const message of messages) for (const image of message.images ?? []) {
+    if (message.role !== 'user' || !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(image) || image.length > Math.ceil(CHAT_IMAGE_STORED_BYTES / 3) * 4 + 23) throw new Error('IMAGE_INVALID');
+  }
+  const apiMessages = [{ role: 'system', content: systemPrompt }, ...messages.map(message => ({ role: message.role,
+    content: message.images?.length ? [{ type: 'text', text: message.content }, ...message.images.map(url => ({ type: 'image_url', image_url: { url, detail: 'high' } }))] : message.content,
+  }))];
   if (provider === 'GOOGLE') {
     headers['x-goog-api-key'] = apiKey;
     return { url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, headers,

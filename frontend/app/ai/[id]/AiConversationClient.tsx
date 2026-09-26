@@ -14,7 +14,9 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToBottom";
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
-import { useAiDraft, useAiDraftTransfer } from "@/components/uicustom/ai/AiDrafts";
+import { useAiDraft, useAiDraftTransfer, useAiImageDraft, useAiModelDraft } from "@/components/uicustom/ai/AiDrafts";
+import { DraftImages, MessageImages } from '@/components/uicustom/ai/ChatImages';
+import { CHAT_IMAGE_MAX_BYTES, CHAT_IMAGE_TYPES, imageContext, imageAllowance, type ChatImageView } from '@/lib/ai-chat/image-policy';
 import { ChatComposer } from "@/components/uicustom/ai/ChatComposer";
 import dynamic from "next/dynamic";
 const MessageContent = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.MessageContent));
@@ -27,7 +29,7 @@ import { useAiCreditConfig } from '@/hooks/use-ai-credit-config';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { isDemoUserId } from "@/lib/demo-policy";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
-import type { AiProvider } from '@/lib/ai-models';
+import { readChatStream } from '@/lib/ai-chat/read-stream';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,7 @@ interface Participant {
 }
 
 interface ConvMessage {
+  images?: ChatImageView[];
   id: string;
   content: string;
   role: "user" | "assistant";
@@ -123,16 +126,21 @@ export default function AiConversationClient({
   const [error, setError] = useState<string | null>(null);
 
   const [input, setInput] = useAiDraft(sessionId || "new");
+  const [draftImages, setDraftImages, totalDraftImages] = useAiImageDraft(sessionId || 'new');
+  const [imageError, setImageError] = useState<string | null>(null);
   const transferDraft = useAiDraftTransfer();
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMsgs, setStreamingMsgs] = useState<StreamingMsg[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
   const { config: creditConfig, error: creditError } = useAiCreditConfig();
-  const [provider, setProvider] = useState<AiProvider>('GOOGLE');
-  const [model, setModel] = useState('gemini-2.5-flash-lite');
+  const [{ provider, model }, setSelectedModel] = useAiModelDraft(sessionId || 'new');
   const selectedModel = creditConfig?.models.find(item => item.provider === provider && item.model === model);
   const usingOwnKey = creditConfig?.savedProviders.includes(provider) ?? false;
-  const messageCredits = usingOwnKey ? 0 : selectedModel?.credits;
+  const contextImages = imageContext([...(conv?.messages ?? []).filter(message => !message.id.startsWith('temp-')).slice(-19), { role: 'user', content: input, images: draftImages.map(image => ({ id: image.id, width: 0, height: 0 })) }]);
+  const imageCount = contextImages.reduce((sum, message) => sum + message.images.length, 0);
+  const supportedImages = imageAllowance(provider, model);
+  const imageModelBlocked = imageCount > 0 && !supportedImages;
+  const messageCredits = usingOwnKey ? 0 : selectedModel ? selectedModel.credits + imageCount * (supportedImages?.credits ?? 0) : undefined;
   const insufficientCredits = !!creditConfig && messageCredits !== undefined && creditConfig.balance < messageCredits;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -150,6 +158,16 @@ export default function AiConversationClient({
   const followTranscriptRef = useRef(true);
   const isCreator = conv?.creatorId === userId;
   const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
+  const handleFiles = (files: File[]) => {
+    setImageError(null);
+    if (files.some(file => !(CHAT_IMAGE_TYPES as readonly string[]).includes(file.type) || !file.size || file.size > CHAT_IMAGE_MAX_BYTES)) {
+      setImageError('Choose JPG, PNG or WebP images under 4 MB each.'); return;
+    }
+    if (draftImages.length + files.length > 2) { setImageError('Attach up to two images per message.'); return; }
+    if (totalDraftImages + files.length > 10) { setImageError('Remove an unsent image from another chat first. Ten draft images can be kept at once.'); return; }
+    const additions = files.map(file => ({ id: crypto.randomUUID(), file }));
+    setDraftImages(current => [...current, ...additions]);
+  };
 
   // The page is keyed by account/chat; obsolete reads and streams are aborted.
   useEffect(() => {
@@ -204,7 +222,7 @@ export default function AiConversationClient({
 
   // ── Send message ──
   const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+    const trimmed = input.trim() || (draftImages.length ? 'Describe the attached image.' : '');
     if (!trimmed || sending.current || isStreaming) return;
     if (!isLoggedIn) {
       router.push("/auth/login?callbackUrl=%2Fai");
@@ -212,17 +230,20 @@ export default function AiConversationClient({
     }
     // UX preflight only. The server still atomically authorizes every request
     // against the latest balance; a stale tab cannot bypass that reservation.
-    if (insufficientCredits) return;
+    if (insufficientCredits || imageModelBlocked) return;
 
     sending.current = true;
     setIsStreaming(true);
     setSendError(null);
+    const sentImages = draftImages.slice();
+    const abort = new AbortController();
+    abortRef.current = abort;
     let targetId = createdId.current;
     if (!targetId) {
       try {
         const response = await fetch('/api/ai-chat/sessions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: 'New Chat' }), signal: AbortSignal.timeout(15_000),
+          body: JSON.stringify({ title: 'New Chat' }), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15_000)]),
         });
         const data = await response.json();
         if (!response.ok || typeof data.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(data.id)) throw new Error(data.message || 'Could not start the chat. Please retry.');
@@ -254,8 +275,8 @@ export default function AiConversationClient({
       hasSensitiveData: sensitive.length > 0,
       sensitiveTypes: sensitive,
     };
-    const isFirstMessage = (conv?.messages.length ?? 0) === 0;
-    setConv((prev) => prev ? { ...prev, messages: [...prev.messages, tempUserMsg] } : prev);
+    const isFirstMessage = (conv?.messages.filter(message => !message.id.startsWith('temp-')).length ?? 0) === 0;
+    setConv((prev) => prev ? { ...prev, messages: [...prev.messages.filter(message => !message.id.startsWith('temp-')), tempUserMsg] } : prev);
 
     // Stream
     const aiStreamId = `stream-${Date.now()}`;
@@ -266,9 +287,6 @@ export default function AiConversationClient({
       content: "",
       done: false,
     }]);
-
-    const abort = new AbortController();
-    abortRef.current = abort;
 
     let fullContent = "";
     let savedReply = false;
@@ -284,11 +302,19 @@ export default function AiConversationClient({
     };
 
     try {
-      const history = conv?.messages ?? [];
-      const apiMessages = [
-        ...history.slice(-19).map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: trimmed },
-      ];
+      const uploaded: ChatImageView[] = [];
+      for (const image of sentImages) {
+        if (image.uploaded?.sessionId === targetId) { uploaded.push(image.uploaded); continue; }
+        const response = await fetch(`/api/ai-chat/images?sessionId=${encodeURIComponent(targetId)}`, { method: 'POST', headers: { 'Content-Type': image.file.type }, body: image.file, signal: abort.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not attach the image. Please retry.');
+        uploaded.push(data);
+        setDraftImages(current => current.map(item => item.id === image.id ? { ...item, uploaded: { ...data, sessionId: targetId } } : item));
+      }
+      if (uploaded.length) setConv(previous => previous ? { ...previous, messages: previous.messages.map(message => message.id === tempUserMsg.id ? { ...message, images: uploaded } : message) } : previous);
+      const history = (conv?.messages ?? []).filter(message => !message.id.startsWith('temp-'));
+      const apiMessages = imageContext([...history.slice(-19), { role: 'user' as const, content: trimmed, images: uploaded }])
+        .map(message => ({ role: message.role, content: message.content, ...(message.images.length ? { imageIds: message.images.map(image => image.id) } : {}) }));
 
       const res = await fetch("/api/ai-chat", {
         method: "POST",
@@ -310,36 +336,10 @@ export default function AiConversationClient({
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.error) {
-              setSendError((parsed.message ?? 'The response was interrupted.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ''));
-              restoreFailedDraft();
-              return;
-            }
-            if (parsed.text) {
-              fullContent += parsed.text;
-              setStreamingMsgs((prev) =>
-                prev.map((m) => m.id === aiStreamId ? { ...m, content: m.content + parsed.text } : m)
-              );
-            }
-          } catch {}
-        }
-      }
+      fullContent = await readChatStream(res, text => {
+        fullContent += text;
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: message.content + text } : message));
+      });
 
       setStreamingMsgs((prev) => prev.map((m) => m.id === aiStreamId ? { ...m, done: true } : m));
 
@@ -353,6 +353,7 @@ export default function AiConversationClient({
             assistantMessage: fullContent,
             providerUsed: res.headers.get('X-Ai-Provider') ?? provider,
             modelUsed: res.headers.get('X-Ai-Model') ?? model,
+            imageIds: uploaded.map(image => image.id),
           }),
         });
 
@@ -362,6 +363,7 @@ export default function AiConversationClient({
         }
 
         savedReply = true;
+        setDraftImages(current => current.filter(image => !sentImages.some(sent => sent.id === image.id)));
         // Auto-name the conversation from the first message (ChatGPT/t3.chat
         // style). Runs only now that the user message is persisted, and only
         // while the title is still default (the endpoint guards that). Fire-and-
@@ -389,7 +391,7 @@ export default function AiConversationClient({
       setStreamingMsgs([]);
     } catch (err: any) {
       restoreFailedDraft();
-      setSendError((err?.name === 'AbortError' ? 'The response was stopped.' : 'Connection error. Please try again.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ' Your draft is preserved.'));
+      setSendError((err?.name === 'AbortError' ? 'The response was stopped.' : err instanceof Error ? err.message : 'Connection error. Please try again.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ' Your draft is preserved.'));
     } finally {
       sending.current = false;
       if (mounted.current) {
@@ -398,7 +400,7 @@ export default function AiConversationClient({
       }
       window.dispatchEvent(new Event('ai-credit:refresh'));
     }
-  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model, insufficientCredits, router, setInput, transferDraft]);
+  }, [input, draftImages, setDraftImages, imageModelBlocked, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model, insufficientCredits, router, setInput, transferDraft]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -441,36 +443,10 @@ export default function AiConversationClient({
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.error) {
-              setSendError(parsed.message ?? "AI response interrupted. Please retry.");
-              setStreamingMsgs([]);
-              return;
-            }
-            if (parsed.text) {
-              fullContent += parsed.text;
-              setStreamingMsgs((prev) =>
-                prev.map((m) => m.id === streamId ? { ...m, content: m.content + parsed.text } : m)
-              );
-            }
-          } catch {}
-        }
-      }
+      fullContent = await readChatStream(res, text => {
+        fullContent += text;
+        setStreamingMsgs(previous => previous.map(message => message.id === streamId ? { ...message, content: message.content + text } : message));
+      });
 
       // Reload
       const refreshed = await fetch(`/api/ai-chat/sessions/${sessionId}`);
@@ -753,12 +729,18 @@ export default function AiConversationClient({
               <div className="mx-auto w-full max-w-3xl">
                 {empty && <h2 className="mb-7 text-center text-2xl font-medium tracking-tight sm:text-3xl">What’s on your mind?</h2>}
                 <ChatComposer value={input} onChange={setInput} onSend={() => void handleSend()} busy={isStreaming}
-                  disabled={insufficientCredits} onStop={() => abortRef.current?.abort()}
+                  disabled={insufficientCredits || imageModelBlocked} onStop={() => abortRef.current?.abort()}
+                  hasAttachments={draftImages.length > 0}
+                  onFiles={isLoggedIn && isCreator && !demo && !conv.isPublic ? handleFiles : undefined}
+                  attachments={draftImages.length ? <DraftImages images={draftImages} busy={isStreaming} remove={id => { setDraftImages(current => current.filter(image => image.id !== id)); setImageError(null); }} /> : undefined}
                   toolbar={<CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError} disabled={isStreaming}
-                    onSelect={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); setSendError(null); }} />}
-                  guidance={insufficientCredits ? <span role="status">This model needs {messageCredits} credits. {demo ? 'Choose another model.' : <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">Buy credits or choose another model.</Link>}</span>
+                    onSelect={(nextProvider, nextModel) => { setSelectedModel({ provider: nextProvider, model: nextModel }); setSendError(null); }} />}
+                  guidance={imageModelBlocked ? <span role="status">Images need a vision model. <button type="button" onClick={() => setSelectedModel({ provider: 'OPENAI', model: 'gpt-5.6-luna' })} className="min-h-11 underline underline-offset-4">Choose GPT-5.6 Luna</button></span>
+                    : insufficientCredits ? <span role="status">This message needs {messageCredits} credits. {demo ? 'Choose another model.' : <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">Buy credits or choose another model.</Link>}</span>
                     : !isLoggedIn ? <Link href="/auth/login?callbackUrl=%2Fai" className="underline underline-offset-4">Sign in to send</Link>
-                    : <div className="flex flex-wrap items-center justify-between gap-x-3"><span>{usingOwnKey ? 'Your key' : messageCredits === undefined ? 'Choose a model' : messageCredits === 0 ? 'Free preview' : `${messageCredits} credits / message`}</span><Link href="/ai/credits" className="inline-flex min-h-7 items-center underline-offset-4 hover:underline">{creditConfig?.balance ?? '…'} credits</Link></div>} />
+                    : <div className="flex flex-wrap items-center justify-between gap-x-3"><span>{usingOwnKey ? 'Your key' : messageCredits === undefined ? 'Choose a model' : messageCredits === 0 ? 'Free preview' : `${imageCount ? 'Up to ' : ''}${messageCredits} credits / message`}</span><Link href="/ai/credits" className="inline-flex min-h-7 items-center underline-offset-4 hover:underline">{creditConfig?.balance ?? '…'} credits</Link></div>} />
+                {imageError && <p role="alert" className="mt-2 text-sm text-destructive">{imageError}</p>}
+                {imageCount > 0 && <details className="mt-1 px-2 text-xs text-muted-foreground"><summary className="cursor-pointer py-2">Image privacy & pricing</summary><p className="max-w-prose pb-2 leading-5">Only sending uploads your images. The selected model receives up to four recent images, resized to 1024 px without location metadata. Images stay private to this chat. The displayed credit cost includes image context on each reply.</p></details>}
               </div>
             </div>
           )}
@@ -1041,6 +1023,7 @@ function ConvMessageBubble({
               : "py-1 text-foreground"
           }`}
         >
+          {!!msg.images?.length && <MessageImages images={msg.images} />}
           {isUser ? msg.content : <MessageContent content={msg.content} />}
         </div>
         {!isUser && <CopyMessage content={msg.content} />}

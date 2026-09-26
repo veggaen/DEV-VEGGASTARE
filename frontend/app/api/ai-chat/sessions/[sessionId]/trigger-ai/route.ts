@@ -38,6 +38,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!saved?.apiKey || saved.provider !== provider) throw new AiCreditError('BYOK_KEY_NOT_FOUND', 404);
       key = { apiKey: saved.apiKey };
     } else if (conv.creatorId !== user.id) throw new AiCreditError('FORBIDDEN', 403);
+    // The experimental participant controls do not quote image-context costs.
+    // Never silently ignore attachments or start an undisclosed image charge.
+    if (await dbPrisma.aiChatImage.count({ where: { conversationId: sessionId, messageId: { not: null } } })) throw new AiCreditError('IMAGE_COMPOSER_REQUIRED', 400);
     const messages = conv.messages.reverse().filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 4000) }));
     if (!messages.length) throw new AiCreditError('INVALID_REQUEST', 400);

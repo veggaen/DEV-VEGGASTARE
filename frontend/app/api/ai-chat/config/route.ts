@@ -6,6 +6,7 @@ import { isDemoUserId } from '@/lib/demo-policy';
 import { FUNDED_AI_MODELS, pricingIsReviewed } from '@/lib/ai-chat/credit-policy';
 import { platformAiKey, aiErrorResponse } from '@/lib/ai-chat/generation';
 import { displayCreditPosition } from '@/lib/ai-credit-display';
+import { imageAllowance } from '@/lib/ai-chat/image-policy';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     return Response.json({ balance: display.available, unclaimedDemoAllowance: display.unclaimedDemoAllowance, refundAdjustment: position.refundAdjustment, demo, authenticated: Boolean(user?.id), environment: aiCreditEnvironment(user?.id), dailyUsed: usage?.count ?? 0,
       dailyLimit: demo ? DEMO_AI_CREDITS : AI_DAILY_REQUEST_LIMIT, savedProviders: keys.map(key => key.provider),
       models: FUNDED_AI_MODELS.map(item => ({ provider: item.provider, model: item.model, label: item.label,
-        credits: demo ? Math.max(1, item.credits) : item.credits,
+        credits: demo ? Math.max(1, item.credits) : item.credits, imageCredits: imageAllowance(item.provider, item.model)?.credits ?? null,
         available: pricingIsReviewed() && Boolean(platformAiKey(item.provider, request)) && (Boolean(user?.id) || item.credits === 0),
       })), buyCreditsUrl: '/products/cveggatinterviewcredits01',
     }, { headers: { 'Cache-Control': 'private, no-store' } });

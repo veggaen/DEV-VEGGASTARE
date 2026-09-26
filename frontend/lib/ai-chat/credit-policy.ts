@@ -7,7 +7,8 @@ export const AI_PROVIDER_TIMEOUT_MS = 40_000;
 // Pricing may change. Stop platform-funded calls until the allowlist is reviewed;
 // BYOK remains available. Never silently spend against an unreviewed price card.
 export const AI_PRICING_REVIEW_BY = '2026-10-24T00:00:00.000Z';
-export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+// Images are server-verified normalized data URLs, never caller-provided URLs.
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; images?: string[] };
 export type FundedModel = { provider: AiProvider; model: string; label: string; credits: number; reserveMicroUsd: number };
 
 // Official price cards and authenticated model lists checked 2026-09-24.

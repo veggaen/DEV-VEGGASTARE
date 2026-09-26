@@ -3000,6 +3000,7 @@ model AiConversation {
   updatedAt         DateTime            @updatedAt
   participants      AiConvParticipant[]
   messages          AiConvMessage[]
+  images            AiChatImage[]
 
   @@index([creatorId, createdAt(sort: Desc)])
   @@index([isPublic, createdAt(sort: Desc)])
@@ -3062,8 +3063,28 @@ model AiConvMessage {
 
   createdAt       DateTime            @default(now())
   reactions       AiConvReaction[]
+  images          AiChatImage[]
 
   @@index([conversationId, createdAt])
+}
+
+// Private, normalized chat inputs. Never expose storageKey in an API payload.
+model AiChatImage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  ownerId        String
+  messageId      String?
+  message        AiConvMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  storageKey     String?
+  purgingAt      DateTime?
+  width          Int
+  height         Int
+  createdAt      DateTime       @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([createdAt])
+  @@index([conversationId, messageId])
 }
 
 model AiConvReaction {
