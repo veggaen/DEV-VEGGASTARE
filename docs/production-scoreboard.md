@@ -2,6 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Message reading and composer layout — 26 September 2026
+
+**PARTIAL — local acceptance complete; hosted promotion pending.** Incoming
+replies preserve reading position, the latest-message control remains reachable,
+and the composer fits the actual shell height including demo banners. Semantic
+bubbles, accessible 44px actions and reduced-motion behavior replace inconsistent
+styling. Strict build/TypeScript and 41 scoped local browser checks pass, including
+phone landscape, light/dark and ultrawide. No API/payment/credit/schema changes.
+See [reproductions and evidence](message-reading-evidence-2026-09.md).
+
 ## Messages writes and private realtime — 26 September 2026
 
 **DONE for scoped message writes/private realtime; wider messaging remains PARTIAL.**

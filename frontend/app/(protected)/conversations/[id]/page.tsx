@@ -264,14 +264,14 @@ function ConversationThread() {
   }));
 
   return (
-    <div className="relative flex min-w-0 flex-col h-[calc(100dvh-var(--app-header-offset,64px))]">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {/* Header — OPEN, no second bar. A soft top-down fade (no border, no solid
           fill) so it melts into the thread/landing background instead of reading
           as a chunky toolbar stacked under the global topbar. */}
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5"
+        className="relative z-10 shrink-0 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 [@media(max-height:500px)]:py-0.5"
       >
         {/* Centered inner row — aligns with the message column + composer dock so
             the controls aren't stranded in the far corners on wide screens. */}
@@ -279,7 +279,7 @@ function ConversationThread() {
         <Link
           href="/conversations"
           aria-label="Back to messages"
-          className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FiArrowLeft className="h-4.5 w-4.5" />
         </Link>
@@ -422,9 +422,9 @@ function ConversationThread() {
 
       {/* Body — thread column + members/voice rail on the LEFT (row-reverse) */}
       <div className="flex-1 flex flex-row-reverse min-h-0">
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* Messages — subtle surface so the thread reads as a distinct canvas */}
-          <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
+          <div className="min-h-0 flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
             <MessageList
               messages={messages}
               users={users}
@@ -438,7 +438,7 @@ function ConversationThread() {
           {/* Input — the composer floats over the thread: a soft gradient fade (not a
               hard footer bar) lets messages scroll up behind it, with a centered
               column that aligns with the message list so it never sprawls. */}
-          <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
+          <div className="shrink-0 bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 [@media(max-height:500px)]:px-3 [@media(max-height:500px)]:pb-[max(0.25rem,env(safe-area-inset-bottom))] [@media(max-height:500px)]:pt-1">
             <div className="mx-auto w-full max-w-3xl">
               <AnimatePresence>
                 {typingName && (
