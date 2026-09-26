@@ -39,13 +39,31 @@ This is a focused review, not a claim of whole-app accessibility compliance.
 
 ## Verification
 
-Strict production build/TypeScript and final local browser acceptance pass:
+Strict production build/TypeScript, touched-file lint and release-range secret
+scan pass. Final browser acceptance passes locally, on Preview and Live:
 8 reading/geometry checks (four viewports in light and dark), 21 conversation
-recovery/control checks and 12 AI-canvas regressions — **41 checks**. Viewports
+recovery/control checks and 12 AI-canvas regressions — **41 checks per environment**. Viewports
 include 360×800, 844×390 landscape, 1280×800 and 2560×1080. Final screenshots
 were inspected, including dark phone/landscape, with the complete composer and
 Send control visible. The test covers a twenty-line draft and following through
-composer growth/shrinkage. Preview/Live promotion remains pending.
+composer growth/shrinkage. AI regressions include separate drafts and pointer/
+keyboard conversation reordering. Payment/provider responses are fixtures in
+those browser tests, not new actual purchases or billed AI calls.
+
+Runtime `83427f5` (UI release) / `3352717` (integrated Preview):
+
+- Preview: `dpl_2K1qxabTaCMwqmk8snPNzz2WZJ24`,
+  `dev-veggastare-jtho2qz3k-v3ggas-projects.vercel.app`, READY and assigned to
+  the retained showcase-ai-revival Preview alias. 57 migrations, none pending.
+- Live: `dpl_4GCGVSYvAinj6XUTQsy2FTbNVSeP`,
+  `dev-veggastare-as6tplqtp-v3ggas-projects.vercel.app`, READY and verified by
+  inspecting www.veggat.com; veggat.com and dev-veggastare.vercel.app are aliases
+  of the same deployment. 56 migrations, none pending. Pending integrated
+  payment/native-currency work was not promoted.
+- Real Chrome: existing signed-in self-conversation renders the two retained
+  messages and complete composer at normal desktop and 390×844. Members sheet
+  opens, fits, and closes with Escape. Normal viewport restored. No message sent,
+  edited/deleted, microphone joined, purchase made or credit grant changed.
 
 Initial local scroll checks passed all four sizes; visual review then found the
 additional clipped-composer issue above. That initial batch is not counted as
@@ -61,3 +79,5 @@ native browser zoom remain outside these tests.
 Private human-chat storage/migration, conversation/reaction authorization,
 paginated history, AI latest-button placement, voice controls and the remaining
 route inventory remain open. The preceding security release has separate evidence.
+Conversation creation and reaction mutation guards are the next scoped audit;
+the passing rendering tests do not establish their authorization correctness.
