@@ -4,12 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Messages writes and private realtime — 26 September 2026
 
-**PARTIAL — local acceptance complete; hosted promotion pending.** Current-session
+**DONE for scoped message writes/private realtime; wider messaging remains PARTIAL.**
+Runtime `576b5ce` (test-only follow-up `21916cc`) is Live as
+`dpl_EuM4C5woTVkV4h7Z7VhjwsofbWVB`. Current-session
 write authorization, atomic retry/counters, cross-thread reply checks, private
 Pusher authorization and body-free message invalidations are implemented. 90
 unit/API tests, strict build/TypeScript, error-free touched-file lint (two existing
-Pulse warnings), 24 local browser regressions and a real two-user isolated-DB
-send/edit/delete/revocation test pass. New private human-chat image uploads are
+Pulse warnings), 45 browser regressions each locally/Preview/Live, hosted channel
+authorization/denial checks and a real two-user isolated-DB send/edit/delete/
+revocation test pass. Real Chrome verifies the existing Live thread and members
+sheet. Hosted mutation tests are fixtures, not actual customer writes.
+New private human-chat image uploads are
 disabled pending private storage; AI-chat images are unaffected. Historical human
 attachments and remaining conversation/reaction mutations still need review.
 No schema/payment/credit changes. See [scope and evidence](messages-security-evidence-2026-09.md).
