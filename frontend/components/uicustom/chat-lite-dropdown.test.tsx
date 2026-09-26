@@ -2,6 +2,7 @@
 /** @fileOverview No stale private rows across account switches, closure or navigation. @stability stable */
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const identity = vi.hoisted(() => ({ user: { id: 'a' } as { id: string } | null, pathname: '/conversations' }));
 vi.mock('@/hooks/use-current-user', () => ({ useCurrentUser: () => identity.user }));
@@ -22,6 +23,11 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi
 const render = () => act(async () => root.render(<ChatLiteDropdown />));
 const toggle = () => act(async () => (host.querySelector('[aria-label="Messages"]') as HTMLButtonElement).click());
 const settle = (index: number, title: string) => act(async () => requests[index].resolve(new Response(JSON.stringify({ conversations: [{ id: title, title, type: 'GROUP', updatedAt: '2026-09-26', participantDetails: [], lastMessage: null }] }))));
+it('does not advertise an interactive button in server HTML before hydration', () => {
+  const markup = renderToString(<ChatLiteDropdown />);
+  const fragment = document.createElement('div'); fragment.innerHTML = markup;
+  expect((fragment.querySelector('[aria-label="Messages"]') as HTMLButtonElement).disabled).toBe(true);
+});
 it('fetches only when opened and aborts on close; late rows cannot reappear', async () => {
   await render(); expect(requests).toHaveLength(0); await toggle(); expect(requests).toHaveLength(1);
   await toggle(); expect(requests[0].signal.aborted).toBe(true); await settle(0, 'Old private row');
