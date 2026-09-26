@@ -4,7 +4,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Route-by-route audit restart and conversation creation — 26 September 2026
 
-**PARTIAL — local verification complete; hosted promotion pending.** All 77 static
+**DONE for conversation creation; full route audit remains PARTIAL.** Runtime
+`48b7f03` is Live as `dpl_8Z2gQ1mcg2bM54dsjSG7VNdfdvw8`; isolated Preview is
+`dpl_25MvvrYm7cgg7FD9pnMGEKp4hYmx`. All 77 static
 URL candidates were visited and scrolled at 390/2560 without document overflow,
 browser page errors or HTTP 5xx. Redirected admin/auth screens are not certified;
 24 dynamic route patterns still require record-specific acceptance. The fresh
@@ -15,7 +17,10 @@ recipients and durable throttling. First-message persistence is atomic; stable
 request IDs and pair locks handle retries/concurrent starts. Existing DMs no
 longer discard the first message. Form drafts survive failures, with consistent
 gray borders and neutral visible focus. 66 unit tests, strict build/TypeScript,
-touched-file lint and 12 light/dark scoped browser checks pass locally. A real
+touched-file lint, a release secret scan and 12 light/dark scoped browser checks
+each on local, Preview and Live pass. The desktop submit action no longer covers
+draft text. Real Chrome verifies the compact form, mobile scroll and neutral Live
+focus boundary. A real
 isolated-database test verified two password users starting a DM concurrently,
 group replay, exact message counts and privacy rejection, then removed only its
 disposable fixtures. No customer messages, schema, payment or credit changes.

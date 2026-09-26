@@ -132,7 +132,7 @@ This is triage, not a claim that all buttons or background APIs work.
 - `/trade/[tradeId]` — PENDING fresh full feature/security acceptance.
 - `/warehouses/[...id]` — PENDING fresh full feature/security acceptance.
 
-## Completed local slice: conversation creation
+## Completed and deployed slice: conversation creation
 
 - Same-origin JSON-only bounded requests; demo and impersonation writes denied.
 - Durable per-user/IP throttles plus the burst limiter; fail closed on outage.
@@ -155,8 +155,14 @@ password users verified reciprocal concurrent DM starts, group replay, initial
 message counters, private-email rejection and public-DM rejection. Fixture users
 and their test conversations/messages were removed afterward. No real member was
 contacted. Six scoped Playwright checks cover failure/retry/navigation at 360,
-390, 844-landscape, 1280 and 2560 plus anonymous/demo denial. Final visual and
-hosted promotion checks are recorded in the production scoreboard when complete.
+390, 844-landscape, 1280 and 2560 plus anonymous/demo denial. Each passed in both
+light and dark themes locally, on Preview and Live (12 per environment). Real
+Chrome confirms mobile scroll, compact desktop spacing and a neutral 2px Live
+focus boundary. Desktop submit controls do not overlap the draft field.
+Runtime `48b7f03`, Live deployment `dpl_8Z2gQ1mcg2bM54dsjSG7VNdfdvw8`;
+Preview deployment `dpl_25MvvrYm7cgg7FD9pnMGEKp4hYmx`. Hosted mutations are
+intercepted client fixtures; the real server remains read-only demo. Actual
+write/concurrency evidence comes from the isolated-database test above.
 
 ## Next acceptance queue
 
@@ -170,4 +176,3 @@ hosted promotion checks are recorded in the production scoreboard when complete.
    scoreboard; do not infer success from this route scan.
 
 No database schema, PayPal credentials, prices or credit policies were changed.
-
