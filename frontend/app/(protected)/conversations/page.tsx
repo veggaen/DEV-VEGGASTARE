@@ -46,10 +46,10 @@ export default function ConversationsPage() {
       )}
     </div>
   );
-  return <Inbox key={user.id} userId={user.id} role={user.role} />;
+  return <Inbox key={user.id} userId={user.id} role={user.role} readOnly={!!(user.isDemo || user.isImpersonating)} />;
 }
 
-function Inbox({ userId, role }: { userId: string; role?: string }) {
+function Inbox({ userId, role, readOnly }: { userId: string; role?: string; readOnly: boolean }) {
   const confirm = useConfirm();
   const [sort, setSort] = useState<Sort>('active');
   const [search, setSearch] = useState('');
@@ -75,7 +75,7 @@ function Inbox({ userId, role }: { userId: string; role?: string }) {
   const query = search.trim().toLocaleLowerCase();
   const filtered = conversations.filter(item => !query || [item.title, item.description, ...(item.participantDetails ?? []).map(person => person.name)].some(value => value?.toLocaleLowerCase().includes(query)));
   const hasMore = !accessLost && !!data?.at(-1)?.nextCursor;
-  const canManage = (item: Conversation) => item.userId === userId || item.originalUserId === userId || role === 'ADMIN' || role === 'OWNER';
+  const canManage = (item: Conversation) => !readOnly && (item.userId === userId || item.originalUserId === userId || role === 'ADMIN' || role === 'OWNER');
 
   async function copyLink(id: string) {
     try {

@@ -69,7 +69,7 @@ test('anonymous and demo users cannot create conversations', async ({ browser, b
   } finally { await anonymous.close(); await demo.close(); }
 });
 
-test('isolated database: concurrent starts, first message, replay and privacy', async ({ browser, baseURL }) => {
+test('isolated database: concurrent starts, first message, management replay and privacy', async ({ browser, baseURL }) => {
   test.skip(process.env.E2E_CONVERSATION_DB !== 'isolated-preview', 'Requires isolated Preview database launcher; never run on Live');
   test.setTimeout(120_000);
   expect(baseURL).toBe('http://localhost:3000');
@@ -115,6 +115,60 @@ test('isolated database: concurrent starts, first message, replay and privacy', 
     expect(groupRows[0].id).toBe(groupRows[1].id);
     expect(Number((await pool.query('SELECT COUNT(*) FROM "Message" WHERE "conversationId"=$1', [groupRows[0].id])).rows[0].count)).toBe(1);
     expect((await create(0, { ...group, initialMessage: 'Changed under same request ID' })).status()).toBe(409);
+
+    const groupId = groupRows[0].id;
+    // Legacy rows may predate the creation policy. They must not escape through
+    // the feed, profile, direct message read, or a nested repost preview.
+    const anonymous = await browser.newContext({ baseURL });
+    const repostId = `qa_repost_${suffix}`;
+    try {
+      await pool.query('UPDATE "Conversation" SET visibility=\'PUBLIC\',participants=$2 WHERE id=$1', [groupId, [users[0].id]]);
+      await pool.query('INSERT INTO "Conversation" (id,"userId",participants,"updatedAt",type,visibility,title,"repostOfConversationId") VALUES ($1,$2,$3,NOW(),\'PUBLIC_THREAD\',\'PUBLIC\',\'QA public wrapper\',$4)', [repostId, users[0].id, [], groupId]);
+      for (const api of [anonymous.request, contexts[1].request]) {
+        const direct = await api.get(`/api/messages?conversationId=${groupId}`); expect(direct.status()).toBe(403);
+        const profile = await api.get(`/api/conversations?filter=created&creatorId=${users[0].id}&limit=100`);
+        expect(profile.status()).toBe(200);
+        const body = await profile.json();
+        expect(body.conversations.some((row: { id: string }) => row.id === groupId || row.id === dmId)).toBe(false);
+        expect(body.conversations.find((row: { id: string }) => row.id === repostId)).toMatchObject({ repostOfConversationId: null, repostOfConversation: null, repostOfLastMessage: null });
+      }
+      const all = await contexts[1].request.get('/api/conversations?filter=all&limit=100');
+      expect(all.status()).toBe(200); expect((await all.json()).conversations.some((row: { id: string }) => row.id === groupId)).toBe(false);
+      expect((await contexts[0].request.get(`/api/messages?conversationId=${groupId}`)).status()).toBe(200);
+    } finally { await anonymous.close(); }
+    await pool.query('DELETE FROM "Conversation" WHERE id=$1', [repostId]);
+    await pool.query('UPDATE "Conversation" SET visibility=\'PARTICIPANTS\',participants=$2 WHERE id=$1', [groupId, users.map(user => user.id)]);
+    const path = `/api/conversations/${groupId}`;
+    const patch = (index: number, data: Record<string, unknown>, origin = baseURL!) => contexts[index].request.patch(path, { data, headers: { Origin: origin } });
+    const remove = (query = '') => contexts[0].request.delete(path + query, { headers: { Origin: baseURL! } });
+    expect((await contexts[0].request.get(path)).status()).toBe(200);
+    expect((await contexts[1].request.get(path)).status()).toBe(404);
+    expect((await patch(1, { title: 'Not the creator' })).status()).toBe(404);
+    expect((await patch(0, { title: 'Bad origin' }, 'https://foreign.test')).status()).toBe(403);
+    expect((await patch(0, { visibility: 'PUBLIC' })).status()).toBe(400);
+    expect((await patch(0, { isLocked: true })).status()).toBe(403);
+    expect((await patch(0, { title: 'Renamed QA group', description: null })).status()).toBe(200);
+    expect((await pool.query('SELECT title FROM "Conversation" WHERE id=$1', [groupId])).rows[0].title).toBe('Renamed QA group');
+    // Reach fixtures exercise the existing grace-period policy without contacting real people.
+    await pool.query('UPDATE "Conversation" SET "replyCount"=11 WHERE id=$1', [groupId]);
+    const deletionResults = await Promise.all([remove(), remove()]);
+    expect(deletionResults.map(result => result.status())).toEqual([200, 200]);
+    const deletionBodies = await Promise.all(deletionResults.map(result => result.json()));
+    expect(deletionBodies[0].deletionScheduledFor).toBe(deletionBodies[1].deletionScheduledFor);
+    expect((await patch(0, { title: 'Cannot edit pending deletion' })).status()).toBe(409);
+    expect((await contexts[1].request.get(`/api/messages?conversationId=${groupId}`)).status()).toBe(403);
+    const pendingInbox = await contexts[1].request.get('/api/conversations?filter=private');
+    expect(pendingInbox.status()).toBe(200); expect((await pendingInbox.json()).conversations.some((row: { id: string }) => row.id === groupId)).toBe(false);
+    const cancelled = await Promise.all([remove('?cancel=true'), remove('?cancel=true')]);
+    expect(cancelled.map(result => result.status())).toEqual([200, 200]);
+    expect((await contexts[1].request.get(`/api/messages?conversationId=${groupId}`)).status()).toBe(200);
+    await pool.query('UPDATE "Conversation" SET "replyCount"=1 WHERE id=$1', [groupId]);
+    const deleted = await Promise.all([remove(), remove()]);
+    expect(deleted.map(result => result.status())).toEqual([200, 200]);
+    expect(Number((await pool.query('SELECT COUNT(*) FROM "Message" WHERE "conversationId"=$1', [groupId])).rows[0].count)).toBe(0);
+    await pool.query('UPDATE "User" SET "tokenVersion"="tokenVersion"+1 WHERE id=$1', [users[0].id]);
+    expect((await patch(0, { title: 'Revoked session' })).status()).toBe(401);
+    expect((await remove()).status()).toBe(401);
   } finally {
     await Promise.all(contexts.map(context => context.close()));
     // Exact random fixture IDs in an explicitly isolated database. Never touch real users.

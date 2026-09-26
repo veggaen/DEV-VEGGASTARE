@@ -18,7 +18,7 @@ it.each(['development', 'preview', 'production'])('scopes authenticated channels
 it('rejects public, foreign-environment, unknown and malformed authorization targets', () => {
   for (const channel of ['ConversationChannel_chat', 'private-ConversationChannel_chat', 'private-dev__ConversationChannel_chat', 'private-preview__anything_else', 'private-preview__ConversationChannel_a/b', `private-preview__user_${'a'.repeat(129)}`]) expect(authorizedChannelTarget(channel)).toBeNull();
 });
-it.each(['new-message', 'edit-message', 'delete-message'])('%s always carries only an invalidation, without a racy visibility lookup', async event => {
+it.each(['new-message', 'edit-message', 'delete-message', 'conversation-updated'])('%s always carries only an invalidation, without a racy visibility lookup', async event => {
   const result = await realtimePublication('ConversationChannel_chat', event, { content: 'private', imageUrl: 'https://private', User: { email: 'private' } });
   expect(result).toEqual({ channel: 'private-preview__ConversationChannel_chat', event: 'conversation-updated', data: {} });
   expect(lookup).not.toHaveBeenCalled();
