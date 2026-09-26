@@ -2,6 +2,19 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Expanded business workflows and product lifecycle — 26 September 2026
+
+**PARTIAL — full production readiness is not established.** The new
+[acceptance contract](business-workflow-acceptance-2026-09.md) covers multi-user
+company/product workflows, physical/digital fulfillment, jobs, persistent paper
+trading, two-party P2P and local-chain settlement. The prior 77-route pass did not
+test those complete workflows. Product lifecycle authorization, independent
+permissions, private specifications, archive/download preservation and company-form
+hydration are corrected locally. 74 unit, six isolated database and four actual-server
+browser workflows (360/390/1280/2560) pass. See
+[scope and limits](product-lifecycle-evidence-2026-09.md). Deployment pending;
+broader feature and layout acceptance remains open.
+
 ## Conversation management and legacy privacy — 26 September 2026
 
 **DONE for scoped management/privacy; full route audit remains PARTIAL.** Runtime

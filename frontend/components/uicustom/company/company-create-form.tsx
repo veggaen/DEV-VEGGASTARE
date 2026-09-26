@@ -29,6 +29,7 @@ import { EmployeeRole, User } from '@/generated/prisma/browser';
 import { useRouter } from 'next/navigation';
 import { formatNorwegianOrgNumber, normalizeNorwegianOrgNumber, type NorwayOrgLookupResult, type NorwayOrgSuggestion } from '@/lib/norway-org';
 import { AdminUsersListResponseSchema } from '@/lib/types/users';
+import { useClientReady } from '@/hooks/use-client-ready';
 
 type UIEmployee = {
   userId: string;
@@ -80,6 +81,7 @@ const imageHandler = async (values: any, logoFile: File[], bannerFile: File[], e
 };
 
 export const MyCompanyCreateForm = () => {
+  const clientReady = useClientReady();
   const { edgestore } = useEdgeStore();
   const router = useRouter();
   const user = useCurrentUser();
@@ -428,6 +430,7 @@ export const MyCompanyCreateForm = () => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8 [&_input:not([type=hidden])]:min-h-12 [&_input]:text-base [&_textarea]:text-base [&_[role=combobox]]:min-h-12 [&_[role=combobox]]:text-base">
+        <fieldset disabled={!clientReady || isSubmitting} className="min-w-0 space-y-6">
 
         {/* ── Section 1: Company Details ── */}
         <Card>
@@ -589,8 +592,8 @@ export const MyCompanyCreateForm = () => {
                       </div>
                     </FormControl>
                     <FormDescription className="text-xs space-y-1">
-                      <div>9 digits (optional). Example: 937 051 107.</div>
-                      <div className="flex items-center gap-3 text-[11px]">
+                      <span className="block">9 digits (optional). Example: 937 051 107.</span>
+                      <span className="flex items-center gap-3 text-[11px]">
                         <a
                           href="https://www.brreg.no/en/"
                           target="_blank"
@@ -611,7 +614,7 @@ export const MyCompanyCreateForm = () => {
                           Start via Altinn
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                      </div>
+                      </span>
                     </FormDescription>
 
                     {normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
@@ -1055,6 +1058,7 @@ export const MyCompanyCreateForm = () => {
             )}
           </Button>
         </div>
+        </fieldset>
       </form>
     </Form>
   );

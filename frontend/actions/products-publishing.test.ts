@@ -1,5 +1,6 @@
 /** @fileOverview Session/demo/rate boundaries around the publishing action. @stability stable */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('server-only',()=>({}));
 const m=vi.hoisted(()=>({auth:vi.fn(),rate:vi.fn(),publish:vi.fn(),refresh:vi.fn()}));
 vi.mock('@/auth',()=>({auth:m.auth}));
 vi.mock('@/lib/db',()=>({dbPrisma:{}}));
