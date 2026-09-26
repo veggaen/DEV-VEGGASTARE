@@ -1,7 +1,15 @@
 # AI picker and whole-row reordering — 26 September 2026
 
-Status: local verification complete; hosted verification pending. Full-route readiness
-remains incomplete. No schema, PayPal, purchase-price or credential changes.
+Status: DONE for this scoped release on localhost, Preview and Live. Full-route
+readiness remains incomplete. No schema, PayPal, purchase-price or credential changes.
+
+- Production runtime `b81eb49`: `dpl_FUYAaMyDdouVskKE378tf2MwbmEw`, verified Ready
+  behind `www.veggat.com`, `veggat.com` and `dev-veggastare.vercel.app`.
+- Preview runtime `6c16069`: `dpl_8LTk9w88uY5yiCyQdAHu21RTwzW3`, verified Ready
+  behind the isolated `dev-veggastare-git-showcase-ai-revival-v3ggas-projects.vercel.app`.
+- Production-safe tree retains 56 migrations; integrated Preview retains 57.
+  Both builds reported no pending migrations. No Preview-only payment/schema
+  changes were promoted. Release-range secret scan passed with no findings.
 
 ## Changes
 
@@ -56,11 +64,21 @@ safer API. No new automatic top-ups or customer credit grants.
 - 76 focused catalog, reservation, streaming and rail-order unit tests pass.
   Separate ledger run: 9 pure tests passed; 23 database integration tests were
   skipped without the isolated database test flag, not counted as acceptance.
-- Strict production build/TypeScript and touched-file lint pass. Local browser
-  coverage includes 12 cases in each light/dark theme at 360, 390, 844 landscape,
+- Strict local/hosted production builds/TypeScript and touched-file lint pass.
+  Browser coverage includes 12 cases in each light/dark theme at 360, 390, 844 landscape,
   768, 1024 portrait, 1280, 1920 and 2560 CSS pixels. The tests mock generation
-  and conversation writes; they do not spend customer credits. Real Chrome
-  independently verifies the signed-in picker and selection on localhost.
+  and conversation writes; they do not spend customer credits. All 24 checks
+  pass locally, on Preview and Live (72 browser test executions).
+- Unmocked authenticated config checks confirm Grok 4.5/4.6/4.7 at 8 credits on
+  Preview and Live. Preview has no platform Grok key and correctly disables them;
+  Live reports all three available. Retained demo sessions were reused, no grants.
+- Real signed-in Chrome verifies local and Live model selection, gray borders,
+  rounded corners, desktop/390px picker margins and no green composer rectangle.
+  Dragging the whole Live title row reorders it without navigating; Alt+Up restores
+  its original position. All three existing rows remain, original order restored.
+  At the owner's zero Live balance, Grok shows the 8-credit requirement and disabled
+  send. No real message was sent and no customer credit balance was changed.
+  Temporary viewport override was reset; the updated Live chat is retained.
 - Real configured xAI account lists Grok 4.5, 4.6 and 4.7. Each passed a capped
   256-token Responses smoke call, with nonempty text and completed status.
   Returned output/reasoning token counts: 4.6 = 52/51, 4.5 = 12/11, 4.7 = 26/25.
@@ -70,6 +88,10 @@ safer API. No new automatic top-ups or customer credit grants.
   additions were checked against official documentation, not successful calls
   with a customer's BYOK. Anthropic is not configured in the local QA launcher.
   New entries remain BYOK unless explicitly present in the reviewed allowlist.
+- Live also reports the funded Claude Sonnet 4.6 entry unavailable: the platform
+  needs a usable `CLAUDE_API_KEY` or fallback `ANTHROPIC_API_KEY`. This release
+  does not set credentials or claim successful Claude generation. Physical phone
+  keyboards, native browser 125% zoom and every provider's BYOK remain unverified.
 - Design-guideline review drove semantic border tokens, bounded scrolling,
   retained keyboard focus and alternative reordering controls. No new UI system.
 
