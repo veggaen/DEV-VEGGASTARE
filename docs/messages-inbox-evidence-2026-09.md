@@ -1,4 +1,4 @@
-# Messages inbox â€” 26 September 2026
+# Messages inbox — 26 September 2026
 
 Status: scoped inbox release verified locally, on Preview and Live. Production-safe source
 `a93beac`, integrated Preview source `d276480`. This is not a whole-app release
@@ -30,7 +30,7 @@ certification or a full messaging-security audit.
 ## Local verification
 
 - Strict build/TypeScript and touched-file ESLint pass. 17 API tests pass.
-- 10 inbox browser tests pass: eight widths 360, 390, 844Ã—390, 768, 1024, 1280,
+- 10 inbox browser tests pass: eight widths 360, 390, 844×390, 768, 1024, 1280,
   1920, 2560; explicit dark-theme checks, light/dark action recovery, clipboard
   denial/success, cancellation, pagination retry, permission loss, keyboard links,
   focus restoration, long names, list/footer scrolling and horizontal overflow.
