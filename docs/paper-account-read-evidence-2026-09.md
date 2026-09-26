@@ -52,10 +52,19 @@ schema, PayPal or credit-ledger writes were changed by this slice.
   was correctly rejected before migrations due to callback-origin configuration;
   the established isolated deployment helper supplied the correct configuration.
   No new credentials or migrations. Release secret scan passes.
-- Live read-only baseline: the owner's account has a portfolio with no positions
-  or history. No portfolio mutation was made. The trading page's inline paper
-  panel is only a link to this dashboard; its old context is a compatibility shim,
-  not separate persisted balances. Production promotion of this read fix pending.
+- Production `dpl_CTiT6r6PbEsYgWQ11nrqrJKdJLgK` is Ready on `www.veggat.com`,
+  built from the isolated UI release tree with 56 migrations and none pending.
+  No integrated Preview payment/schema changes were promoted. The combined
+  paper/product unit regression batch passes 124 tests across ten files; both
+  read-only public product browser checks pass on this Live release (390/2560).
+- Real Chrome verifies the updated Live paper history at 390×844 and 1280×800,
+  including refresh, no horizontal overflow and no new console errors. The
+  owner's existing $100,000 virtual cash/total, empty positions and empty history
+  remain unchanged. No Live portfolio mutation was made; temporary browser
+  viewport overrides were reset. The eight mutating fixture workflows above
+  ran only against the isolated test database, not Live.
+- The trading page's inline paper panel is only a link to this dashboard; its old
+  context is a compatibility shim, not separate persisted balances.
 
 ## Still open
 

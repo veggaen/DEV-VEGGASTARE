@@ -11,7 +11,13 @@ lint, strict build/TypeScript and eight actual-server browser checks each locall
 and on isolated Preview pass (phone/landscape/portrait/desktop/ultrawide).
 Two-account/fresh-password-session checks run at 360/1280; other widths repeat
 read/failure/layout coverage. Disposable fixtures are removed. No execution,
-balance, price, schema or payment changes. Production promotion pending.
+balance, price, schema or payment changes. The safe release is now Live as
+`dpl_CTiT6r6PbEsYgWQ11nrqrJKdJLgK` (56 migrations; none pending). Real Chrome
+checks at 390/1280 preserve the owner's existing virtual balance and empty history;
+refresh succeeds with no new console errors or horizontal overflow. Both Live
+public-product regression checks pass, as do 124 combined paper/product unit
+tests. Full publishing, jobs, execution/concurrency, P2P and chain acceptance
+remain open; this is not a certification of every advertised feature.
 See [evidence and unresolved execution risks](paper-account-read-evidence-2026-09.md).
 
 ## Expanded business workflows and product lifecycle — 26 September 2026
