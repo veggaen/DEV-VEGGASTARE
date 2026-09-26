@@ -4,7 +4,9 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## AI picker, model catalog and whole-row reordering — 26 September 2026
 
-**PARTIAL — local verified; hosted promotion pending.** Picker bounds and gray
+**DONE for this scoped release; full route/provider audit remains PARTIAL.**
+Runtime `b81eb49` is Live as `dpl_FUYAaMyDdouVskKE378tf2MwbmEw`.
+Picker bounds and gray
 borders match the app; the composer retains one neutral accessible focus boundary.
 Entire conversation rows can be dragged without grip icons; keyboard/menu moves
 remain available. Current chat catalog entries include Grok 4.5/4.6 with reviewed
@@ -12,8 +14,13 @@ remain available. Current chat catalog entries include Grok 4.5/4.6 with reviewe
 tokens together, not Chat Completions' visible-only cap. Three real capped xAI
 smoke calls succeeded; other new BYOK entries are catalog/documentation verified,
 not confirmed with customer keys. 76 focused unit tests, strict build/TypeScript,
-touched-file lint and 24 local light/dark UI checks pass. No schema, PayPal,
-purchase-price or credential changes. Full-route readiness remains incomplete.
+touched-file lint, release secret scan and 24 light/dark UI checks each locally,
+on Preview and Live pass. Real Chrome verifies phone/desktop picker, selection,
+whole-row dragging and keyboard restoration of the original order. Live config
+reports Grok 4.5/4.6/4.7 available at 8 credits; zero-balance sending stays disabled.
+Live Claude remains unavailable pending a usable `CLAUDE_API_KEY` or fallback
+`ANTHROPIC_API_KEY`; new BYOK entries are not all generation-tested. No schema,
+PayPal, purchase-price or credential changes. Full-route readiness remains incomplete.
 See [scope, sources and evidence](ai-picker-evidence-2026-09.md).
 
 ## Message reading and composer layout — 26 September 2026
