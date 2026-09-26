@@ -2,6 +2,19 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Messages inbox — 26 September 2026
+
+**DONE for the scoped inbox release; full messaging and route audit remain PARTIAL.**
+Runtime `a93beac` is Live as `dpl_GQjxL8XhGKiR2pJYXcjLmfxB59ZA`. A missing profile
+filter no longer falls through to an unrestricted conversation query. Private
+previews show the latest reply. Named 44px actions, keyboard links, clear search,
+paging/retry and honest deletion feedback replace broken/hover-only controls.
+17 API tests, strict build/TypeScript/lint and 33 scoped browser checks pass
+locally, on Preview and Live (Preview terms checked against its own source).
+Real Chrome verifies the populated Live inbox, sorting and cancelled deletion.
+No customer conversations, payments or schema were changed. Full messaging
+delivery/security and the route audit remain open. See [evidence](messages-inbox-evidence-2026-09.md).
+
 ## Private chat images — 26 September 2026
 
 **DONE for the scoped private-chat-image release; wider hardening remains PARTIAL.**
