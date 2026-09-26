@@ -219,6 +219,11 @@ export default function PrivacyPage() {
           </Section>
 
           {/* ──────────── 7. Dine rettigheter ──────────── */}
+          <Section title="Bilder i AI-chat">
+            <p>Utkast lagres bare i nettleserens minne. Når du sender, lagres bildene privat hos EdgeStore, og opptil fire nylige bilder sendes til den valgte OpenAI-modellen. Bildene skaleres til maksimalt 1024 piksler; posisjonsmetadata fjernes.</p>
+            <p>Tilgang krever innlogging og medlemskap i samtalen. Samtaler med bilder kan ikke gjøres offentlige. Ubrukte opplastinger settes til opprydding etter 24 timer; lagrede samtalebilder etter at samtalen har vært slettet i 30 dager. Opprydding forsøkes på nytt ved lagringsfeil.</p>
+          </Section>
+
           <Section title="AI Studio: bilder og korte videoer">
             <p>Når du genererer et bilde, sendes beskrivelsen til OpenAI. For video sendes den til xAI. Ikke legg inn sensitive personopplysninger i beskrivelsen.</p>
             <p>Beskrivelsen, genereringsstatusen og resultatet lagres i historikken din. Resultatfiler lagres privat hos EdgeStore og leveres bare til den innloggede eieren gjennom Veggat. Kredittforbruk registreres separat for kontroll av saldo og feil.</p>
