@@ -198,13 +198,15 @@ export default function ConversationCreateForm() {
   }, []);
 
   // Image handling for initial message
+  const allowImages = visibility === 'PUBLIC' && conversationType !== 'PRIVATE_DM';
   const handleImageDrop = useCallback((acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
     }
-  }, []);
+  }, [allowImages]);
 
   const handleRemoveImage = useCallback(() => {
     if (imagePreview) {
@@ -216,6 +218,7 @@ export default function ConversationCreateForm() {
 
   // Handle paste for Ctrl+V image paste
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (!allowImages) return;
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -230,10 +233,11 @@ export default function ConversationCreateForm() {
         break;
       }
     }
-  }, []);
+  }, [allowImages]);
 
   // Dropzone configuration
   const { getRootProps, getInputProps, isDragActive, open: openFilePicker } = useDropzone({
+    disabled: !allowImages,
     onDrop: handleImageDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -274,6 +278,10 @@ export default function ConversationCreateForm() {
 
   const handleSubmit = async () => {
     setError('');
+    if (image && !allowImages) {
+      setError('Remove the image to start a private conversation. Private image uploads are temporarily unavailable.');
+      return;
+    }
 
     // For DM and Group, require at least 1 participant (besides self)
     if ((conversationType === 'PRIVATE_DM' || conversationType === 'GROUP') && participants.length < 1) {
@@ -564,7 +572,7 @@ export default function ConversationCreateForm() {
               value={initialMessage}
               onChange={e => setInitialMessage(e.target.value)}
               onPaste={handlePaste}
-              placeholder="Write your first message... (paste or drag an image)"
+              placeholder={allowImages ? 'Write your first message... (paste or drag an image)' : 'Write your first message...'}
               className="w-full min-h-[100px] p-3 rounded-md bg-transparent resize-y text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               maxLength={2000}
             />
@@ -599,6 +607,8 @@ export default function ConversationCreateForm() {
                 variant="ghost"
                 size="sm"
                 onClick={openFilePicker}
+                disabled={!allowImages}
+                title={allowImages ? 'Add image' : 'Private image uploads are temporarily unavailable'}
                 className="h-8 px-2 text-muted-foreground hover:text-foreground"
               >
                 <FiImage className="h-4 w-4 mr-1" />

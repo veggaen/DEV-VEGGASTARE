@@ -1,5 +1,5 @@
 import * as PusherNS from 'pusher';
-import { scopeChannel } from './pusher-channel';
+import { realtimePublication } from './conversation-realtime';
 
 // `pusher` (server SDK) is CommonJS whose `module.exports` IS the constructor,
 // with no `.default`. Turbopack's ESM interop on Vercel resolves
@@ -30,16 +30,16 @@ if (!P_CLUSTER) console.error(`${LOG_PREFIX} Missing PUSHER_CLUSTER`);
  * current environment so dev/preview events never leak to production.
  */
 class ScopedPusherServer extends PusherServer {
-    trigger(
+    async trigger(
         channel: string | string[],
         event: string,
         data: any,
         params?: any,
     ): Promise<PusherResponse> {
-        const scoped = Array.isArray(channel)
-            ? channel.map(scopeChannel)
-            : scopeChannel(channel);
-        return super.trigger(scoped, event, data, params);
+        const targets = Array.isArray(channel) ? channel : [channel];
+        const publications = await Promise.all(targets.map(target => realtimePublication(target, event, data)));
+        const results = await Promise.all(publications.map(item => super.trigger(item.channel, item.event, item.data, params)));
+        return results[0];
     }
 }
 

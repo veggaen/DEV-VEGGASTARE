@@ -1,191 +1,29 @@
 import { dbPrisma } from '@/lib/db';
-import { pusherServer } from '@/lib/pusher';
+import { writeMessage } from '@/lib/message-writes';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { canReplyToConversation, canViewConversation } from '@/lib/conversation-permissions';
+import { canViewConversation } from '@/lib/conversation-permissions';
 import { NextResponse } from 'next/server';
-import { parseJsonOrError, parseQueryOrError } from '@/lib/api-validate';
+import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
-import { MessageResponseSchema, MessagesGetResponseSchema } from '@/lib/types/messages';
-import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { MessagesGetResponseSchema } from '@/lib/types/messages';
 
 const LOG_PREFIX = '[frontend/app/api/messages/route.ts]'
 
 export const dynamic = 'force-dynamic';
+const privateJson = (...args: Parameters<typeof NextResponse.json>) => {
+  const response = NextResponse.json(...args);
+  response.headers.set('Cache-Control', 'private, no-store');
+  response.headers.set('Vary', 'Cookie');
+  return response;
+};
 
 const isDev = process.env.NODE_ENV !== 'production';
-
-const postBodySchema = z
-  .object({
-    conversationId: z.string().min(1),
-    content: z.string().trim().max(5000).optional().nullable(),
-    imageUrl: z.string().trim().max(2048).optional().nullable(),
-    parentId: z.string().min(1).optional().nullable(),
-  })
-  .refine((val) => {
-    const content = val.content?.trim() || '';
-    const imageUrl = val.imageUrl?.trim() || '';
-    return Boolean(content || imageUrl);
-  }, { message: 'Either content or imageUrl must be provided' });
 
 const getQuerySchema = z.object({
   conversationId: z.string().min(1),
 });
 
-export async function POST(req: Request) {
-  console.log(LOG_PREFIX, 'POST(1/3) - creating message...');
-  const session = await MyLibUserAuth();
-  if (!session) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Rate limit — prevent message spam
-  const rl = await checkRateLimit(getClientIdentifier(req, session.id), 'message');
-  if (!rl.success) return rateLimitedResponse(rl);
-
-  const userId = session.id;
-  const userRole = session.role;
-
-  const bodyResult = await parseJsonOrError(req, postBodySchema);
-  if (!bodyResult.ok) return bodyResult.response;
-
-  const { conversationId, content, imageUrl, parentId } = bodyResult.data;
-
-  if (!userId) {
-    return NextResponse.json({ message: 'Unauthorized ID' }, { status: 401 });
-  }
-
-  try {
-    // Fetch conversation to check permissions
-    const conversation = await dbPrisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
-
-    if (!conversation) {
-      return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
-    }
-
-    // Check if user can reply to this conversation
-    console.log(LOG_PREFIX, 'POST(2/3) - checking reply permissions...');
-    const user = { id: userId, role: userRole };
-    const canReply = canReplyToConversation(user, conversation);
-    if (!canReply) {
-      console.log(LOG_PREFIX, 'POST - user not authorized to reply');
-      return NextResponse.json({ message: 'You do not have permission to reply to this conversation' }, { status: 403 });
-    }
-
-    const message = await dbPrisma.message.create({
-      data: {
-        content: content ?? '',
-        imageUrl: imageUrl ?? undefined,
-        senderId: userId,
-        conversationId,
-        ...(parentId ? { parentId } : {}),
-      },
-      include: {
-        User: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    // Update conversation engagement metrics (for "reach over followers" sorting)
-    // Check if this user has replied before to track unique repliers
-    const previousReplies = await dbPrisma.message.count({
-      where: {
-        conversationId,
-        senderId: userId,
-        id: { not: message.id }, // Exclude the message we just created
-      },
-    });
-
-    const isNewReplier = previousReplies === 0 && userId !== conversation.userId;
-
-    await dbPrisma.conversation.update({
-      where: { id: conversationId },
-      data: {
-        updatedAt: new Date(),
-        lastActivityAt: new Date(),
-        replyCount: { increment: 1 },
-        ...(isNewReplier ? { uniqueRepliers: { increment: 1 } } : {}),
-      },
-    });
-
-    // If this is a reply to another message, increment the parent's replyCount
-    if (parentId) {
-      await dbPrisma.message.update({
-        where: { id: parentId },
-        data: { replyCount: { increment: 1 } },
-      }).catch(() => { /* parent may have been deleted */ });
-    }
-
-    // Trigger a Pusher event after message creation (include sender info so
-    // real-time listeners can render the author name immediately)
-    await pusherServer.trigger(`ConversationChannel_${conversationId}`, 'new-message', {
-      conversationId,
-      message: {
-        id: message.id,
-        content: message.content,
-        imageUrl: message.imageUrl,
-        senderId: message.senderId,
-        createdAt: message.createdAt,
-        heartbeatCount: 0,
-        hasHeartbeated: false,
-        parentId: message.parentId ?? null,
-        replyCount: 0,
-        repostCount: 0,
-        hasRepulsed: false,
-        sender: message.User
-          ? { id: message.User.id, name: message.User.name, image: message.User.image ?? null }
-          : null,
-      },
-    });
-    console.log(LOG_PREFIX, 'POST(3/3) - message successfully created, triggering pusher event...', `ConversationChannel_${conversationId} - new-message`);
-
-    const dto = {
-      id: message.id,
-      content: message.content,
-      imageUrl: message.imageUrl ?? null,
-      senderId: message.senderId,
-      conversationId: message.conversationId,
-      createdAt: message.createdAt,
-      editedAt: message.editedAt ?? null,
-      User: message.User
-        ? {
-            id: message.User.id,
-            name: message.User.name,
-            image: message.User.image ?? null,
-          }
-        : null,
-      sender: message.User
-        ? {
-            id: message.User.id,
-            name: message.User.name,
-            image: message.User.image ?? null,
-          }
-        : null,
-    };
-
-    const parsed = MessageResponseSchema.safeParse(dto);
-    if (!parsed.success) {
-      console.error(LOG_PREFIX, 'POST - invalid DTO:', parsed.error.issues);
-      return NextResponse.json(
-        {
-          message: 'Error sending message',
-          ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(parsed.data, { status: 201 });
-  } catch (error) {
-    console.error(LOG_PREFIX, 'POST - error creating message:', error);
-    return NextResponse.json(
-      { message: 'Error sending message', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
-      { status: 500 }
-    );
-  }
-}
+export async function POST(req: Request) { return writeMessage(req, 'create'); }
 
 export async function GET(req: Request) {
   console.log(LOG_PREFIX, `GET(1/3) - fetching messages...`);
@@ -211,6 +49,9 @@ export async function GET(req: Request) {
             id: true,
             title: true,
             createdAt: true,
+            userId: true, participants: true, type: true, visibility: true,
+            replyPermission: true, allowedRoles: true, customViewers: true,
+            visibleToUserIds: true, isLocked: true, deletionVisibility: true, deletionRequestedAt: true,
             User: { select: { id: true, name: true, image: true } },
             Message: { take: 1, orderBy: { createdAt: 'desc' } },
           },
@@ -219,7 +60,7 @@ export async function GET(req: Request) {
     });
 
     if (!conversation) {
-      return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
+      return privateJson({ message: 'Conversation not found' }, { status: 404 });
     }
 
     // Check view permissions
@@ -228,7 +69,7 @@ export async function GET(req: Request) {
     const canView = canViewConversation(user, conversation);
     if (!canView) {
       console.log(LOG_PREFIX, 'GET - user not authorized to view');
-      return NextResponse.json({ message: 'You do not have permission to view this conversation' }, { status: 403 });
+      return privateJson({ message: 'You do not have permission to view this conversation' }, { status: 403 });
     }
 
     // Fetch the messages with sender info + heartbeat count
@@ -321,7 +162,7 @@ export async function GET(req: Request) {
         title: conversation.title,
         description: (conversation as any).description ?? null,
         tags: Array.isArray((conversation as any).tags) ? (conversation as any).tags : [],
-        messageCount: typeof (conversation as any).messageCount === 'number' ? (conversation as any).messageCount : undefined,
+        messageCount: messages.length,
         viewCount: typeof (conversation as any).viewCount === 'number' ? (conversation as any).viewCount : undefined,
         uniqueViewCount:
           typeof (conversation as any).uniqueViewCount === 'number' ? (conversation as any).uniqueViewCount : undefined,
@@ -348,7 +189,7 @@ export async function GET(req: Request) {
         User: creator,
         user: creator,
 
-        Conversation: (conversation as any).Conversation
+        Conversation: conversation.Conversation && canViewConversation(user, conversation.Conversation)
           ? {
               id: (conversation as any).Conversation.id,
               title: (conversation as any).Conversation.title ?? null,
@@ -375,7 +216,7 @@ export async function GET(req: Request) {
     const parsed = MessagesGetResponseSchema.safeParse(dto);
     if (!parsed.success) {
       console.error(LOG_PREFIX, 'GET - invalid DTO:', parsed.error.issues);
-      return NextResponse.json(
+      return privateJson(
         {
           message: 'Error fetching messages',
           ...(isDev ? { error: 'Invalid DTO', issues: parsed.error.issues } : {}),
@@ -385,10 +226,10 @@ export async function GET(req: Request) {
     }
 
     console.log(LOG_PREFIX, `GET(3/3) - fetched messages successfully`);
-    return NextResponse.json(parsed.data, { status: 200 });
+    return privateJson(parsed.data, { status: 200 });
   } catch (error) {
     console.error(LOG_PREFIX, `GET - error fetching messages:`, error);
-    return NextResponse.json(
+    return privateJson(
       { message: 'Error fetching messages', ...(isDev && error instanceof Error ? { error: error.message } : {}) },
       { status: 500 }
     );

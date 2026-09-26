@@ -138,13 +138,18 @@ function ConversationThread() {
   // Pusher real-time updates via shared singleton
   const channelName = conversation && !readProblem && conversationId ? `ConversationChannel_${conversationId}` : '';
 
-  usePusher<{ message?: any; conversationId?: string }>(channelName, 'new-message', useCallback((data: any) => {
-    const newMessage = data.message || data;
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === newMessage.id)) return prev;
-      return [...prev, newMessage];
-    });
-  }, []));
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshFromRealtime = useCallback(() => {
+    if (realtimeTimer.current) return;
+    realtimeTimer.current = setTimeout(() => { realtimeTimer.current = null; void fetchMessages(); }, 150);
+  }, [fetchMessages]);
+  useEffect(() => () => { if (realtimeTimer.current) clearTimeout(realtimeTimer.current); }, []);
+  usePusher(channelName, 'conversation-updated', refreshFromRealtime);
+  usePusher(channelName, 'pusher:subscription_succeeded', refreshFromRealtime);
+  usePusher(channelName, 'edit-message', refreshFromRealtime);
+  usePusher(channelName, 'delete-message', refreshFromRealtime);
+
+  usePusher(channelName, 'new-message', refreshFromRealtime);
 
   usePusher<{ messageId: string }>(channelName, 'message-deleted', useCallback((data) => {
     setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
@@ -296,14 +301,12 @@ function ConversationThread() {
                       {otherParticipant.name?.[0] || '?'}
                     </AvatarFallback>
                   </Avatar>
-                  {/* presence dot */}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="min-w-0 leading-tight">
                   <h1 className="font-semibold text-[15px] text-foreground truncate">
                     {otherParticipant.name || 'Unknown'}
                   </h1>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400/80">Active now</p>
+                  <p className="text-[11px] text-muted-foreground">Direct message</p>
                 </div>
               </div>
             </UserHoverCard>
@@ -427,6 +430,8 @@ function ConversationThread() {
               users={users}
               conversationId={conversationId!}
               loading={loading}
+              onChanged={fetchMessages}
+              allowImages={false}
             />
           </div>
 
@@ -445,6 +450,7 @@ function ConversationThread() {
               <MessageInput
                 conversationId={conversationId!}
                 onMessageSent={fetchMessages}
+                allowImages={false}
               />
             </div>
           </div>

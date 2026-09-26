@@ -87,6 +87,10 @@ export async function POST(req: Request) {
       visibleToUserIds,
     } = bodyResult.data;
 
+    if (initialImageUrl && (visibility !== 'PUBLIC' || type === 'PRIVATE_DM')) {
+      return NextResponse.json({ message: 'Private-chat image uploads are temporarily unavailable. Send text instead.' }, { status: 400 });
+    }
+
     // Process participants - can be user IDs or emails
     let participantIds: string[] = [];
 

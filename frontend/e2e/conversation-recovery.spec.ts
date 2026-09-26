@@ -79,8 +79,45 @@ test('leaving a slow conversation aborts its read and preserves the next thread'
     await expect(page.getByRole('heading', { name: 'Current thread', exact: true })).toBeVisible();
     await expect.poll(() => oldAborted).toBe(true);
     releaseOld();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { name: 'Current thread', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Slow thread', exact: true })).toHaveCount(0);
   } finally { releaseOld(); await context.close(); }
+});
+
+for (const width of [360, 1280]) for (const theme of ['light', 'dark']) test(`message retry/edit/delete controls (${width}px ${theme})`, async ({ browser, baseURL }, info) => {
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    await context.addInitScript(value => localStorage.setItem('theme', value), theme);
+    const session = await (await context.request.get('/api/auth/session')).json(); expect(session.user?.isDemo).toBe(true);
+    const page = await context.newPage(); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    const id = 'qa-message-controls', sender = { id: session.user.id, name: 'QA demo', image: null };
+    let messages: Array<{ id: string; content: string; senderId: string; conversationId: string; createdAt: string; editedAt?: string; User: typeof sender }> = [];
+    const requests: string[] = []; let deletes = 0;
+    await page.route(`**/api/messages?conversationId=${id}`, route => route.fulfill({ json: { messages, users: [sender], conversation: { id, title: 'Message controls QA', type: 'GROUP', userId: sender.id, isAnonymized: false, deletionRequestedAt: null, deletionScheduledFor: null, deletionVisibility: null } } }));
+    await page.route('**/api/messages', async route => {
+      expect(route.request().method()).toBe('POST'); const body = route.request().postDataJSON(); requests.push(body.requestId);
+      if (requests.length === 1) return route.fulfill({ status: 503, json: { message: 'QA temporary failure' } });
+      messages = [{ id: 'qa-message', content: body.content, senderId: sender.id, conversationId: id, createdAt: new Date().toISOString(), User: sender }];
+      await route.fulfill({ status: 201, json: messages[0] });
+    });
+    await page.route('**/api/messages/qa-message', async route => {
+      if (route.request().method() === 'PATCH') { messages[0] = { ...messages[0], content: route.request().postDataJSON().content, editedAt: new Date().toISOString() }; return route.fulfill({ json: messages[0] }); }
+      expect(route.request().method()).toBe('DELETE'); deletes++; messages = []; await route.fulfill({ json: { message: 'Message deleted' } });
+    });
+    await page.goto(`/conversations/${id}`, { waitUntil: 'domcontentloaded' });
+    const composer = page.getByPlaceholder('Write a message…', { exact: true }); await expect(composer).toBeVisible();
+    await expect(page.getByRole('button', { name: /Private images temporarily unavailable/ })).toBeDisabled();
+    await composer.fill('Keep my failed draft'); await composer.press('Enter'); await expect(page.getByText('QA temporary failure', { exact: true })).toBeVisible();
+    await expect(composer).toHaveValue('Keep my failed draft'); await composer.press('Enter'); await expect(composer).toHaveValue('');
+    expect(requests).toHaveLength(2); expect(requests[0]).toBeTruthy(); expect(requests[0]).toBe(requests[1]);
+    await page.getByRole('button', { name: 'Edit message', exact: true }).click(); await page.getByPlaceholder('Edit message...').fill('Updated message');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: info.outputPath('edit.png') });
+    await page.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.getByText('Updated message', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Delete message', exact: true }).click(); const dialog = page.getByRole('dialog', { name: 'Delete this message?', exact: true });
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click(); expect(deletes).toBe(0);
+    await page.getByRole('button', { name: 'Delete message', exact: true }).click(); await dialog.getByRole('button', { name: 'Delete message', exact: true }).click();
+    await expect(page.getByText('Updated message', { exact: true })).toHaveCount(0); expect(deletes).toBe(1); expect(errors).toEqual([]);
+  } finally { await context.close(); }
 });

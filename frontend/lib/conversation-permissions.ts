@@ -27,7 +27,7 @@ export type ConversationForPermissions = Pick<
   | 'customViewers'
   | 'visibleToUserIds'
   | 'isLocked'
->;
+> & Partial<Pick<Conversation, 'deletionVisibility' | 'deletionRequestedAt'>>;
 
 /**
  * Check if a user can READ/VIEW a conversation.
@@ -37,6 +37,9 @@ export function canViewConversation(
   user: PermissionUser | null,
   conversation: ConversationForPermissions
 ): boolean {
+  if (conversation.deletionRequestedAt && conversation.deletionVisibility === 'PRIVATE') {
+    return !!user && (conversation.userId === user.id || user.role === 'OWNER' || user.role === 'ADMIN');
+  }
   // PUBLIC visibility: anyone can view (even guests)
   if (conversation.visibility === 'PUBLIC') {
     return true;
@@ -84,7 +87,7 @@ export function canViewConversation(
 
 /**
  * Check if a user can REPLY/POST messages to a conversation.
- * Assumes user can already view the conversation.
+ * Read access is required here as well; callers cannot accidentally bypass it.
  */
 export function canReplyToConversation(
   user: PermissionUser | null,
@@ -92,7 +95,7 @@ export function canReplyToConversation(
   mentionedUserIds: string[] = []
 ): boolean {
   // Must be authenticated to reply
-  if (!user) {
+  if (!user || !canViewConversation(user, conversation)) {
     return false;
   }
 
@@ -118,7 +121,7 @@ export function canReplyToConversation(
   // Check based on reply permission type
   switch (conversation.replyPermission) {
     case 'EVERYONE':
-      // Anyone who can view can reply (visibility check is assumed)
+      // Read access was checked above.
       return true;
 
     case 'PARTICIPANTS':

@@ -19,6 +19,14 @@ export async function allowSettlementEdit(identity: string, request: Request): P
   return allowAttempt('settlement-quote-edit', identity, request, 120, 60);
 }
 
+/** Durable messaging budgets supplement the short-window burst limiter. */
+export async function allowMessageWrite(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('message-write', identity, request, 200, 100);
+}
+export async function allowRealtimeAuthorization(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('realtime-authorization', identity, request, 300, 150);
+}
+
 async function allowAttempt(operation: string, identity: string, request: Request | undefined, ipLimit: number, identityLimit: number): Promise<boolean> {
   try {
     const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
