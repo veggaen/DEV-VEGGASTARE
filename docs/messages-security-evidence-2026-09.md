@@ -38,7 +38,7 @@ retains its separate pending payment/schema work.
 - Strict production build and TypeScript pass. Lint on touched files has no
   errors; two pre-existing internal-navigation warnings remain in Pulse files.
 - 17 conversation recovery/layout/race tests, four message-control tests
-  (360/1280, light/dark), and three existing realtime/cart checks pass with no
+  (360/1280, actual light/dark), 21 inbox/menu checks and three existing realtime/cart checks pass with no
   retries/skips. Failure fixtures intercept writes; they never mutate hosted data.
 - Actual HTTP/Playwright acceptance against the isolated Preview database creates
   three disposable ordinary users and two private threads. It verifies outsider
@@ -50,6 +50,10 @@ retains its separate pending payment/schema work.
   participant denies read/write/new authorization and clears their open viewer
   after the next body-free event. Test records are removed in `finally`; no
   production user, message, payment or credit is changed.
+- The isolated integration signs ordinary-user session fixtures in memory; it is
+  not evidence of a new OAuth login. Actual Pusher WebSocket frames for new/edit/
+  delete invalidations contain `{}`. A disposable public thread allows guest
+  reading and guest private-channel authorization, then is removed with the fixtures.
 - Actual local no-overflow checks and screenshots: 360, 390, 844 landscape, 1280
   and 2560. Screenshot inspection confirms the pinned composer. Physical keyboard
   and actual 125% desktop zoom remain outside this evidence.
@@ -63,7 +67,43 @@ and `test-results-message-security-realtime-local`. Local integration helper:
 
 ## Hosted acceptance
 
-Pending. Do not infer deployment from local verification.
+Preview runtime `8191c12` is READY as `dpl_GdTQB4CFbWSiapNimaYUwRXzsrxJ`,
+assigned to the isolated `showcase-ai-revival` alias. Strict build/TypeScript pass;
+its 57 migrations have none pending. Final acceptance: 21 conversation, 21 inbox/
+menu and three realtime/cart checks pass. Five extra 1280px-light deletion runs
+also pass. Read/denial-only HTTP checks verify own notification-channel access,
+guest/other-user/cross-environment/cross-origin rejection and demo write denial.
+No hosted message or credit was mutated. That helper's public-feed check had no
+record to exercise on Preview; the real isolated public-thread test above covers it.
+
+Two initial Preview runs exposed a test ambiguity during dialog dismissal: after
+Cancel, the unscoped `Delete message` locator clicked the exiting dialog button,
+not the message-row action. The captured trace identified that exact element.
+The test now waits for the dialog to close and selects the row action by title;
+no forced clicks, added sleeps or retries. Theme fixtures now use `veggat:theme`
+and assert the actual HTML theme, rather than assuming the storage write worked.
+
+An earlier accidental Preview upload (`dpl_67kA4uggnPjg13ZXzGCVYp4mxbXp`) started
+after a cherry-pick conflict. It was cancelled before acceptance and never aliased
+or promoted. The conflict was resolved preserving Preview's separate payment rate
+limiter, the clean tree rechecked, and only then was the accepted Preview built.
+
+Live runtime `576b5ce` plus test-only `21916cc` is READY as
+`dpl_EuM4C5woTVkV4h7Z7VhjwsofbWVB` at
+`dev-veggastare-q7vugrsgv-v3ggas-projects.vercel.app`. Vercel inspect verifies
+`www.veggat.com`, `veggat.com` and `dev-veggastare.vercel.app` aliases. Strict
+build/TypeScript pass, with 56 migrations and none pending. Final Live acceptance:
+21 conversation, 21 inbox/menu and three realtime/cart tests pass without retries
+or skips. Live HTTP authorization checks also pass, including an actual public
+Pulse channel. Message-control mutations in hosted browser tests are intercepted
+fixtures, not real production writes. The two-user real write proof remains local.
+
+Real signed-in Chrome reloads the final inbox, opens an existing self-conversation,
+shows its retained messages and disabled private-image control, and opens/closes
+the members sheet. No messages, memberships, balances or settings were changed.
+The captured console contains extension-origin MetaMask warnings; no application
+error was observed. Human-chat visual polish/scroll anchoring remains a separate
+follow-up, not an implication of these security checks.
 
 ## Remaining release gates
 
