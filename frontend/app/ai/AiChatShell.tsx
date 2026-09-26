@@ -21,8 +21,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiMessageSquare, FiRefreshCw } from "react-icons/fi";
-import { GripVertical, MoreHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiRefreshCw } from "react-icons/fi";
+import { MoreHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { moveRail, orderRail, readRailOrder } from '@/lib/ai-chat/rail-order';
 import { cn } from "@/lib/utils";
@@ -329,25 +329,32 @@ export function RailRow({
 
   return (
     <div
+      draggable={Boolean(onDragStart)}
+      onDragStart={event => {
+        if (!onDragStart || (event.target as HTMLElement).closest('button, input, [role="menu"]')) { event.preventDefault(); return; }
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', s.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       onDragOver={event => { if (onMove) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
       onDrop={event => { event.preventDefault(); onDrop?.(); }}
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }}
       className={cn(
-        "group/row relative flex items-center gap-2 rounded-lg pl-2.5 pr-1 py-1.5 transition-colors",
+        "group/row relative flex items-center gap-2 rounded-lg pl-3 pr-1 py-1.5 transition-colors",
+        onDragStart && "cursor-grab active:cursor-grabbing",
         active ? "bg-emerald-500/12 text-foreground" : "hover:bg-black/5 dark:hover:bg-white/8",
       )}
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-emerald-500" />}
-      {onDragStart ? <button type="button" draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', s.id); onDragStart(); }}
-        onDragEnd={onDragEnd} aria-label={`Reorder ${s.title || 'Untitled'}`} title="Drag to reorder, or use the conversation menu"
-        onKeyDown={event => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); onMove?.(event.key === 'ArrowUp' ? -1 : 1); } }}
-        className="grid size-11 shrink-0 cursor-grab place-items-center rounded-lg text-muted-foreground/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"><GripVertical size={15} aria-hidden="true" /></button>
-        : <FiMessageSquare className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-500" : "text-muted-foreground/60")} />}
-      <Link href={`/ai/${s.id}`} aria-current={active ? 'page' : undefined} title={s.title || 'Untitled'} className="min-w-0 flex-1 text-sm truncate py-3 focus-visible:outline">
+      <Link href={`/ai/${s.id}`} draggable={false} aria-current={active ? 'page' : undefined} title={s.title || 'Untitled'}
+        aria-keyshortcuts={onMove ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
+        onKeyDown={event => { if (onMove && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) { event.preventDefault(); onMove(event.key === 'ArrowUp' ? -1 : 1); } }}
+        className="min-w-0 flex-1 cursor-inherit text-sm truncate py-3 focus-visible:outline">
         {s.title || "Untitled"}
       </Link>
       {(!readOnly || onMove) && <DropdownMenu>
-        <DropdownMenuTrigger asChild><button type="button" aria-label={`Options for ${s.title || 'Untitled'}`} className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"><MoreHorizontal size={17} aria-hidden="true" /></button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><button type="button" draggable={false} onPointerDown={event => event.stopPropagation()} aria-label={`Options for ${s.title || 'Untitled'}`} className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"><MoreHorizontal size={17} aria-hidden="true" /></button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {onMove && <><DropdownMenuItem disabled={!canMoveUp} onSelect={() => onMove(-1)}><ArrowUp size={15} aria-hidden="true" /> Move up</DropdownMenuItem>
             <DropdownMenuItem disabled={!canMoveDown} onSelect={() => onMove(1)}><ArrowDown size={15} aria-hidden="true" /> Move down</DropdownMenuItem></>}

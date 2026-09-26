@@ -34,15 +34,21 @@ export function providerRequest(input: Omit<StreamInput, 'settle' | 'signal'>) {
       body: { model, messages, system: systemPrompt, stream: true, max_tokens: MAX_AI_OUTPUT_TOKENS } };
   }
   headers.Authorization = `Bearer ${apiKey}`;
+  if (provider === 'GROK') {
+    // xAI Chat Completions caps visible output only. Responses explicitly caps
+    // reasoning + visible output together, which is required by our reservation.
+    return { url: 'https://api.x.ai/v1/responses', headers,
+      body: { model, input: apiMessages, stream: true, store: false,
+        reasoning: { effort: 'low' }, max_output_tokens: MAX_AI_OUTPUT_TOKENS } };
+  }
   const url = provider === 'GROQ' ? 'https://api.groq.com/openai/v1/chat/completions' :
-    provider === 'GROK' ? 'https://api.x.ai/v1/chat/completions' :
     provider === 'OPENROUTER' ? 'https://openrouter.ai/api/v1/chat/completions' :
     provider === 'VERCEL' ? 'https://ai-gateway.vercel.sh/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
   const modern = provider === 'GROQ' || (provider === 'OPENAI' && (/^gpt-[5-9]/.test(model) || /^o\d/.test(model)));
   return { url, headers, body: { model, messages: apiMessages, stream: true,
     ...(modern ? { max_completion_tokens: MAX_AI_OUTPUT_TOKENS } : { max_tokens: MAX_AI_OUTPUT_TOKENS }),
     ...(provider === 'OPENAI' ? { store: false, service_tier: 'default' } : {}),
-    ...(model === 'gpt-6-astra' || (provider === 'GROQ' && model.startsWith('openai/gpt-oss-')) || provider === 'GROK' ? { reasoning_effort: 'low' } : {}),
+    ...(model === 'gpt-6-astra' || (provider === 'GROQ' && model.startsWith('openai/gpt-oss-')) ? { reasoning_effort: 'low' } : {}),
   } };
 }
 
@@ -75,11 +81,18 @@ export async function streamBoundedProvider(input: StreamInput): Promise<Respons
     async start(controller) {
       let buffer = '', fullText = '', totalBytes = 0, textBytes = 0, sawText = false, sawTerminal = false;
       function data(raw: string) {
-        if (raw === '[DONE]') { sawTerminal = true; return; }
+        if (raw === '[DONE]') { if (input.provider !== 'GROK') sawTerminal = true; return; }
         const parsed = JSON.parse(raw);
         if (parsed.error || parsed.type === 'error') throw new Error('PROVIDER_STREAM_ERROR');
         let text = '';
-        if (input.provider === 'GOOGLE') {
+        if (input.provider === 'GROK') {
+          if (parsed.type === 'response.failed' || parsed.type === 'response.incomplete') throw new Error('INCOMPLETE_RESPONSE');
+          if (parsed.type === 'response.output_text.delta') text = parsed.delta ?? '';
+          if (parsed.type === 'response.completed') {
+            if (parsed.response?.status !== 'completed' || (parsed.response?.usage?.output_tokens ?? 0) > MAX_AI_OUTPUT_TOKENS) throw new Error('INVALID_COMPLETION');
+            sawTerminal = true;
+          }
+        } else if (input.provider === 'GOOGLE') {
           const candidate = parsed.candidates?.[0];
           text = (candidate?.content?.parts ?? []).filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text ?? '').join('');
           if (candidate?.finishReason) {

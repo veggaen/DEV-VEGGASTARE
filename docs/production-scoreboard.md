@@ -2,6 +2,20 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## AI picker, model catalog and whole-row reordering — 26 September 2026
+
+**PARTIAL — local verified; hosted promotion pending.** Picker bounds and gray
+borders match the app; the composer retains one neutral accessible focus boundary.
+Entire conversation rows can be dragged without grip icons; keyboard/menu moves
+remain available. Current chat catalog entries include Grok 4.5/4.6 with reviewed
+8-credit reservations. xAI now uses Responses to bound reasoning and visible
+tokens together, not Chat Completions' visible-only cap. Three real capped xAI
+smoke calls succeeded; other new BYOK entries are catalog/documentation verified,
+not confirmed with customer keys. 76 focused unit tests, strict build/TypeScript,
+touched-file lint and 24 local light/dark UI checks pass. No schema, PayPal,
+purchase-price or credential changes. Full-route readiness remains incomplete.
+See [scope, sources and evidence](ai-picker-evidence-2026-09.md).
+
 ## Message reading and composer layout — 26 September 2026
 
 **DONE for this layout slice; full messaging remains PARTIAL.** Runtime `83427f5`

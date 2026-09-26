@@ -22,6 +22,10 @@ export const FUNDED_AI_MODELS: readonly FundedModel[] = [
   { provider: 'OPENAI', model: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', credits: 2, reserveMicroUsd: 15_000 },
   { provider: 'OPENAI', model: 'gpt-6-astra', label: 'GPT-6 Astra', credits: 60, reserveMicroUsd: 600_000 },
   { provider: 'GROK', model: 'grok-4.7', label: 'Grok 4.7', credits: 8, reserveMicroUsd: 80_000 },
+  // 2026-09-26: authenticated catalog + official $2/M input, $6/M output.
+  // 2 * ((10,000 + 512) * 2 + 2,048 * 6) = 66,624 microUSD < reserve.
+  { provider: 'GROK', model: 'grok-4.6', label: 'Grok 4.6', credits: 8, reserveMicroUsd: 80_000 },
+  { provider: 'GROK', model: 'grok-4.5', label: 'Grok 4.5', credits: 8, reserveMicroUsd: 80_000 },
   { provider: 'ANTHROPIC', model: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', credits: 16, reserveMicroUsd: 160_000 },
 ];
 

@@ -956,6 +956,35 @@ html.dark .chat-send-btn:not(:disabled):hover {
   outline: none;
 }
 
+/* One neutral focus boundary, shared by the homepage and full chat. This sits
+   after the global focus fallback so it replaces, rather than doubles, it. */
+.ai-composer-surface:has(textarea:focus-visible) {
+  border-color: hsl(var(--muted-foreground));
+  outline: 2px solid hsl(var(--muted-foreground));
+  outline-offset: -1px;
+}
+.ai-composer-surface textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Keep every corner and the close control inside even short/rotated screens.
+   Only the model list scrolls; search and balance never move out of reach. */
+.ai-model-picker {
+  top: 50%;
+  bottom: auto;
+  width: calc(100% - 2rem);
+  max-width: 36rem;
+  height: min(40rem, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  border-radius: 1rem;
+  transform: translateY(-50%);
+  animation: none;
+}
+.ai-model-picker input:focus-visible {
+  outline-color: hsl(var(--muted-foreground));
+  border-radius: var(--radius-lg);
+}
+
 /* Hero feature chip entry — CSS keyframe instead of framer-motion for lower overhead */
 @keyframes heroChipIn {
   from { opacity: 0; transform: translateY(6px); }

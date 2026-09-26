@@ -79,6 +79,9 @@ export const CAPABILITY_BADGES: Record<
 
 // ─── Provider + Model catalog ─────────────────────────────────────────────────
 
+// Reviewed 2026-09-26 against official catalogs. These are chat-compatible
+// choices, not a billing allowlist; platform funding lives in credit-policy.ts.
+// Audio, image/video-only, retired, and specialized agent endpoints are excluded.
 export const AI_PROVIDERS: AiProviderDef[] = [
   {
     value: "VERCEL",
@@ -108,6 +111,11 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       { value: "gemini-3.7-flash",       label: "Gemini 3.7 Flash",      description: "Stable previous-generation Flash model",                              capabilities: ["fast", "vision", "tools"],                          group: "recommended", contextSize: "1M" },
       { value: "gemini-3.6-flash",       label: "Gemini 3.6 Flash",      description: "Balanced stable model for everyday tasks",                            capabilities: ["fast", "vision", "tools"],                          group: "standard",    contextSize: "1M" },
       { value: "gemini-3.5-flash-lite",  label: "Gemini 3.5 Flash-Lite", description: "Lowest-latency option for simple tasks",                              capabilities: ["fast", "cheap"],                                    group: "standard",    contextSize: "1M" },
+      { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash", description: "Previous stable Flash model", group: "standard", contextSize: "1M" },
+      { value: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", description: "Earlier stable lightweight model", group: "legacy", contextSize: "1M" },
+      { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro · Preview", description: "Preview reasoning model; availability can change", group: "standard", supportsThinking: true, contextSize: "1M" },
+      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash", description: "Legacy model; requires prior access on your Google project", group: "legacy", contextSize: "1M" },
+      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", description: "Legacy model; requires prior access on your Google project", group: "legacy", contextSize: "1M" },
     ],
   },
   {
@@ -123,6 +131,8 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       { value: "openai/gpt-oss-20b",      label: "GPT-OSS 20B",               description: "Fast, cost-efficient open-weight model", isDefault: true, capabilities: ["fast", "cheap", "reasoning", "tools"], group: "recommended", contextSize: "128K" },
       { value: "openai/gpt-oss-120b",     label: "GPT-OSS 120B",              description: "Large open-weight reasoning model",                       capabilities: ["reasoning", "tools"],                  group: "recommended", contextSize: "128K" },
       { value: "qwen/qwen3.8-27b",        label: "Qwen 3.8 27B",               description: "Current multilingual reasoning model",                    capabilities: ["fast", "reasoning", "tools"],          group: "standard",    contextSize: "128K" },
+      { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B · Enterprise", description: "Requires Groq enterprise access", group: "legacy", contextSize: "128K" },
+      { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B · Enterprise", description: "Requires Groq enterprise access", group: "legacy", contextSize: "128K" },
     ],
   },
   {
@@ -137,13 +147,18 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     models: [
       { value: "gpt-5.6-luna",   label: "GPT-5.6 Luna",           description: "Fast, cost-sensitive GPT-5.6 model",                 isDefault: true, capabilities: ["fast", "cheap", "vision", "tools", "reasoning"], group: "recommended", contextSize: "1M", supportsThinking: true },
       { value: "gpt-6-astra", label: "GPT-6 Astra", description: "Advanced text reasoning with a higher credit cost", capabilities: ["flagship", "reasoning", "coding"], group: "recommended", supportsThinking: true },
+      { value: "gpt-6-sol", label: "GPT-6 Sol", description: "Balanced reasoning and coding", group: "recommended", contextSize: "1.05M", supportsThinking: true },
+      { value: "gpt-6-luna", label: "GPT-6 Luna", description: "Efficient model for focused everyday tasks", group: "recommended", contextSize: "1.05M", supportsThinking: true },
       { value: "gpt-5.6-terra",  label: "GPT-5.6 Terra",          description: "Balanced intelligence and cost",                                      capabilities: ["flagship", "vision", "tools", "reasoning"],        group: "recommended", contextSize: "1M", supportsThinking: true },
       { value: "gpt-5.6-sol",    label: "GPT-5.6 Sol",            description: "Frontier model for complex professional work",                       capabilities: ["flagship", "vision", "tools", "reasoning", "coding"], group: "recommended", contextSize: "1M", supportsThinking: true },
-      { value: "gpt-4.1",        label: "GPT-4.1",                description: "Reliable and cost-effective",                                       capabilities: ["vision", "tools"],                          group: "standard",    contextSize: "128K" },
-      { value: "gpt-4.1-mini",   label: "GPT-4.1 Mini",           description: "Smaller, faster, cheaper",                                         capabilities: ["fast", "cheap", "vision", "tools"],         group: "standard",    contextSize: "128K" },
+      { value: "gpt-4.1",        label: "GPT-4.1",                description: "Reliable and cost-effective",                                       capabilities: ["vision", "tools"],                          group: "standard",    contextSize: "1M" },
+      { value: "gpt-4.1-mini",   label: "GPT-4.1 Mini",           description: "Smaller, faster, cheaper",                                         capabilities: ["fast", "cheap", "vision", "tools"],         group: "standard",    contextSize: "1M" },
+      { value: "gpt-4.1-nano", label: "GPT-4.1 Nano", description: "Small, low-latency model", group: "standard", contextSize: "1M" },
       { value: "gpt-4o",         label: "GPT-4o",                 description: "Previous multimodal flagship",                                      capabilities: ["vision", "tools"],                          group: "standard",    contextSize: "128K" },
       { value: "gpt-4o-mini",    label: "GPT-4o Mini",            description: "Affordable and quick",                                              capabilities: ["fast", "cheap", "vision"],                  group: "legacy",      contextSize: "128K" },
-      { value: "o4-mini",        label: "o4 Mini",                description: "Reasoning-focused, compact",                                        capabilities: ["reasoning", "tools"],                       group: "standard",    contextSize: "128K", supportsThinking: true },
+      { value: "o4-mini",        label: "o4 Mini",                description: "Reasoning-focused, compact",                                        capabilities: ["reasoning", "tools"],                       group: "standard",    contextSize: "200K", supportsThinking: true },
+      { value: "o3", label: "o3", description: "Earlier general reasoning model", group: "legacy", contextSize: "200K", supportsThinking: true },
+      { value: "o3-mini", label: "o3 Mini", description: "Earlier compact reasoning model", group: "legacy", contextSize: "200K", supportsThinking: true },
     ],
   },
   {
@@ -156,7 +171,10 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     tier: "premium",
     pricingNote: "Credits or BYOK",
     models: [
-      { value: "claude-sonnet-4-6",            label: "Claude Sonnet 4.6", description: "Reliable balance of intelligence, speed, and cost", isDefault: true, capabilities: ["flagship", "vision", "tools", "coding", "reasoning"], group: "recommended", contextSize: "200K", supportsThinking: true },
+      { value: "claude-sonnet-4-6",            label: "Claude Sonnet 4.6", description: "Reliable balance of intelligence, speed, and cost", isDefault: true, capabilities: ["vision", "tools", "coding", "reasoning"], group: "standard", contextSize: "1M", supportsThinking: true },
+      { value: "claude-fable-5-1", label: "Claude Fable 5.1", description: "Advanced reasoning; requires provider account access", group: "recommended", contextSize: "1M", supportsThinking: true },
+      { value: "claude-opus-5-5", label: "Claude Opus 5.5", description: "Complex coding and reasoning", group: "recommended", contextSize: "1M", supportsThinking: true },
+      { value: "claude-sonnet-5", label: "Claude Sonnet 5", description: "Balanced intelligence and speed", group: "recommended", contextSize: "1M", supportsThinking: true },
       { value: "claude-opus-4-8",              label: "Claude Opus 4.8",   description: "Advanced reasoning for ambitious work",                                     capabilities: ["flagship", "vision", "tools", "reasoning", "coding"], group: "recommended", contextSize: "200K", supportsThinking: true },
       { value: "claude-haiku-4-5-20251001",    label: "Claude Haiku 4.5",  description: "Fast and lightweight",                                                       capabilities: ["fast", "cheap", "tools"],                            group: "standard",    contextSize: "200K" },
     ],
@@ -165,13 +183,15 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     value: "GROK",
     label: "Grok (xAI)",
     emoji: "🚀",
-    tagline: "Real-time knowledge with a unique perspective",
+    tagline: "Grok models for text, reasoning, and code",
     getKeyUrl: "https://console.x.ai",
     freeAvailable: false,
     tier: "premium",
     pricingNote: "Credits or BYOK",
     models: [
       { value: "grok-4.7",     label: "Grok 4.7",            description: "xAI's current flagship for chat and code", isDefault: true, capabilities: ["flagship", "vision", "tools", "reasoning", "coding"], group: "recommended", contextSize: "500K", supportsThinking: true },
+      { value: "grok-4.6", label: "Grok 4.6", description: "Previous generation for chat, reasoning, and code", group: "standard", contextSize: "500K", supportsThinking: true },
+      { value: "grok-4.5", label: "Grok 4.5", description: "Earlier reasoning and coding model", group: "standard", contextSize: "500K", supportsThinking: true },
     ],
   },
   {
