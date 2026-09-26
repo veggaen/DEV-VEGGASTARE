@@ -133,7 +133,7 @@ interface PaperSwapPanelProps {
   positions: Array<{
     tokenSymbol: string;
     displayAmount: string;
-    currentPriceUsd: number;
+    currentPriceUsd: number | null;
   }>;
   onTradeComplete: () => void;
 }

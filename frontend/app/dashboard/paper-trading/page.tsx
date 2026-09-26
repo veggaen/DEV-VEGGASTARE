@@ -6,7 +6,7 @@
  * @stability     experimental
  */
 
-import React, { useCallback, useEffect, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from 'next/link';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -31,30 +31,11 @@ import {
 } from "@/actions/paper-trade";
 import { PaperSwapPanel } from "@/components/crypto-related/PaperSwapPanel";
 import { PaperTradeHistory } from "@/components/crypto-related/PaperTradeHistory";
+import type { PaperPortfolioSnapshot } from '@/lib/paper/read';
+import { Button } from '@/components/ui/button';
 
 // ── Types ──
-type PortfolioData = {
-  portfolio: {
-    id: string;
-    startingBalance: number;
-    cashBalance: number;
-    resetCount: number;
-  };
-  positions: Array<{
-    tokenSymbol: string;
-    tokenAddress: string;
-    chainId: number;
-    displayAmount: string;
-    avgEntryPrice: number;
-    currentPriceUsd: number;
-    valueUsd: number;
-    pnlUsd: number;
-    pnlPercent: number;
-  }>;
-  totalValueUsd: number;
-  totalPnlUsd: number;
-  totalPnlPercent: number;
-};
+type PortfolioData = PaperPortfolioSnapshot;
 
 type TabId = "portfolio" | "trade" | "history";
 
@@ -67,7 +48,12 @@ export default function PaperTradingPage() {
     <p className="mt-4 text-muted-foreground">Practice trading uses a separate virtual portfolio. Portfolio creation and trading are disabled in the read-only interview demo; no money or wallet is needed for the marketplace tour.</p>
     <Link href="/products" className="mt-6 inline-flex min-h-11 items-center underline underline-offset-4">Explore the demo marketplace</Link>
   </section>;
-  return <PaperTradingWorkspace />;
+  if (!user?.id) return <section className="mx-auto max-w-xl px-4 py-12">
+    <h1 className="text-2xl font-semibold">Paper trading</h1>
+    <p className="mt-3 text-muted-foreground">Sign in to open your saved paper account.</p>
+    <Button asChild className="mt-6"><Link href="/auth/login?callbackUrl=%2Fdashboard%2Fpaper-trading">Sign in</Link></Button>
+  </section>;
+  return <PaperTradingWorkspace key={`${user.id}:${user.sessionVersion}`} />;
 }
 
 function PaperTradingWorkspace() {
@@ -76,6 +62,9 @@ function PaperTradingWorkspace() {
   const [activeTab, setActiveTab] = useState<TabId>("portfolio");
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasNoPortfolio, setHasNoPortfolio] = useState(false);
+  const readRequest = useRef(0);
   const [isPending, startTransition] = useTransition();
   const [startingBalance, setStartingBalance] = useState("100000");
 
@@ -86,19 +75,31 @@ function PaperTradingWorkspace() {
 
   // Fetch portfolio data
   const refreshPortfolio = useCallback(() => {
+    const id = ++readRequest.current;
     startTransition(async () => {
-      const result = await getPaperPortfolio();
-      if (result.success && result.data) {
-        setPortfolio(result.data);
-      } else {
-        setPortfolio(null);
+      try {
+        const result = await getPaperPortfolio();
+        if (id !== readRequest.current) return;
+        if (result.success) {
+          setPortfolio(result.data); setLoadError(null); setHasNoPortfolio(false);
+        } else if (result.code === 'NOT_FOUND') {
+          setPortfolio(null); setHasNoPortfolio(true); setLoadError(null);
+        } else {
+          setLoadError(result.error); setHasNoPortfolio(false);
+          if (result.code === 'UNAUTHORIZED') setPortfolio(null);
+        }
+      } catch {
+        if (id === readRequest.current) { setLoadError('Your saved portfolio could not be loaded. Try again.'); setHasNoPortfolio(false); }
+      } finally {
+        if (id === readRequest.current) setIsLoading(false);
       }
-      setIsLoading(false);
     });
   }, []);
 
   useEffect(() => {
+    const sequence = readRequest;
     refreshPortfolio();
+    return () => { ++sequence.current; };
   }, [refreshPortfolio]);
 
   // Create portfolio
@@ -125,7 +126,7 @@ function PaperTradingWorkspace() {
   const handleReset = useCallback(async () => {
     if (!(await confirm({
       title: "Reset paper portfolio?",
-      description: "This deletes all positions and trade history. You have limited resets per week.",
+      description: "This clears your positions and restores the starting balance. Your trade history is kept, with a reset entry. Resets are limited.",
       confirmLabel: "Reset portfolio",
       destructive: true,
     }))) return;
@@ -141,7 +142,13 @@ function PaperTradingWorkspace() {
   }, [refreshPortfolio, confirm]);
 
   // ── No portfolio → onboarding ─────────────────────────────────────────────
-  if (!isLoading && !portfolio) {
+  if (!isLoading && !portfolio && loadError) return <section className="mx-auto max-w-xl px-4 py-12">
+    <h1 className="text-2xl font-semibold">Paper trading</h1>
+    <p role="alert" className="mt-3 text-muted-foreground">{loadError}</p>
+    <Button onClick={refreshPortfolio} disabled={isPending} className="mt-6">Retry portfolio</Button>
+    <Link href="/auth/login?callbackUrl=%2Fdashboard%2Fpaper-trading" className="ml-4 inline-flex min-h-11 items-center text-sm underline">Sign in again</Link>
+  </section>;
+  if (!isLoading && !portfolio && hasNoPortfolio) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <motion.div
@@ -164,7 +171,7 @@ function PaperTradingWorkspace() {
           </div>
 
           <div className="space-y-3">
-            <label className="block text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <label htmlFor="paper-starting-balance" className="block text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Starting Balance (USD)
             </label>
             <div className="flex gap-2">
@@ -184,6 +191,7 @@ function PaperTradingWorkspace() {
               ))}
             </div>
             <input
+              id="paper-starting-balance"
               type="number"
               value={startingBalance}
               onChange={(e) => setStartingBalance(e.target.value)}
@@ -219,7 +227,7 @@ function PaperTradingWorkspace() {
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────
-  if (isLoading) {
+  if (isLoading || !portfolio) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <FiRefreshCw className="h-6 w-6 text-amber-500 animate-spin" />
@@ -231,10 +239,10 @@ function PaperTradingWorkspace() {
   const { positions, totalValueUsd, totalPnlUsd, totalPnlPercent } = portfolio!;
   const cashBalance = portfolio!.portfolio.cashBalance;
   const startBal = portfolio!.portfolio.startingBalance;
-  const pnlIsPositive = totalPnlUsd >= 0;
+  const pnlIsPositive = totalPnlUsd !== null && totalPnlUsd >= 0;
 
   return (
-    <div className="space-y-4 px-1 pb-8">
+    <div className="mx-auto w-full max-w-7xl min-w-0 space-y-5 px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -245,7 +253,7 @@ function PaperTradingWorkspace() {
             </span>
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Real prices · Virtual money · Zero risk
+            Saved to your account · Virtual money · Experimental
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -253,8 +261,9 @@ function PaperTradingWorkspace() {
             type="button"
             onClick={refreshPortfolio}
             disabled={isPending}
-            className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40"
+            className="inline-flex size-11 items-center justify-center rounded-lg border border-border hover:bg-muted disabled:opacity-40"
             title="Refresh prices"
+            aria-label="Refresh portfolio"
           >
             <FiRefreshCw
               className={`h-4 w-4 text-zinc-400 ${isPending ? "animate-spin" : ""}`}
@@ -264,7 +273,7 @@ function PaperTradingWorkspace() {
             type="button"
             onClick={handleReset}
             disabled={isPending}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-200 dark:border-rose-500/30 text-xs font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+            className="flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted disabled:opacity-40"
             title="Reset portfolio"
           >
             <FiRotateCcw className="h-3 w-3" />
@@ -273,11 +282,16 @@ function PaperTradingWorkspace() {
         </div>
       </div>
 
+      {loadError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 text-sm">
+        <p>{loadError} Showing the last loaded account.</p>
+        <Button variant="outline" onClick={refreshPortfolio} disabled={isPending}>Retry portfolio</Button>
+      </div>}
+      {totalValueUsd === null && <p role="status" className="text-sm text-muted-foreground">Some prices are unavailable. Holdings are saved; totals will return when prices refresh.</p>}
       {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           label="Total Value"
-          value={`$${totalValueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+          value={formatUsd(totalValueUsd)}
           icon={<FiDollarSign className="h-4 w-4" />}
           color="zinc"
         />
@@ -289,7 +303,7 @@ function PaperTradingWorkspace() {
         />
         <StatCard
           label="Total P&L"
-          value={`${pnlIsPositive ? "+" : ""}$${totalPnlUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+          value={totalPnlUsd === null ? '—' : `${pnlIsPositive ? "+" : ""}${formatUsd(totalPnlUsd)}`}
           icon={
             pnlIsPositive ? (
               <FiTrendingUp className="h-4 w-4" />
@@ -297,13 +311,13 @@ function PaperTradingWorkspace() {
               <FiTrendingDown className="h-4 w-4" />
             )
           }
-          color={pnlIsPositive ? "emerald" : "rose"}
+          color={totalPnlUsd === null ? 'zinc' : pnlIsPositive ? "emerald" : "rose"}
         />
         <StatCard
           label="P&L %"
-          value={`${pnlIsPositive ? "+" : ""}${totalPnlPercent.toFixed(2)}%`}
+          value={totalPnlPercent === null ? '—' : `${pnlIsPositive ? "+" : ""}${totalPnlPercent.toFixed(2)}%`}
           icon={<FiZap className="h-4 w-4" />}
-          color={pnlIsPositive ? "emerald" : "rose"}
+          color={totalPnlUsd === null ? 'zinc' : pnlIsPositive ? "emerald" : "rose"}
         />
       </div>
 
@@ -361,7 +375,7 @@ function PaperTradingWorkspace() {
                 </div>
                 {positions.map((pos, i) => (
                   <motion.div
-                    key={pos.tokenSymbol}
+                    key={`${pos.chainId}:${pos.tokenSymbol}`}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
@@ -383,26 +397,25 @@ function PaperTradingWorkspace() {
                     </div>
                     {/* Current Price */}
                     <div className="text-right text-xs font-mono text-zinc-500 hidden sm:block">
-                      ${pos.currentPriceUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      {formatUsd(pos.currentPriceUsd)}
                     </div>
                     {/* Value */}
                     <div className="text-right text-xs font-mono font-semibold text-zinc-900 dark:text-zinc-100 hidden sm:block">
-                      ${pos.valueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      {formatUsd(pos.valueUsd)}
                     </div>
                     {/* P&L */}
                     <div
                       className={`text-right text-xs font-mono font-semibold ${
-                        pos.pnlUsd >= 0
+                        pos.pnlUsd === null ? 'text-muted-foreground' : pos.pnlUsd >= 0
                           ? "text-emerald-500"
                           : "text-rose-500"
                       }`}
                     >
-                      {pos.pnlUsd >= 0 ? "+" : ""}
-                      ${pos.pnlUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      <span className="text-[10px] ml-1 opacity-75">
-                        ({pos.pnlPercent >= 0 ? "+" : ""}
-                        {pos.pnlPercent.toFixed(1)}%)
-                      </span>
+                      {pos.pnlUsd !== null && pos.pnlUsd >= 0 ? "+" : ""}
+                      {formatUsd(pos.pnlUsd)}
+                      {pos.pnlPercent !== null && <span className="text-[10px] ml-1 opacity-75">
+                        ({pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent.toFixed(1)}%)
+                      </span>}
                     </div>
                   </motion.div>
                 ))}
@@ -494,4 +507,8 @@ function formatAmount(val: string): string {
   if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (n >= 1) return n.toFixed(4);
   return n.toFixed(6);
+}
+
+function formatUsd(value: number | null) {
+  return value === null ? '—' : new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 }
