@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useClientReady } from '@/hooks/use-client-ready';
 import { cn } from '@/lib/utils';
 import { InboxPreviewSchema, previewName, type InboxPreview } from '@/lib/messages-preview';
 import { FiArrowRight, FiEdit, FiMessageSquare, FiSearch, FiX } from 'react-icons/fi';
@@ -22,12 +23,13 @@ export function ChatLiteDropdown({ className }: { className?: string }) {
 }
 
 function MessagePopover({ userId, className }: { userId: string; className?: string }) {
+  const ready = useClientReady();
   const [open, setOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
-      <button type="button" aria-label="Messages" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring', className)}>
+      <button type="button" aria-label="Messages" disabled={!ready} className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50', className)}>
         <FiMessageSquare aria-hidden className="h-[18px] w-[18px]" />
       </button>
     </PopoverTrigger>

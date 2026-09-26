@@ -14,6 +14,14 @@ const rows = (userId: string) => Array.from({ length: 8 }, (_, i) => ({
   userId, updatedAt: '2026-09-26T10:00:00Z', participantDetails: [{ id: userId, name: 'QA' }, { id: 'other', name: 'Alex River' }], participants: [userId, 'other'],
   lastMessage: { content: i === 1 ? '' : `Latest message ${i}`, createdAt: '2026-09-26T10:00:00Z', senderId: i === 0 ? userId : 'other', imageUrl: i === 1 ? '/image.png' : null }, messageCount: 2,
 }));
+test('Messages does not accept clicks before its JavaScript is ready', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, storageState: process.env.E2E_DEMO_STORAGE_STATE, javaScriptEnabled: false });
+  try {
+    const page = await context.newPage(); await page.goto('/conversations', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Messages', exact: true })).toBeDisabled();
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Messages', exact: true })).toHaveAttribute('href', '/conversations');
+  } finally { await context.close(); }
+});
 for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1024, 768], [1280, 800], [1920, 1080], [2560, 1080]]) {
   test(`Messages preview fits, scrolls and navigates (${width}x${height})`, async ({ browser, baseURL }, info) => {
     const { context, userId } = await setup(browser, baseURL, width, height);
