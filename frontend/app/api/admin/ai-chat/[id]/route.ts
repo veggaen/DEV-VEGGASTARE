@@ -4,6 +4,7 @@ import { MyLibUserAuth } from "@/lib/user-auth";
 import { isAdmin, isOwner, logAdminAction } from "@/lib/admin";
 import { dbPrisma } from "@/lib/db";
 import { AdminAction, AdminTargetType } from "@/generated/prisma/browser";
+import { permanentlyDeleteAiConversation } from '@/lib/ai-chat/delete-conversation';
 
 export const dynamic = "force-dynamic";
 
@@ -230,15 +231,17 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await dbPrisma.aiConversation.delete({ where: { id } });
+    const deletion = await permanentlyDeleteAiConversation(id, session.id);
 
     await logAdminAction({
       adminId: session.id,
       action: AdminAction.DELETE,
       targetType: AdminTargetType.CONVERSATION,
       targetId: id,
+      newData: { privateImageCleanupPending: deletion.pending },
     });
 
+    if (deletion.pending) return NextResponse.json({ error: 'Private images are being removed. The chat is hidden; retry permanent deletion after cleanup.' }, { status: 409 });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(`${LOG_PREFIX} Error hard-deleting conversation:`, err);

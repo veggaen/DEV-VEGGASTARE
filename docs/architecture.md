@@ -38,6 +38,12 @@ production behavior; the presence of an integration is not a readiness claim.
 
 ## Four deliberate tradeoffs
 
+Chat image input follows the same private-storage boundary: normalized bytes,
+conversation membership, no public storage URLs and a bounded image allowance
+inside the AI reservation. Metadata survives until remote cleanup succeeds;
+database restrictions prevent orphaning files on hard deletion. Draft files remain
+memory-only until explicit Send. See [verification and limits](ai-chat-images-evidence-2026-09.md).
+
 1. **Server-owned money.** Server SKU prices and verified capture bind amount,
    currency, merchant and internal order. A unique capture identity and a database
    transaction prevent replay grants. It costs more integration work than a

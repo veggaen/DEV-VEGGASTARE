@@ -2,6 +2,16 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Private chat images — 26 September 2026
+
+**PARTIAL — local verified; hosted release pending.** Per-chat image/model drafts,
+private attachment storage, server-side image normalization, reviewed vision costs,
+bounded streams and cleanup are implemented. Build/TypeScript/lint, 75 units and
+18 browser checks pass. One real local image reply debited 3 isolated QA credits;
+zero-balance and unauthorized/private-storage checks passed. Production is unchanged.
+Real Chrome text drafts pass; automated file selection needs extension file-URL
+permission. [Scope and evidence](ai-chat-images-evidence-2026-09.md).
+
 ## AI canvas and independent drafts — 26 September 2026
 
 **DONE for the scoped text-chat canvas; attachments/full-route readiness remain

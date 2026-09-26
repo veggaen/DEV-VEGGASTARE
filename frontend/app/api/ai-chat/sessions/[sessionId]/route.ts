@@ -3,6 +3,7 @@ import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
 import { isDemoUserId } from '@/lib/demo-policy';
+import { imageSelect } from '@/lib/ai-chat/images';
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function GET(
         orderBy: { createdAt: "asc" },
         take: 200,
         include: {
+          images: { select: imageSelect },
           reactions: true,
           participant: { select: { id: true, type: true, displayName: true, aiModel: true } },
         },
@@ -92,11 +94,14 @@ export async function PATCH(
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
 
-  const updated = await dbPrisma.aiConversation.update({
-    where: { id: sessionId },
-    data: body,
-    select: { id: true, title: true, isPublic: true, triggerMode: true, updatedAt: true },
+  const updated = await dbPrisma.$transaction(async tx => {
+    // Same lock as image-upload reservation prevents share/upload races.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(621642901)`;
+    if (body.isPublic && await tx.aiChatImage.count({ where: { conversationId: sessionId } })) return null;
+    return tx.aiConversation.update({ where: { id: sessionId }, data: body,
+      select: { id: true, title: true, isPublic: true, triggerMode: true, updatedAt: true } });
   });
+  if (!updated) return NextResponse.json({ error: 'PRIVATE_IMAGES', message: 'Chats containing private images cannot be made public.' }, { status: 409 });
 
   return NextResponse.json(updated);
 }

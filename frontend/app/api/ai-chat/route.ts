@@ -6,6 +6,8 @@ import { dbPrisma } from '@/lib/db';
 import { AiCreditError } from '@/lib/ai-credit-ledger';
 import { aiErrorResponse, generateMeteredStream } from '@/lib/ai-chat/generation';
 import { guardAiRequest, readAiJson } from '@/lib/ai-chat/request';
+import { loadChatImages } from '@/lib/ai-chat/images';
+import { imageAllowance } from '@/lib/ai-chat/image-policy';
 import { checkInjection, checkAnonRateLimit, detectSensitiveData, getRequestIp, ANON_MSG_MAX } from '@/lib/ai-chat/safety';
 
 export const maxDuration = 60;
@@ -13,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export { GET } from './sessions/route';
 
 const schema = z.object({
-  messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(4000) })).min(1).max(40),
+  messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(4000), imageIds: z.array(z.string().cuid()).max(2).optional() })).min(1).max(40),
   requestId: z.string().uuid().optional(), sessionId: z.string().cuid().nullable().optional(),
   provider: z.enum(['VERCEL', 'GOOGLE', 'GROQ', 'OPENAI', 'ANTHROPIC', 'GROK', 'OPENROUTER']).default('GOOGLE'),
   model: z.string().regex(/^[A-Za-z0-9_./:-]{1,120}$/).optional(),
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
       if (!conversation || conversation.isDeleted || conversation.isSuspended) throw new AiCreditError('CONVERSATION_UNAVAILABLE', 403);
     }
     const provider = body.aiAuth?.provider ?? body.provider, model = body.model;
+    if (body.messages.some(message => message.imageIds?.length) && !imageAllowance(provider, model ?? '')) throw new AiCreditError('IMAGE_MODEL_REQUIRED', 400);
     if (!user?.id) {
       const rate = checkAnonRateLimit(getRequestIp(request));
       if (!rate.allowed) return NextResponse.json({ error: 'RATE_LIMITED', message: 'Guest preview limit reached. Sign in for more.', resetAt: rate.resetAt }, { status: 429 });
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
       if (body.aiAuth) throw new AiCreditError('SIGN_IN_FOR_BYOK', 403);
     }
     const response = await generateMeteredStream({ request, userId: user?.id, requestId: body.requestId,
-      provider, model, messages: body.messages, systemPrompt: SYSTEM_PROMPT,
+      provider, model, messages: await loadChatImages(body.messages, user?.id, body.sessionId ?? undefined), systemPrompt: SYSTEM_PROMPT,
       ...(body.aiAuth ? { key: { apiKey: body.aiAuth.apiKey, remember: body.aiAuth.rememberKey } } : {}) });
     const headers = new Headers(response.headers);
     const sensitive = detectSensitiveData(last.content);

@@ -23,6 +23,26 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 describe('metered generation boundary', () => {
+  it('reserves images in addition to text before spending, including repeated context', async () => {
+    const response = await generateMeteredStream({ ...input(), messages: [{ role: 'user', content: 'Describe', images: ['data:image/jpeg;base64,/9j/'] }] });
+    await response.text();
+    expect(m.reserve).toHaveBeenCalledWith(expect.objectContaining({ credits: 3, reservedMicroUsd: 16000 }));
+    expect(m.reserve.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(fetch).mock.invocationCallOrder[0]);
+    expect(vi.mocked(fetch).mock.calls[0][1]?.body).toContain('"detail":"high"');
+  });
+  it('rejects an image over budget without a provider call', async () => {
+    m.reserve.mockRejectedValueOnce(new AiCreditError('AI_CREDITS_REQUIRED', 402));
+    await expect(generateMeteredStream({ ...input(), messages: [{ role: 'user', content: 'Describe', images: ['data:image/jpeg;base64,/9j/'] }] })).rejects.toMatchObject({ code: 'AI_CREDITS_REQUIRED' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('never sends images to unsupported models or charges BYOK platform credits', async () => {
+    const messages = [{ role: 'user' as const, content: 'Describe', images: ['data:image/jpeg;base64,/9j/'] }];
+    await expect(generateMeteredStream({ ...input(), model: 'gpt-unknown', key: { apiKey: 'fixture-personal-key' }, messages })).rejects.toMatchObject({ code: 'IMAGE_MODEL_REQUIRED' });
+    expect(fetch).not.toHaveBeenCalled();
+    const response = await generateMeteredStream({ ...input(), key: { apiKey: 'fixture-personal-key' }, messages });
+    await response.text();
+    expect(m.reserve).toHaveBeenCalledWith(expect.objectContaining({ funding: 'BYOK', credits: 0, reservedMicroUsd: 0 }));
+  });
   it('reserves the server quote before any provider request and settles success', async () => {
     const response = await generateMeteredStream(input());
     expect(await response.text()).toContain('Hello');

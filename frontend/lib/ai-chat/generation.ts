@@ -1,5 +1,6 @@
 /** @fileOverview One metered generation boundary for direct text providers. @stability experimental */
 import 'server-only';
+import { imageAllowance, CHAT_IMAGES_PER_CONTEXT } from './image-policy';
 import { createHmac, randomUUID } from 'node:crypto';
 import { aiCreditLedger, AiCreditError } from '@/lib/ai-credit-ledger';
 import { getUserAiKeyForGeneration, upsertUserAiKey } from '@/lib/ai-key-store';
@@ -55,11 +56,14 @@ export async function generateMeteredStream(input: GenerateInput) {
   let messages: ChatMessage[];
   try { messages = boundedChatHistory(input.messages, input.systemPrompt); }
   catch { throw new AiCreditError('AI_MESSAGE_TOO_LARGE', 413); }
+  const imageCount = messages.reduce((sum, message) => sum + (message.images?.length ?? 0), 0);
+  const imageQuote = imageAllowance(provider, model);
+  if (imageCount && (!imageQuote || imageCount > CHAT_IMAGES_PER_CONTEXT)) throw new AiCreditError('IMAGE_MODEL_REQUIRED', 400);
   const demo = isDemoUserId(userId);
   if (demo) await aiCreditLedger.grantDemo(userId);
   const reservation = await aiCreditLedger.reserve({ userId, actorKey: aiActorKey(request, userId), requestId: input.requestId ?? randomUUID(),
-    provider, model, funding: byok ? 'BYOK' : 'PLATFORM', credits: byok ? 0 : Math.max(demo ? 1 : 0, quote!.credits),
-    reservedMicroUsd: byok ? 0 : quote!.reserveMicroUsd });
+    provider, model, funding: byok ? 'BYOK' : 'PLATFORM', credits: byok ? 0 : Math.max(demo ? 1 : 0, quote!.credits) + imageCount * (imageQuote?.credits ?? 0),
+    reservedMicroUsd: byok ? 0 : quote!.reserveMicroUsd + imageCount * (imageQuote?.reserveMicroUsd ?? 0) });
   if (input.key?.remember && userId && !demo && provider !== 'VERCEL') {
     // Saving is optional; a storage error must not leak the key or strand a
     // reservation. The valid one-time key still works for this request.
@@ -91,6 +95,12 @@ export async function generateMeteredText(input: GenerateInput) {
 export function aiErrorResponse(error: unknown) {
   const code = error instanceof AiCreditError ? error.code : 'AI_TEMPORARILY_UNAVAILABLE';
   const messages: Record<string, string> = {
+    IMAGE_PRIVATE_CHAT_REQUIRED: 'Images need a private chat in your personal account.',
+    IMAGE_INVALID: 'Choose a still JPG, PNG or WebP under 4 MB and 20 megapixels.',
+    IMAGE_UPLOAD_LIMIT: 'The image upload limit has been reached. Try later or send text instead.',
+    IMAGE_UNAVAILABLE: 'An image is no longer available to this chat. Remove it or attach it again.',
+    IMAGE_MODEL_REQUIRED: 'Choose GPT-5.6 Luna or GPT-6 Astra to send images.',
+    IMAGE_COMPOSER_REQUIRED: 'Use the main composer for chats with images so the full credit cost is shown before sending.',
     MEDIA_PERSONAL_ACCOUNT: 'Use a personal account for image and video generation. The demo includes text chat.',
     MEDIA_NOT_FOUND: 'This generation is not available to your account.',
     MEDIA_UNAVAILABLE: 'Media generation is temporarily unavailable. No credits were used.',

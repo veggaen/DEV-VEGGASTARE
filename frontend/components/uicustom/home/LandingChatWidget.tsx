@@ -18,6 +18,7 @@ import React, {
   useState,
 } from "react";
 import { ChatComposer } from '@/components/uicustom/ai/ChatComposer';
+import { readChatStream } from '@/lib/ai-chat/read-stream';
 import dynamic from 'next/dynamic';
 const MessageContent = dynamic(() => import('@/components/uicustom/ai/MessageContent').then(m => m.MessageContent));
 import { useRouter } from "next/navigation";
@@ -439,39 +440,10 @@ export default function LandingChatWidget({
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.error) {
-              dispatch({ type: 'SET_ERROR', error: parsed.message ?? 'The response was interrupted.' });
-              return;
-            }
-            if (parsed.text) {
-              fullAiContent += parsed.text;
-              dispatch({
-                type: "APPEND_CHUNK",
-                id: assistantId,
-                text: parsed.text,
-              });
-            }
-          } catch {
-            /* skip malformed chunks */
-          }
-        }
-      }
+      fullAiContent = await readChatStream(res, text => {
+        fullAiContent += text;
+        dispatch({ type: 'APPEND_CHUNK', id: assistantId, text });
+      });
 
       dispatch({ type: "STREAM_DONE" });
 
