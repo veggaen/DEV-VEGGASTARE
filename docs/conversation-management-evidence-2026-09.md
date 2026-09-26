@@ -32,11 +32,15 @@ credit, credential or billing change.
 
 ## Verification record
 
-126 focused unit/API tests, touched-file ESLint, strict production build/TypeScript
+151 focused unit/API tests, touched-file ESLint, strict production build/TypeScript
 and all 22 local browser cases pass. The real isolated-database lifecycle test
 passed in 18.4 seconds. Hosted checks remain pending. Local evidence is under
 `frontend/test-results/conversation-management-local-privacy-final` and
 `frontend/test-results/conversation-management-db-final` (ignored artifacts).
+The wider regressions include message reads, header previews, subscriptions and
+private-channel authorization. The old public-subscription fixture incorrectly
+used a GROUP type; it now uses PUBLIC_THREAD, with explicit legacy private-type
+denial cases for both guests and non-members.
 
 The database test creates only random disposable password users in the isolated
 Preview database. It verifies creation/replay, foreign-owner denial, bad origins,

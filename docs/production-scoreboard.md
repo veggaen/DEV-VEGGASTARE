@@ -8,7 +8,7 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 now uses current-session checks, locked/idempotent writes and bounded validation.
 Legacy direct/group chats cannot leak through broad visibility or nested reposts.
 Delete/cancel failures are recoverable; pending-deletion composers preserve drafts
-while disabled. Misleading Mute controls were removed. 126 focused unit tests and
+while disabled. Misleading Mute controls were removed. 151 focused unit tests and
 touched-file lint, strict build/TypeScript, the real isolated-database lifecycle,
 and 22 local browser cases pass. Preview/Live acceptance remains pending.
 No payment, credit, price or schema changes. See [scoped evidence](conversation-management-evidence-2026-09.md).
