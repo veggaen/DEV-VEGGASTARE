@@ -33,7 +33,7 @@ Reuse existing tokens/components; keep copy short and secondary help disclosed.
 | Marketplace/order | Discover → PDP → cart → checkout → verified payment → receipt/download; physical shipping/fulfillment; buyer + employee + owner order views | PARTIAL — curated digital checkout exists; general-listing checkout explicitly unavailable |
 | Payments/credits | Sandbox capture/cancel/refund/webhook replay, mixed cart, amount authority, caps; credit reservation/refund/zero balance/concurrency; seller routing | PARTIAL — retain prior evidence; do not infer all sellers/payment methods work |
 | Jobs | Post as personal/company actor, discover, apply/claim by second account, accept/reject/cancel/complete, permissions, duplicate claim and stale edits | PARTIAL — detail/read coverage does not prove the lifecycle |
-| Paper trading | Create portfolio, buy/sell/swap; cash/positions/history and fees; reload, logout/login, second browser, isolated second user, aged records, reset consent; concurrency and price outage | PARTIAL — database models exist; retention report and execution safety unverified |
+| Paper trading | Create portfolio, buy/sell/swap; cash/positions/history and fees; reload, logout/login, second browser, isolated second user, aged records, reset consent; concurrency and price outage | PARTIAL — saved-account/history reads, older pagination, independent login and account isolation pass locally/Preview; execution safety, actual elapsed-time retention and trading UX still open |
 | P2P trading | Two independent users/wallets; invite/decline, edit offer resets both approvals, double-confirm/replay/disconnect/expiry; only verified settlement completes | PARTIAL — no complete two-party acceptance established |
 | Local chain | Isolated Anvil/devnet accounts; connect/switch wrong chain, balances, submit, receipt/confirmations, revert/replacement/replay, history and reconnect | PARTIAL — no completed local-chain acceptance established; never use real assets |
 | AI | Fresh chat, per-chat draft/attachments, reorder, providers/models, stream/stop/retry, image/video states, durable history and credit safety | PARTIAL — retain scoped evidence; no blanket all-provider claim |
@@ -58,7 +58,9 @@ Reuse existing tokens/components; keep copy short and secondary help disclosed.
 
 Product lifecycle findings below have scoped fixes and local verification in
 [product lifecycle evidence](product-lifecycle-evidence-2026-09.md). Paper trading
-findings remain open; database storage alone does not establish reliable persistence.
+read findings have scoped local/Preview verification in
+[paper-account evidence](paper-account-read-evidence-2026-09.md); execution findings
+remain open. Database storage alone does not establish reliable persistence.
 
 - `frontend/actions/products.ts`: company product authors retain edit/archive
   rights after membership removal; edit/delete/visibility permissions are merged

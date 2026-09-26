@@ -36,7 +36,26 @@ schema, PayPal or credit-ledger writes were changed by this slice.
   older-page access, other-account cursor denial, failure recovery and unavailable
   quotes. Network failures are injected; successful reads use the real server
   and database. Backdating fixtures is not proof of real elapsed-time retention.
-- Full viewport/browser run and hosted verification pending.
+- Eight actual-server cases pass locally (54.7 seconds) and on isolated hosted
+  Preview (1.7 minutes): 360×800, 390×844, 844×390, 768×1024, 1024×1600,
+  1280×800, 1920×1080 and 2560×1080, alternating light/dark themes. All check
+  history pagination, interrupted reads, price unavailability and document width;
+  360/1280 additionally test independent login and a second user's cursor denial.
+  Phone, landscape and ultrawide screenshots were inspected. 125% browser zoom
+  and full trade-panel visual acceptance remain open.
+- Early test runs exposed a consent overlay and excessive repeated sign-ins.
+  Tests now choose Essential Only, retain auth throttles and use fewer redundant
+  logins. One timed-out test left two disposable users; exact-ID cleanup removed
+  them, and cleanup now tolerates already-closed browser contexts.
+- Preview `dpl_4fsDqLSYqiEgvFhy6wbqJZ9R8LpP` is Ready on the stable Sandbox
+  alias. Runtime `e9b692e` is integrated as `cd803cf`. An earlier Preview attempt
+  was correctly rejected before migrations due to callback-origin configuration;
+  the established isolated deployment helper supplied the correct configuration.
+  No new credentials or migrations. Release secret scan passes.
+- Live read-only baseline: the owner's account has a portfolio with no positions
+  or history. No portfolio mutation was made. The trading page's inline paper
+  panel is only a link to this dashboard; its old context is a compatibility shim,
+  not separate persisted balances. Production promotion of this read fix pending.
 
 ## Still open
 
