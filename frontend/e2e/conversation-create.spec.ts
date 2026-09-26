@@ -43,6 +43,10 @@ for (const [width, height] of [[360, 800], [390, 844], [844, 390], [1280, 800], 
       expect(submissions[1].requestId).toBe(submissions[0].requestId);
       await message.fill('Changed draft');
       await submit.scrollIntoViewIfNeeded(); await expect(submit).toBeInViewport();
+      if (width >= 1024) {
+        const field = await message.boundingBox(), action = await submit.boundingBox();
+        expect(action!.y).toBeGreaterThanOrEqual(field!.y + field!.height);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       await page.screenshot({ path: info.outputPath('new-conversation.png') });
       await submit.click();
