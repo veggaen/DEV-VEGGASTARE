@@ -2,6 +2,25 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Route-by-route audit restart and conversation creation — 26 September 2026
+
+**PARTIAL — local verification complete; hosted promotion pending.** All 77 static
+URL candidates were visited and scrolled at 390/2560 without document overflow,
+browser page errors or HTTP 5xx. Redirected admin/auth screens are not certified;
+24 dynamic route patterns still require record-specific acceptance. The fresh
+[route ledger](route-audit-2026-09-26.md) marks untested functionality explicitly.
+
+Creation now enforces origin, bounded JSON, current session version, private
+recipients and durable throttling. First-message persistence is atomic; stable
+request IDs and pair locks handle retries/concurrent starts. Existing DMs no
+longer discard the first message. Form drafts survive failures, with consistent
+gray borders and neutral visible focus. 66 unit tests, strict build/TypeScript,
+touched-file lint and 12 light/dark scoped browser checks pass locally. A real
+isolated-database test verified two password users starting a DM concurrently,
+group replay, exact message counts and privacy rejection, then removed only its
+disposable fixtures. No customer messages, schema, payment or credit changes.
+Remaining conversation-management/reaction endpoints are the next security slice.
+
 ## AI picker, model catalog and whole-row reordering — 26 September 2026
 
 **DONE for this scoped release; full route/provider audit remains PARTIAL.**

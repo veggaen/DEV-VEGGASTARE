@@ -23,6 +23,9 @@ export async function allowSettlementEdit(identity: string, request: Request): P
 export async function allowMessageWrite(identity: string, request: Request): Promise<boolean> {
   return allowAttempt('message-write', identity, request, 200, 100);
 }
+export async function allowConversationCreate(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('conversation-create', identity, request, 60, 20);
+}
 export async function allowRealtimeAuthorization(identity: string, request: Request): Promise<boolean> {
   return allowAttempt('realtime-authorization', identity, request, 300, 150);
 }

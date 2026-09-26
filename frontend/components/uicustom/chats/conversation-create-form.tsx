@@ -76,6 +76,7 @@ export default function ConversationCreateForm() {
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const createAttempt = useRef<{ signature: string; image: File | null; requestId: string; uploaded?: string } | null>(null);
 
   // Initial message state (required for DM/Group)
   const [initialMessage, setInitialMessage] = useState('');
@@ -300,13 +301,22 @@ export default function ConversationCreateForm() {
 
     setIsSubmitting(true);
     try {
+      const input = { title: finalTitle, description: description.trim() || undefined, participants: participants.map(p => p.id),
+        type: conversationType, visibility, replyPermission, tags, initialMessage: initialMessage.trim() || undefined,
+        pollQuestion: includePoll && pollQuestion.trim() ? pollQuestion.trim() : undefined };
+      const signature = JSON.stringify(input);
+      if (createAttempt.current?.signature !== signature || createAttempt.current.image !== image) {
+        createAttempt.current = { signature, image, requestId: crypto.randomUUID() };
+      }
+      const attempt = createAttempt.current;
       // Upload image if present
-      let uploadedImageUrl: string | undefined;
-      if (image) {
+      let uploadedImageUrl = attempt.uploaded;
+      if (image && !uploadedImageUrl) {
         setIsUploadingImage(true);
         try {
           const res = await edgestore.myPublicImages.upload({ file: image });
           uploadedImageUrl = res.url;
+          attempt.uploaded = res.url;
         } catch (uploadErr) {
           console.error('Image upload failed:', uploadErr);
           setError('Failed to upload image. Please try again.');
@@ -321,6 +331,7 @@ export default function ConversationCreateForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          requestId: attempt.requestId,
           title: finalTitle,
           description: description.trim() || undefined,
           participants: participants.map(p => p.id),
