@@ -4,11 +4,12 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## AI canvas and independent drafts — 26 September 2026
 
-**PARTIAL: local acceptance passed, production promotion pending.** `/ai` opens
+**DONE for the scoped text-chat canvas; attachments/full-route readiness remain PARTIAL.** `/ai` opens
 a centered composer; the homepage shares the restrained input design. Text drafts
 are isolated by account/conversation, with mouse/keyboard/tap reordering and safe
-Markdown. Build, TypeScript, touched lint, 55 focused units and 12 light/4 targeted
-dark browser checks pass. Landscape transcript space is explicitly checked.
+Markdown. Build, TypeScript, touched lint, 55 focused units and 25 browser checks
+each on the exact local candidate and Live pass. Landscape transcript space is
+explicitly checked. Runtime `85dc830` is Live as `dpl_3BvBmVYkht32cq525oEy9XHdWbWx`.
 Attachments, cross-device draft/order persistence and the full-route audit remain
 unfinished. No payment, schema, pricing or ledger changes. See
 [scope and evidence](ai-canvas-evidence-2026-09.md).
