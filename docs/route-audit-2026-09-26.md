@@ -65,7 +65,7 @@ This is triage, not a claim that all buttons or background APIs work.
 | `/companies/create` | PASS (200) | `/companies/create` | PENDING |
 | `/company` | PASS (200) | `/companies` | PENDING |
 | `/contact` | PASS (200) | `/info` | PENDING |
-| `/conversations` | PASS (200) | `/conversations` | Management/visibility candidate in verification |
+| `/conversations` | PASS (200) | `/conversations` | Scoped management/visibility checks deployed; other features pending |
 | `/conversations/new` | PASS (200) | `/conversations/new` | Scoped creation checks below |
 | `/dashboard` | PASS (200) | `/dashboard` | PENDING |
 | `/dashboard/inventory` | PASS (200) | `/dashboard/trading` | PENDING |
@@ -116,7 +116,7 @@ This is triage, not a claim that all buttons or background APIs work.
 - `/companies/[id]/hub` — PENDING fresh full feature/security acceptance.
 - `/companies/[id]/settings` — PENDING fresh full feature/security acceptance.
 - `/company/[companyId]` — PENDING fresh full feature/security acceptance.
-- `/conversations/[id]` — management/visibility candidate in verification; remaining features PENDING.
+- `/conversations/[id]` — management/visibility acceptance deployed; remaining features PENDING.
 - `/jobs/[id]` — PENDING fresh full feature/security acceptance.
 - `/nexus/company/[companyId]` — PENDING fresh full feature/security acceptance.
 - `/nexus/company/[companyId]/hub` — PENDING fresh full feature/security acceptance.
@@ -166,9 +166,13 @@ write/concurrency evidence comes from the isolated-database test above.
 
 ## Next acceptance queue
 
-1. Finish [management/visibility verification](conversation-management-evidence-2026-09.md),
-   then reaction/repost, flags/pins and other metadata endpoints. Historical private
-   attachments remain pending; creation/management checks do not certify these endpoints.
+1. [Management/visibility acceptance](conversation-management-evidence-2026-09.md)
+   now passes locally/Preview/Live. Next: reaction/repost, flags/pins and other
+   metadata endpoints. Source review found missing view checks in flags/pin reads,
+   insufficient guards on older reaction writes, and feed menu actions that only
+   log a message. Profile-pin presentation needs an end-to-end check, not just a
+   successful database write. Historical private attachments remain pending;
+   creation/management checks do not certify these endpoints.
 2. Remaining dynamic record paths, including owned/foreign/missing records and
    meaningful empty/error states, then all displayed actions in each static family.
 3. Auth/admin/seller role-specific passes, real phone keyboard and native zoom.
