@@ -17,6 +17,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { ChatComposer } from '@/components/uicustom/ai/ChatComposer';
+import dynamic from 'next/dynamic';
+const MessageContent = dynamic(() => import('@/components/uicustom/ai/MessageContent').then(m => m.MessageContent));
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';
@@ -567,67 +570,9 @@ export default function LandingChatWidget({
         </DialogContent>
       </Dialog>
 
-      {/* ═══════ MOBILE (< md landscape) ═══════ */}
-      <div className="portrait:hidden md:hidden">
-        <AnimatePresence>
-          {state.panel === "collapsed" && viewMode === "widget" && (
-            <motion.button
-              key="chat-bubble"
-              initial={{ opacity: 0, scale: 0.8, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 16 }}
-              transition={{
-                duration: reduceMotion ? 0 : 0.2,
-                ease: "easeOut",
-              }}
-              onClick={handleOpen}
-              aria-label="Open AI chat"
-              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full glass-panel shadow-lg shadow-sky-500/10 dark:shadow-emerald-500/10 text-sm font-medium text-foreground hover:border-sky-400/60 dark:hover:border-emerald-400/60 hover:shadow-sky-400/20 dark:hover:shadow-emerald-400/20 transition-colors"
-            >
-              <span className="text-sky-400 dark:text-emerald-400 text-base">✦</span>
-              <span>Ask AI</span>
-              {state.messages.length > 0 && (
-                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
-                  {state.messages.filter((m) => m.role === "user").length}
-                </span>
-              )}
-            </motion.button>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {state.panel === "lite" && viewMode === "widget" && (
-            <motion.div
-              key="chat-panel-mobile"
-              initial={{ opacity: 0, y: 24, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 24, scale: 0.97 }}
-              transition={{
-                duration: reduceMotion ? 0 : 0.22,
-                ease: [0.25, 0.46, 0.45, 0.94],
-              }}
-              className="fixed bottom-6 right-6 z-50 flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/30"
-              style={{
-                width: "min(360px, calc(100vw - 32px))",
-                height: "min(520px, calc(100dvh - 160px))",
-              }}
-              role="dialog"
-              aria-label="AI chat"
-            >
-              <ChatPanelInner {...panelProps} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
       {/* ═══════ DESKTOP / PORTRAIT ═══════ */}
       {viewMode === "widget" && (
-        <div className="hidden portrait:flex md:landscape:flex flex-col items-center w-full px-4 pb-6 pt-4">
-          <div className="mb-3 text-center">
-            <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground/50">
-              Ask AI
-            </span>
-          </div>
+        <div className="flex flex-col items-center w-full px-4 pb-6 pt-4">
           <AnimatePresence mode="wait" initial={false}>
             {desktopOpen ? (
               <motion.div
@@ -640,7 +585,7 @@ export default function LandingChatWidget({
                   ease: [0.25, 0.46, 0.45, 0.94],
                 }}
                 className="w-full max-w-2xl flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/20 chat-desktop-panel"
-                style={{ height: "clamp(320px, 42vh, 480px)" }}
+                style={{ height: state.messages.length ? "clamp(360px, 48dvh, 560px)" : "auto" }}
                 role="complementary"
                 aria-label="AI chat"
               >
@@ -802,16 +747,7 @@ function ChatPanelInner({
             </span>
           )}
         </div>
-        <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto">
-          {/* Model selector */}
-          <CreditModelPicker
-            provider={provider}
-            model={model}
-            byokProvider={byokActive && !creditConfig?.demo ? detectedByokProvider : null}
-            config={creditConfig} error={creditError}
-            onSelect={onSelectModel}
-            disabled={state.isStreaming}
-          />
+        <div className="flex min-w-0 items-center gap-1">
           {/* BYOK toggle */}
           {isLoggedIn && !creditConfig?.demo && (
             <button
@@ -1099,47 +1035,8 @@ function ChatPanelInner({
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3 min-h-0">
         {state.messages.length === 0 ? (
-          <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
-            <div
-              className={`text-sky-400 dark:text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}
-            >
-              ✦
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium text-foreground">
-                {isLoggedIn
-                  ? byokActive
-                    ? `Chat with ${providerDef?.label ?? activeProvider} (your key)`
-                    : `Chat with ${getProviderDef(provider)?.label ?? provider}`
-                  : "Ask anything about Veggat"}
-              </p>
-              <p className="text-xs text-muted-foreground max-w-60 mx-auto">
-                {isLoggedIn
-                  ? "Pick a model above or bring your own key to unlock all providers."
-                  : "Try a limited free preview. Sign in for more models with clear per-message credit costs."}
-              </p>
-            </div>
-            <div
-              className={`flex flex-wrap gap-2 justify-center ${desktopMode ? "max-w-lg" : "max-w-70"}`}
-            >
-              {SUGGESTED_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => onSuggest(prompt)}
-                  className="text-[11px] px-3 py-1.5 rounded-full bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 text-muted-foreground hover:bg-sky-500/10 dark:hover:bg-emerald-500/10 hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:text-sky-600 dark:hover:text-emerald-300 transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-            {!isLoggedIn && (
-              <a
-                href="/auth/login"
-                className="text-[11px] text-sky-400 dark:text-emerald-400 hover:text-sky-300 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors"
-              >
-                Sign in for full access
-              </a>
-            )}
+          <div className="flex min-h-24 items-center justify-center py-6 text-center">
+            <h2 className="text-xl font-medium tracking-tight sm:text-2xl">What’s on your mind?</h2>
           </div>
         ) : (
           <>
@@ -1232,79 +1129,12 @@ function ChatPanelInner({
         )}
       </AnimatePresence>
 
-      {/* ── Input area ── */}
-      {isLoggedIn && <div className="shrink-0 px-4 py-2"><AiCreditStatus config={creditConfig} error={creditError} /></div>}
-      <div className="px-3 py-3 border-t border-black/8 dark:border-white/10 shrink-0 chat-input-area">
-        {/* Model indicator bar */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
-            <span>{providerDef?.emoji ?? "✦"}</span>
-            <span>
-              {getProviderDef(activeProvider)?.models.find(
-                (m) => m.value === model
-              )?.label ?? model}
-            </span>
-            {byokActive && (
-              <span className="text-sky-400/60 dark:text-emerald-400/60">• your key</span>
-            )}
-            {!byokActive && lastCostTier === "premium" && (
-              <span className="text-amber-400/70">• premium credits</span>
-            )}
-            {!byokActive && lastCostTier === "free" && (
-              <span className="text-sky-400/40 dark:text-emerald-400/40">• free</span>
-            )}
-          </div>
-          {!isLoggedIn &&
-            state.input.length > ANON_MAX_LENGTH * 0.7 && (
-              <span
-                className={`text-[10px] ${state.input.length > ANON_MAX_LENGTH ? "text-red-400" : "text-muted-foreground/40"}`}
-              >
-                {state.input.length}/{ANON_MAX_LENGTH}
-              </span>
-            )}
-        </div>
-        <div className="flex items-end gap-2 rounded-xl bg-black/4 dark:bg-white/5 px-3 py-2 border border-black/10 dark:border-white/10 chat-input-wrapper">
-          <textarea
-            ref={inputRef}
-            value={state.input}
-            onChange={(e) => {
-              dispatch({ type: "SET_INPUT", value: e.target.value });
-              if (
-                showLongMsgGate &&
-                e.target.value.length <= ANON_MAX_LENGTH
-              )
-                setShowLongMsgGate(false);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask anything…"
-            rows={1}
-            disabled={state.isStreaming}
-            aria-label="AI message"
-            className="field-size-content min-w-0 flex-1 resize-none bg-transparent text-base text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
-            style={{ lineHeight: "1.4", scrollbarWidth: "none" }}
-          />
-          <button
-            onClick={onSend}
-            disabled={!state.input.trim() || state.isStreaming}
-            className="shrink-0 flex items-center justify-center h-11 w-11 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black hover:bg-sky-400 dark:hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
-            aria-label="Send"
-          >
-            {state.isStreaming ? (
-              <span className="h-3 w-3 rounded-full border-2 border-black/50 border-t-transparent animate-spin" />
-            ) : (
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            )}
-          </button>
-        </div>
+      <div className="shrink-0 px-3 pb-3">
+        <ChatComposer value={state.input} onChange={value => { dispatch({ type: 'SET_INPUT', value }); if (value.length <= ANON_MAX_LENGTH) setShowLongMsgGate(false); }}
+          onSend={onSend} busy={state.isStreaming}
+          toolbar={<CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError}
+            byokProvider={byokActive && !creditConfig?.demo ? detectedByokProvider : null} onSelect={onSelectModel} disabled={state.isStreaming} />}
+          guidance={!isLoggedIn ? 'Free preview · sign in for more models' : <span>{byokActive ? 'Your key' : `${creditConfig?.models.find(item => item.provider === provider && item.model === model)?.credits ?? '…'} credits / message`}</span>} />
       </div>
     </>
   );
@@ -1333,13 +1163,13 @@ function MessageBubble({
         </div>
       )}
       <div
-        className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word ${
+        className={`min-w-0 rounded-2xl px-3 py-2 text-base leading-7 [overflow-wrap:anywhere] ${
           isUser
-            ? "bg-sky-500/15 dark:bg-emerald-500/15 border border-sky-500/20 dark:border-emerald-500/20 text-foreground rounded-tr-sm"
-            : "bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 text-foreground rounded-tl-sm"
+            ? "max-w-[85%] bg-muted whitespace-pre-wrap text-foreground"
+            : "flex-1 text-foreground"
         }`}
       >
-        {msg.content}
+        {isUser ? msg.content : <MessageContent content={msg.content} />}
       </div>
     </motion.div>
   );

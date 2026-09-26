@@ -22,6 +22,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiCheck, FiX, FiMenu, FiMessageSquare, FiRefreshCw } from "react-icons/fi";
+import { GripVertical, MoreHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { moveRail, orderRail, readRailOrder } from '@/lib/ai-chat/rail-order';
 import { cn } from "@/lib/utils";
 import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -32,10 +35,12 @@ const RAIL_W = "18rem";
 
 export function AiChatShell({
   isLoggedIn,
+  userId = null,
   isDemo = false,
   children,
 }: {
   isLoggedIn: boolean;
+  userId?: string | null;
   isDemo?: boolean;
   children: React.ReactNode;
 }) {
@@ -47,8 +52,23 @@ export function AiChatShell({
   const confirm = useConfirm();
 
   const [query, setQuery] = React.useState("");
+  const [order, setOrder] = React.useState<string[]>([]);
+  const [orderNotice, setOrderNotice] = React.useState('');
+  const orderKey = userId ? `veggat:ai-order:${userId}` : null;
+  React.useEffect(() => {
+    try { setOrder(orderKey ? readRailOrder(localStorage.getItem(orderKey)) : []); } catch { setOrder([]); }
+  }, [orderKey]);
   const list = useAiSessionList(isLoggedIn && !studio, query);
   const { refresh, update } = list;
+  const sessions = React.useMemo(() => list.sessions ? orderRail(list.sessions, order) : null, [list.sessions, order]);
+  const reorder = (source: string, target: string) => {
+    if (query.trim() || !sessions) return;
+    const ids = [...sessions.map(row => row.id), ...order.filter(id => !sessions.some(row => row.id === id))];
+    const next = moveRail(ids, source, target);
+    setOrder(next);
+    setOrderNotice('Conversation order updated.');
+    try { if (orderKey) localStorage.setItem(orderKey, JSON.stringify(next)); } catch { setOrderNotice('Reordered for this visit. Browser storage is unavailable.'); }
+  };
   const [creating, setCreating] = React.useState(false);
   // Drawer open state (used in overlay mode + on mobile).
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -110,7 +130,7 @@ export function AiChatShell({
 
   const rail = (
     <AiChatRail
-      sessions={list.sessions}
+      sessions={sessions}
       activeId={activeId}
       creating={creating}
       query={query}
@@ -126,6 +146,8 @@ export function AiChatShell({
       capped={list.capped}
       onRetry={refresh}
       onMore={list.loadMore}
+      onReorder={reorder}
+      orderNotice={orderNotice}
     />
   );
 
@@ -135,11 +157,11 @@ export function AiChatShell({
   if (studio) return <div className="mx-auto h-[calc(100dvh-var(--app-header-offset,64px)-var(--demo-notice-height,0px))] w-full max-w-[1280px] min-w-0">{children}</div>;
 
   return (
-    <div className="relative mx-auto flex h-[calc(100dvh-var(--app-header-offset,64px)-var(--demo-notice-height,0px))] w-full max-w-[1280px] min-h-0 min-w-0 overflow-hidden">
+    <div className="relative flex h-full flex-1 w-full min-h-0 min-w-0 overflow-hidden">
       {docked && <aside className="hidden shrink-0 flex-col border-r border-border bg-background/60 lg:flex" style={{ width: RAIL_W }}>{rail}</aside>}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <div className={cn("shrink-0 border-b border-border px-3 py-1", (activeId || docked) && "lg:hidden", activeId && "hidden")}>
+          <div className={pathname === '/ai/credits' ? cn('px-4 pt-2', docked && 'lg:hidden') : 'hidden'}>
             <SheetTrigger asChild>
               <button type="button" aria-label="Open conversations" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm hover:bg-muted">
                 <FiMenu className="h-4 w-4" /> Conversations
@@ -161,7 +183,7 @@ export function AiChatShell({
 }
 
 function AiChatRail({
-  sessions, activeId, creating, query, onQuery, onNewChat, onRename, onRemove, readOnly, isLoggedIn, loading, error, hasMore, capped, onRetry, onMore,
+  sessions, activeId, creating, query, onQuery, onNewChat, onRename, onRemove, readOnly, isLoggedIn, loading, error, hasMore, capped, onRetry, onMore, onReorder, orderNotice,
 }: {
   sessions: ShellSession[] | null;
   activeId: string | null;
@@ -179,7 +201,10 @@ function AiChatRail({
   capped: boolean;
   onRetry: () => void;
   onMore: () => void;
+  onReorder: (source: string, target: string) => void;
+  orderNotice: string;
 }) {
+  const dragId = React.useRef<string | null>(null);
   return (
     <nav aria-label="AI conversations" className="flex flex-col h-full min-h-0">
       <Link href="/ai/studio" className="mx-3 mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline">Images & video</Link>
@@ -188,7 +213,7 @@ function AiChatRail({
         <button
           onClick={onNewChat}
           disabled={creating}
-          className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold px-4 py-2.5 hover:bg-emerald-400 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-500/20"
+          className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-muted text-foreground text-sm font-medium px-4 py-2.5 hover:bg-muted/70 disabled:opacity-50 transition-colors"
         >
           {creating
             ? <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent motion-safe:animate-spin" />
@@ -224,7 +249,7 @@ function AiChatRail({
           </p>
         ) : (
           <div className="space-y-0.5">
-            {sessions.map((s) => (
+            {sessions.map((s, index) => (
               <RailRow
                 key={s.id}
                 session={s}
@@ -232,12 +257,19 @@ function AiChatRail({
                 onRename={onRename}
                 onRemove={onRemove}
                 readOnly={readOnly}
+                onMove={!query.trim() ? direction => { const target = sessions[index + direction]; if (target) onReorder(s.id, target.id); } : undefined}
+                canMoveUp={index > 0}
+                canMoveDown={index < sessions.length - 1}
+                onDragStart={!query.trim() ? () => { dragId.current = s.id; } : undefined}
+                onDrop={() => { if (dragId.current) onReorder(dragId.current, s.id); dragId.current = null; }}
+                onDragEnd={() => { dragId.current = null; }}
               />
             ))}
           </div>
         )}
       </div>
       {hasMore && <div className="px-3 pb-2">{capped ? <p className="text-xs text-muted-foreground">Showing the first 250 matches. Refine your search to find older chats.</p> : <button type="button" onClick={onMore} disabled={loading} className="min-h-11 w-full rounded-lg border border-border px-3 text-sm hover:bg-muted focus-visible:outline">{loading ? 'Loading…' : 'Load more conversations'}</button>}</div>}
+      <span className="sr-only" role="status">{orderNotice}</span>
       <div aria-live="polite" className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
         {loading ? 'Loading conversations…' : sessions ? `${sessions.length} conversation${sessions.length === 1 ? '' : 's'}${hasMore ? ' loaded' : ''}${query.trim() ? ' matching your search' : ''}` : isLoggedIn ? 'Conversations unavailable' : 'Private conversation history'}
       </div>
@@ -247,13 +279,16 @@ function AiChatRail({
 
 /** One conversation row with inline rename + delete. */
 export function RailRow({
-  session: s, active, onRename, onRemove, readOnly,
+  session: s, active, onRename, onRemove, readOnly, onMove, canMoveUp, canMoveDown, onDragStart, onDrop, onDragEnd,
 }: {
   session: ShellSession;
   active: boolean;
   onRename: (id: string, title: string) => Promise<boolean>;
   onRemove: (id: string) => void;
   readOnly: boolean;
+  onMove?: (direction: -1 | 1) => void;
+  canMoveUp?: boolean; canMoveDown?: boolean;
+  onDragStart?: () => void; onDrop?: () => void; onDragEnd?: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(s.title);
@@ -294,6 +329,8 @@ export function RailRow({
 
   return (
     <div
+      onDragOver={event => { if (onMove) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
+      onDrop={event => { event.preventDefault(); onDrop?.(); }}
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }}
       className={cn(
         "group/row relative flex items-center gap-2 rounded-lg pl-2.5 pr-1 py-1.5 transition-colors",
@@ -301,27 +338,23 @@ export function RailRow({
       )}
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-emerald-500" />}
-      <FiMessageSquare className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-500" : "text-muted-foreground/60")} />
+      {onDragStart ? <button type="button" draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', s.id); onDragStart(); }}
+        onDragEnd={onDragEnd} aria-label={`Reorder ${s.title || 'Untitled'}`} title="Drag to reorder, or use the conversation menu"
+        onKeyDown={event => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); onMove?.(event.key === 'ArrowUp' ? -1 : 1); } }}
+        className="grid size-11 shrink-0 cursor-grab place-items-center rounded-lg text-muted-foreground/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"><GripVertical size={15} aria-hidden="true" /></button>
+        : <FiMessageSquare className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-500" : "text-muted-foreground/60")} />}
       <Link href={`/ai/${s.id}`} aria-current={active ? 'page' : undefined} title={s.title || 'Untitled'} className="min-w-0 flex-1 text-sm truncate py-3 focus-visible:outline">
         {s.title || "Untitled"}
       </Link>
-      {/* Hover actions */}
-      {!readOnly && <div className="flex items-center gap-0.5 opacity-100 transition-opacity">
-        <button
-          onClick={() => { setDraft(s.title); setEditing(true); }}
-          aria-label={`Rename ${s.title || 'Untitled'}`}
-          className="grid place-items-center h-11 w-11 rounded text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline"
-        >
-          <FiEdit2 className="h-3 w-3" />
-        </button>
-        <button
-          onClick={() => onRemove(s.id)}
-          aria-label={`Delete ${s.title || 'Untitled'}`}
-          className="grid place-items-center h-11 w-11 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/15 focus-visible:outline"
-        >
-          <FiTrash2 className="h-3 w-3" />
-        </button>
-      </div>}
+      {(!readOnly || onMove) && <DropdownMenu>
+        <DropdownMenuTrigger asChild><button type="button" aria-label={`Options for ${s.title || 'Untitled'}`} className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"><MoreHorizontal size={17} aria-hidden="true" /></button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {onMove && <><DropdownMenuItem disabled={!canMoveUp} onSelect={() => onMove(-1)}><ArrowUp size={15} aria-hidden="true" /> Move up</DropdownMenuItem>
+            <DropdownMenuItem disabled={!canMoveDown} onSelect={() => onMove(1)}><ArrowDown size={15} aria-hidden="true" /> Move down</DropdownMenuItem></>}
+          {!readOnly && <><DropdownMenuItem aria-label={`Rename ${s.title || 'Untitled'}`} onSelect={() => { setDraft(s.title); setEditing(true); }}><FiEdit2 aria-hidden="true" /> Rename</DropdownMenuItem>
+            <DropdownMenuItem aria-label={`Delete ${s.title || 'Untitled'}`} onSelect={() => onRemove(s.id)} className="text-destructive"><FiTrash2 aria-hidden="true" /> Delete</DropdownMenuItem></>}
+        </DropdownMenuContent>
+      </DropdownMenu>}
     </div>
   );
 }

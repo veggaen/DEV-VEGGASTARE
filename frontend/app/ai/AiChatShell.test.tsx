@@ -17,8 +17,11 @@ beforeEach(async () => {
   await act(async () => root.render(<RailRow session={{ id: 'qa', title: 'Original', updatedAt: '2026-09-24T00:00:00Z' }} active={false} onRename={rename} onRemove={remove} readOnly={false} />));
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
-const click = async (name: string) => { await act(async () => (host.querySelector(`[aria-label="${name}"]`) as HTMLButtonElement).click()); };
+const click = async (name: string) => { await act(async () => (document.querySelector(`[aria-label="${name}"]`) as HTMLButtonElement).click()); };
 async function draft(value: string) {
+  await act(async () => {
+    host.querySelector('[aria-label="Options for Original"]')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false }));
+  });
   await click('Rename Original');
   const input = host.querySelector('input')!;
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); });
