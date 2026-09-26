@@ -4,12 +4,17 @@ Evidence is recorded per slice; a passing HTTP response is not proof of feature 
 
 ## Message reading and composer layout — 26 September 2026
 
-**PARTIAL — local acceptance complete; hosted promotion pending.** Incoming
+**DONE for this layout slice; full messaging remains PARTIAL.** Runtime `83427f5`
+is Live as `dpl_4GCGVSYvAinj6XUTQsy2FTbNVSeP`. Incoming
 replies preserve reading position, the latest-message control remains reachable,
 and the composer fits the actual shell height including demo banners. Semantic
 bubbles, accessible 44px actions and reduced-motion behavior replace inconsistent
-styling. Strict build/TypeScript and 41 scoped local browser checks pass, including
-phone landscape, light/dark and ultrawide. No API/payment/credit/schema changes.
+styling. Strict build/TypeScript, touched-file lint, release secret scan and 41
+scoped browser checks each locally/Preview/Live pass, including phone landscape,
+light/dark and ultrawide. Real Chrome verifies the signed-in self-thread and phone
+members sheet; viewport restored. No API/payment/credit/schema changes.
+Conversation creation/reactions, historical private images, physical phone
+keyboards and native 125% zoom remain outside this slice's acceptance.
 See [reproductions and evidence](message-reading-evidence-2026-09.md).
 
 ## Messages writes and private realtime — 26 September 2026
