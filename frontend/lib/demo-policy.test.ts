@@ -2,6 +2,11 @@
 import { describe, expect, it } from "vitest";
 import { allowsDemoMutation, isDemoUserId } from "./demo-policy";
 describe("demo isolation", () => {
+  it('allows read-only realtime authorization but not message writes', () => {
+    expect(allowsDemoMutation('/api/pusher/auth')).toBe(true);
+    expect(allowsDemoMutation('/api/messages')).toBe(false);
+    expect(allowsDemoMutation('/api/messages/message')).toBe(false);
+  });
   it("identifies only server-provisioned demo IDs", () => {
     expect(isDemoUserId("demo_2026-09-23_random")).toBe(true);
     expect(isDemoUserId("regular-user")).toBe(false);

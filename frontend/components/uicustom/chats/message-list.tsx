@@ -3,13 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import { RxCrossCircled } from "react-icons/rx";
-import { FaFileUpload } from "react-icons/fa";
 import { FiEdit2, FiTrash2, FiCheck, FiX, FiImage, FiFlag } from "react-icons/fi";
 import { useEdgeStore } from '@/lib/edgestore';
-import Pusher from 'pusher-js';
+import { toast } from 'sonner';
+import { useConfirm } from '@/components/providers/confirm-dialog';
 import Spinner from '../spinner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
@@ -39,9 +38,12 @@ interface MessageListProps {
   users: User[];
   conversationId: string;
   loading?: boolean;
+  onChanged?: () => void;
+  allowImages?: boolean;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, users, conversationId, loading }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, users, loading, onChanged, allowImages = true }) => {
+  const confirm = useConfirm();
   const currentUser = useCurrentUser();
   const reduceMotion = useReducedMotion();
   const { edgestore } = useEdgeStore();
@@ -66,35 +68,6 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   }, [localMessages.length]);
 
   useEffect(() => {
-    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-      forceTLS: true,
-    });
-  
-    const channel = pusherClient.subscribe(`ConversationChannel_${conversationId}`);
-  
-    channel.bind('edit-message', (data: any) => {
-      setLocalMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === data.messageId
-            ? { ...msg, content: data.content, imageUrl: data.imageUrl, editedAt: data.editedAt }
-            : msg
-        )
-      );
-    });
-  
-    channel.bind('delete-message', (data: any) => {
-      setLocalMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== data.messageId)
-      );
-    });
-  
-    return () => {
-      pusherClient.unsubscribe(`ConversationChannel_${conversationId}`);
-    };
-  }, [conversationId]);
-
-  useEffect(() => {
     // Scroll to the bottom whenever the localMessages change
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
@@ -103,6 +76,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
 
   const handleEditClick = (message: Message) => {
     setEditingMessageId(message.id);
+    setEditedImage(null);
     setEditedContent(message.content);
     setEditedImagePreview(message.imageUrl || null);
   };
@@ -112,7 +86,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
     try {
       let imageUrl = editedImagePreview;
   
-      if (editedImage) {
+      if (editedImage && allowImages) {
         const res = await edgestore.myPublicImages.upload({ file: editedImage });
         imageUrl = `${res.url}?t=${new Date().getTime()}`; // Add a timestamp to the URL to prevent caching issues
       }
@@ -124,35 +98,42 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
       });
   
       if (response.ok) {
+        const saved = await response.json();
+        setLocalMessages(previous => previous.map(message => message.id === messageId ? { ...message, ...saved } : message));
         setEditingMessageId(null);
         setEditedImage(null);
         setEditedImagePreview(null);
+        onChanged?.();
       } else {
-        console.error('Error saving edit');
+        toast.error('Could not save the message. Your edit is still here.');
       }
-    } catch (error) {
-      console.error('Error saving edit:', error);
+    } catch {
+      toast.error('Could not save the message. Try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteClick = async (messageId: string) => {
+    if (!await confirm({ title: 'Delete this message?', description: 'This cannot be undone.', confirmLabel: 'Delete message', destructive: true })) return;
     try {
       const response = await fetch(`/api/messages/${messageId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
+        setLocalMessages(previous => previous.filter(message => message.id !== messageId));
+        onChanged?.();
       } else {
-        console.error('Error deleting message');
+        toast.error('Could not delete the message. Try again.');
       }
-    } catch (error) {
-      console.error('Error deleting message:', error);
+    } catch {
+      toast.error('Could not delete the message. Try again.');
     }
   };
 
   const handleDrop = (acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       setEditedImage(acceptedFiles[0]);
       setEditedImagePreview(URL.createObjectURL(acceptedFiles[0]));
@@ -165,6 +146,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   };
 
   const { getRootProps, getInputProps } = useDropzone({
+    disabled: !allowImages || isSaving,
     onDrop: handleDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -302,7 +284,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                   >
                     {isEditing ? (
                       /* Edit Mode */
-                      <div className="space-y-3 min-w-[250px]">
+                      <div className="space-y-3 min-w-0 w-64 max-w-full">
                         <input
                           type="text"
                           value={editedContent}
@@ -314,7 +296,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                         />
 
                         {/* Image Upload Zone */}
-                        <div
+                        {(allowImages || editedImagePreview) && <div
                           {...getRootProps()}
                           className="cursor-pointer rounded-lg border-2 border-dashed border-border hover:border-foreground/40 transition-colors p-3"
                         >
@@ -344,7 +326,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                               <span>Add image</span>
                             </div>
                           )}
-                        </div>
+                        </div>}
 
                         {/* Save/Cancel Buttons */}
                         <div className="flex items-center gap-2">
@@ -412,7 +394,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                 {/* Hover Actions - Only show when not editing */}
                 {canModify && !isEditing && (
                   <div className={cn(
-                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                    "flex items-center gap-1 opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200",
                     isCurrentUser ? "flex-row-reverse" : ""
                   )}>
                     <button
@@ -436,7 +418,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                 {/* Report button - visible on other people's messages */}
                 {!isCurrentUser && !isEditing && (
                   <div className={cn(
-                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    "flex items-center gap-1 opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200"
                   )}>
                     <button
                       onClick={() => setReportMessageId(message.id)}

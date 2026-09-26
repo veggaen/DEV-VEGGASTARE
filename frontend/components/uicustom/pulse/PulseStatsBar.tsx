@@ -29,6 +29,14 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
 
   // Subscribe to real-time reaction updates
   const channelName = `ConversationChannel_${pulseId}`;
+  usePusher(channelName, 'conversation-updated', useCallback(async () => {
+    try {
+      const response = await fetch(`/api/messages?conversationId=${encodeURIComponent(pulseId)}`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (typeof data.conversation?.messageCount === 'number') setStats(previous => ({ ...previous, messageCount: data.conversation.messageCount }));
+    } catch { /* Keep the last confirmed count while offline. */ }
+  }, [pulseId]));
 
   usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
     channelName,

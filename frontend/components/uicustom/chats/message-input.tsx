@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { FiAlertTriangle, FiArrowUp, FiSmile, FiMic } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpeechToText } from './primitives/useSpeechToText';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface MessageInputProps {
   conversationId: string;
@@ -21,6 +22,7 @@ interface MessageInputProps {
   messageId?: string;
   onCancelEdit?: () => void;
   parentId?: string | null;
+  allowImages?: boolean;
 }
 
 interface DictationCorrection {
@@ -39,19 +41,23 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   messageId,
   onCancelEdit,
   parentId,
+  allowImages = true,
 }) => {
+  const currentUser = useCurrentUser();
   const { edgestore } = useEdgeStore();
   const MAX_CHARS = 2000;
   const TEXTAREA_MAX_HEIGHT = 180; // px
   const [content, setContent] = useState(initialContent);
   const [isSending, setIsSending] = useState(false);
+  const sendingRef = useRef(false);
+  const attemptRef = useRef<{ signature: string; image: File | null; requestId: string; uploaded?: string } | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initialImageUrl);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isTextareaScrollable, setIsTextareaScrollable] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const draftKey = useMemo(() => `chat_draft:${conversationId}`, [conversationId]);
+  const draftKey = useMemo(() => `chat_draft:${currentUser?.id ?? 'guest'}:${conversationId}`, [currentUser?.id, conversationId]);
   const lastContentRef = useRef(initialContent);
   const recentDictationUntilRef = useRef(0);
   const [pendingCorrection, setPendingCorrection] = useState<DictationCorrection | null>(null);
@@ -237,6 +243,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }, [content]);
 
   const handleDrop = (acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       setImage(acceptedFiles[0]);
       setImagePreview(URL.createObjectURL(acceptedFiles[0]));
@@ -244,6 +251,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const { getRootProps, getInputProps, open } = useDropzone({
+    disabled: !allowImages || isSending,
     onDrop: handleDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -257,22 +265,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSend || isSending || isTooLong) return;
+    if (!canSend || sendingRef.current || isTooLong) return;
+    sendingRef.current = true;
     setIsSending(true);
 
     try {
       let imageUrl = imagePreview;
+      const signature = JSON.stringify([conversationId, content, parentId, imagePreview]);
+      if (!attemptRef.current || attemptRef.current.signature !== signature || attemptRef.current.image !== image) {
+        attemptRef.current = { signature, image, requestId: crypto.randomUUID() };
+      }
+      const attempt = attemptRef.current;
 
-      if (image) {
-        const res = await edgestore.myPublicImages.upload({ file: image });
-        imageUrl = res.url;
+      if (image && allowImages) {
+        if (!attempt.uploaded) attempt.uploaded = (await edgestore.myPublicImages.upload({ file: image })).url;
+        imageUrl = attempt.uploaded;
       }
 
       const payload = {
         conversationId,
         content,
         imageUrl: imageUrl || null,
-        ...(parentId ? { parentId } : {}),
+        ...(!isEditing && parentId ? { parentId } : {}),
+        ...(!isEditing ? { requestId: attempt.requestId } : {}),
       };
 
       const apiEndpoint = isEditing && messageId ? `/api/messages/${messageId}` : '/api/messages';
@@ -285,6 +300,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       });
 
       if (response.ok) {
+        attemptRef.current = null;
         lastContentRef.current = '';
         setContent('');
         setImage(null);
@@ -324,6 +340,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       const { toast } = await import('sonner');
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
+      sendingRef.current = false;
       setIsSending(false);
     }
   };
@@ -412,7 +429,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void handleSubmit(e as unknown as React.FormEvent);
             }
@@ -468,7 +485,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             >
               <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/8 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
                 <span className="min-w-0 flex-1">
-                  Did we mishear <span className="font-semibold">"{pendingCorrection.from}"</span> as <span className="font-semibold">"{pendingCorrection.to}"</span>?
+                  Did we mishear <span className="font-semibold">“{pendingCorrection.from}”</span> as <span className="font-semibold">“{pendingCorrection.to}”</span>?
                 </span>
                 <button
                   type="button"
@@ -491,7 +508,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
         {/* Toolbar row — ghost icon controls left, hint + counter center, send right */}
         <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">
-          <IconButton onClick={open} disabled={isSending} label="Attach image">
+          <IconButton onClick={open} disabled={isSending || !allowImages} label={allowImages ? 'Attach image' : 'Private images temporarily unavailable'}>
             <FaFileUpload className="h-4.5 w-4.5" />
           </IconButton>
 

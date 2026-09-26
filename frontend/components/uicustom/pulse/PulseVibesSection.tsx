@@ -85,8 +85,8 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
     currentUser?.id === senderId || isPlatformAdmin;
 
   // ── Fetch vibes ──────────────────────────────────────────────────────
-  const fetchVibes = useCallback(async () => {
-    setLoading(true);
+  const fetchVibes = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     setError(null);
     try {
       const res = await fetch(
@@ -124,6 +124,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
 
   // ── Real-time via Pusher ─────────────────────────────────────────────
   const channelName = `ConversationChannel_${pulseId}`;
+  usePusher(channelName, 'conversation-updated', useCallback(() => { void fetchVibes(true); }, [fetchVibes]));
 
   usePusher<{ message: Message }>(
     channelName,

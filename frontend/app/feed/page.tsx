@@ -2379,6 +2379,10 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   });
 
   // Real-time heartbeat updates from other users
+  usePusher(`ConversationChannel_${item.id}`, 'conversation-updated', onRefresh);
+
+  useEffect(() => { setLocalMessageCount(item.messageCount || 0); }, [item.messageCount]);
+
   usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
     `ConversationChannel_${item.id}`,
     'pulse-stats-update',

@@ -14,7 +14,9 @@ async function getClient() {
   if (client) return client;
   if (!pending) pending = import('pusher-js').then(module => {
     const Constructor = (module.default ?? module) as typeof PusherClient;
-    client = new Constructor(key!, { cluster: cluster!, forceTLS: true });
+    client = new Constructor(key!, { cluster: cluster!, forceTLS: true,
+      channelAuthorization: { endpoint: '/api/pusher/auth', transport: 'ajax' },
+    });
     return client;
   }).catch(error => { pending = undefined; throw error; });
   return pending;

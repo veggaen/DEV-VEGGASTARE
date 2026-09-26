@@ -2,6 +2,18 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## Messages writes and private realtime — 26 September 2026
+
+**PARTIAL — local acceptance complete; hosted promotion pending.** Current-session
+write authorization, atomic retry/counters, cross-thread reply checks, private
+Pusher authorization and body-free message invalidations are implemented. 90
+unit/API tests, strict build/TypeScript, error-free touched-file lint (two existing
+Pulse warnings), 24 local browser regressions and a real two-user isolated-DB
+send/edit/delete/revocation test pass. New private human-chat image uploads are
+disabled pending private storage; AI-chat images are unaffected. Historical human
+attachments and remaining conversation/reaction mutations still need review.
+No schema/payment/credit changes. See [scope and evidence](messages-security-evidence-2026-09.md).
+
 ## Header Messages preview — 26 September 2026
 
 **DONE for the scoped header menu and skeleton release; full messaging remains PARTIAL.**

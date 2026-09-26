@@ -310,10 +310,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
   }, [advancedPoll, resolvedAdvancedPoll, pulse]);
 
   // Fetch pulse details and messages
-  const fetchPulseData = useCallback(async () => {
+  const fetchPulseData = useCallback(async (background = false) => {
     if (!pulseId) return;
     
-    setLoading(true);
+    if (!background) setLoading(true);
     setError(null);
     
     try {
@@ -364,7 +364,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
       }
       
       // Track view in background (non-blocking)
-      fetch(`/api/conversations/${pulseId}/view`, { method: 'POST' }).catch(() => {});
+      if (!background) fetch(`/api/conversations/${pulseId}/view`, { method: 'POST' }).catch(() => {});
     } catch (err) {
       console.error('Failed to fetch pulse:', err);
       setError('Failed to load pulse');
@@ -412,6 +412,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
   // Real-time updates via shared Pusher singleton
   const channelName = pulseId ? `ConversationChannel_${pulseId}` : '';
+  usePusher(channelName, 'conversation-updated', useCallback(() => { void fetchPulseData(true); }, [fetchPulseData]));
 
   usePusher<{ message: Message }>(
     channelName,

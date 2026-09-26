@@ -14,6 +14,6 @@ export function allowsDemoMutation(path: string): boolean {
     path === '/api/returns' ||
     /^\/api\/ai-chat\/sessions\/c[a-z0-9]+\/(messages|title)$/.test(path) ||
     // SDK session initialization is read-only. Upload/delete routes stay denied.
-    path === "/api/edgestore/init" ||
+    path === "/api/edgestore/init" || path === '/api/pusher/auth' ||
     path === "/api/cart" || path.startsWith("/api/cart/");
 }
