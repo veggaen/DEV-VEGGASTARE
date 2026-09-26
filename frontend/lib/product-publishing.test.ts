@@ -39,6 +39,10 @@ it('rejects missing, inactive, already-linked or wrong-seller digital assets bef
   m.asset.mockResolvedValue(null);
   await expect(publishProduct('seller', input(), [])).rejects.toThrow('active, unused'); expect(m.product).not.toHaveBeenCalled();
 });
+it('cannot publish private integration settings through ordinary specifications', async () => {
+  await expect(publishProduct('seller', { ...input(), specifications: [{ key: '__repo_access', value: 'injected' }] }, [])).rejects.toThrow('required listing');
+  expect(m.product).not.toHaveBeenCalled();
+});
 it('rejects a foreign wallet before the product exists', async () => {
   await expect(publishProduct('seller', { ...input(), receiverWalletId: 'foreign' }, [])).rejects.toThrow('verified receiving');
   expect(m.product).not.toHaveBeenCalled(); expect(m.wallets.mock.calls[0][0].where.OR).toEqual([{ ownerUserId: 'seller', ownerCompanyId: null }]);

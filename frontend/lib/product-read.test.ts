@@ -1,13 +1,14 @@
 /** @fileOverview Product visibility, minimal reads and retryable failure boundaries. @stability stable */
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
-const mocks = vi.hoisted(() => ({ product: vi.fn(), employee: vi.fn(), auth: vi.fn(), user: vi.fn(), company: vi.fn(), query: vi.fn() }));
+const mocks = vi.hoisted(() => ({ product: vi.fn(), list: vi.fn(), employee: vi.fn(), auth: vi.fn(), user: vi.fn(), company: vi.fn(), query: vi.fn() }));
 vi.mock('@/lib/db', () => {
-  const tx = { product: { findUnique: mocks.product }, employee: { findUnique: mocks.employee }, user: { findUnique: mocks.user }, company: { findUnique: mocks.company }, $queryRaw: mocks.query };
+  const tx = { product: { findUnique: mocks.product, findMany: mocks.list }, employee: { findUnique: mocks.employee }, user: { findUnique: mocks.user }, company: { findUnique: mocks.company }, $queryRaw: mocks.query };
   return { dbPrisma: { ...tx, $transaction: async (fn: (db: typeof tx) => unknown) => fn(tx) } };
 });
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 import { GET } from '@/app/api/products/[...id]/route';
+import { fetchProductsWithDetails } from '@/actions/fetch-products-with-details';
 
 const fixture = () => ({
   id: 'product-test', title: 'Sample', description: 'A real product', category: 'Digital',
@@ -94,4 +95,9 @@ it('normalizes legacy JSON without turning a malformed specification into not-fo
 it('never returns private delivery specifications in a public product response', async () => {
   mocks.product.mockResolvedValue({ ...fixture(), specifications: JSON.stringify([{ key: '__repo_access', value: 'private configuration' }, { key: 'Format', value: 'PNG' }]) });
   expect((await (await read()).json()).specifications).toEqual([{ key: 'Format', value: 'PNG' }]);
+});
+it('catalogue results strip private specifications as well', async () => {
+  mocks.list.mockResolvedValue([{ ...fixture(), specifications: [{ key: '__repo_access', value: 'private configuration' }, { key: 'Format', value: 'PNG' }] }]);
+  const result = await fetchProductsWithDetails({ page: 1, perPage: 12, categories: [], minPrice: 0, searchTerm: '' });
+  expect(result[0].specifications).toEqual([{ key: 'Format', value: 'PNG' }]);
 });
