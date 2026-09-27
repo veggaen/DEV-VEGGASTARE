@@ -41,6 +41,7 @@ import {
 } from "react-icons/fi";
 import { ArrowLeftRight, Users } from "lucide-react";
 import { TokenIcon } from "@/components/ui/token-icon";
+import { acknowledgeInventoryDrop } from "@/lib/trade-drag-ack";
 import {
   INVENTORY_DND_TYPE,
   type InventorySlot,
@@ -886,6 +887,12 @@ export function OsrsTradeWindow({
   const [myReady, setMyReady] = useState(false);
   const [theirReady, setTheirReady] = useState(false);
   const [myItems, setMyItems] = useState<InventorySlot[]>([]);
+
+  // Mirror for drop handlers so acceptance can be decided before the state update.
+
+  const myItemsRef = useRef(myItems);
+
+  useEffect(() => { myItemsRef.current = myItems; }, [myItems]);
   const [theirItems, setTheirItems] = useState<InventorySlot[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
@@ -997,17 +1004,18 @@ export function OsrsTradeWindow({
           : (parsed as InventorySlot);
         if (!slot?.id || !slot?.token) return;
 
-        setMyItems((prev) => {
-          if (prev.some((s) => s.id === slot.id)) {
-            toast.info(`${slot.token.symbol} is already in your offer`);
-            return prev;
-          }
-          if (prev.length >= OFFER_SLOTS) {
-            toast.error("Offer grid is full (16 slots max)");
-            return prev;
-          }
-          return [...prev, slot];
-        });
+        const current = myItemsRef.current;
+        if (current.some((s) => s.id === slot.id)) {
+          toast.info(`${slot.token.symbol} is already in your offer`);
+          return;
+        }
+        if (current.length >= OFFER_SLOTS) {
+          toast.error("Offer grid is full (16 slots max)");
+          return;
+        }
+        // Tell the inventory this drag really landed; only then may it remove the item.
+        acknowledgeInventoryDrop(slot.id);
+        setMyItems((prev) => (prev.some((s) => s.id === slot.id) ? prev : [...prev, slot]));
 
         // Auto-unready: any modification clears ready status
         setMyReady((prev) => {

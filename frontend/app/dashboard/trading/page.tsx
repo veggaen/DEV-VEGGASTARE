@@ -72,11 +72,11 @@ const MODE_RING_CLASSES: Record<TradeMode, string> = {
 };
 
 const MODE_BTN_ACTIVE: Record<TradeMode, string> = {
-  p2p:        "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-light",
-  self:       "border-purple-500/60 bg-purple-500/10 text-purple-300",
-  dex:        "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-light",
-  paper:      "border-amber-500/60 bg-amber-500/10 text-amber-300",
-  localchain: "border-orange-500/60 bg-orange-500/10 text-orange-300",
+  p2p:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
+  self:       "ring-1 ring-inset ring-purple-500/30 bg-purple-500/12 text-purple-700 dark:text-purple-300",
+  dex:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
+  paper:      "ring-1 ring-inset ring-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300",
+  localchain: "ring-1 ring-inset ring-orange-500/30 bg-orange-500/12 text-orange-700 dark:text-orange-300",
 };
 
 type UserSearchResult = {
@@ -169,30 +169,38 @@ export default function TradingPage() {
   /* ── Not connected — but paper mode works without wallet ────── */
   if (!isConnected && mode !== "paper") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+      <section aria-labelledby="trading-empty-title" className="page-rise flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="relative mb-6">
-          <div className="h-20 w-20 rounded-2xl bg-surface-3/40 flex items-center justify-center">
-            <FiWifi className="h-8 w-8 text-muted-foreground" />
+          <div className="grid size-20 place-items-center rounded-2xl bg-foreground/[0.05] ring-1 ring-border/60">
+            <FiWifi className="size-8 text-muted-foreground" />
           </div>
-          <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <FiAlertCircle className="h-3.5 w-3.5 text-amber-400" />
-          </div>
+          <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-amber-500/15 ring-1 ring-amber-500/30">
+            <FiAlertCircle className="size-3.5 text-amber-600 dark:text-amber-300" />
+          </span>
         </div>
-        <h2 className="text-lg font-semibold text-foreground/80 mb-1">
-          Wallet Not Connected
-        </h2>
-        <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-          Connect a wallet from the sidebar to view your inventory and start trading.
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-accent-hover dark:text-brand-accent-light">Trading</p>
+        <h2 id="trading-empty-title" className="text-xl font-semibold tracking-tight text-foreground">No wallet connected</h2>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Connect a wallet from the account menu to see your inventory and trade with others, or try paper trading with no wallet at all.
         </p>
-        <button
-          type="button"
-          onClick={() => setMode("paper")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Try Paper Trading (no wallet needed)
-        </button>
-      </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("paper")}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-accent px-5 text-sm font-semibold text-brand-accent-foreground shadow-e2 transition-[background-color,transform,box-shadow] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.6)] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <FileText className="size-4" />
+            Try paper trading
+          </button>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("veggat:open-menu"))}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-5 text-sm font-medium text-foreground backdrop-blur-xl transition-[border-color,background-color,transform] duration-200 hover:border-border hover:bg-foreground/[0.06] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            Connect a wallet
+          </button>
+        </div>
+      </section>
     );
   }
 
@@ -207,8 +215,8 @@ export default function TradingPage() {
               {MODE_ICONS[mode]}
             </div>
             <div>
-              <h1 className="text-sm font-bold text-foreground/80 leading-tight">
-                Trading Hub
+              <h1 className="text-sm font-semibold leading-tight text-foreground">
+                Trading
               </h1>
               <p className="text-[10px] text-muted-foreground leading-tight">
                 {modeLabel}
@@ -356,7 +364,6 @@ export default function TradingPage() {
                 ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
                 : "border-border text-muted-foreground hover:bg-muted hover:text-foreground/80"
             }`}
-            title="Trade History"
           >
             <FiClock className="h-3 w-3" />
             History
@@ -365,19 +372,20 @@ export default function TradingPage() {
         </div>
 
         {/* Mode Switcher — flat tab bar */}
-        <div className="px-4 sm:px-6 pb-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-0.5">
+        <div className="px-4 sm:px-6 pb-3 overflow-x-auto no-scrollbar">
+          <div role="tablist" aria-label="Trading mode" className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-surface-1/75 p-1 shadow-e1 backdrop-blur-xl">
             {MODE_ORDER.map((m) => (
               <button
                 key={m}
                 type="button"
+                role="tab"
+                aria-selected={mode === m}
                 onClick={() => setMode(m)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap ${
+                className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   mode === m
-                    ? MODE_BTN_ACTIVE[m]
-                    : "text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
+                    ? `${MODE_BTN_ACTIVE[m]} shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]`
+                    : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                 }`}
-                title={MODE_META[m].label}
               >
                 {MODE_ICONS[m]}
                 <span>{MODE_META[m].label}</span>

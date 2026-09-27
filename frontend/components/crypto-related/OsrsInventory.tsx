@@ -22,6 +22,7 @@ import { useTokenBalances, CHAIN_LOGOS, type InventoryToken } from "@/hooks/use-
 import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { toast } from "sonner";
+import { consumeInventoryDropAck } from "@/lib/trade-drag-ack";
 import {
   FiChevronDown,
   FiRefreshCw,
@@ -874,9 +875,12 @@ export function OsrsInventory({
     setDraggedSlotId(null);
     setDragOverIndex(null);
 
-    // If the drop was NOT handled by our own inventory drop handler, the item
-    // was dropped outside (e.g. into the trade window).  Remove / reduce it.
-    if (!dragConsumedRef.current && e.dataTransfer.dropEffect === "move" && payload) {
+    // Only remove/reduce the item when a drop target explicitly took it
+    // (lib/trade-drag-ack). `dropEffect === "move"` alone was not enough: the
+    // trade window sets it on every dragover, so releasing over its chrome or
+    // a full/locked offer made the item vanish with nowhere to go.
+    void e;
+    if (!dragConsumedRef.current && payload && consumeInventoryDropAck(payload.slot.id)) {
       const movedRaw = payload.movedRawAmount ? BigInt(payload.movedRawAmount) : null;
 
       setGridState((prev) => {
