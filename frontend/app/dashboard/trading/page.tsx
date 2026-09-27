@@ -45,6 +45,7 @@ import {
 } from "react-icons/fi";
 import { ArrowLeftRight, Zap, FileText, Monitor, Users, Repeat } from "lucide-react";
 import { DexSwapPanel } from "@/components/crypto-related/DexSwapPanel";
+import { MarketTerminal } from "@/components/trading/terminal/MarketTerminal";
 import { TradeHistory } from "@/components/crypto-related/TradeHistory";
 
 // ── Mode icons mapping ──────────────────────────────────────────────────────
@@ -423,17 +424,20 @@ export default function TradingPage() {
         ) : (
           /* ── Normal Trading View ────────────────────── */
           <motion.div
-            key="trading-panel"
+            key={mode === "paper" ? "paper-terminal" : "trading-panel"}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
+        {mode === "paper" ? (
+          <MarketTerminal />
+        ) : (
         <div
           className="grid gap-4 lg:gap-5 items-start lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
         >
           {/* ── Inventory panel ─────────────────────────── */}
-          {(walletReady || mode !== "paper") && (
+          {(
             <section className="min-h-0">
               <div className="pb-2 flex items-center gap-2">
                 <FiPackage className="h-3.5 w-3.5 text-muted-foreground" />
@@ -491,19 +495,6 @@ export default function TradingPage() {
               </motion.div>
             )}
 
-            {/* Paper Mode → Paper Swap Panel */}
-            {mode === "paper" && (
-              <motion.div
-                key="paper-panel"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <PaperTradingInline />
-              </motion.div>
-            )}
-
             {/* Empty state — always visible when no trade panel is active */}
             {!showTrade && (
               <motion.div
@@ -534,59 +525,11 @@ export default function TradingPage() {
           </AnimatePresence>
           </section>
         </div>
+        )}
           </motion.div>
         )}
         </AnimatePresence>
       </section>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ── Inline Sub-panels (embedded right in the trading page) ───────────────────
-// ══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Paper Trading Inline — compact version that lives inside the trading page.
- * Links to the full paper trading dashboard for portfolio management.
- */
-function PaperTradingInline() {
-  return (
-    <div className="w-full max-w-md space-y-4">
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-foreground/80">Paper Trading</h3>
-          <span className="text-[9px] font-semibold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded">
-            Simulated
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Trade crypto with virtual USD at real market prices. Zero risk, real learning.
-          Track your P&L, sharpen your strategy, then go live.
-        </p>
-        <div className="space-y-2 py-2">
-          <div className="flex justify-between text-[10px]">
-            <span className="text-muted-foreground">Prices</span>
-            <span className="text-muted-foreground">CoinGecko (live)</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-muted-foreground">Fee simulation</span>
-            <span className="text-muted-foreground">0.3% (like Uniswap V3)</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-muted-foreground">Daily limit</span>
-            <span className="text-muted-foreground">200 trades/day</span>
-          </div>
-        </div>
-        <a
-          href="/dashboard/paper-trading"
-          className="flex items-center justify-center gap-2 w-full rounded-lg bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/15 transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Open Paper Trading Dashboard
-        </a>
-      </div>
     </div>
   );
 }

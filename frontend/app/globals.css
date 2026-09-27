@@ -34,6 +34,9 @@
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  /* Market data semantics (paper terminal): rising / falling. Not the accent. */
+  --color-chart-up: hsl(var(--chart-up));
+  --color-chart-down: hsl(var(--chart-down));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-accent: hsl(var(--accent));
@@ -227,6 +230,8 @@
 
     --destructive: 0 84.2% 60.2%; /* #ef4444 */
     --destructive-foreground: 0 0% 100%; /* #ffffff */
+    --chart-up: 142 71% 45%; /* #22c55e */
+    --chart-down: 0 84% 60%; /* #ef4444 */
 
     --border: 214 15% 86%; /* #d4d9df - visible cool border against soft bg */
     --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
@@ -308,6 +313,8 @@
  
     --destructive: 0 62.8% 30.6%; /* #7f1d1d */
     --destructive-foreground: 0 0% 98%; /* #fafafa */
+    --chart-up: 142 69% 58%; /* #4ade80 */
+    --chart-down: 0 91% 71%; /* #f87171 */
  
     --border: 0 0% 13%; /* #212121 - softer borders (zinc-850) */
     --input: 0 0% 10%; /* #1a1a1a - input backgrounds */

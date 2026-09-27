@@ -3137,8 +3137,55 @@ model PaperPortfolio {
   User            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   Positions       PaperPosition[]
   Trades          PaperTrade[]
+  Orders          PaperOrder[]
 
   @@index([userId])
+}
+
+enum PaperOrderSide {
+  BUY
+  SELL
+}
+
+enum PaperOrderType {
+  LIMIT
+  STOP
+}
+
+enum PaperOrderStatus {
+  OPEN
+  FILLED
+  CANCELLED
+  FAILED
+}
+
+/// Resting paper order (limit / stop) for the market terminal. It fills at the
+/// market price on the next price check after its trigger is crossed; there is
+/// no order book. Leverage is stored for a future margin mode (1 = spot).
+model PaperOrder {
+  id             String           @id @default(cuid())
+  portfolioId    String
+  side           PaperOrderSide
+  type           PaperOrderType
+  status         PaperOrderStatus @default(OPEN)
+  tokenSymbol    String
+  tokenAddress   String           @default("0x0")
+  chainId        Int              @default(1)
+  decimals       Int              @default(18)
+  /// BUY: virtual USD to spend when triggered. SELL: display units of the token to sell.
+  amount         Float
+  /// Trigger price in USD per unit.
+  triggerPrice   Float
+  leverage       Int              @default(1)
+  filledPriceUsd Float?
+  filledAt       DateTime?
+  failReason     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  Portfolio      PaperPortfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, status])
 }
 
 /// Individual token position in a paper portfolio.
