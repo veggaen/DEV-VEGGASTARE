@@ -201,13 +201,13 @@
      * Light base is a soft cool neutral (#F9FAFB / zinc-50-ish) rather than stark
      * near-white — reduces eye strain and lets pure-white cards read as "raised".
      * Foreground stays a near-black charcoal (#171717) for AA-comfortable contrast. */
-    --background: 210 20% 98%; /* #F9FAFB - soft cool neutral (NOT stark white) */
+    --background: 210 20% 96%; /* #f2f4f7 - a real canvas: white cards separate from it without leaning on hairlines */
     --foreground: 222 16% 12%; /* #1a1d24 - charcoal near-black, slightly warm */
 
     /* Surface hierarchy for depth — white cards lift cleanly off the soft bg */
     --surface-1: 0 0% 100%; /* #ffffff - raised cards (now stand out vs soft bg) */
     --surface-2: 210 20% 99%; /* near-white subtle panels */
-    --surface-3: 210 18% 95%; /* #eef1f4 - distinct raised areas */
+    --surface-3: 210 18% 92%; /* #e6eaef - distinct raised areas (one clear step below the canvas) */
 
     /* Component colors */
     --card: 0 0% 100%; /* #ffffff - Pure white cards for contrast against bg */
@@ -233,7 +233,7 @@
     --chart-up: 142 71% 45%; /* #22c55e */
     --chart-down: 0 84% 60%; /* #ef4444 */
 
-    --border: 214 14% 80%; /* #c4cbd3 - cool border with the same presence as dark's #212121 on black */
+    --border: 214 14% 74%; /* #b1bbc6 - components use it at /60, which must still read as a line on white on an average panel */
     --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  
@@ -272,9 +272,10 @@
     --mobile-rail-offset: 0px;
 
     /* Elevation (light): layered soft ink shadows — realistic, never muddy */
-    --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
-    --elevation-2: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -1px rgba(16, 24, 40, 0.05);
-    --elevation-3: 0 20px 40px -8px rgba(16, 24, 40, 0.14), 0 8px 16px -6px rgba(16, 24, 40, 0.08);
+    /* Light shadows carry a hint of the ink colour and enough alpha to survive a bright monitor. */
+    --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.10);
+    --elevation-2: 0 6px 12px -2px rgba(16, 24, 40, 0.12), 0 2px 4px -1px rgba(16, 24, 40, 0.08);
+    --elevation-3: 0 20px 40px -8px rgba(16, 24, 40, 0.18), 0 8px 16px -6px rgba(16, 24, 40, 0.10);
   }
  
   .dark {
