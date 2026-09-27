@@ -35,6 +35,7 @@ import {
   FiSearch,
   FiTarget,
   FiExternalLink,
+  FiArrowRight,
 } from "react-icons/fi";
 
 // ────────────────────────────────────────────────────────────
@@ -188,6 +189,27 @@ export function OsrsInventory({
   // Items dragged to trade are removed from gridState via handleDragEnd.
   // Closing the trade loses those items — force a rebuild from real tokens.
   const [tradeCloseRevision, setTradeCloseRevision] = useState(0);
+
+  // ── Reservations: what the open trade window already holds ───────────
+  // Keyed by chain + token address so a split stack still counts against its
+  // source. The window publishes its offer; the balance poll can then never
+  // "give back" an amount that is sitting in the offer grid.
+  const [reserved, setReserved] = useState<Map<string, bigint>>(new Map());
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const items = ((event as CustomEvent<Array<{ chainId: number; address: string; rawAmount: string }>>).detail ?? []);
+      const next = new Map<string, bigint>();
+      for (const item of items) {
+        const key = `${item.chainId}:${item.address.toLowerCase()}`;
+        let raw = BigInt(0);
+        try { raw = BigInt(item.rawAmount); } catch { /* ignore malformed */ }
+        next.set(key, (next.get(key) ?? BigInt(0)) + raw);
+      }
+      setReserved(next);
+    };
+    window.addEventListener("veggat:offerChanged", handler);
+    return () => window.removeEventListener("veggat:offerChanged", handler);
+  }, []);
   useEffect(() => {
     const wasTrade = prevTradeModeRef.current;
     prevTradeModeRef.current = tradeMode;
@@ -220,13 +242,18 @@ export function OsrsInventory({
       return true;
     });
 
-    const mapped = uniqueTokens.map((token, i) => ({
-      id: token.id,
-      token,
-      amount: token.displayBalance,
-      rawAmount: token.rawBalance.toString(),
-      order: i,
-    } satisfies InventorySlot));
+    const mapped = uniqueTokens.flatMap((token, i) => {
+      const held = reserved.get(`${token.chainId}:${token.address.toLowerCase()}`) ?? BigInt(0);
+      const remaining = token.rawBalance - held;
+      if (remaining <= BigInt(0)) return [];
+      return [{
+        id: token.id,
+        token,
+        amount: held > BigInt(0) ? formatCompactBalance(remaining, token.decimals) : token.displayBalance,
+        rawAmount: remaining.toString(),
+        order: i,
+      } satisfies InventorySlot];
+    });
 
     // Grow grid if we have more items than MIN_SLOTS (28), always pad to row-aligned size
     const neededSlots = Math.max(MIN_SLOTS, mapped.length + COLS); // +COLS for one extra row
@@ -236,7 +263,7 @@ export function OsrsInventory({
     while (nextGrid.length < gridSize) nextGrid.push(null);
 
     setGridState(nextGrid);
-  }, [tokens, chainId, floatingItem, tradeCloseRevision]);
+  }, [tokens, chainId, floatingItem, tradeCloseRevision, reserved]);
 
   const inventorySlots = useMemo(
     () => gridState.filter((slot): slot is InventorySlot => slot !== null),
@@ -351,6 +378,26 @@ export function OsrsInventory({
       { duration: 4000 },
     );
   }, [splitDialog, splitAmount, inventorySlots]);
+
+  /** Split an amount off a stack and hand it straight to the open trade window. */
+  const confirmSplitToTrade = useCallback(() => {
+    if (!splitDialog || !splitAmount || !onAddToTrade) return;
+    const sourceSlot = inventorySlots.find((s) => s.id === splitDialog);
+    if (!sourceSlot) return;
+    const splitRaw = BigInt(Math.floor(parseFloat(splitAmount) * 10 ** sourceSlot.token.decimals));
+    const sourceRaw = BigInt(sourceSlot.rawAmount);
+    if (splitRaw <= BigInt(0) || splitRaw > sourceRaw) { toast.error("Invalid split amount"); return; }
+    const newSlotId = `${sourceSlot.id}:trade-${Date.now()}`;
+    onAddToTrade({
+      id: newSlotId,
+      token: { ...sourceSlot.token, id: newSlotId },
+      amount: formatCompactBalance(splitRaw, sourceSlot.token.decimals),
+      rawAmount: splitRaw.toString(),
+      order: -1,
+    });
+    setSplitDialog(null);
+    toast.success(`${splitAmount} ${sourceSlot.token.symbol} added to the trade`);
+  }, [splitDialog, splitAmount, inventorySlots, onAddToTrade]);
 
   // ── Mouse tracking for floating ghost ──────────────────────
   useEffect(() => {
@@ -1365,6 +1412,7 @@ export function OsrsInventory({
             onChange={setSplitAmount}
             onConfirm={confirmSplit}
             onCancel={() => setSplitDialog(null)}
+            onToTrade={tradeMode && onAddToTrade ? confirmSplitToTrade : undefined}
           />
         )}
       </AnimatePresence>
@@ -1825,12 +1873,15 @@ function OsrsSplitDialog({
   onChange,
   onConfirm,
   onCancel,
+  onToTrade,
 }: {
   slot?: InventorySlot;
   value: string;
   onChange: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Present while a trade window is open: split and drop straight into it. */
+  onToTrade?: () => void;
 }) {
   if (!slot) return null;
 
@@ -1920,6 +1971,16 @@ function OsrsSplitDialog({
             Split &amp; Grab
           </button>
         </div>
+        {onToTrade && (
+          <button
+            type="button"
+            onClick={onToTrade}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-brand-accent/40 bg-brand-accent/10 py-2 text-xs font-semibold text-brand-accent-hover transition-[background-color,border-color] duration-200 hover:border-brand-accent/60 hover:bg-brand-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-accent-light"
+          >
+            <FiArrowRight className="h-3 w-3" />
+            Split straight into the trade
+          </button>
+        )}
       </motion.div>
     </motion.div>
   );

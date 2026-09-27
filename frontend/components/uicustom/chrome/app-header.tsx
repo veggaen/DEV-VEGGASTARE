@@ -1,18 +1,16 @@
 "use client";
 
 /**
- * @fileOverview  AppHeader — the one header every route shares. Three columns so
- *                the floating AppRail is always dead-centre regardless of how
- *                many utilities sit on the right: BrandMark · rail · utilities.
+ * @fileOverview  AppHeader — the one header every route shares. Brand mark on
+ *                the left; on md+ a single glass pill on the right that holds
+ *                the navigation chips AND the utilities (currency, alerts,
+ *                cart, messages, theme) with the account button attached to
+ *                its end as a larger circle — one surface, one hover chaser,
+ *                never two competing bars. Below md the pill becomes the
+ *                bottom dock and the header keeps only theme + menu.
  *
- *                The chrome (blurred background + hairline) is a separate layer
- *                that fades in once the page scrolls, so on the landing page the
- *                star field shows straight through until you move.
- *
- *                `data-header-canvas` / `data-nav-key="logo"` are measured by the
- *                e2e suite (canvas ≤ 1280px, logo ≥ 44px tall, logo x aligned with
- *                page content) — keep the max-width + gutters in sync with pages.
- *
+ *                Chrome layer (blur + hairline) fades in on scroll. Keeps
+ *                `data-header-canvas` / `data-nav-key="logo"` for e2e.
  * @stability     evolving
  */
 
@@ -24,11 +22,11 @@ import { cn } from "@/lib/utils";
 export const AppHeader = React.forwardRef<
   HTMLElement,
   {
-    /** The floating chip rail (hidden below md; the mobile dock takes over). */
+    /** The glass pill (nav chips + utilities + account), hidden below md. */
     rail?: React.ReactNode;
-    /** Currency, theme, alerts, cart, chat… */
+    /** Compact controls shown only below md (theme toggle …). */
     utilities?: React.ReactNode;
-    /** The account / menu trigger, rendered last. */
+    /** The menu trigger shown only below md. */
     account?: React.ReactNode;
     /** Show the blurred chrome layer (page has scrolled). */
     scrolled?: boolean;
@@ -48,15 +46,15 @@ export const AppHeader = React.forwardRef<
       />
       <div
         data-header-canvas
-        className="relative mx-auto grid h-[var(--app-header)] w-full min-w-0 max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6 lg:px-8"
+        className="relative mx-auto flex h-[var(--app-header)] w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8"
       >
-        <div className="flex min-w-0 items-center justify-self-start">
+        <div className="flex min-w-0 items-center">
           <BrandMark href={logoHref} size="header" data-nav-key="logo" />
         </div>
 
-        <div className="hidden min-w-0 justify-self-center md:block">{rail}</div>
+        <div className="hidden min-w-0 md:block">{rail}</div>
 
-        <div className="flex min-w-0 items-center justify-end gap-1.5 justify-self-end sm:gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 md:hidden">
           {utilities}
           {account}
         </div>

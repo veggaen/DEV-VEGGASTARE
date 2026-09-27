@@ -444,7 +444,7 @@ export default function TradingPage() {
           <MarketTerminal className="h-full min-h-[560px] lg:h-full" />
         ) : (
         <div
-          className="grid gap-4 lg:gap-5 items-start lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
+          className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[380px_minmax(0,1fr)_380px]"
         >
           {/* ── Inventory panel ─────────────────────────── */}
           {(
@@ -534,6 +534,8 @@ export default function TradingPage() {
             )}
           </AnimatePresence>
           </section>
+          {/* Mirror of the inventory column so the trade area sits on the centre line of the screen. */}
+          <div aria-hidden="true" className="hidden xl:block" />
         </div>
         )}
           </motion.div>

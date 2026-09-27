@@ -6,9 +6,10 @@
  *                items of a container in any direction (up, down, left,
  *                right), the same feel as the rail's chaser in the header.
  *
- *                Usage: wrap a grid/list, mark each item with `data-chase`,
- *                give items `relative` so they paint above the box, and drop
- *                their own hover backgrounds/borders (the box is the hover).
+ *                Usage: wrap a grid/list, mark each item with `data-chase` and
+ *                drop their own hover backgrounds/borders (the box is the hover).
+ *                The box paints above the items as a tinted hairline highlight,
+ *                so opaque cards work too; it never captures the pointer.
  *                Positions come from measured geometry, so it works for any
  *                layout (grid, flex, sticky sidebars) and any item size.
  *
@@ -65,7 +66,9 @@ export function HoverChaser({
         <motion.span
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute left-0 top-0 z-0 rounded-xl bg-brand-accent/10 ring-1 ring-inset ring-brand-accent/30 shadow-[0_0_28px_-8px_hsl(var(--brand-accent)/0.55)]",
+            // Above the items (they keep their own surfaces) with a light tint and
+            // a hairline; no glow — it is a highlight, not a light source.
+            "pointer-events-none absolute left-0 top-0 z-[1] rounded-xl bg-brand-accent/[0.08] ring-1 ring-inset ring-brand-accent/40",
             boxClassName,
           )}
           initial={false}

@@ -186,7 +186,7 @@ export default function HomeHero({
           <motion.div className="group relative" style={secondary.style} {...secondary.handlers}>
             <Link
               href="/pulse"
-              className="relative inline-flex min-h-12 items-center gap-2 rounded-full border border-border/60 bg-surface-1/70 px-6 text-[15px] font-medium text-foreground/85 backdrop-blur-xl transition-[color,border-color,background-color,box-shadow,transform] duration-300 ease-out hover:border-brand-accent/40 hover:bg-surface-1/90 hover:text-foreground hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.5)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="relative inline-flex min-h-12 items-center gap-2 rounded-full border border-border/80 bg-surface-1/70 px-6 text-[15px] font-medium text-foreground/85 backdrop-blur-xl transition-[color,border-color,background-color,box-shadow,transform] duration-300 ease-out hover:border-brand-accent/50 hover:bg-brand-accent/[0.08] hover:text-foreground hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.5)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <PulseHeart className="size-4 text-brand-accent transition-transform duration-300 motion-safe:group-hover:scale-110" />
               <span>Live polls</span>
@@ -201,7 +201,7 @@ export default function HomeHero({
           {isLoggedIn ? (
             <Link
               href="/settings"
-              className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-foreground/[0.07] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="group inline-flex min-h-12 items-center gap-2 rounded-full border border-transparent px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color,border-color] duration-300 hover:border-border/80 hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <FiSettings aria-hidden="true" className="size-4 opacity-60 transition-[opacity,transform] duration-500 group-hover:rotate-90 group-hover:opacity-100" />
               <span>Settings</span>

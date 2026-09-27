@@ -14,6 +14,7 @@ import { useCartPage } from '@/hooks/use-cart-page';
 import { useCart } from '@/contexts/cart-context';
 import { isShowcaseProduct } from '@/lib/showcase-catalog';
 import { useClientReady } from '@/hooks/use-client-ready';
+import { cn } from '@/lib/utils';
 import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ import CreditAmountEditor from '@/components/checkout/credit-amount-editor';
 interface MiniCartDropdownProps {
   userId: string | undefined;
   cartCount: number;
+  /** Extra classes for the trigger (the header pill uses a borderless chip). */
+  triggerClassName?: string;
 }
 
 function BasketQuantity({ quantity, draft, setDraft, title, disabled, save }: { quantity: number; draft: string; setDraft: (value: string) => void; title: string; disabled: boolean; save: (value: number) => void }) {
@@ -35,7 +38,7 @@ function BasketQuantity({ quantity, draft, setDraft, title, disabled, save }: { 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
+export function MiniCartDropdown({ userId, cartCount, triggerClassName }: MiniCartDropdownProps) {
   const router = useRouter();
   const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -354,7 +357,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
         ref={triggerRef}
         disabled={!mounted}
         onClick={() => { setActivated(true); setOpen(prev => !prev); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className={cn("relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors", triggerClassName)}
         aria-label={cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? "s" : ""} in basket` : "Basket"}
         aria-expanded={open}
         aria-haspopup="dialog"

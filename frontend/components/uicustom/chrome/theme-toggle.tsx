@@ -70,7 +70,7 @@ export function swapThemeWithReveal(
   transition.finished.finally(() => root.classList.remove("theme-vt"));
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ className, variant = "default" }: { className?: string; /** "chip": borderless, for inside the header pill */ variant?: "default" | "chip" }) {
   const { setTheme, theme, resolvedTheme } = useTheme();
   const ready = useClientReady();
 
@@ -90,11 +90,10 @@ export function ThemeToggle({ className }: { className?: string }) {
       disabled={!ready}
       onClick={toggle}
       className={cn(
-        "group relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-1/75 text-muted-foreground backdrop-blur-xl",
-        "transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none",
-        "hover:border-border hover:bg-surface-3 hover:text-foreground hover:shadow-e1 motion-safe:hover:-translate-y-px motion-safe:active:scale-95",
+        variant === "chip"
+          ? "group relative inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-[color,transform] duration-200 ease-out hover:text-foreground motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          : "group relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-1/75 text-muted-foreground backdrop-blur-xl transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-border hover:bg-surface-3 hover:text-foreground hover:shadow-e1 motion-safe:hover:-translate-y-px motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "disabled:pointer-events-none disabled:opacity-60",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >

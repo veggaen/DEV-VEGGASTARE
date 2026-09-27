@@ -233,7 +233,7 @@
     --chart-up: 142 71% 45%; /* #22c55e */
     --chart-down: 0 84% 60%; /* #ef4444 */
 
-    --border: 214 15% 86%; /* #d4d9df - visible cool border against soft bg */
+    --border: 214 14% 80%; /* #c4cbd3 - cool border with the same presence as dark's #212121 on black */
     --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  

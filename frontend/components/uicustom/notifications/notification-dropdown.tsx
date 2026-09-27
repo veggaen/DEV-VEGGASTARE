@@ -14,13 +14,15 @@ interface NotificationDropdownProps {
   notifications: Notification[]; unreadCount?: number; isLoading?: boolean; isError?: boolean;
   pending?: boolean; readOnly?: boolean; onRefresh?: () => void;
   onMarkAllRead?: () => void; onMarkRead?: (id: string) => void;
+  /** Extra classes for the bell button (the header pill uses a borderless chip). */
+  bellClassName?: string;
 }
-export function NotificationDropdown({ notifications, unreadCount = 0, isLoading = false, isError = false, pending = false, readOnly = false, onRefresh, onMarkAllRead, onMarkRead }: NotificationDropdownProps) {
+export function NotificationDropdown({ notifications, unreadCount = 0, isLoading = false, isError = false, pending = false, readOnly = false, onRefresh, onMarkAllRead, onMarkRead, bellClassName }: NotificationDropdownProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const rows = tab === 'unread' ? notifications.filter(row => !row.isRead) : notifications;
   return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild><NotificationBell count={unreadCount} isOpen={open} /></PopoverTrigger>
+    <PopoverTrigger asChild><NotificationBell count={unreadCount} isOpen={open} className={bellClassName} /></PopoverTrigger>
     <PopoverContent align="end" sideOffset={8} collisionPadding={16} aria-label="Notification inbox"
       className="flex max-h-[var(--radix-popover-content-available-height)] w-96 max-w-[var(--radix-popover-content-available-width)] flex-col overflow-hidden rounded-2xl border-border p-0 duration-150 motion-reduce:animate-none">
       <div className="shrink-0 border-b border-border p-3">

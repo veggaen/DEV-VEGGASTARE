@@ -213,8 +213,9 @@ export default function HeroParticleField({
 
         // fade out particles that wander into the central clean zone
         const centreFade = inEdgeBand(p.x, p.y) ? 1 : centerFade;
-        // Same alpha in both themes (multiply on white ≈ lighter on black).
-        const alpha = Math.max(0, twAlpha * centreFade);
+        // Multiply on white reads fainter than additive on black at the same
+        // alpha (ink darkens less than light glows), so light gets a lift.
+        const alpha = Math.max(0, twAlpha * centreFade * (dark ? 1 : 1.6));
         if (alpha <= 0.01) continue;
 
         const radius = p.r;

@@ -96,6 +96,21 @@ const chipVariant: Record<RailVariant, string> = {
 const activeBoxClass =
   "rounded-full bg-brand-accent/12 ring-1 ring-inset ring-brand-accent/25 shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.55)]";
 
+/** Any non-link element that should live inside the pill and take the hover
+ *  chaser (currency, alerts, cart, messages, theme, account). */
+export function RailSlot({ id, className, children, ...rest }: { id: string; className?: string; children: React.ReactNode } & Omit<React.LiHTMLAttributes<HTMLLIElement>, "className" | "children" | "id">) {
+  return (
+    <li data-rail-chip={`util:${id}`} className={cn("relative flex items-center", className)} {...rest}>
+      {children}
+    </li>
+  );
+}
+
+/** Thin separator between the navigation chips and the utilities. */
+export function RailDivider() {
+  return <li aria-hidden="true" className="mx-1 h-5 w-px shrink-0 self-center bg-border/80" />;
+}
+
 /** A non-link chip (e.g. "Menu" on the dock) that shares the chip styling. */
 export function RailAction({
   variant = "dock",
@@ -181,9 +196,19 @@ export function AppRail({
     if (!list || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(list);
-    list.querySelectorAll<HTMLElement>("[data-rail-chip]").forEach((chip) => observer.observe(chip));
-    return () => observer.disconnect();
+    const observeChips = () => list.querySelectorAll<HTMLElement>("[data-rail-chip]").forEach((chip) => observer.observe(chip));
+    observeChips();
+    // Utilities mount later (session, cart count); re-measure when chips come and go.
+    const mutations = new MutationObserver(() => { observeChips(); measure(); });
+    mutations.observe(list, { childList: true, subtree: true });
+    return () => { observer.disconnect(); mutations.disconnect(); };
   }, [measure, items]);
+
+  // Delegated hover/focus: any [data-rail-chip] descendant (links, RailSlots) drives the chaser.
+  const chipKeyOf = (target: EventTarget | null) => {
+    const chip = target instanceof Element ? target.closest<HTMLElement>("[data-rail-chip]") : null;
+    return chip && listRef.current?.contains(chip) ? chip.dataset.railChip ?? null : null;
+  };
 
   const activeTransition = reduceMotion ? { duration: 0 } : SPRING_ACTIVE;
   const hoverTransition = reduceMotion ? { duration: 0 } : SPRING_HOVER;
@@ -216,12 +241,17 @@ export function AppRail({
       <ul
         ref={listRef}
         role="list"
+        onPointerOver={(e) => { const key = chipKeyOf(e.target); if (key) setHovered(key); }}
         onPointerLeave={() => setHovered(null)}
+        onFocusCapture={(e) => { const key = chipKeyOf(e.target); if (key) setHovered(key); }}
+        onBlurCapture={(e) => { if (!(e.relatedTarget instanceof Element) || !listRef.current?.contains(e.relatedTarget)) setHovered(null); }}
         className={cn(
           "pointer-events-auto relative flex items-center rounded-full border border-border/60 bg-surface-1/75 backdrop-blur-xl backdrop-saturate-150",
           isDock
             ? "w-full max-w-md justify-around gap-0 px-1.5 py-1.5 shadow-e3"
             : "gap-0.5 p-1 shadow-e1",
+          // The account circle at the end is taller than the pill; never clip it.
+          !isDock && "overflow-visible",
         )}
       >
         {/* Motion layers — one element each, moved by measured geometry. */}
@@ -268,9 +298,6 @@ export function AppRail({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
-                onPointerEnter={() => setHovered(item.href)}
-                onFocus={() => setHovered(item.href)}
-                onBlur={() => setHovered((current) => (current === item.href ? null : current))}
                 className={cn(
                   chipBase,
                   chipVariant[variant],

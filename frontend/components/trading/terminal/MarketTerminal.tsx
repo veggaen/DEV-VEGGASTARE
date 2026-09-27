@@ -17,6 +17,9 @@ import {
   ChartArea, ChartCandlestick, ChartLine, ChevronDown, Layers, Maximize2, Minimize2, Minus, MousePointer2, MoveUpRight, RefreshCw, RotateCcw, Square, Trash2, TrendingUp,
 } from "lucide-react";
 import { useCurrentUserWithStatus } from "@/hooks/use-current-user";
+import { useAccount } from "wagmi";
+import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
+import { DexSwapPanel } from "@/components/crypto-related/DexSwapPanel";
 import { isDemoUserId } from "@/lib/demo-policy";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -35,6 +38,8 @@ import type { PaperPortfolioSnapshot } from "@/lib/paper/read";
 import { cn } from "@/lib/utils";
 
 const SYMBOL_KEY = "veggat:terminal:symbol";
+const TRADE_MODE_KEY = "veggat:terminal:tradeMode";
+type TerminalTradeMode = "paper" | "live";
 const INTERVAL_KEY = "veggat:terminal:interval";
 const TOOL_ICONS: Record<DrawingTool, React.ComponentType<{ className?: string }>> = { cursor: MousePointer2, trend: TrendingUp, ray: MoveUpRight, hline: Minus, rect: Square, fib: Layers };
 
@@ -50,6 +55,25 @@ export function MarketTerminal({ className }: { className?: string }) {
   const confirm = useConfirm();
   const isDemo = isDemoUserId(user?.id);
   const canTrade = status === "authenticated" && !!user?.id && !isDemo;
+
+  // ── Paper vs Live ────────────────────────────────────────────────────────
+  // Live = your real wallet through the DEX aggregator on the current network
+  // (the same DexSwapPanel as the hub's DEX tab). Paper is the extra you
+  // switch on. A connected wallet makes Live the default until you choose.
+  const { isConnected: walletConnected } = useAccount();
+  const { override: localOverride } = useActiveWalletOverride();
+  const [tradeMode, setTradeModeState] = React.useState<TerminalTradeMode>("paper");
+  const tradeModeChosen = React.useRef(false);
+  React.useEffect(() => {
+    const stored = readStored(TRADE_MODE_KEY, (v): v is TerminalTradeMode => v === "paper" || v === "live", "paper");
+    let chosen = false;
+    try { chosen = localStorage.getItem(TRADE_MODE_KEY) !== null; } catch { /* optional */ }
+    tradeModeChosen.current = chosen;
+    if (chosen) setTradeModeState(stored);
+  }, []);
+  React.useEffect(() => { if (!tradeModeChosen.current) setTradeModeState(walletConnected ? "live" : "paper"); }, [walletConnected]);
+  const setTradeMode = React.useCallback((m: TerminalTradeMode) => { tradeModeChosen.current = true; setTradeModeState(m); try { localStorage.setItem(TRADE_MODE_KEY, m); } catch { /* optional */ } }, []);
+  const live = tradeMode === "live";
 
   // ── Market + chart state ─────────────────────────────────────────────────
   const [symbol, setSymbol] = React.useState<string>("BTC");
@@ -247,22 +271,30 @@ export function MarketTerminal({ className }: { className?: string }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {portfolio && (
+            {!live && portfolio && (
               <dl className="hidden items-center gap-4 text-[11px] tabular-nums md:flex">
                 <div><dt className="text-muted-foreground">Value</dt><dd className="font-semibold text-foreground">{portfolio.totalValueUsd != null ? `$${formatPrice(portfolio.totalValueUsd)}` : "—"}</dd></div>
                 <div><dt className="text-muted-foreground">Cash</dt><dd className="font-semibold text-foreground">${formatPrice(cash)}</dd></div>
                 <div><dt className="text-muted-foreground">P&amp;L</dt><dd className={cn("font-semibold", portfolio.totalPnlUsd == null ? "text-muted-foreground" : portfolio.totalPnlUsd >= 0 ? "text-chart-up" : "text-chart-down")}>{portfolio.totalPnlUsd == null ? "—" : `${portfolio.totalPnlUsd >= 0 ? "+" : "−"}${Math.abs(portfolio.totalPnlUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}{portfolio.totalPnlPercent != null && <span className="ml-1 opacity-80">({portfolio.totalPnlPercent >= 0 ? "+" : ""}{portfolio.totalPnlPercent.toFixed(2)}%)</span>}</dd></div>
               </dl>
             )}
-            <span className="hidden rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 sm:inline dark:text-amber-300">Paper</span>
+            <div role="tablist" aria-label="Trading account" className="flex items-center gap-0.5 rounded-full border border-border/60 bg-foreground/[0.04] p-0.5">
+              {(["live", "paper"] as const).map((m) => (
+                <button key={m} type="button" role="tab" aria-selected={tradeMode === m} onClick={() => setTradeMode(m)}
+                  className={cn("min-h-7 rounded-full px-3 text-[11px] font-semibold uppercase tracking-wider transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    tradeMode === m ? (m === "paper" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light") : "text-muted-foreground hover:text-foreground")}>
+                  {m === "live" ? "Live" : "Paper"}
+                </button>
+              ))}
+            </div>
             <HeaderTip label="Refresh prices and portfolio"><button type="button" aria-label="Refresh" onClick={() => { void refreshCandles(); void refreshPortfolio(); void refreshOrders(); }} className={iconBtn}><RefreshCw className={cn("size-4", candlesLoading && "motion-safe:animate-spin")} /></button></HeaderTip>
-            {portfolio && <HeaderTip label="Reset paper portfolio"><button type="button" aria-label="Reset paper portfolio" disabled={busy} onClick={() => void resetPortfolio()} className={iconBtn}><RotateCcw className="size-4" /></button></HeaderTip>}
+            {!live && portfolio && <HeaderTip label="Reset paper portfolio"><button type="button" aria-label="Reset paper portfolio" disabled={busy} onClick={() => void resetPortfolio()} className={iconBtn}><RotateCcw className="size-4" /></button></HeaderTip>}
             <HeaderTip label={full ? "Exit full screen" : "Full screen"}><button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={iconBtn}>{full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</button></HeaderTip>
           </div>
         </header>
 
         {/* ── Body ─────────────────────────────────────────── */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[232px_minmax(0,1fr)_300px]">
+        <div className={cn("grid min-h-0 flex-1 grid-cols-1", live ? "lg:grid-cols-[232px_minmax(0,1fr)_400px]" : "lg:grid-cols-[232px_minmax(0,1fr)_300px]")}>
           <aside className="hidden min-h-0 border-r border-border/60 lg:flex lg:flex-col" aria-label="Market list">
             <MarketList selected={market.symbol} tickers={tickers} onSelect={selectMarket} className="min-h-0 flex-1" />
           </aside>
@@ -274,11 +306,26 @@ export function MarketTerminal({ className }: { className?: string }) {
               {candlesError && !candles.length && <div role="alert" className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground">Candles are unavailable right now. <button type="button" onClick={() => void refreshCandles()} className="ml-1 underline underline-offset-4 hover:text-foreground">Try again</button></div>}
               {candleData?.approximate && <p className="pointer-events-none absolute bottom-8 left-3 rounded-md bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">Approximate bars from CoinGecko for this market and timeframe.</p>}
             </div>
-            <TerminalPanels portfolio={portfolio} orders={orders} ordersLoading={ordersLoading} onSelectSymbol={(s) => { const m = marketBySymbol(s); if (m) selectMarket(m); }} onClosePosition={closePosition} onCancelOrder={cancelOrder} className="h-[240px] shrink-0 border-t border-border/60" />
+            {live ? (
+              <div className="flex h-[120px] shrink-0 items-center justify-center border-t border-border/60 px-6 text-center text-sm text-muted-foreground">
+                Live trades settle in your wallet. Positions are your on-chain balances (see Inventory on the hub); switch to Paper for the virtual account, orders and history.
+              </div>
+            ) : (
+              <TerminalPanels portfolio={portfolio} orders={orders} ordersLoading={ordersLoading} onSelectSymbol={(s) => { const m = marketBySymbol(s); if (m) selectMarket(m); }} onClosePosition={closePosition} onCancelOrder={cancelOrder} className="h-[240px] shrink-0 border-t border-border/60" />
+            )}
           </div>
 
           <aside className="min-h-0 overflow-y-auto border-t border-border/60 p-3 lg:border-l lg:border-t-0" aria-label="Order ticket">
-            {status === "loading" || portfolioState === "loading" ? (
+            {live ? (
+              <div className="space-y-3">
+                {localOverride && !walletConnected && (
+                  <p className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-xs leading-relaxed text-orange-800 dark:text-orange-200">
+                    Your active wallet is a local dev-chain account. DEX routing needs a browser wallet on a live network; use Internal Transfer or Local Chain on the hub for test-chain moves.
+                  </p>
+                )}
+                <DexSwapPanel />
+              </div>
+            ) : status === "loading" || portfolioState === "loading" ? (
               <div role="status" aria-label="Loading account" className="h-64 rounded-xl bg-foreground/[0.04] motion-safe:animate-pulse" />
             ) : !user?.id ? (
               <div className="rounded-xl border border-border/60 bg-foreground/[0.03] p-4">

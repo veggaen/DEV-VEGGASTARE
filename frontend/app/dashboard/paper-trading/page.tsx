@@ -24,8 +24,8 @@ export default function PaperTradingPage() {
     <PageShell width="wide" as="section" className="py-6 sm:py-8">
       <PageHeader
         eyebrow="Trading"
-        title="Paper trading"
-        description="Practise with virtual money at live market prices. Charts, drawing tools, market, limit and stop orders, all saved to your account."
+        title="Trading terminal"
+        description="Live trades go through your connected wallet; switch to Paper to practise with virtual money at the same live prices. Charts, drawing tools, market, limit and stop orders."
         actions={
           <Link href="/dashboard/trading" className="inline-flex min-h-11 items-center rounded-full border border-border/60 bg-surface-1/75 px-5 text-sm font-medium text-foreground backdrop-blur-xl transition-[border-color,background-color,transform] duration-200 hover:border-border hover:bg-foreground/[0.06] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
             All trading modes

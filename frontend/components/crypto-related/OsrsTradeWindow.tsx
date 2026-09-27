@@ -858,6 +858,12 @@ export function OsrsTradeWindow({
   const myItemsRef = useRef(myItems);
 
   useEffect(() => { myItemsRef.current = myItems; }, [myItems]);
+  // Tell the inventory what is sitting in the offer (it subtracts these from
+  // the balances it shows), and release everything when the window closes.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("veggat:offerChanged", { detail: myItems.map((s) => ({ chainId: s.token.chainId, address: s.token.address, rawAmount: s.rawAmount })) }));
+  }, [myItems]);
+  useEffect(() => () => { window.dispatchEvent(new CustomEvent("veggat:offerChanged", { detail: [] })); }, []);
   const [theirItems, setTheirItems] = useState<InventorySlot[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();

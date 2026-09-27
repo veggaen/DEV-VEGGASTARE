@@ -30,14 +30,13 @@ import {
 } from "@/components/ui/sheet";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { AppHeader } from "@/components/uicustom/chrome/app-header";
-import { AppRail } from "@/components/uicustom/chrome/app-rail";
+import { AppRail, RailDivider, RailSlot } from "@/components/uicustom/chrome/app-rail";
 import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
 import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
 import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import usePusher from "@/hooks/usePusher";
 import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
 import { ChatLiteDropdown } from "@/components/uicustom/chat-lite-dropdown";
@@ -52,6 +51,9 @@ import { getNavigationGroups, getPrimaryNavigation, isActiveNavigationPath as is
 
 // These panels are only mounted inside the open navigation/settings sheet.
 // Keep connection providers stable; defer optional UI, not the entire app tree.
+/** Borderless round icon chip inside the header pill (the rail chaser is the hover). */
+const PILL_ICON_CHIP = "size-9 rounded-full hover:bg-transparent";
+
 function WalletPanelLoading() {
 	return <div role="status" className="min-h-24 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Loading wallet controls…</div>;
 }
@@ -347,26 +349,22 @@ const MyTopBar = () => {
 				<AppHeader
 					ref={headerRef}
 					scrolled={showTopbarChrome}
-					rail={<AppRail id="header-rail" items={railItems} />}
-					utilities={
-						<>
-						{/* Desktop quick actions */}
-						<TooltipProvider delayDuration={200}>
-						<div className="hidden md:flex items-center gap-1">
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<div data-nav-key="currency" className="relative">
-										<CurrencySelector variant="ghost" size="sm" />
+					rail={
+						<AppRail id="header-rail" items={railItems}>
+							{/* Utilities live INSIDE the pill: same surface, same hover chaser. */}
+							<RailDivider />
+							<RailSlot id="currency" data-nav-key="currency">
+								<HeaderTip label="Currency">
+									<div className="relative">
+										<CurrencySelector variant="ghost" size="sm" className="min-h-9 rounded-full px-2.5 hover:bg-transparent" />
 									</div>
-								</TooltipTrigger>
-								<TooltipContent side="bottom" sideOffset={6} className="rounded-full border-border/60 px-3 py-1.5 text-[11px] font-medium">Currency</TooltipContent>
-							</Tooltip>
-
+								</HeaderTip>
+							</RailSlot>
 							{clientUser && (
 								<>
-									{/* Notification Bell */}
-											<HeaderTip label="Alerts">
-											<div data-nav-key="notifications" className="relative">
+									<RailSlot id="alerts" data-nav-key="notifications">
+										<HeaderTip label="Alerts">
+											<div className="relative">
 												<NotificationDropdown
 													notifications={notifications}
 													unreadCount={unreadCount}
@@ -377,64 +375,67 @@ const MyTopBar = () => {
 													onRefresh={refreshNotifications}
 													onMarkRead={markAsRead}
 													onMarkAllRead={markAllAsRead}
+													bellClassName={PILL_ICON_CHIP}
 												/>
 											</div>
-											</HeaderTip>
-									
-									{/* Mini Cart Dropdown */}
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div data-nav-key="cart" className="relative">
-												<MiniCartDropdown
-													key={clientUser?.id ?? 'guest'}
-													userId={clientUser?.id}
-													cartCount={cartCount}
-												/>
+										</HeaderTip>
+									</RailSlot>
+									<RailSlot id="cart" data-nav-key="cart">
+										<HeaderTip label="Cart">
+											<div className="relative">
+												<MiniCartDropdown key={clientUser?.id ?? 'guest'} userId={clientUser?.id} cartCount={cartCount} triggerClassName={PILL_ICON_CHIP} />
 											</div>
-										</TooltipTrigger>
-										<TooltipContent side="bottom" sideOffset={6} className="rounded-full border-border/60 px-3 py-1.5 text-[11px] font-medium">Cart</TooltipContent>
-									</Tooltip>
-
-
+										</HeaderTip>
+									</RailSlot>
+									<RailSlot id="messages" data-nav-key="conversations">
+										<HeaderTip label="Messages">
+											<div className="relative">
+												<ChatLiteDropdown className={PILL_ICON_CHIP} />
+											</div>
+										</HeaderTip>
+									</RailSlot>
 								</>
 							)}
-						</div>
-						{clientUser && (
-							<HeaderTip label="Messages">
-							<div data-nav-key="conversations" className="relative">
-								<ChatLiteDropdown />
-							</div>
-							</HeaderTip>
-						)}
-						<ThemeToggle />
-						</TooltipProvider>
-						</>
+							<RailSlot id="theme">
+								<ThemeToggle variant="chip" />
+							</RailSlot>
+							{/* The account circle is taller than the pill and hangs off its end. */}
+							<RailSlot id="account" className="-my-2 -mr-2.5 ml-0.5">
+								<HeaderTip label={clientUser ? "Account" : "Menu"}>
+									<SheetTrigger asChild>
+										<button
+											type="button"
+											data-nav-key="avatar"
+											data-nav-round="true"
+											aria-label="Open menu"
+											disabled={!clientReady}
+											className="group grid size-12 shrink-0 place-items-center rounded-full border border-border/60 bg-surface-1 text-foreground shadow-e1 transition-[border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-brand-accent/40 hover:shadow-e2 motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:size-[3.25rem]"
+										>
+											{clientUser ? (
+												<Avatar className="size-9 ring-2 ring-background transition-[box-shadow] duration-200 group-hover:ring-brand-accent/40 lg:size-10">
+													<AvatarImage src={clientUser.image || "/users/avatar.webp"} alt="User" />
+													<AvatarFallback className="bg-muted text-sm text-muted-foreground"><FaUser className="size-4" /></AvatarFallback>
+												</Avatar>
+											) : (
+												<TbHexagons aria-hidden="true" className="size-5 text-muted-foreground transition-[color,transform] duration-300 group-hover:rotate-12 group-hover:text-brand-accent" />
+											)}
+										</button>
+									</SheetTrigger>
+								</HeaderTip>
+							</RailSlot>
+						</AppRail>
 					}
+					utilities={<ThemeToggle />}
 					account={
-					<HeaderTip label={clientUser ? "Account" : "Menu"}>
+					<HeaderTip label="Menu">
 					<SheetTrigger asChild>
 						<button
 							type="button"
-							data-nav-key="avatar"
-							data-nav-round="true"
 							aria-label="Open menu"
 							disabled={!clientReady}
-							className="group inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-3.5 text-sm font-medium text-foreground backdrop-blur-xl transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-border hover:bg-surface-3 hover:shadow-e1 motion-safe:hover:-translate-y-px motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:size-10 md:px-0"
+							className="group inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-3.5 text-sm font-medium text-foreground backdrop-blur-xl transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-border hover:bg-surface-3 hover:shadow-e1 motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 						>
-							<span className="inline-flex items-center gap-2 md:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
-							<span className="hidden md:inline-flex">{clientUser ? (
-								<Avatar className="size-8 ring-2 ring-background transition-[box-shadow] duration-200 group-hover:ring-brand-accent/40">
-									<AvatarImage
-										src={clientUser.image || "/users/avatar.webp"}
-										alt="User"
-									/>
-									<AvatarFallback className="bg-muted text-sm text-muted-foreground">
-										<FaUser className="size-4" />
-									</AvatarFallback>
-								</Avatar>
-							) : (
-								<TbHexagons aria-hidden="true" className="size-5 text-muted-foreground transition-[color,transform] duration-300 group-hover:rotate-12 group-hover:text-brand-accent" />
-							)}</span>
+							<FiMenu aria-hidden="true" className="size-5" /><span>Menu</span>
 						</button>
 					</SheetTrigger>
 					</HeaderTip>
