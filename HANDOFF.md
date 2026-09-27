@@ -96,6 +96,36 @@ use absolute paths; inspect them before reuse rather than publishing them.
 No new payment, user balance change, database migration, or production deployment
 is part of this folder/GitHub handoff.
 
+## Handoff verification and GitHub status
+
+- Root, frontend and backend dependencies were installed from their lockfiles.
+  The existing EdgeStore patch was applied. Both Prisma clients were generated
+  using a dummy loopback URL; no database connection/migration was required.
+- Old main-folder Next.js generated types were incompatible with the current
+  dependency version. The old `.next` directory was moved to the local temporary
+  folder `veggat-handoff-cache-20260927/old-next` for recovery, and `next typegen`
+  regenerated current route types. Frontend `tsc --noEmit --incremental false`
+  then passed without changing application source.
+- 129 focused frontend tests pass across 11 files (product lifecycle/catalogue,
+  account recovery and paper reads). Backend build and all five integration
+  boundary/security tests pass. This handoff did not rerun the full app audit.
+- The outgoing integrated and Live branch histories were scanned for secrets.
+  The exact historical mocked-token false positive is documented in
+  `.gitleaksignore`; private local recovery refs were not pushed.
+- Uploaded branches: `chore/ai-handoff-2026-09-27`,
+  `release/showcase-september`, and `release/ui-september`.
+  [Draft PR #85](https://github.com/veggaen/DEV-VEGGASTARE/pull/85) targets `dev`.
+  GitHub `main` and `dev` were not changed or merged.
+- GitHub CI, E2E and CodeQL jobs did **not start**: GitHub reports the account is
+  locked due to a billing issue. This is not passing CI. No billing settings were
+  changed. The older default branch also retains dependency alerts; do not treat
+  an upload as resolution of those alerts.
+- The automatic handoff Preview `dpl_EsiSutL3DXrryYPYP2Uirv8p8uL5` failed safely
+  before migrations because its inherited `AUTH_URL` is not a Preview HTTPS
+  origin. Do not weaken that guard. Configure a branch-appropriate callback and
+  isolated Preview environment before trying that deployment again. The previously
+  verified stable Preview and Live deployments were not replaced by this failure.
+
 ## Preserved older local work — LOCAL ONLY
 
 Before updating the primary folder, its 30 changed/untracked frontend files were
