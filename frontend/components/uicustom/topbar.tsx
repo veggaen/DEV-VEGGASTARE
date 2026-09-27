@@ -12,6 +12,7 @@ import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
 import { signIn, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
 import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import { FcGoogle } from "react-icons/fc";
@@ -877,22 +878,34 @@ function SidebarWalletInfo() {
 				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
 					Network
 				</span>
-				<select
-					aria-label="Wallet network"
-					className="min-h-11 min-w-0 max-w-[180px] rounded border border-border bg-background px-2 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-					value={effectiveChainId ?? ""}
-					onChange={(e) => {
-						const id = Number(e.target.value);
-						if (id !== effectiveChainId) switchChain({ chainId: id });
-					}}
-					disabled={switchStatus === "pending"}
-				>
-					{chains.map((c) => (
-						<option key={c.id} value={c.id}>
-							{c.name}{switchStatus === "pending" && c.id !== activeChainId ? " …" : ""}
-						</option>
-					))}
-				</select>
+				{/* Styled menu instead of a native select: same tokens as every other chip in the drawer. */}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							aria-label="Wallet network"
+							disabled={switchStatus === "pending"}
+							className="inline-flex min-h-10 min-w-0 max-w-[200px] items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-3 text-sm font-medium text-foreground transition-[border-color,background-color] duration-200 hover:border-border hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+						>
+							{activeChain && isLocalChain(activeChain.id) && <span className="font-mono text-[10px] font-bold text-amber-500 dark:text-amber-400">&gt;_</span>}
+							<span className="truncate">{switchStatus === "pending" ? "Switching…" : activeChain?.name ?? "Select network"}</span>
+							<FiChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="z-[120] w-56 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl">
+						{chains.map((c) => (
+							<DropdownMenuItem
+								key={c.id}
+								onSelect={() => { if (c.id !== effectiveChainId) switchChain({ chainId: c.id }); }}
+								className={`min-h-10 gap-2 rounded-lg px-2.5 text-sm ${c.id === effectiveChainId ? "bg-brand-accent/[0.08] font-medium" : ""}`}
+							>
+								{isLocalChain(c.id) && <span className="font-mono text-[10px] font-bold text-amber-500 dark:text-amber-400">&gt;_RPC</span>}
+								<span className="min-w-0 flex-1 truncate">{c.name}</span>
+								{c.id === effectiveChainId && <FiCheck className="size-3.5 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
 			{/* Current chain indicator */}

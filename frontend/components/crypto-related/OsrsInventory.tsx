@@ -130,7 +130,7 @@ export function OsrsInventory({
   const chains = useChains();
   const { switchChain, status: switchStatus } = useSwitchChain();
   const { override } = useActiveWalletOverride();
-  const { tokens, loading, refetch } = useTokenBalances();
+  const { tokens, loading, error: balancesError, refetch } = useTokenBalances();
   const { nfts, loading: nftsLoading, refetch: refetchNfts } = useNftBalances();
 
   /** Active tab: "tokens" (ERC-20 + native) or "nfts" (ERC-721/1155) */
@@ -1381,12 +1381,20 @@ export function OsrsInventory({
 
       {/* ── Status Bar — chain + active wallet ──────────── */}
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-border bg-surface-3/60">
-        <span className="text-[10px] text-muted-foreground">
-          {activeTab === "tokens"
-            ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
-            : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}{" "}
-          · {activeChain?.name ?? `Chain ${chainId}`}
-        </span>
+        {activeTab === "tokens" && balancesError && !loading ? (
+          // A failed read is not "0 tokens": name it and offer the retry inline.
+          <button type="button" onClick={() => void refetch()} className="inline-flex min-h-8 items-center gap-1 rounded-md text-[10px] font-medium text-destructive transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <FiRefreshCw className="h-2.5 w-2.5" aria-hidden="true" />
+            Balances didn’t load · Retry
+          </button>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">
+            {activeTab === "tokens"
+              ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
+              : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}{" "}
+            · {activeChain?.name ?? `Chain ${chainId}`}
+          </span>
+        )}
         {effectiveConnected && effectiveAddress && (
           <button
             type="button"

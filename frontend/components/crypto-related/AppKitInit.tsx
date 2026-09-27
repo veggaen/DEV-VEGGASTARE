@@ -19,6 +19,7 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { cookieStorage, createStorage, injected } from '@wagmi/core';
 import { getDappOrigin } from './dapp-origin';
 import { WEB3_PROJECT_ID } from '@/lib/web3-config';
+import { customRpcUrlMap } from '@/lib/evm-rpc';
 
 const pulsechain = {
   id: 369,
@@ -120,10 +121,17 @@ const networks: [AppKitNetwork, ...AppKitNetwork[]] = isTestMode
 // Default network based on mode
 const defaultNetwork = isTestMode ? sepolia : mainnet;
 
+// Reown's own RPC answers 401 unless the project's allowed origins include this
+// host (never localhost), which made every balance read fail. Reads go to the
+// RPCs in lib/evm-rpc instead; the same map feeds AppKit's balance fetches.
+type RpcMap = NonNullable<ConstructorParameters<typeof WagmiAdapter>[0]['customRpcUrls']>;
+const customRpcUrls = customRpcUrlMap() as unknown as RpcMap;
+
 // Create wagmi adapter for AppKit
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks,
+  customRpcUrls,
   ssr: true,
   // Direct extension connections remain available without starting AppKit.
   connectors: [injected({ shimDisconnect: true })],
@@ -149,6 +157,7 @@ export function ensureAppKit(): Promise<AppKit> {
       adapters: [wagmiAdapter],
       projectId,
       networks,
+      customRpcUrls,
       defaultNetwork,
       metadata: buildMetadata(),
       features: {

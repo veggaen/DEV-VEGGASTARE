@@ -5,6 +5,8 @@ import { useAccount, useChainId, useBalance } from "wagmi";
 import { formatUnits } from "viem";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { TOKEN_LOGO_FALLBACKS } from "@/lib/token-icons";
+import { rpcUrlFor } from "@/lib/evm-rpc";
+import { BLOCKSCOUT_HOSTS, mergeTokenCandidates, type DiscoveredToken, type TokenCandidate } from "@/lib/wallet-tokens";
 
 /** Chain icon data URIs — simple coloured circles with chain abbreviation */
 export const CHAIN_LOGOS: Record<number, string> = {
@@ -27,8 +29,8 @@ export const CHAIN_LOGOS: Record<number, string> = {
  * before falling back to generated letter icons.
  */
 function resolveTokenLogo(_symbol: string, providedLogo?: string): string | undefined {
-  // Only honour pre-resolved data URIs (e.g. from API responses)
-  if (providedLogo?.startsWith("data:")) return providedLogo;
+  // Honour pre-resolved data URIs and the indexer's https logos (CoinGecko-backed)
+  if (providedLogo?.startsWith("data:") || providedLogo?.startsWith("https://")) return providedLogo;
   // Return undefined — let TokenIcon cascade:
   //   Trust Wallet CDN → inline SVG fallback → generated letter
   return undefined;
@@ -126,6 +128,7 @@ export interface InventoryToken {
  * Polls every 12 seconds for balance updates.
  */
 const POLL_INTERVAL = 12_000;
+const DISCOVERY_TTL = 60_000;
 
 export function useTokenBalances() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
@@ -137,6 +140,9 @@ export function useTokenBalances() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Version counter to prevent stale async results from overwriting newer ones
   const fetchVersionRef = useRef(0);
+  // Discovery is indexed data that lags anyway; ask the indexer at most once a
+  // minute per wallet/chain and reuse the list between the 12 s balance polls.
+  const discoveryRef = useRef<{ key: string; ts: number; tokens: DiscoveredToken[] } | null>(null);
 
   // Determine effective address / chain / connection status
   const isLocalOverride = Boolean(override?.address);
@@ -215,79 +221,108 @@ export function useTokenBalances() {
         }
       }
 
-      // ── Fetch ERC-20 balances via multicall ──────────────
-      // Wrapped in its own try/catch so a multicall failure
-      // doesn't prevent native token from showing.
-      if (knownTokens.length > 0) {
+      // ── ERC-20s, two passes ──────────────────────────────
+      // 1. The known list is read over RPC first: fast, so the common
+      //    tokens show immediately.
+      // 2. Blockscout (keyless) then reports everything else the wallet
+      //    holds; those are confirmed over RPC too, with the indexed value
+      //    as the per-token fallback. A failed read is reported, not "0".
+      let rpcFailed = false;
+      const readBalances = async (candidates: TokenCandidate[]) => {
+        const confirmed = new Map<string, bigint>();
+        if (candidates.length === 0) return confirmed;
         try {
           const { createPublicClient, http, erc20Abi } = await import("viem");
           const { mainnet, sepolia, base, baseSepolia, arbitrum, polygon, optimism } = await import("viem/chains");
-
-          const chainMap: Record<number, Parameters<typeof createPublicClient>[0]["chain"]> = {
-            1: mainnet,
-            42161: arbitrum,
-            137: polygon,
-            10: optimism,
-            11155111: sepolia,
-            8453: base,
-            84532: baseSepolia,
-            369: {
-              id: 369,
-              name: "PulseChain",
-              nativeCurrency: { name: "Pulse", symbol: "PLS", decimals: 18 },
-              rpcUrls: { default: { http: ["https://rpc.pulsechain.com"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
-            31337: {
-              id: 31337,
-              name: "Anvil Local",
-              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              rpcUrls: { default: { http: ["http://127.0.0.1:8545"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
-            1337: {
-              id: 1337,
-              name: "Ganache Local",
-              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              rpcUrls: { default: { http: ["http://127.0.0.1:7545"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
+          type ChainDef = Parameters<typeof createPublicClient>[0]["chain"];
+          const local = (id: number, name: string, url: string) => ({
+            id, name, nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [url] } },
+          }) as ChainDef;
+          const chainMap: Record<number, ChainDef> = {
+            1: mainnet, 42161: arbitrum, 137: polygon, 10: optimism, 11155111: sepolia, 8453: base, 84532: baseSepolia,
+            369: { id: 369, name: "PulseChain", nativeCurrency: { name: "Pulse", symbol: "PLS", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.pulsechain.com"] } } } as ChainDef,
+            31337: local(31337, "Anvil Local", "http://127.0.0.1:8545"),
+            1337: local(1337, "Ganache Local", "http://127.0.0.1:7545"),
           };
-
           const chain = chainMap[chainId];
-          if (chain) {
-            // Bail early if a newer fetch already started
-            if (version !== fetchVersionRef.current) return;
-
-            const client = createPublicClient({ chain, transport: http() });
-
-            const calls = knownTokens.map((t) => ({
+          if (!chain) return confirmed;
+          const client = createPublicClient({ chain, transport: http(rpcUrlFor(chainId)) });
+          const balances = await client.multicall({
+            contracts: candidates.map((t) => ({
               address: t.address as `0x${string}`,
               abi: erc20Abi,
               functionName: "balanceOf" as const,
               args: [address] as const,
-            }));
-
-            const balances = await client.multicall({ contracts: calls });
-
-            for (let i = 0; i < knownTokens.length; i++) {
-              const result = balances[i];
-              if (result.status === "success" && typeof result.result === "bigint" && result.result > BigInt(0)) {
-                const token = knownTokens[i];
-                results.push({
-                  id: `${chainId}:${token.address}`,
-                  address: token.address,
-                  symbol: token.symbol,
-                  decimals: token.decimals,
-                  logo: resolveTokenLogo(token.symbol, token.logo),
-                  chainId,
-                  rawBalance: result.result,
-                  displayBalance: formatBalance(formatUnits(result.result, token.decimals)),
-                  isNative: false,
-                });
-              }
+            })),
+          });
+          for (let i = 0; i < candidates.length; i++) {
+            const result = balances[i];
+            if (result.status === "success" && typeof result.result === "bigint") {
+              confirmed.set(candidates[i].address.toLowerCase(), result.result);
             }
           }
         } catch (erc20Err) {
-          console.warn("[useTokenBalances] ERC-20 multicall failed (native balance still shown):", erc20Err);
+          rpcFailed = true;
+          console.warn("[useTokenBalances] ERC-20 multicall failed (indexed balances still shown):", erc20Err);
         }
+        return confirmed;
+      };
+      const pushConfirmed = (candidates: TokenCandidate[], confirmed: Map<string, bigint>) => {
+        for (const token of candidates) {
+          const raw = confirmed.get(token.address.toLowerCase()) ?? token.indexedBalance ?? BigInt(0);
+          if (raw <= BigInt(0)) continue;
+          results.push({
+            id: `${chainId}:${token.address}`,
+            address: token.address,
+            symbol: token.symbol,
+            decimals: token.decimals,
+            logo: resolveTokenLogo(token.symbol, token.logo),
+            chainId,
+            rawBalance: raw,
+            displayBalance: formatBalance(formatUnits(raw, token.decimals)),
+            isNative: false,
+          });
+        }
+      };
+      const byValue = (a: InventoryToken, b: InventoryToken) => {
+        if (a.isNative && !b.isNative) return -1;
+        if (!a.isNative && b.isNative) return 1;
+        return Number(b.rawBalance - a.rawBalance);
+      };
+
+      // Pass 1: the known list, shown as soon as it is read.
+      const known = mergeTokenCandidates(knownTokens, []);
+      pushConfirmed(known, await readBalances(known));
+      if (version !== fetchVersionRef.current) return;
+      setTokens([...results].sort(byValue));
+
+      // Pass 2: what the indexer knows beyond the list.
+      let indexerFailed = false;
+      if (!isLocalOverride && BLOCKSCOUT_HOSTS[chainId]) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const cached = discoveryRef.current;
+          let discovered: DiscoveredToken[];
+          if (cached && cached.key === cacheKey && Date.now() - cached.ts < DISCOVERY_TTL) {
+            discovered = cached.tokens;
+          } else {
+            const res = await fetch(`/api/wallets/evm/tokens?chainId=${chainId}&address=${address}`, { signal: AbortSignal.timeout(25_000) });
+            if (!res.ok) throw new Error(`indexer ${res.status}`);
+            const data = (await res.json()) as { tokens?: DiscoveredToken[] };
+            discovered = data.tokens ?? [];
+            discoveryRef.current = { key: cacheKey, ts: Date.now(), tokens: discovered };
+          }
+          const seen = new Set(known.map((t) => t.address.toLowerCase()));
+          const extra = mergeTokenCandidates(knownTokens, discovered).filter((t) => !seen.has(t.address.toLowerCase()));
+          if (version !== fetchVersionRef.current) return;
+          pushConfirmed(extra, await readBalances(extra));
+        } catch (indexErr) {
+          indexerFailed = true;
+          console.warn("[useTokenBalances] token discovery unavailable (known list only):", indexErr);
+        }
+      }
+      if (rpcFailed && (indexerFailed || !BLOCKSCOUT_HOSTS[chainId]) && !isLocalOverride) {
+        setError("Balances could not load. Check your connection and retry.");
       }
 
       // Bail if a newer fetch was started while we were awaiting

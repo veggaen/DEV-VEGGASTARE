@@ -34,6 +34,7 @@ import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { FiZap, FiExternalLink, FiPower, FiChevronDown, FiShield, FiLogOut, FiSend, FiTerminal, FiPlusCircle, FiClock, FiRefreshCw, FiEdit2, FiCheck, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { CopyChip } from "@/components/uicustom/CopyChip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CHAIN_DISPLAY } from "@/lib/vegga-system-constants";
 import { useWalletVerify } from "@/hooks/use-wallet-verify";
 import { WalletVerificationAction } from "./WalletVerificationAction";
@@ -1021,7 +1022,9 @@ function LocalDevTools({
       </button>
 
       {localDevExpanded && (
-      <><div className="px-1">
+      <>
+      <DevChainStatusIndicator />
+      <div className="px-1">
         <select
           value={selectedChainId}
           onChange={(event) => { chainPickedByUser.current = true; setSelectedChainId(Number(event.target.value)); }}
@@ -1851,7 +1854,7 @@ function WalletRow({
                 onClick={onSetActive}
                 disabled={activationPending}
                 aria-label={connectorType === 'LOCAL_RPC' ? "Make this local dev-chain account the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
-                className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
+                className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
                     ? "border border-orange-500/50 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
                     : "bg-foreground/[0.08] text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover dark:hover:text-brand-accent-light"
@@ -1893,7 +1896,7 @@ function WalletRow({
                 }
               >
                 <FiSend className="h-2.5 w-2.5" />
-                {isActive ? "Transfer" : "Top up"}
+                Transfer
               </button>
             )}
 
@@ -1985,7 +1988,7 @@ function WalletRow({
             </span>
           )}
           {isLive && family === "EVM" && (
-            <div className={`min-w-0 max-w-full ${!verified ? 'w-full' : 'ml-auto'}`}>
+            <div className="ml-auto min-w-0 max-w-full">
               {!verified ? (
                 <WalletVerificationAction flow={verification} />
               ) : walletTier === "PATRON_1M" ? (
@@ -3099,6 +3102,25 @@ export default function SidebarWalletPanel({
       )
     : [];
 
+  // The active wallet is what signs; choosing another live wallet activates it first.
+  // Local dev accounts sign over RPC and can be chosen freely.
+  const transferSources = displayWallets.filter((wallet) => wallet.family === "EVM" && (wallet.isLive || wallet.connectorType === 'LOCAL_RPC'));
+  const transferDestinationWallet = hasTransferDestination
+    ? displayWallets.find((wallet) => wallet.address.toLowerCase() === normalizedTransferDestinationAddress.toLowerCase()) ?? null
+    : null;
+  const walletMenuLabel = (wallet: DisplayWallet) => wallet.customLabel
+    ?? (wallet.connectorType === "AUTH" || wallet.connectorName === "Auth"
+      ? (wallet.authProvider ? `Reown via ${authProviderLabel(wallet.authProvider.trim().toLowerCase())}` : "Reown")
+      : wallet.connectorName ? connectorLabel(wallet.connectorName) : wallet.label);
+  const chooseTransferSource = async (wallet: DisplayWallet) => {
+    if (wallet.address.toLowerCase() === (transferSourceAddress ?? "").toLowerCase()) return;
+    if (!wallet.isActive && wallet.connectorType !== 'LOCAL_RPC') await handleSetActive(wallet);
+    setTransferSourceAddress(wallet.address);
+    if (normalizedTransferDestinationAddress.toLowerCase() === wallet.address.toLowerCase()) setTransferDestinationAddress("");
+  };
+  const transferPickerClass = "inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 text-xs text-foreground transition-[border-color,background-color] duration-200 hover:border-border hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const transferMenuClass = "z-[130] w-72 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl";
+
   const incompatibleDestinationsCount = transferSourceAddress
     ? displayWallets.filter(
         (wallet) =>
@@ -3110,7 +3132,7 @@ export default function SidebarWalletPanel({
       ).length
     : 0;
 
-  const openTransferFlow = (sourceAddress: string) => {
+  const openTransferFlow = (sourceAddress: string, destinationAddress?: string) => {
     const sourceWallet = displayWallets.find(
       (wallet) => wallet.address.toLowerCase() === sourceAddress.toLowerCase(),
     );
@@ -3123,7 +3145,7 @@ export default function SidebarWalletPanel({
     resetTransfer();
     setTransferInput("");
     setTransferSourceAddress(sourceAddress);
-    setTransferDestinationAddress(destinations[0]?.address ?? "");
+    setTransferDestinationAddress(destinationAddress ?? destinations[0]?.address ?? "");
     setTransferOpen(true);
   };
 
@@ -3454,13 +3476,22 @@ export default function SidebarWalletPanel({
       // Find the target connector by registry info, connectorName, or ID
       const allConnectors = getConnectors(wagmiConfig);
 
+      const byLabel = (name?: string | null) => {
+        if (!name) return undefined;
+        const want = connectorLabel(name).toLowerCase();
+        return allConnectors.find((c) => c.type !== 'AUTH' && c.id !== 'walletConnect' && connectorLabel(c.name).toLowerCase() === want);
+      };
       // Strict match: prefer exact UID, then ID+name, then name+type, then ID alone, then name alone
       const connector =
         allConnectors.find((c) => c.uid === (regEntry?.connectorUid ?? w.connectorUid)) ||
         allConnectors.find((c) => c.id === (regEntry?.connectorId ?? '') && c.name === w.connectorName) ||
         allConnectors.find((c) => c.name === w.connectorName && c.type === (w.connectorType ?? regEntry?.connectorType)) ||
         allConnectors.find((c) => c.id === (regEntry?.connectorId ?? '')) ||
-        allConnectors.find((c) => c.name === w.connectorName);
+        allConnectors.find((c) => c.name === w.connectorName) ||
+        // Registry uids change every page load and DB-linked wallets carry only a
+        // label: match the extension by its friendly name as the last resort.
+        byLabel(w.connectorName) ||
+        byLabel(w.label);
 
       // For AUTH connectors, also try matching by type (they get new UIDs on re-init)
       const authConnector = !connector && (w.connectorType === 'AUTH' || regEntry?.connectorType === 'AUTH')
@@ -3635,7 +3666,7 @@ export default function SidebarWalletPanel({
         return;
       }
 
-      if (!resolvedConnector) throw new WalletActivationError('This wallet extension is not available. Open or install it, then try Set active again.');
+      if (!resolvedConnector) throw new WalletActivationError(`${w.customLabel ?? w.label} is not connected in this browser. Open "Connect a wallet" below and connect it; it becomes active as soon as it is.`);
 
       await ensureWalletAccount(resolvedConnector, w.address);
 
@@ -3857,7 +3888,12 @@ export default function SidebarWalletPanel({
             onTransfer={
               // Active wallets: "Transfer" button. Inactive EVM wallets: "Fund" button.
               (w.isActive && w.isLive && w.family === "EVM") || w.connectorType === 'LOCAL_RPC' || (!w.isActive && w.family === "EVM")
-                ? () => openTransferFlow(w.address)
+                ? () => {
+                    // An inactive wallet is funded FROM the active one; active and local accounts send.
+                    const active = displayWallets.find((x) => x.isActive && x.family === "EVM" && x.address.toLowerCase() !== w.address.toLowerCase());
+                    if (!w.isActive && w.connectorType !== 'LOCAL_RPC' && active) openTransferFlow(active.address, w.address);
+                    else openTransferFlow(w.address);
+                  }
                 : undefined
             }
             onRename={(newName) => handleRenameWallet(w.address, newName)}
@@ -3885,9 +3921,6 @@ export default function SidebarWalletPanel({
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-accent border-t-transparent" />
           </div>
         )}
-
-        {/* Dev Chain Status — only in development */}
-        {localRpcFeatureEnabled && <DevChainStatusIndicator />}
 
         {/* Connect wallets — collapsible section with all options */}
         {/* Gate behind web3Enabled — if disabled, show enable prompt */}
@@ -3967,43 +4000,9 @@ export default function SidebarWalletPanel({
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-start gap-2.5">
-                  <div className="relative mt-0.5">
-                    <WalletIcon
-                      src={
-                        transferSourceIsAuth
-                          ? REOWN_ICON_DATA_URI
-                          : connectorIconUrl(
-                              transferSourceWallet.connectorName ?? transferSourceWallet.family,
-                              transferSourceWallet.connectorIcon,
-                            )
-                      }
-                      alt={transferSourceLabel}
-                      size={20}
-                    />
-                    {transferSourceIsAuth &&
-                      normalizedTransferSourceProvider &&
-                      AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider] && (
-                        <div className="absolute -bottom-1 -right-1 rounded-full border border-background bg-card" style={{ padding: 1 }}>
-                          <WalletIcon
-                            src={AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider]}
-                            alt={transferSourceProviderName ?? "Provider"}
-                            size={10}
-                          />
-                        </div>
-                      )}
-                  </div>
-                  <div>
-                  <p className="text-xs font-semibold text-foreground">Transfer</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {transferSourceLabel} · {trimAddress(transferSourceWallet.address)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Chain: {transferSourceWallet.chainName ?? nativeSymbol} ·{" "}
-                    Balance: {sourceBalanceNative.toFixed(6)} {nativeSymbol}
-                    {nativeUsdPrice > 0 ? ` (~${(sourceBalanceNative * nativeUsdPrice).toFixed(2)} kr)` : ""}
-                  </p>
-                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Transfer</p>
+                  <p className="text-[11px] text-muted-foreground">Native {nativeSymbol} between your wallets, or to any address.</p>
                 </div>
                 <button
                   type="button"
@@ -4015,49 +4014,86 @@ export default function SidebarWalletPanel({
               </div>
 
               <div className="space-y-3">
+                {/* From: the active wallet signs; picking another live wallet activates it first. */}
                 <div>
-                  <p className="mb-2 text-[11px] font-medium text-foreground/85">Destination account</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {transferDestinations.map((wallet) => {
-                      const selected = wallet.address.toLowerCase() === transferDestinationAddress.toLowerCase();
-                      const isAuthDestination = wallet.connectorType === "AUTH" || wallet.connectorName === "Auth";
-                      const normalizedDestinationProvider = wallet.authProvider?.trim().toLowerCase();
-                      const destinationProvider =
-                        isAuthDestination && normalizedDestinationProvider
-                          ? authProviderLabel(normalizedDestinationProvider)
-                          : null;
-                      const destinationLabel = wallet.customLabel
-                        ?? (isAuthDestination
-                          ? (destinationProvider ? `Reown via ${destinationProvider}` : "Reown")
-                          : wallet.connectorName
-                            ? connectorLabel(wallet.connectorName)
-                            : wallet.label);
-                      return (
-                        <button
-                          key={wallet.key}
-                          type="button"
-                          onClick={() => setTransferDestinationAddress(wallet.address)}
-                          className={`rounded-lg border p-2 text-left transition-colors ${
-                            selected
-                              ? "border-brand-accent bg-brand-accent/10 dark:bg-brand-accent/30"
-                              : "border-border hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
-                          }`}
-                        >
-                          <p className="truncate text-[11px] font-medium text-foreground">{destinationLabel}</p>
-                          <p className="truncate font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</p>
+                  <p className="mb-1.5 text-[11px] font-medium text-foreground/85">From</p>
+                  <div className="flex items-center gap-1.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className={transferPickerClass} aria-label="Choose the wallet to send from">
+                          <WalletIcon
+                            src={transferSourceIsAuth ? REOWN_ICON_DATA_URI : connectorIconUrl(transferSourceWallet.connectorName ?? transferSourceWallet.family, transferSourceWallet.connectorIcon)}
+                            alt=""
+                            size={16}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-left">
+                            <span className="font-medium">{transferSourceLabel}</span>{" "}
+                            <span className="font-mono text-muted-foreground">{trimAddress(transferSourceWallet.address)}</span>
+                          </span>
+                          <FiChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
                         </button>
-                      );
-                    })}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className={transferMenuClass}>
+                        {transferSources.map((wallet) => (
+                          <DropdownMenuItem
+                            key={wallet.key}
+                            onSelect={() => void chooseTransferSource(wallet)}
+                            className={`min-h-10 gap-2 rounded-lg px-2.5 text-xs ${wallet.address.toLowerCase() === transferSourceWallet.address.toLowerCase() ? "bg-brand-accent/[0.08]" : ""}`}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{walletMenuLabel(wallet)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</span>
+                            {wallet.isActive && <span className="rounded-full bg-brand-accent/15 px-1.5 text-[9px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">Active</span>}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <CopyChip text={transferSourceWallet.address} label="Copy source address" size="xs" />
                   </div>
-                  <input
-                    type="text"
-                    value={transferDestinationAddress}
-                    onChange={(event) => setTransferDestinationAddress(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px] text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
-                    placeholder="Or enter destination address (0x...)"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {transferSourceWallet.chainName ?? nativeSymbol} · Balance {sourceBalanceNative.toFixed(6)} {nativeSymbol}
+                    {nativeUsdPrice > 0 ? ` (~${(sourceBalanceNative * nativeUsdPrice).toFixed(2)} kr)` : ""}
+                  </p>
+                </div>
+
+                {/* To: one of your other wallets, or any address typed or pasted. */}
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium text-foreground/85">To</p>
+                  <div className="flex items-center gap-1.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className={`${transferPickerClass} w-auto max-w-[45%] shrink-0`} aria-label="Choose a destination wallet">
+                          <span className="truncate">{transferDestinationWallet ? walletMenuLabel(transferDestinationWallet) : "Your wallets"}</span>
+                          <FiChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className={transferMenuClass}>
+                        {transferDestinations.length === 0 && (
+                          <p className="px-2.5 py-2 text-xs text-muted-foreground">No other wallet on this network. Paste an address instead.</p>
+                        )}
+                        {transferDestinations.map((wallet) => (
+                          <DropdownMenuItem
+                            key={wallet.key}
+                            onSelect={() => setTransferDestinationAddress(wallet.address)}
+                            className={`min-h-10 gap-2 rounded-lg px-2.5 text-xs ${wallet.address.toLowerCase() === normalizedTransferDestinationAddress.toLowerCase() ? "bg-brand-accent/[0.08]" : ""}`}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{walletMenuLabel(wallet)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input
+                      type="text"
+                      value={transferDestinationAddress}
+                      onChange={(event) => setTransferDestinationAddress(event.target.value)}
+                      className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 font-mono text-[11px] text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
+                      placeholder="0x… any address"
+                      aria-label="Destination address"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    {hasTransferDestination && <CopyChip text={normalizedTransferDestinationAddress} label="Copy destination address" size="xs" />}
+                  </div>
                   {!isManualDestinationValid && (
                     <p className="mt-1 text-[10px] text-red-500">Enter a valid EVM address (0x...).</p>
                   )}
