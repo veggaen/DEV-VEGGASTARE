@@ -233,7 +233,8 @@ export default function CatalogClient({ initialCatalog }: { initialCatalog: Cata
               {activeFilterCount > 0 && <Button className="min-h-11 rounded-full" onClick={resetAllFilters}>Show all products</Button>}
             </div>}
             {/* The trailing box slides between cards in any direction, the same chaser as the dashboard. */}
-            {products.length > 0 && <HoverChaser className={catalogGrid} boxClassName="rounded-2xl">
+            {/* Ring only here: a fill would tint the product photo. */}
+            {products.length > 0 && <HoverChaser className={catalogGrid} boxClassName="rounded-2xl bg-transparent ring-brand-accent/60 dark:bg-transparent dark:ring-brand-accent/50">
               {products.map((product, index) => <ProductCard key={product.id} product={product} priority={index === 0} authStatus={authStatus} />)}
             </HoverChaser>}
           </section>

@@ -201,7 +201,7 @@ export default function HomeHero({
           {isLoggedIn ? (
             <Link
               href="/settings"
-              className="group inline-flex min-h-12 items-center gap-2 rounded-full border border-transparent px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color,border-color] duration-300 hover:border-border/80 hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-foreground/[0.08] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <FiSettings aria-hidden="true" className="size-4 opacity-60 transition-[opacity,transform] duration-500 group-hover:rotate-90 group-hover:opacity-100" />
               <span>Settings</span>

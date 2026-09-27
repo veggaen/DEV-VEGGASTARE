@@ -2141,6 +2141,8 @@ export default function SidebarWalletPanel({
 
   // Active wallet override — used to make LOCAL_RPC wallets drive the inventory
   const { override: activeOverride, setOverride, clearOverride } = useActiveWalletOverride();
+  // The React connector list carries the EIP-6963 extensions as announced this session.
+  const { connectors: liveConnectors } = useConnect();
 
   const { step: transferStep, error: transferError, txHash: transferTxHash, transfer: execTransfer, reset: resetTransfer } = useWalletTransfer();
   const [transferOpen, setTransferOpen] = useState(false);
@@ -3474,7 +3476,15 @@ export default function SidebarWalletPanel({
       );
 
       // Find the target connector by registry info, connectorName, or ID
-      const allConnectors = getConnectors(wagmiConfig);
+      const configConnectors = getConnectors(wagmiConfig);
+      const allConnectors = [...liveConnectors, ...configConnectors.filter((c) => !liveConnectors.some((l) => l.uid === c.uid))];
+      const norm = (value?: string | null) => (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const fuzzy = (needle?: string | null) => {
+        const n = norm(needle);
+        if (n.length < 3) return undefined;
+        return allConnectors.find((c) => c.type !== "AUTH" && c.id !== "walletConnect"
+          && [c.name, c.id, connectorLabel(c.name)].some((v) => { const m = norm(v); return m.length >= 3 && (m.includes(n) || n.includes(m)); }));
+      };
 
       const byLabel = (name?: string | null) => {
         if (!name) return undefined;
@@ -3491,7 +3501,10 @@ export default function SidebarWalletPanel({
         // Registry uids change every page load and DB-linked wallets carry only a
         // label: match the extension by its friendly name as the last resort.
         byLabel(w.connectorName) ||
-        byLabel(w.label);
+        byLabel(w.label) ||
+        fuzzy(w.connectorName) ||
+        fuzzy(regEntry?.connectorId) ||
+        fuzzy(w.label);
 
       // For AUTH connectors, also try matching by type (they get new UIDs on re-init)
       const authConnector = !connector && (w.connectorType === 'AUTH' || regEntry?.connectorType === 'AUTH')
@@ -3666,7 +3679,10 @@ export default function SidebarWalletPanel({
         return;
       }
 
-      if (!resolvedConnector) throw new WalletActivationError(`${w.customLabel ?? w.label} is not connected in this browser. Open "Connect a wallet" below and connect it; it becomes active as soon as it is.`);
+      if (!resolvedConnector) {
+        const here = allConnectors.filter((c) => c.type !== "AUTH" && c.id !== "walletConnect").map((c) => connectorLabel(c.name)).join(", ");
+        throw new WalletActivationError(`No extension for ${w.customLabel ?? w.label} is installed in this browser (found: ${here || "none"}). Open "Connect a wallet" below to connect another way.`);
+      }
 
       await ensureWalletAccount(resolvedConnector, w.address);
 

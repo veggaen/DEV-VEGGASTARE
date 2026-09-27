@@ -215,10 +215,11 @@ export default function HeroParticleField({
         const centreFade = inEdgeBand(p.x, p.y) ? 1 : centerFade;
         // Multiply on white reads fainter than additive on black at the same
         // alpha (ink darkens less than light glows), so light gets a lift.
-        const alpha = Math.max(0, twAlpha * centreFade * (dark ? 1 : 1.6));
+        const alpha = Math.max(0, twAlpha * centreFade * (dark ? 1 : 2.4));
         if (alpha <= 0.01) continue;
 
-        const radius = p.r;
+        // Ink on white needs a bit more body than light on black.
+        const radius = p.r * (dark ? 1 : 1.35);
         // soft radial glow
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 4);
         grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);

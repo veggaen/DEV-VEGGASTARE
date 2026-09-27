@@ -1,7 +1,8 @@
 "use client";
 
 import React, { ReactNode, useEffect, useMemo, useRef } from "react";
-import { WagmiProvider, useAccount } from "wagmi";
+import { WagmiProvider, useAccount, useConfig } from "wagmi";
+import { reconnect } from "wagmi/actions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
@@ -85,13 +86,38 @@ function SolanaLayer({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Restores browser-extension connections silently on load. The site permission
+ * lives in the extension, so an unlocked wallet reconnects with no prompt and a
+ * locked one simply reports no accounts; the user then re-activates with one
+ * click instead of connecting from scratch after every reload. EIP-6963
+ * extensions announce themselves just after mount, hence the second pass.
+ * AppKit-managed sessions (social, WalletConnect) are restored by AppKitInitializer.
+ */
+function ExtensionReconnect() {
+  const config = useConfig();
+  useEffect(() => {
+    const run = () => {
+      const connected = new Set(config.state.connections.keys());
+      const extensions = config.connectors.filter((c) =>
+        (c.type === "injected" || c.type === "announced" || c.id === "coinbaseWalletSDK") && !connected.has(c.uid));
+      if (extensions.length) void reconnect(config, { connectors: extensions }).catch(() => undefined);
+    };
+    run();
+    const later = window.setTimeout(run, 800);
+    return () => window.clearTimeout(later);
+  }, [config]);
+  return null;
+}
+
 export default function Web3Providers({ children }: { children: ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), []);
 
   return (
     <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
-        {/* Restore opted-in wallets only; ordinary browsing does no SDK work. */}
+        {/* Extensions reconnect silently; AppKit restores opted-in sessions and does no SDK work otherwise. */}
+        <ExtensionReconnect />
         <AppKitInitializer />
         <ActiveNetworkProvider>
           <PricingProvider>

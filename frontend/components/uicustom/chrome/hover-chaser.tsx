@@ -86,7 +86,8 @@ export function HoverChaser({
           className={cn(
             // Above the items (they keep their own surfaces) with a light tint and
             // a hairline; no glow — it is a highlight, not a light source.
-            "pointer-events-none absolute left-0 top-0 z-[1] rounded-xl bg-brand-accent/[0.08] ring-1 ring-inset ring-brand-accent/40",
+            // Light needs more (sky on white washes out); dark needs less (it sits over photos).
+            "pointer-events-none absolute left-0 top-0 z-[1] rounded-xl bg-brand-accent/[0.10] ring-1 ring-inset ring-brand-accent/60 dark:bg-brand-accent/[0.05] dark:ring-brand-accent/40",
             boxClassName,
           )}
           initial={false}
