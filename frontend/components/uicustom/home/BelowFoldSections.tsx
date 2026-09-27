@@ -34,11 +34,10 @@ function HoverableHeading({
   externalFraction?: number | null;
 }) {
   const reduceMotion = useReducedMotion();
-  const isDark = useIsDark();
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
 
   // Brand accent RGB: sky-500 in light, emerald-400 in dark
-  const accentRgb = isDark ? "52, 211, 153" : "14, 165, 233";
+  const accentRgb = "var(--brand-accent-rgb)"; // follows theme + accent preset
 
   // Map an external 0..1 fraction onto a character index (spaces excluded so the
   // wave lands on real letters as you read left→right).
@@ -80,9 +79,9 @@ function HoverableHeading({
             aria-hidden="true"
             className="inline-block origin-bottom"
             style={{
-              color: active ? `rgba(${accentRgb}, ${0.5 + 0.5 * intensity})` : undefined,
+              color: active ? `rgb(${accentRgb} / ${0.5 + 0.5 * intensity})` : undefined,
               textShadow: active
-                ? `0 0 ${12 * intensity}px rgba(${accentRgb}, ${0.35 * intensity})`
+                ? `0 0 ${12 * intensity}px rgb(${accentRgb} / ${0.35 * intensity})`
                 : "none",
               transform: `scale(${active ? 1 + 0.1 * intensity : 1}) translateY(${
                 active ? -2 * intensity : 0

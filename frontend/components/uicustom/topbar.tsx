@@ -31,7 +31,7 @@ import {
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { AppHeader } from "@/components/uicustom/chrome/app-header";
 import { AppRail } from "@/components/uicustom/chrome/app-rail";
-import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
+import { ThemeToggle, swapThemeWithReveal } from "@/components/uicustom/chrome/theme-toggle";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -961,7 +961,7 @@ function SettingsPaneLite({
         <legend className="mb-2 text-sm font-medium">Appearance</legend>
         <div className="flex gap-1.5">
           {([{ id: 'light', label: 'Light', icon: FiSun }, { id: 'dark', label: 'Dark', icon: FiMoon }, { id: 'system', label: 'System', icon: FiMonitor }] as const).map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" aria-pressed={theme === id} className={choiceClass} onClick={() => setTheme(id)}>
+            <button key={id} type="button" aria-pressed={theme === id} className={choiceClass} onClick={(event) => swapThemeWithReveal(() => setTheme(id), { x: event.clientX, y: event.clientY })}>
               <Icon className="size-3.5 shrink-0" aria-hidden="true" />{label}
             </button>
           ))}

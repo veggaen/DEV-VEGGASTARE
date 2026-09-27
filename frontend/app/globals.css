@@ -256,6 +256,7 @@
     --brand-accent-muted: 199 89% 48%;     /* sky-500 at lower opacity (use with /10, /20 etc) */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 199, 89%, 48%;    /* For rgba() usage: rgb(14, 165, 233) */
+    --brand-accent-rgb: 14 165 233;        /* sky-500 as space-separated RGB for canvases / rgb(var() / a) */
     --brand-accent-alt: 192 91% 36%;       /* cyan-600: #0891b2 — ™ counter-phase tint */
     /* BrandMark letter/™ ink: the accent itself on light, the lighter step on
        dark so lit letters stay legible on near-black (mid-emerald reads muddy). */
@@ -331,6 +332,7 @@
     --brand-accent-muted: 160 84% 39%;     /* emerald-500 at lower opacity */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 160, 84%, 39%;    /* For rgba() usage: rgb(16, 185, 129) */
+    --brand-accent-rgb: 52 211 153;        /* emerald-400 for canvases (pops on black) */
     --brand-accent-alt: 255 92% 76%;       /* violet-300: #c4b5fd — ™ counter-phase tint */
     --brand-mark-tint: var(--brand-accent-light);
 
@@ -341,12 +343,88 @@
     --elevation-3: 0 24px 48px -12px rgba(0, 0, 0, 0.75);
   }
 }
-/*  
 @layer base {
-  * {
-    @apply border-border;
+  /* Tailwind v4 preflight leaves border-color at currentColor; the app was
+     authored against the shadcn/v3 default where a bare `border` is the theme
+     token. Utilities (`border-brand-accent`, `border-border/60`…) still win. */
+  *,
+  ::before,
+  ::after {
+    border-color: hsl(var(--border));
   }
-} */
+}
+
+/* ─── Accent presets (user preference, `html[data-accent]`) ───────────────────
+ * The default accent is sky on light / emerald on dark. A user can pin one hue
+ * for both themes from Settings → Appearance; every token that reads
+ * --brand-accent* (buttons, rings, rail, BrandMark, particles) follows.
+ * Light values sit one step darker than dark values so small text keeps
+ * contrast on white. Set by components/providers/ui-preferences.tsx.
+ * ───────────────────────────────────────────────────────────────────────────── */
+html[data-accent="sky"] {
+  --brand-accent: 199 89% 48%;  --brand-accent-hover: 200 98% 39%;  --brand-accent-light: 198 93% 60%;
+  --brand-accent-muted: 199 89% 48%; --brand-accent-glow: 199, 89%, 48%; --brand-accent-rgb: 14 165 233;
+  --brand-accent-alt: 192 91% 36%;
+}
+html.dark[data-accent="sky"] {
+  --brand-accent: 198 93% 60%;  --brand-accent-hover: 199 89% 48%;  --brand-accent-light: 199 95% 74%;
+  --brand-accent-muted: 198 93% 60%; --brand-accent-glow: 198, 93%, 60%; --brand-accent-rgb: 56 189 248;
+  --brand-accent-alt: 187 92% 69%;
+}
+html[data-accent="emerald"] {
+  --brand-accent: 161 94% 30%;  --brand-accent-hover: 163 94% 24%;  --brand-accent-light: 160 84% 39%;
+  --brand-accent-muted: 161 94% 30%; --brand-accent-glow: 161, 94%, 30%; --brand-accent-rgb: 5 150 105;
+  --brand-accent-alt: 175 84% 32%;
+}
+html.dark[data-accent="emerald"] {
+  --brand-accent: 160 84% 39%;  --brand-accent-hover: 161 94% 30%;  --brand-accent-light: 160 84% 46%;
+  --brand-accent-muted: 160 84% 39%; --brand-accent-glow: 160, 84%, 39%; --brand-accent-rgb: 52 211 153;
+  --brand-accent-alt: 255 92% 76%;
+}
+html[data-accent="violet"] {
+  --brand-accent: 262 83% 58%;  --brand-accent-hover: 263 70% 50%;  --brand-accent-light: 258 90% 66%;
+  --brand-accent-muted: 262 83% 58%; --brand-accent-glow: 262, 83%, 58%; --brand-accent-rgb: 124 58 237;
+  --brand-accent-alt: 292 84% 61%;
+}
+html.dark[data-accent="violet"] {
+  --brand-accent: 258 90% 66%;  --brand-accent-hover: 262 83% 58%;  --brand-accent-light: 255 92% 76%;
+  --brand-accent-muted: 258 90% 66%; --brand-accent-glow: 258, 90%, 66%; --brand-accent-rgb: 167 139 250;
+  --brand-accent-alt: 292 91% 73%;
+}
+html[data-accent="rose"] {
+  --brand-accent: 347 77% 50%;  --brand-accent-hover: 345 83% 41%;  --brand-accent-light: 350 89% 60%;
+  --brand-accent-muted: 347 77% 50%; --brand-accent-glow: 347, 77%, 50%; --brand-accent-rgb: 225 29 72;
+  --brand-accent-alt: 25 95% 53%;
+}
+html.dark[data-accent="rose"] {
+  --brand-accent: 351 95% 71%;  --brand-accent-hover: 350 89% 60%;  --brand-accent-light: 353 96% 82%;
+  --brand-accent-muted: 351 95% 71%; --brand-accent-glow: 351, 95%, 71%; --brand-accent-rgb: 251 113 133;
+  --brand-accent-alt: 38 92% 50%;
+}
+html[data-accent="amber"] {
+  --brand-accent: 32 95% 44%;   --brand-accent-hover: 26 90% 37%;   --brand-accent-light: 38 92% 50%;
+  --brand-accent-muted: 32 95% 44%;  --brand-accent-glow: 32, 95%, 44%;  --brand-accent-rgb: 217 119 6;
+  --brand-accent-alt: 199 89% 48%;
+}
+html.dark[data-accent="amber"] {
+  --brand-accent: 43 96% 56%;   --brand-accent-hover: 38 92% 50%;   --brand-accent-light: 46 97% 65%;
+  --brand-accent-muted: 43 96% 56%;  --brand-accent-glow: 43, 96%, 56%;  --brand-accent-rgb: 251 191 36;
+  --brand-accent-alt: 198 93% 60%;
+}
+html[data-accent="mono"] {
+  --brand-accent: 0 0% 9%;      --brand-accent-hover: 0 0% 20%;     --brand-accent-light: 0 0% 40%;
+  --brand-accent-muted: 0 0% 9%;     --brand-accent-glow: 0, 0%, 9%;      --brand-accent-rgb: 23 23 23;
+  --brand-accent-alt: 0 0% 45%;
+}
+html.dark[data-accent="mono"] {
+  --brand-accent: 0 0% 98%;     --brand-accent-hover: 0 0% 82%;     --brand-accent-light: 0 0% 100%;
+  --brand-accent-foreground: 0 0% 4%;
+  --brand-accent-muted: 0 0% 98%;    --brand-accent-glow: 0, 0%, 98%;     --brand-accent-rgb: 250 250 250;
+  --brand-accent-alt: 0 0% 64%;
+}
+html[data-accent="mono"] {
+  --brand-accent-foreground: 0 0% 100%;
+}
 
 @layer utilities {
 
@@ -389,6 +467,33 @@
 .theme-transitioning canvas,
 .theme-transitioning .hero-spotlight {
   transition: none !important;
+}
+
+/* ─── Theme swap via View Transitions ──────────────────────────────────────────
+ * ThemeToggle calls document.startViewTransition() and flags <html> with
+ * `.theme-vt` plus the toggle's centre (--vt-x/--vt-y) and the radius that
+ * covers the viewport (--vt-r). The old theme stays as a static snapshot while
+ * the new one is revealed by a growing circle from the button — a true
+ * frame-to-frame swap, no mid-gray, canvases included.
+ * ───────────────────────────────────────────────────────────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-vt::view-transition-old(root) {
+  z-index: 1;
+}
+html.theme-vt::view-transition-new(root) {
+  z-index: 2;
+  animation: themeReveal 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes themeReveal {
+  from { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 0%)); }
+  to   { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0%)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-vt::view-transition-new(root) { animation: none; }
 }
 
 /* ─── Noise/Grain overlay to mask gradient banding on different monitors ─── */
@@ -490,10 +595,12 @@ html:not(.dark) body {
      Three tightly-positioned radials: emerald glow from top-center, sky hint top-right,
      violet whisper top-left. Fixed so they anchor to the viewport (hero stays in the glow,
      below-fold content is clean white). */
+  /* Light mirrors dark 1:1 — a clean base with only a whisper of accent haze
+     behind the hero (dark is pure black; light is pure white + 4% tint). */
   background-image:
-    radial-gradient(ellipse 90% 38% at 50% -6%,  rgba(56, 189, 248, 0.10) 0%, transparent 58%),
-    radial-gradient(ellipse 45% 22% at 92%  4%,  rgba(99, 102, 241, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 35% 16% at 8%   4%,  rgba(14, 165, 233, 0.05) 0%, transparent 48%);
+    radial-gradient(ellipse 90% 38% at 50% -6%,  rgb(var(--brand-accent-rgb) / 0.05) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 22% at 92%  4%,  rgb(var(--brand-accent-rgb) / 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 16% at 8%   4%,  rgb(var(--brand-accent-rgb) / 0.02) 0%, transparent 48%);
   background-size: 100% 100%;
   background-attachment: fixed;
 }

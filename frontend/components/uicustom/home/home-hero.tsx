@@ -134,9 +134,8 @@ export default function HomeHero({
       aria-labelledby="hero-title"
       className="relative flex min-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px))] w-full flex-col"
     >
-      {/* Edge scrims: soften the star field where it meets the header and the fold. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-24 bg-linear-to-b from-background/50 to-transparent" />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-28 bg-linear-to-t from-background/60 to-transparent" />
+      {/* No edge scrims: on a white canvas a background/50 gradient read as a
+          visible band under the header; the star field is quiet enough alone. */}
 
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-7 px-6 pb-10 pt-8 text-center sm:gap-8 xl:max-w-6xl">
         {/* Eyebrow — the one line above the mark, kept small and tracked */}

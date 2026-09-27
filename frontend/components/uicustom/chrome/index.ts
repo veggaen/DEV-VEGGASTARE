@@ -8,6 +8,6 @@ export { BrandMark, BRAND_NAME, type BrandMarkProps, type BrandMarkSize } from "
 export { AppRail, RailAction, type RailItem, type RailVariant } from "./app-rail";
 export { AppHeader } from "./app-header";
 export { Atmosphere, type AtmosphereVariant } from "./atmosphere";
-export { ThemeToggle, runThemeCrossfade } from "./theme-toggle";
+export { ThemeToggle, runThemeCrossfade, swapThemeWithReveal } from "./theme-toggle";
 export { MobileDock } from "./mobile-dock";
 export { PageHeader, PageShell } from "./page-header";

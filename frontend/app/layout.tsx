@@ -5,6 +5,7 @@ import AppProviders from "@/components/providers/app-providers";
 import { auth } from "@/auth";
 import { headers } from "next/headers";
 import { CONSENT_VISIBILITY_SCRIPT } from "@/lib/consent-visibility";
+import { ACCENT_BOOT_SCRIPT } from "@/lib/accent-boot";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,8 @@ export default async function RootLayout({ children, modal }: { children: React.
           visitors never see a consent flash while the application JS downloads.
           Nonce is inherited from the existing CSP; this does not enable tracking. */}
       <script id="consent-visibility" nonce={nonce} dangerouslySetInnerHTML={{ __html: CONSENT_VISIBILITY_SCRIPT }} />
+      {/* Saved accent preset on <html> before hydration — no colour flash. */}
+      <script id="accent-boot" nonce={nonce} dangerouslySetInnerHTML={{ __html: ACCENT_BOOT_SCRIPT }} />
       {/* With JS disabled no optional SDK can run, and an inert consent panel
           must not cover the readable sales terms or other server content. */}
       <noscript><style>{'[data-cookie-banner]{display:none}'}</style></noscript>

@@ -1,15 +1,22 @@
 "use client";
 
 /**
- * @fileOverview  ThemeToggle — the header's light/dark switch. Sun ↔ moon morph,
- *                token surfaces, and the app's calm colour cross-fade: it flags
- *                `<html>` with `.theme-transitioning` for ~500ms so globals.css
- *                lets colours ease instead of hard-cutting (never permanently).
+ * @fileOverview  ThemeToggle — the header's light/dark switch.
+ *
+ *                Motion: on browsers with the View Transitions API the new
+ *                theme is revealed with a circular wipe that grows from the
+ *                button itself (`html.theme-vt::view-transition-new(root)` in
+ *                globals.css). Both frames are real snapshots, so nothing goes
+ *                through a muddy mid-gray and canvases/particles are included.
+ *                Older browsers fall back to the calm 320ms colour cross-fade
+ *                (`.theme-transitioning`). Reduced motion: instant swap.
+ *
  *                Theme state lives ONLY on <html> (next-themes `.dark`).
  * @stability     stable
  */
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { useTheme } from "next-themes";
 import { FiSun } from "react-icons/fi";
 import { IoMoonOutline } from "react-icons/io5";
@@ -18,24 +25,59 @@ import { cn } from "@/lib/utils";
 
 let crossfadeTimer: number | undefined;
 
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void | Promise<void>) => { finished: Promise<void>; ready: Promise<void> };
+};
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /** Briefly opt the whole document into a colour cross-fade (see globals.css). */
 export function runThemeCrossfade() {
-  if (typeof window === "undefined") return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (typeof window === "undefined" || prefersReducedMotion()) return;
   const root = document.documentElement;
   root.classList.add("theme-transitioning");
   window.clearTimeout(crossfadeTimer);
   crossfadeTimer = window.setTimeout(() => root.classList.remove("theme-transitioning"), 520);
 }
 
+/**
+ * Swap the theme with a circular reveal anchored at `origin` (viewport px).
+ * Falls back to the cross-fade when View Transitions are unavailable.
+ */
+export function swapThemeWithReveal(
+  apply: () => void,
+  origin?: { x: number; y: number },
+) {
+  if (typeof document === "undefined") return apply();
+  const doc = document as ViewTransitionDocument;
+  const root = document.documentElement;
+  if (prefersReducedMotion() || typeof doc.startViewTransition !== "function") {
+    if (!prefersReducedMotion()) runThemeCrossfade();
+    return apply();
+  }
+  const x = origin?.x ?? window.innerWidth / 2;
+  const y = origin?.y ?? 0;
+  const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+  root.style.setProperty("--vt-x", `${x}px`);
+  root.style.setProperty("--vt-y", `${y}px`);
+  root.style.setProperty("--vt-r", `${Math.ceil(radius)}px`);
+  root.classList.add("theme-vt");
+  const transition = doc.startViewTransition(() => {
+    flushSync(apply);
+  });
+  transition.finished.finally(() => root.classList.remove("theme-vt"));
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
   const { setTheme, theme, resolvedTheme } = useTheme();
   const ready = useClientReady();
 
-  const toggle = () => {
+  const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
     const effective = (resolvedTheme ?? theme) as string | undefined;
-    runThemeCrossfade();
-    setTheme(effective === "dark" ? "light" : "dark");
+    const next = effective === "dark" ? "light" : "dark";
+    const rect = event.currentTarget.getBoundingClientRect();
+    swapThemeWithReveal(() => setTheme(next), { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
   };
 
   return (

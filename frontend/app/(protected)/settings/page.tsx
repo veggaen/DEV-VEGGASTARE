@@ -26,7 +26,8 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { MyFormError } from '@/components/uicustom/forms/form-error';
 import { MyFormSuccess } from '@/components/uicustom/forms/form-sucess';
 import { UserRole } from '@/generated/prisma/browser';
-import { useUiPreferences } from '@/components/providers/ui-preferences';
+import { useUiPreferences, ACCENT_PRESETS } from '@/components/providers/ui-preferences';
+import { swapThemeWithReveal } from '@/components/uicustom/chrome/theme-toggle';
 import { useEdgeStore } from '@/lib/edgestore';
 import { FancyBackground } from '@/components/uicustom/fancy-background';
 import ImagePositionAdjuster from '@/components/uicustom/image-position-adjuster';
@@ -2000,7 +2001,7 @@ function AppearanceSettings() {
           ].map((themeOption) => (
             <button
               key={themeOption.id}
-              onClick={() => setTheme(themeOption.id)}
+              onClick={(event) => swapThemeWithReveal(() => setTheme(themeOption.id), { x: event.clientX, y: event.clientY })}
               className={`p-4 rounded-xl border-2 text-left transition ${
                 theme === themeOption.id
                   ? 'border-brand-accent bg-brand-accent/20 ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20'
@@ -2012,6 +2013,39 @@ function AppearanceSettings() {
               <div className="text-xs text-muted-foreground">{themeOption.description}</div>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Accent colour — pins one hue for both themes (default: sky by day, emerald by night) */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Accent colour</h3>
+        <p className="text-xs text-muted-foreground">Buttons, links, the rail and the Veggat™ mark follow this in both themes.</p>
+        <div role="radiogroup" aria-label="Accent colour" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {ACCENT_PRESETS.map((preset) => {
+            const selected = prefs.accent === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                title={preset.hint}
+                onClick={() => setPrefs({ accent: preset.id })}
+                className={`group flex min-h-16 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-xs font-medium transition-[border-color,background-color,box-shadow,transform] duration-200 motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                  selected ? 'border-brand-accent bg-brand-accent/10 text-foreground shadow-e1' : 'border-border bg-surface-1 text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="relative size-7 rounded-full ring-2 ring-background shadow-e1"
+                  style={{ background: `linear-gradient(135deg, ${preset.swatch.light} 50%, ${preset.swatch.dark} 50%)` }}
+                >
+                  {selected && <span className="absolute inset-0 rounded-full ring-2 ring-brand-accent ring-offset-2 ring-offset-background" />}
+                </span>
+                <span>{preset.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

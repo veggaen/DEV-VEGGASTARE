@@ -145,6 +145,8 @@ Wiring: `topbar.tsx` keeps all auth/wallet/notification logic and renders throug
 
 Tokens added in `globals.css`: `--brand-accent-alt` (™ counter-phase tint: cyan light / violet dark), `--brand-mark-tint` (letter ink: accent on light, accent-light on dark), `--mobile-rail-offset`.
 
+Theme parity + customisation (2026-09-27): light mirrors dark 1:1 (pure white canvas + 5% accent haze vs pure black; the particle field draws with `multiply` on light and `lighter` on dark at identical alpha; no hero scrims). The theme toggle uses the View Transitions API — a circular reveal from the button (`html.theme-vt::view-transition-new(root)`), falling back to the 320ms `.theme-transitioning` cross-fade; `swapThemeWithReveal()` in `chrome/theme-toggle.tsx` is the one entry point (header toggle, drawer, Settings). Users pick an accent preset in Settings → Appearance (`prefs.accent`: default | sky | emerald | violet | rose | amber | mono); it lands on `html[data-accent]` (boot script `lib/accent-boot.ts` prevents a flash) and every `--brand-accent*` token, `--brand-accent-rgb` (canvases) and the BrandMark follow. `UiPreferencesProvider` now gates persistence behind the initial read (StrictMode used to reset saved prefs in dev).
+
 Routes sharing header + rail: everything under `AppShell` (`/`, `/products/*`, `/pulse/*`, `/auth/*`, `/dashboard`, `/ai`, `/settings`, …). Only `/gate` is outside.
 
 Verification harness (gitignored): `frontend/scripts/_probe/chrome-shots.mjs` (4 routes × 2 themes × 390/1280) and `chrome-hover.mjs` (hover/travel frame sequences) → `scripts/_probe/chrome-shots/`.
