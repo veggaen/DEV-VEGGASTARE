@@ -310,8 +310,8 @@ export function PaperSwapPanel({
                   ? "text-brand-accent border-b-2 border-brand-accent bg-brand-accent/5"
                   : m === "sell"
                     ? "text-rose-500 border-b-2 border-rose-500 bg-rose-500/5"
-                    : "text-brand-accent border-b-2 border-brand-accent bg-brand-accent/5"
-                : "text-muted-foreground hover:text-foreground/80"
+                    : "text-purple-600 border-b-2 border-purple-500 bg-purple-500/5 dark:text-purple-300"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {m === "buy" && <FiTrendingUp className="inline mr-1 h-3 w-3" />}
@@ -500,13 +500,13 @@ export function PaperSwapPanel({
               ? "bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground shadow-lg shadow-brand-accent/20"
               : mode === "sell"
                 ? "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
-                : "bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground shadow-lg shadow-brand-accent/20"
+                : "bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20"
           }`}
         >
           {isPending ? (
             <span className="flex items-center justify-center gap-2">
               <FiRefreshCw className="h-4 w-4 animate-spin" />
-              Executing...
+              Executing…
             </span>
           ) : (
             <>

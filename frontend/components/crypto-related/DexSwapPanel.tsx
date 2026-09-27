@@ -1189,7 +1189,7 @@ export function DexSwapPanel() {
           disabled={!canSwap || isLoading}
           className={`w-full py-3 rounded-xl text-sm font-bold transition ${
             canSwap && !isLoading
-              ? "bg-brand-accent hover:bg-brand-accent-light text-brand-accent-foreground shadow-lg shadow-brand-accent/20"
+              ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20 hover:bg-purple-500"
               : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >

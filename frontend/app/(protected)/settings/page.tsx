@@ -1055,7 +1055,7 @@ export default function SettingsPage() {
                           name="identityImageSource"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground/80">Avatar Source</FormLabel>
+                              <FormLabel className="text-foreground/80">Profile picture</FormLabel>
                               <Select
                                 disabled={isPending || !isEditing}
                                 onValueChange={field.onChange}

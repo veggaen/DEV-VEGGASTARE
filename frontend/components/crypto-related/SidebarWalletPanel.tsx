@@ -882,7 +882,8 @@ function DevChainStatusIndicator() {
       </div>
       {!anyOnline && (
         <p className="text-[10px] leading-relaxed text-muted-foreground">
-          Start a local chain first: in the Ganache app choose <span className="font-medium text-foreground">Quickstart Ethereum</span> (port 7545), or run <code className="rounded bg-foreground/[0.06] px-1">anvil</code> (port 8545).
+          Start a local chain first: in the Ganache app choose <span className="font-medium text-foreground">Quickstart Ethereum</span> (port 7545), or run <code className="rounded bg-foreground/[0.06] px-1">anvil</code> (port 8545).{" "}
+          <a href="/help/local-chains" className="font-medium text-brand-accent-hover underline underline-offset-2 hover:text-foreground dark:text-brand-accent-light">Step-by-step guide</a>
         </p>
       )}
     </div>

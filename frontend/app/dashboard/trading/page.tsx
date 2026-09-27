@@ -27,6 +27,7 @@ import {
   OsrsTradeWindow,
   type TradePartner,
 } from "@/components/crypto-related/OsrsTradeWindow";
+import Link from "next/link";
 import { useAccount, useConnections } from "wagmi";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { useWalletAddressBook } from "@/hooks/use-wallet-address-book";
@@ -206,6 +207,9 @@ export default function TradingPage() {
             Connect a wallet
           </button>
         </div>
+        <Link href="/help/local-chains" className="mt-4 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground">
+          No wallet? Set up a free local test chain in five minutes
+        </Link>
       </section>
     );
   }
