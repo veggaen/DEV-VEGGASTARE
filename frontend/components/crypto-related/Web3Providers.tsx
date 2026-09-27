@@ -99,8 +99,11 @@ function ExtensionReconnect() {
   useEffect(() => {
     const run = () => {
       const connected = new Set(config.state.connections.keys());
-      const extensions = config.connectors.filter((c) =>
-        (c.type === "injected" || c.type === "announced" || c.id === "coinbaseWalletSDK") && !connected.has(c.uid));
+      const candidates = config.connectors.filter((c) => c.type === "injected" || c.type === "announced" || c.id === "coinbaseWalletSDK");
+      // With EIP-6963 extensions announced, skip the shared window.ethereum connector:
+      // it would double-connect one of them and later fight the others for the provider.
+      const hasAnnounced = candidates.some((c) => c.type === "injected" && c.id !== "injected");
+      const extensions = candidates.filter((c) => !connected.has(c.uid) && !(hasAnnounced && c.id === "injected"));
       if (extensions.length) void reconnect(config, { connectors: extensions }).catch(() => undefined);
     };
     run();

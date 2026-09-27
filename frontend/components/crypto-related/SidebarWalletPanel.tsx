@@ -3513,7 +3513,16 @@ export default function SidebarWalletPanel({
       const authConnector = !connector && (w.connectorType === 'AUTH' || regEntry?.connectorType === 'AUTH')
         ? allConnectors.find((c) => c.type === 'AUTH' || c.id === 'auth' || c.name === 'Auth')
         : undefined;
-      const resolvedConnector = connector ?? authConnector;
+      // Prefer the extension's own EIP-6963 connector over the shared
+      // window.ethereum one ("injected"): the shared connector holds one
+      // extension at a time, so switching through it means disconnecting the
+      // other extension, and wagmi's disconnect revokes that site permission.
+      // That is the "connect twice" loop when two extensions are installed.
+      const announcedTwin = connector && connector.id === 'injected'
+        ? allConnectors.find((c) => c.id !== 'injected' && c.type !== 'AUTH' && c.id !== 'walletConnect'
+            && connectorLabel(c.name).toLowerCase() === connectorLabel(connector.name).toLowerCase())
+        : undefined;
+      const resolvedConnector = announcedTwin ?? connector ?? authConnector;
 
       // ── AUTH / Social wallets: always use the AppKit modal ──────
       // wagmiConnect with AUTH connectors hangs when the social session
@@ -3697,7 +3706,7 @@ export default function SidebarWalletPanel({
       const currentInjectedConn = connections.find(
         (c) => (c.connector.type === 'injected' || c.connector.type === 'announced')
           && c.connector.uid !== resolvedConnector.uid
-          && (c.connector.id === 'injected' || resolvedConnector.id === 'injected')
+          && resolvedConnector.id === 'injected'
       );
 
       if (currentInjectedConn) {
