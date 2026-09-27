@@ -1531,8 +1531,8 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
       {nft.standard === "ERC-1155" && nft.balance > 1 && (
         <div className="absolute top-0.5 right-0.5 z-10 pointer-events-none">
           <span
-            className="text-[8px] font-bold text-amber-300 leading-none"
-            style={{ textShadow: "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000" }}
+            className="text-[8px] font-bold text-amber-700 dark:text-amber-300 leading-none"
+            style={{ textShadow: "var(--stack-outline)" }}
           >
             x{nft.balance}
           </span>
@@ -1674,10 +1674,7 @@ function OsrsSlot({
           <div className="absolute top-0.5 left-1 z-10 pointer-events-none">
             <span
               className={`text-[9px] sm:text-[10px] font-bold leading-none tracking-tight ${getStackColor(slot.amount)}`}
-              style={{
-                textShadow:
-                  "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000",
-              }}
+              style={{ textShadow: "var(--stack-outline)" }}
             >
               {slot.amount}
             </span>
@@ -1687,14 +1684,14 @@ function OsrsSlot({
           <div className="absolute bottom-0.5 inset-x-1 z-10 flex items-end justify-between gap-1 pointer-events-none">
             <span
               className="min-w-0 truncate text-[7px] sm:text-[8px] font-semibold text-muted-foreground/90 leading-none uppercase tracking-wider"
-              style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+              style={{ textShadow: "var(--stack-text-shadow)" }}
             >
               {slot.token.symbol}
             </span>
             {valueLabel && (
               <span
                 className="shrink-0 text-[7px] sm:text-[8px] font-semibold leading-none tabular-nums text-foreground/85"
-                style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+                style={{ textShadow: "var(--stack-text-shadow)" }}
               >
                 {valueLabel}
               </span>
@@ -2103,26 +2100,31 @@ function OsrsFloatingGhost({
 // Helpers
 // ────────────────────────────────────────────────────────────
 
-/** OSRS-style stack colour: white < 100K, yellow 100K–9.99M, green ≥ 10M */
+/** OSRS-style stack colour: white < 100K, yellow 100K–9.99M, green ≥ 10M. Each tier has a light-mode pair. */
 function getStackColor(display: string): string {
-  const stripped = display.replace(/[^0-9.KMBkmb]/g, "");
+  const stripped = display.replace(/[^0-9.KMBTEkmbte]/g, "");
   const upper = stripped.toUpperCase();
+  const green = "text-brand-accent-hover dark:text-brand-accent";
+  const yellow = "text-amber-700 dark:text-amber-300";
 
-  if (upper.includes("B") || upper.includes("G")) return "text-brand-accent";
+  if (upper.includes("B") || upper.includes("T") || upper.includes("E")) return green;
   if (upper.includes("M")) {
     const num = parseFloat(upper.replace("M", ""));
-    return num >= 10 ? "text-brand-accent" : "text-foreground";
+    return num >= 10 ? green : "text-foreground";
   }
   if (upper.includes("K")) {
     const num = parseFloat(upper.replace("K", ""));
-    return num >= 100 ? "text-amber-300" : "text-foreground";
+    return num >= 100 ? yellow : "text-foreground";
   }
-  return "text-amber-100";
+  return "text-foreground/90 dark:text-amber-100";
 }
 
 function formatCompactBalance(raw: bigint, decimals: number): string {
   const value = formatUnits(raw, decimals);
   const num = parseFloat(value);
+  // Airdropped junk comes in stacks of 1e50; toFixed would print the whole exponent form.
+  if (num >= 1e15) return num.toExponential(1).replace("e+", "e");
+  if (num >= 1e12) return `${(num / 1e12).toFixed(1)}T`;
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;

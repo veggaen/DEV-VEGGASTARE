@@ -7,6 +7,7 @@ import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { TOKEN_LOGO_FALLBACKS } from "@/lib/token-icons";
 import { rpcUrlFor } from "@/lib/evm-rpc";
 import { BLOCKSCOUT_HOSTS, mergeTokenCandidates, type DiscoveredToken, type TokenCandidate } from "@/lib/wallet-tokens";
+import { GECKO_NETWORKS } from "@/lib/token-prices";
 
 /** Chain icon data URIs — simple coloured circles with chain abbreviation */
 export const CHAIN_LOGOS: Record<number, string> = {
@@ -174,6 +175,8 @@ export function useTokenBalances() {
   // Discovery is indexed data that lags anyway; ask the indexer at most once a
   // minute per wallet/chain and reuse the list between the 12 s balance polls.
   const discoveryRef = useRef<{ key: string; ts: number; tokens: DiscoveredToken[] } | null>(null);
+  // DEX prices (GeckoTerminal via our route) for stacks the indexer left unpriced; a minute is plenty.
+  const pricesRef = useRef<{ key: string; ts: number; asked: Set<string>; prices: Record<string, number>; native: number | null } | null>(null);
 
   // Determine effective address / chain / connection status
   const isLocalOverride = Boolean(override?.address);
@@ -376,6 +379,38 @@ export function useTokenBalances() {
           console.warn("[useTokenBalances] token discovery unavailable (known list only):", indexErr);
         }
       }
+      // Pass 3: DEX prices for whatever is still unpriced, native coin included.
+      // PulseChain and most long-tail tokens have no indexer rate, so without
+      // this the inventory shows amounts but no values there.
+      if (!isLocalOverride && GECKO_NETWORKS[chainId]) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const unpriced = results.filter((t) => !t.isNative && t.usdPrice === undefined).map((t) => t.address.toLowerCase());
+          const cached = pricesRef.current;
+          let quotes = cached && cached.key === cacheKey && Date.now() - cached.ts < DISCOVERY_TTL ? cached : null;
+          if (!quotes || unpriced.some((a) => !quotes!.asked.has(a))) {
+            const res = await fetch(`/api/wallets/evm/prices?chainId=${chainId}&addresses=${unpriced.slice(0, 90).join(",")}`, { signal: AbortSignal.timeout(15_000) });
+            if (!res.ok) throw new Error(`prices ${res.status}`);
+            const data = (await res.json()) as { prices?: Record<string, number>; native?: number | null };
+            quotes = {
+              key: cacheKey,
+              ts: Date.now(),
+              asked: new Set([...(quotes?.asked ?? []), ...unpriced]),
+              prices: { ...(quotes?.prices ?? {}), ...(data.prices ?? {}) },
+              native: data.native ?? quotes?.native ?? null,
+            };
+            pricesRef.current = quotes;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) {
+            if (token.isNative) { if (quotes.native) token.usdPrice = quotes.native; continue; }
+            if (token.usdPrice === undefined) { const p = quotes.prices[token.address.toLowerCase()]; if (p) token.usdPrice = p; }
+          }
+        } catch (priceErr) {
+          console.warn("[useTokenBalances] DEX prices unavailable:", priceErr);
+        }
+      }
+
       const totalFailure = rpcFailed && (indexerFailed || !BLOCKSCOUT_HOSTS[chainId]) && !isLocalOverride;
       failStreakRef.current = totalFailure ? failStreakRef.current + 1 : 0;
       if (totalFailure && failStreakRef.current >= 2) {
@@ -446,6 +481,9 @@ export function useTokenBalances() {
 function formatBalance(value: string): string {
   const num = parseFloat(value);
   if (isNaN(num)) return "0";
+  // Airdropped junk comes in stacks of 1e50; toFixed would print the whole exponent form.
+  if (num >= 1e15) return num.toExponential(1).replace("e+", "e");
+  if (num >= 1e12) return `${(num / 1e12).toFixed(1)}T`;
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;

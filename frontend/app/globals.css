@@ -234,6 +234,9 @@
     --chart-down: 0 84% 60%; /* #ef4444 */
 
     --border: 214 14% 74%; /* #b1bbc6 - components use it at /60, which must still read as a line on white on an average panel */
+    /* OSRS inventory text: a pale halo on light cells, a black outline on dark ones */
+    --stack-outline: 1px 1px 0 hsl(0 0% 100%), -1px -1px 0 hsl(0 0% 100%), 1px -1px 0 hsl(0 0% 100%), -1px 1px 0 hsl(0 0% 100%), 0 1px 0 hsl(0 0% 100%);
+    --stack-text-shadow: 0 1px 2px hsl(0 0% 100% / 0.9);
     --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  
@@ -318,6 +321,8 @@
     --chart-down: 0 91% 71%; /* #f87171 */
  
     --border: 0 0% 13%; /* #212121 - softer borders (zinc-850) */
+    --stack-outline: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000;
+    --stack-text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
     --input: 0 0% 10%; /* #1a1a1a - input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
 

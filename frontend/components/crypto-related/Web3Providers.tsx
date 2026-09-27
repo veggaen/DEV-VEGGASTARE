@@ -97,18 +97,30 @@ function SolanaLayer({ children }: { children: ReactNode }) {
 function ExtensionReconnect() {
   const config = useConfig();
   useEffect(() => {
-    const run = () => {
-      const connected = new Set(config.state.connections.keys());
+    let cancelled = false;
+    const run = async () => {
+      type Ext = (typeof config.connectors)[number];
       const candidates = config.connectors.filter((c) => c.type === "injected" || c.type === "announced" || c.id === "coinbaseWalletSDK");
-      // With EIP-6963 extensions announced, skip the shared window.ethereum connector:
+      // With EIP-6963 extensions announced, the shared window.ethereum connector is redundant:
       // it would double-connect one of them and later fight the others for the provider.
       const hasAnnounced = candidates.some((c) => c.type === "injected" && c.id !== "injected");
-      const extensions = candidates.filter((c) => !connected.has(c.uid) && !(hasAnnounced && c.id === "injected"));
-      if (extensions.length) void reconnect(config, { connectors: extensions }).catch(() => undefined);
+      const usable = (c: Ext) => !(hasAnnounced && c.id === "injected");
+      const live = Array.from(config.state.connections.values()).map((c) => c.connector);
+      const liveIds = new Set(live.map((c) => c.uid));
+      const fresh = candidates.filter((c) => !liveIds.has(c.uid) && usable(c));
+      if (!fresh.length) return;
+      // wagmi's reconnect() replaces the whole connection set with what ONE call finds: a call
+      // that finds nothing authorized wipes a live connection, and one that finds only a newcomer
+      // drops the rest. So ask the newcomers first, and reconnect them together with what is live.
+      const asked = await Promise.all(fresh.map(async (c) => ((await c.isAuthorized().catch(() => false)) ? c : null)));
+      const authorized = asked.filter((c): c is Ext => c !== null);
+      if (cancelled || !authorized.length) return;
+      void reconnect(config, { connectors: [...live.filter(usable), ...authorized] }).catch(() => undefined);
     };
-    run();
-    const later = window.setTimeout(run, 800);
-    return () => window.clearTimeout(later);
+    void run();
+    // Extensions announce just after mount; AppKit registers its connectors a little later still.
+    const timers = [800, 3000].map((ms) => window.setTimeout(() => void run(), ms));
+    return () => { cancelled = true; timers.forEach((t) => window.clearTimeout(t)); };
   }, [config]);
   return null;
 }

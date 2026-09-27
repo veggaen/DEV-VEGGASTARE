@@ -1697,7 +1697,11 @@ function WalletRow({
               </span>
             )}
             {isActive ? (
-              <span className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
+              <span
+                title={connectorType === 'LOCAL_RPC'
+                  ? "Active local dev-chain account"
+                  : "Active: balances are read from the chain. A locked extension keeps the connection; signing will ask you to unlock it."}
+                className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
                 connectorType === 'LOCAL_RPC'
                   ? "bg-orange-500/15 text-orange-500 dark:text-orange-300"
                   : "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"

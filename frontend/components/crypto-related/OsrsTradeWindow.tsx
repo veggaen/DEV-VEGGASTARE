@@ -43,6 +43,7 @@ import { ArrowLeftRight, Users } from "lucide-react";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { acknowledgeInventoryDrop } from "@/lib/trade-drag-ack";
 import { formatUsd, sumStacksUsd } from "@/lib/stack-value";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 import {
   INVENTORY_DND_TYPE,
@@ -383,24 +384,45 @@ function WalletSelector({
     );
   }
 
+  const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+  const selected = addresses.find((a) => a.address.toLowerCase() === selectedAddress?.toLowerCase());
+  // A styled menu, not a native select: same tokens as every other picker in the app.
   return (
-    <div className="relative">
-      <select
-        className="w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-foreground/[0.05] py-1.5 pl-3 pr-7 font-mono text-xs text-foreground transition-[background-color,border-color,box-shadow] duration-200 hover:border-border hover:bg-foreground/[0.08] focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40"
-        value={selectedAddress ?? ""}
-        onChange={(e) => onSelect(e.target.value)}
-      >
-        <option value="" disabled>
-          {label}
-        </option>
-        {addresses.map((a) => (
-          <option key={a.address} value={a.address}>
-            {a.address.slice(0, 6)}…{a.address.slice(-4)} ({a.connectorName})
-          </option>
-        ))}
-      </select>
-      <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.05] px-3 text-left text-xs text-foreground transition-[background-color,border-color] duration-200 hover:border-border hover:bg-foreground/[0.08] focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40"
+        >
+          {selected ? (
+            <>
+              <span className="font-mono">{short(selected.address)}</span>
+              <span className="min-w-0 truncate text-muted-foreground">{selected.connectorName}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">{label}</span>
+          )}
+          <FiChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="z-[120] min-w-56 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl">
+        {addresses.map((a) => {
+          const active = a.address.toLowerCase() === selectedAddress?.toLowerCase();
+          return (
+            <DropdownMenuItem
+              key={a.address}
+              onSelect={() => onSelect(a.address)}
+              className={`min-h-10 gap-2 rounded-lg px-2.5 text-xs ${active ? "bg-brand-accent/[0.08]" : ""}`}
+            >
+              <span className="font-mono">{short(a.address)}</span>
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">{a.connectorName}</span>
+              {active && <FiCheckCircle className="h-3 w-3 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
