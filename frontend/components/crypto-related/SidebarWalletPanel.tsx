@@ -1850,15 +1850,15 @@ function WalletRow({
                 type="button"
                 onClick={onSetActive}
                 disabled={activationPending}
+                aria-label={connectorType === 'LOCAL_RPC' ? "Make this local dev-chain account the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
                 className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
-                    ? "bg-foreground/[0.08] text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
-                    : "bg-foreground/[0.08] text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover hover:dark:text-brand-accent-light dark:hover:text-brand-accent-light"
+                    ? "border border-orange-500/50 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
+                    : "bg-foreground/[0.08] text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover dark:hover:text-brand-accent-light"
                 }`}
-                title={connectorType === 'LOCAL_RPC' ? "Make this local RPC wallet the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
               >
                 {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2.5 w-2.5" /> : <FiPower className="h-2.5 w-2.5 opacity-70" />}
-                Set active
+                Activate
               </button>
             )}
 
@@ -1886,14 +1886,14 @@ function WalletRow({
                       : "text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10"
                     : "text-muted-foreground hover:text-amber-400 hover:bg-amber-950/20"
                 }`}
-                title={
+                aria-label={
                   isActive
-                    ? connectorType === 'LOCAL_RPC' ? "Transfer via Local RPC" : "Transfer to another linked wallet"
-                    : "Fund this wallet from the active wallet"
+                    ? connectorType === 'LOCAL_RPC' ? "Transfer from this account over the local RPC" : "Transfer to another linked wallet"
+                    : "Send ETH to this wallet from the active wallet"
                 }
               >
                 <FiSend className="h-2.5 w-2.5" />
-                {isActive ? "Transfer" : "Fund"}
+                {isActive ? "Transfer" : "Top up"}
               </button>
             )}
 
@@ -2874,6 +2874,9 @@ export default function SidebarWalletPanel({
 
       saveRegistryToStorage(walletRegistryRef.current);
       forceRegistryUpdate((value) => value + 1);
+      if (!activeOverride && !evmConnected && accountsToAdd[0]) {
+        handleActivateRpcAccount(accountsToAdd[0].address, accountsToAdd[0].chainId);
+      }
       const chainLabel = opts?.chainId ? localChainName(opts.chainId) ?? "Local chain" : "Local chains";
       setLocalRpcNotice(
         opts?.addAll

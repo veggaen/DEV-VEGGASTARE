@@ -679,7 +679,17 @@ export function VerificationDashboard() {
                     disabled={Boolean(linking)}
                     className="min-h-11 shrink-0 text-blue-700 dark:text-blue-400 hover:bg-blue-500/10"
                   >
-                    {item.action === 'phone' && isExpanded ? 'Close' : 'Start'}
+                    {linking === item.action
+                      ? 'Opening…'
+                      : item.action === 'phone'
+                        ? (isExpanded ? 'Close' : 'Verify phone')
+                        : item.action === 'wallet'
+                          ? 'Verify wallet'
+                          : item.action === 'purchase'
+                            ? 'Shop now'
+                            : item.action === '2fa'
+                              ? 'Enable 2FA'
+                              : `Link ${OAUTH_PROVIDERS[item.action].label}`}
                     <FiArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 )}

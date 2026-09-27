@@ -544,7 +544,7 @@ export function DexSwapPanel() {
         <Repeat className="h-10 w-10 text-brand-accent/40 mx-auto mb-3" />
         <h3 className="text-sm font-semibold text-foreground/80 mb-1">DEX Swap</h3>
         <p className="text-xs text-muted-foreground">
-          Connect a wallet to swap tokens via DEX aggregator.
+          Connect a browser wallet on a live network to swap through the DEX aggregator. Local test chains cannot route swaps; use Internal Transfer or Local Chain for those.
         </p>
       </div>
     );

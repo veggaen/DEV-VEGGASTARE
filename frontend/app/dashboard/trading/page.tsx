@@ -74,6 +74,15 @@ const MODE_RING_CLASSES: Record<TradeMode, string> = {
   localchain: "ring-orange-500/20 bg-orange-500/10 text-orange-400",
 };
 
+/** Glow behind the active mode chip — matches the chip's own colour, never the accent by default. */
+const MODE_GLOW: Record<TradeMode, string> = {
+  p2p:        "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
+  self:       "shadow-[0_0_24px_-6px_rgb(168_85_247/0.5)]",
+  dex:        "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
+  paper:      "shadow-[0_0_24px_-6px_rgb(245_158_11/0.5)]",
+  localchain: "shadow-[0_0_24px_-6px_rgb(249_115_22/0.5)]",
+};
+
 const MODE_BTN_ACTIVE: Record<TradeMode, string> = {
   p2p:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
   self:       "ring-1 ring-inset ring-purple-500/30 bg-purple-500/12 text-purple-700 dark:text-purple-300",
@@ -216,7 +225,7 @@ export default function TradingPage() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-surface-1">
+    <div className="flex h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px))] min-h-[560px] w-full flex-col bg-surface-1">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 shrink-0 bg-surface-1/80 backdrop-blur-xl">
         {/* Top row: title + actions */}
@@ -394,7 +403,7 @@ export default function TradingPage() {
                 onClick={() => setMode(m)}
                 className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   mode === m
-                    ? `${MODE_BTN_ACTIVE[m]} shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]`
+                    ? `${MODE_BTN_ACTIVE[m]} ${MODE_GLOW[m]}`
                     : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                 }`}
               >
@@ -429,9 +438,10 @@ export default function TradingPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
+            className={mode === "paper" ? "h-full" : undefined}
           >
         {mode === "paper" ? (
-          <MarketTerminal />
+          <MarketTerminal className="h-full min-h-[560px] lg:h-full" />
         ) : (
         <div
           className="grid gap-4 lg:gap-5 items-start lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
@@ -456,8 +466,8 @@ export default function TradingPage() {
             </section>
           )}
 
-          {/* ── Trade panels — mode-dependent ──────── */}
-          <section className="min-h-0">
+          {/* ── Trade panels — mode-dependent (centred, capped so grids stay hand-sized) ── */}
+          <section className="mx-auto w-full min-w-0 max-w-[1040px] min-h-0">
           <AnimatePresence mode="wait">
             {/* P2P / Self / Local Chain → OSRS Trade Window */}
             {showOsrsTrade && (

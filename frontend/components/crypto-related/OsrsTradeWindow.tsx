@@ -511,7 +511,7 @@ function OfferGrid({
 
   return (
     <div
-      className={`relative grid gap-1 rounded-xl p-1.5 transition-[background-color,border-color,box-shadow,opacity] duration-200 ${
+      className={`relative mx-auto grid w-full max-w-[400px] gap-1 rounded-xl p-1.5 transition-[background-color,border-color,box-shadow,opacity] duration-200 ${
         isLocked
           ? "border-2 border-border/40 bg-foreground/[0.04] opacity-80"
           : isDragOver
@@ -1357,7 +1357,7 @@ export function OsrsTradeWindow({
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="relative flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-e2 backdrop-blur-xl"
+      className="relative flex max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-9.5rem)] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-e2 backdrop-blur-xl"
     >
       {/* Ambient glow follows the phase */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">

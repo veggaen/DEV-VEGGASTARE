@@ -33,6 +33,7 @@ import { AppHeader } from "@/components/uicustom/chrome/app-header";
 import { AppRail } from "@/components/uicustom/chrome/app-rail";
 import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
 import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -537,7 +538,7 @@ const MyTopBar = () => {
 													<div className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
 														{group.label}
 													</div>
-													<div className="grid grid-cols-2 gap-1.5">
+													<HoverChaser className="grid grid-cols-2 gap-1.5">
 														{group.items.map((item) => {
 															const active = isActivePath(pathname, item.href);
 															const Icon = item.icon;
@@ -547,7 +548,8 @@ const MyTopBar = () => {
 																	href={item.href}
 																	onClick={() => setMenuOpen(false)}
 																	aria-current={active ? 'page' : undefined}
-																	className={`group/navitem flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-200 motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "border-brand-accent/40 bg-brand-accent/10 text-foreground" : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-foreground/[0.06] hover:text-foreground"}`}
+																	data-chase
+																	className={`group/navitem relative flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-[color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "border-brand-accent/40 bg-brand-accent/10 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
 																>
 																	<span className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${active ? "bg-brand-accent/15 text-brand-accent" : "bg-foreground/[0.05] text-muted-foreground group-hover/navitem:text-foreground"}`}>
 																		<Icon className="h-4 w-4" />
@@ -559,7 +561,7 @@ const MyTopBar = () => {
 																</Link>
 															);
 														})}
-													</div>
+													</HoverChaser>
 												</div>
 											))}
 										</nav>
@@ -920,15 +922,15 @@ function SettingsPaneLite({
     { id: 'privacy', icon: FiLock, label: 'Privacy', desc: 'Visibility & data' },
     { id: 'wallet', icon: FiLink, label: 'Wallet', desc: 'Web3 & local chains' },
   ];
-  const tileClass = "group flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-foreground/[0.03] px-3 py-2.5 transition-[border-color,background-color,transform] duration-200 motion-reduce:transition-none hover:border-brand-accent/40 hover:bg-foreground/[0.06] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const tileClass = "group relative flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-foreground/[0.03] px-3 py-2.5 transition-[border-color,transform] duration-200 motion-reduce:transition-none hover:border-transparent motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <div className="space-y-4 p-4">
       <nav aria-label="Quick settings">
         <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quick settings</p>
-        <div className="grid grid-cols-2 gap-1.5">
+        <HoverChaser className="grid grid-cols-2 gap-1.5">
           {settingsItems.map(({ id, icon: Icon, label, desc }) => (
-            <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} className={tileClass}>
+            <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} data-chase className={tileClass}>
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground transition-colors duration-200 group-hover:bg-brand-accent/15 group-hover:text-brand-accent">
                 <Icon aria-hidden="true" className="size-4" />
               </span>
@@ -938,7 +940,7 @@ function SettingsPaneLite({
               </span>
             </Link>
           ))}
-        </div>
+        </HoverChaser>
       </nav>
 
       {effectiveWeb3ModeEnabled && (

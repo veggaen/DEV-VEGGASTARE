@@ -6,6 +6,7 @@
 
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 import Link from "@/components/ui/navigation-link";
 import { dbPrisma } from "@/lib/db";
 import { PageHeader } from "@/components/uicustom/chrome/page-header";
@@ -177,7 +178,7 @@ export default async function DashboardPage() {
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
           Quick Access
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <HoverChaser className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" boxClassName="rounded-2xl">
           {QUICK_LINKS.map((link) => {
             const txt = accentText[link.accent] ?? "text-muted-foreground";
             const bg = accentBg[link.accent] ?? "bg-muted/8";
@@ -185,7 +186,8 @@ export default async function DashboardPage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card/70 px-4 py-3.5 shadow-e1 backdrop-blur-xl transition-[transform,box-shadow,border-color,background-color] duration-200 motion-reduce:transition-none hover:border-brand-accent/40 hover:bg-card hover:shadow-e2 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-chase
+                className="group relative flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card/70 px-4 py-3.5 shadow-e1 backdrop-blur-xl transition-[transform,border-color] duration-200 motion-reduce:transition-none hover:border-transparent motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div
                   className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${bg}`}
@@ -206,7 +208,7 @@ export default async function DashboardPage() {
               </Link>
             );
           })}
-        </div>
+        </HoverChaser>
       </section>
     </div>
   );

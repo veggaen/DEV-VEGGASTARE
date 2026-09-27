@@ -918,14 +918,15 @@ export function OsrsInventory({
   // Not connected
   // ────────────────────────────────────────────────────────────
 
-  if (!isConnected) {
+  // An activated local dev-chain account (override) is a wallet here too.
+  if (!effectiveConnected) {
     return (
       <div
         className={`flex flex-col items-center justify-center py-12 text-center ${className}`}
       >
         <FiPackage className="h-12 w-12 text-muted-foreground/70 mb-3" />
         <p className="text-sm text-muted-foreground">
-          Connect a wallet to view your inventory
+          Connect a wallet, or activate a local dev-chain account, to see your inventory
         </p>
       </div>
     );
