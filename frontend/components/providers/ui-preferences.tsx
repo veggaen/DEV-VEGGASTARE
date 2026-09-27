@@ -199,6 +199,16 @@ export function useUiPreferences(): UiPreferencesContextValue {
 }
 
 /**
+ * Provider-tolerant read for shared chrome (BrandMark, AppRail) that may render
+ * in trees without the provider (global error boundary, isolated previews).
+ * Falls back to the defaults instead of throwing.
+ */
+export function useUiPreferencesOptional(): UiPreferences {
+  const ctx = useContext(UiPreferencesContext);
+  return ctx?.prefs ?? DEFAULT_PREFS;
+}
+
+/**
  * Convenience hook for checking if fancy/vibrant mode is enabled.
  * Use this to conditionally apply gradients, animations, etc.
  */

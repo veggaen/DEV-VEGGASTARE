@@ -24,7 +24,7 @@ import { CartProvider } from "@/contexts/cart-context";
 import Web3Providers from "@/components/crypto-related/Web3Providers";
 
 import MyTopBar from "@/components/uicustom/topbar";
-import DesktopNavigation from "@/components/uicustom/desktop-navigation";
+import { MobileDock } from "@/components/uicustom/chrome/mobile-dock";
 import SiteFooter from "@/components/uicustom/site-footer";
 import CookieBanner from "@/components/uicustom/cookie-banner";
 import { ActiveWalletProvider } from "@/contexts/active-wallet-context";
@@ -75,6 +75,9 @@ export default function AppShell({
   const isImmersiveChat =
     pathname === '/ai' || /^\/ai\/[^/]+$/.test(pathname ?? '') ||
     (pathname !== '/conversations/new' && /^\/conversations\/[^/]+$/.test(pathname ?? ''));
+  // The floating mobile dock replaces the old sidebar. It stays out of the way
+  // of a chat composer and of the sign-in form's sticky submit button.
+  const showMobileDock = !isAuthRoute && !isImmersiveChat;
   
   return (
     <SessionProvider session={session} refetchOnWindowFocus>
@@ -98,23 +101,25 @@ export default function AppShell({
                     <ConfirmDialogProvider>
                     {/* Only the page/drawer scroll. A document-level hash or
                         focus jump must never move the header or demo notice. */}
-                    <div data-app-shell style={isAuthRoute ? { '--app-header-offset': '0px' } as React.CSSProperties : undefined} className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
+                    <div data-app-shell data-mobile-rail={showMobileDock ? 'true' : undefined} className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
                     <SkipToContent />
                     <UpdateBanner />
                     <MyTopBar />
                     <ImpersonationBanner />
                     <DemoSessionNotice />
                     <div className="flex min-h-0 min-w-0 flex-1">
-                    <DesktopNavigation />
                     <PageScroller scrollKey={scrollKey} contained={Boolean(isProductsRoute || isImmersiveChat)}>
                       {/* Use the actual remaining shell height, not header/demo
-                          measurements which only become available in effects. */}
-                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-full'} ${isImmersiveChat ? '' : 'pb-[var(--cookie-banner-offset,0px)]'}`}>
+                          measurements which only become available in effects.
+                          Scrolling pages also reserve the mobile dock's height
+                          (contained routes subtract it from their own height). */}
+                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-full'} ${isImmersiveChat ? '' : isProductsRoute ? 'pb-[var(--cookie-banner-offset,0px)]' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--mobile-rail-offset,0px))]'}`}>
                         {children}
                       </main>
                       {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}
                     </PageScroller>
                     </div>
+                    {showMobileDock && <MobileDock />}
                     <CookieBanner />
                     <Toaster />
                     </div>

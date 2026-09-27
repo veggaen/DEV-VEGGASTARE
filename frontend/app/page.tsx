@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
 import HomeHero from "@/components/uicustom/home/home-hero";
 import LandingChatWidget from "@/components/uicustom/home/LandingChatWidget";
-import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
+import { Atmosphere } from "@/components/uicustom/chrome/atmosphere";
 import { MyLibUserAuth } from "@/lib/user-auth";
 
 // Split below-fold content into a separate JS chunk so the hero can hydrate
@@ -16,14 +16,14 @@ export default async function Home() {
 
   return (
     <>
-      {/* Full-page particle background — fixed, covers the whole landing page and
-          sits behind the navbar + all content while scrolling. */}
-      <HeroParticleField fixed density={0.72} className="z-0 opacity-70" />
+      {/* The brand star field, at landing intensity — fixed behind the header
+          and every section. Other routes use the quiet variant or none. */}
+      <Atmosphere variant="landing" />
 
-      <HomeHero isLoggedIn={!!user} userName={(user as any)?.name ?? null}>
+      <HomeHero isLoggedIn={!!user} userName={user?.name ?? null}>
         <LandingChatWidget
           isLoggedIn={!!user}
-          userId={(user as any)?.id ?? null}
+          userId={user?.id ?? null}
         />
       </HomeHero>
       <BelowFoldSections />

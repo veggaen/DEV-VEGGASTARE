@@ -36,6 +36,21 @@ export const memberNavigation: NavigationGroup[] = [
   info,
 ];
 
+/** The few destinations that earn a chip in the floating AppRail (header + mobile dock).
+ *  Everything else stays in the grouped account menu. `live` marks a realtime surface. */
+export type PrimaryNavItem = { href: string; label: string; icon: ComponentType<{ className?: string }>; live?: boolean };
+const primaryPublic: PrimaryNavItem[] = [
+  { href: '/', label: 'Home', icon: FiHome },
+  { href: '/products', label: 'Products', icon: FiPackage },
+  { href: '/pulse', label: 'Pulse', icon: PulseHeart, live: true },
+];
+export function getPrimaryNavigation(user?: { role?: string } | null, surface: 'header' | 'dock' = 'header'): PrimaryNavItem[] {
+  if (!user) return primaryPublic;
+  const member = [...primaryPublic, { href: '/ai', label: 'AI', icon: FiZap }];
+  // The dock is thumb-sized: four chips + Menu. The header has room for Dashboard.
+  return surface === 'dock' ? member : [...member, { href: '/dashboard', label: 'Dashboard', icon: FiGrid }];
+}
+
 export function getNavigationGroups(user?: { role?: string } | null): NavigationGroup[] {
   if (!user) return publicNavigation;
   if (user.role !== 'OWNER' && user.role !== 'ADMIN') return memberNavigation;

@@ -2324,7 +2324,7 @@ test('S9 recorded showcase — public entry, free demo checkout and private down
     await page.getByRole('textbox', { name: 'Number of credits', exact: true }).fill('1000');
     await expect(page.locator('[data-credit-preview]')).toHaveText('1,000');
     await scene('10-auto-updating-quote', 7);
-    await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'AI Chat', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'AI', exact: true }).click();
     await page.waitForURL('**/ai', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /what's on your mind|Welcome back/i, level: 1 })).toBeVisible();
     await scene('11-ai-workspace', 6);
@@ -6327,21 +6327,18 @@ test('S7 — shared header stays aligned and desktop rail scroll is independent'
       await expect.poll(() => main.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
       const after = await logo.boundingBox();
       expect(after).toEqual(before);
+      // The floating chip rail lives in the header from md up; below that the
+      // fixed bottom dock (a second "Primary navigation (mobile)" landmark) takes over.
       const rail = page.getByRole('navigation', { name: 'Primary navigation', exact: true });
-      if (size.width >= 1024) {
+      const dock = page.getByRole('navigation', { name: 'Primary navigation (mobile)', exact: true });
+      if (size.width >= 768) {
         await expect(rail).toBeInViewport();
-        const mainTop = await main.evaluate(e => e.scrollTop);
-        const bounds = await rail.boundingBox();
-        await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
-        await page.mouse.wheel(0, 5000);
-        await expect.poll(() => rail.evaluate(e => Math.abs(e.scrollHeight - e.clientHeight - e.scrollTop))).toBeLessThan(2);
-        await expect(rail.getByRole('link', { name: 'Privacy', exact: true })).toBeInViewport();
-        await page.mouse.wheel(0, 5000);
-        expect(await main.evaluate(e => e.scrollTop)).toBe(mainTop);
-        await page.mouse.wheel(0, -5000);
-        await expect.poll(() => rail.evaluate(e => e.scrollTop)).toBe(0);
-        expect(await main.evaluate(e => e.scrollTop)).toBe(mainTop);
-      } else await expect(rail).toBeHidden();
+        await expect(rail.getByRole('link', { name: 'Products', exact: true })).toBeInViewport();
+        await expect(dock).toBeHidden();
+      } else {
+        await expect(rail).toBeHidden();
+        await expect(dock).toBeInViewport();
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollY === 0)).toBe(true);
     }
     let documents = 0;
@@ -6350,9 +6347,9 @@ test('S7 — shared header stays aligned and desktop rail scroll is independent'
     await nav.getByRole('link', { name: 'Products', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Marketplace', level: 1 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Products', exact: true })).toHaveAttribute('aria-current', 'page');
-    await nav.getByRole('link', { name: 'Cart', exact: true }).click();
-    await expect(page).toHaveURL(/\/cart$/);
-    await expect(nav.getByRole('link', { name: 'Cart', exact: true })).toHaveAttribute('aria-current', 'page');
+    await nav.getByRole('link', { name: 'Pulse', exact: true }).click();
+    await expect(page).toHaveURL(/\/pulse$/);
+    await expect(nav.getByRole('link', { name: 'Pulse', exact: true })).toHaveAttribute('aria-current', 'page');
     expect(documents).toBe(0);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
@@ -6507,8 +6504,10 @@ test('S7 — dashboard shares one unobscured navigation rail in both themes', as
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('main,[data-site-scroll]')].every(e => e.scrollWidth <= e.clientWidth))).toBe(true);
         const logo = await page.locator('[data-nav-key="logo"]').boundingBox();
         expect((await heading.boundingBox())!.x).toBe(logo!.x);
-        await expect(page.locator('a[href="/dashboard"]:visible')).toHaveCount(size.width >= 1024 ? 1 : 0);
-        if (size.width >= 1024) {
+        // Signed-in header rail carries a Dashboard chip from md up (icon-only
+        // until lg, label stays in the accessible name); the mobile dock does not.
+        await expect(page.locator('a[href="/dashboard"]:visible')).toHaveCount(size.width >= 768 ? 1 : 0);
+        if (size.width >= 768) {
           const dashboard = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).getByRole('link', { name: 'Dashboard', exact: true });
           await dashboard.scrollIntoViewIfNeeded();
           expect(await dashboard.evaluate(e => { const r = e.getBoundingClientRect(); return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);

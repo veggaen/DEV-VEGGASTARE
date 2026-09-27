@@ -18,7 +18,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiShield, FiBell, FiLock, FiSun, FiMoon, FiMonitor, FiCopy, FiLink, FiCheck, FiPackage } from "react-icons/fi";
+import { FiUser, FiImage, FiShield, FiBell, FiLock, FiSun, FiMoon, FiMonitor, FiCopy, FiLink, FiCheck, FiPackage } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import {
 	Sheet,
@@ -28,8 +28,10 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
+import { AppHeader } from "@/components/uicustom/chrome/app-header";
+import { AppRail } from "@/components/uicustom/chrome/app-rail";
+import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -45,7 +47,7 @@ import { CopyChip } from "@/components/uicustom/CopyChip";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { isLocalChain } from "@/lib/is-local-chain";
 import { FiMenu } from 'react-icons/fi';
-import { getNavigationGroups, isActiveNavigationPath as isActivePath } from './site-navigation';
+import { getNavigationGroups, getPrimaryNavigation, isActiveNavigationPath as isActivePath } from './site-navigation';
 
 // These panels are only mounted inside the open navigation/settings sheet.
 // Keep connection providers stable; defer optional UI, not the entire app tree.
@@ -55,28 +57,6 @@ function WalletPanelLoading() {
 const SidebarWalletPanel = dynamic(() => import('../crypto-related/SidebarWalletPanel'), { ssr: false, loading: WalletPanelLoading });
 const EvmWalletVerify = dynamic(() => import('@/components/crypto-related/EvmWalletVerify'), { ssr: false, loading: WalletPanelLoading });
 const EvmWalletList = dynamic(() => import('@/components/crypto-related/EvmWalletList'), { ssr: false, loading: WalletPanelLoading });
-
-type NavLinkProps = {
-	href: string;
-	children: ReactNode;
-	isActive: boolean;
-};
-
-const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-	<Link
-		href={href}
-		aria-current={isActive ? "page" : undefined}
-		{...rest}
-		className={`relative inline-flex min-h-11 items-center rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-			isActive
-				? "text-zinc-900 dark:text-zinc-100"
-				: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-		}`}
-	>
-		{children}
-	</Link>
-);
-
 
 /** Key for sessionStorage flag that prevents OAuth redirect loops */
 const OAUTH_BRIDGE_KEY_PREFIX = 'veggat_oauth_bridge_';
@@ -251,9 +231,8 @@ const MyTopBar = () => {
 		? clientUser.web3ModeEnabled === true
 		: web3ModeEnabled;
 
-	const isLandingPage = pathname === "/";
 	const [isScrolled, setIsScrolled] = useState(false);
-	const showTopbarChrome = !isLandingPage && isScrolled;
+	const showTopbarChrome = isScrolled;
 
 	useEffect(() => {
 		const scrollEl = document.querySelector<HTMLElement>(
@@ -316,19 +295,8 @@ const MyTopBar = () => {
 		return () => observer.disconnect();
 	}, [pathname]);
 
-	// Simplified desktop nav - main discovery paths only
-	// Messages is now an icon in the topbar, not a text link
-	const nav: Array<{ href: string; label: string }> = [
-		{ href: "/", label: "Home" },
-		{ href: "/products", label: "Products" },
-		{ href: "/pulse", label: "Pulse" },
-		...(clientUser
-			? [
-				{ href: "/ai", label: "AI" },
-			]
-			: []),
-	];
-
+	// Chips in the floating rail; everything else lives in the grouped menu.
+	const railItems = getPrimaryNavigation(clientUser, "header");
 	const menuGroups = getNavigationGroups(clientUser);
 
 	const cookieAfterClose = useRef(false);
@@ -370,10 +338,6 @@ const MyTopBar = () => {
 		return () => mq?.removeEventListener?.("change", update);
 	}, []);
 
-	// Avoid rendering the full navigation on auth screens.
-	const hideOnAuthPages = pathname.startsWith("/auth/");
-	if (hideOnAuthPages) return <><NetworkSyncBridge /><AppKitOAuthBridge /></>;
-
 	return (
 		<>
 			<NetworkSyncBridge />
@@ -385,388 +349,353 @@ const MyTopBar = () => {
 				hideTrigger
 				onOpen={() => setMenuOpen(false)}
 			/>
-			<header ref={headerRef} className="sticky top-0 z-60 w-full shrink-0">
-				<div className="relative w-full lg:pl-20">
-					<div aria-hidden="true" className="pointer-events-none absolute inset-0 border-b border-border bg-background/90 backdrop-blur-xl transition-opacity duration-200 motion-reduce:transition-none" style={{ opacity: showTopbarChrome ? 1 : 0 }} />
-					<div
-						data-header-canvas
-						className="relative mx-auto flex h-[var(--app-header)] w-full min-w-0 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8"
-					>
-						<div className="flex min-w-0 items-center gap-6">
-							<Link
-								href="/"
-								data-nav-key="logo"
-								className="inline-flex min-h-11 shrink-0 items-center rounded-md text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							>
-								Veggat
-							</Link>
+			<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+				<AppHeader
+					ref={headerRef}
+					scrolled={showTopbarChrome}
+					rail={<AppRail id="header-rail" items={railItems} />}
+					utilities={
+						<>
+						{/* Desktop quick actions */}
+						<TooltipProvider delayDuration={200}>
+						<div className="hidden md:flex items-center gap-1">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<div data-nav-key="currency" className="relative">
+										<CurrencySelector variant="ghost" size="sm" />
+									</div>
+								</TooltipTrigger>
+								<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Currency</TooltipContent>
+							</Tooltip>
 
-							<nav aria-label="Header navigation" className="hidden items-center gap-1 md:flex lg:hidden">
-								{nav.map((item) => (
-									<NavLink
-										key={item.href}
-										href={item.href}
-										isActive={isActivePath(pathname, item.href)}
-										data-nav-key={item.href}
-										data-nav-active={isActivePath(pathname, item.href) ? "true" : undefined}
-									>
-										{item.href === "/pulse" ? (
-											<span className="inline-flex items-center gap-1.5">
-												<span className="relative flex h-2 w-2">
-													<span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500 dark:bg-emerald-500" />
-												</span>
-												<span>{item.label}</span>
-											</span>
-										) : (
-											item.label
-										)}
-									</NavLink>
-								))}
-							</nav>
+							{clientUser && (
+								<>
+									{/* Notification Bell */}
+											<div data-nav-key="notifications" className="relative">
+												<NotificationDropdown
+													notifications={notifications}
+													unreadCount={unreadCount}
+													isLoading={notificationsLoading}
+													isError={notificationsError}
+													pending={notificationsPending}
+													readOnly={isDemoUserId(clientUser?.id)}
+													onRefresh={refreshNotifications}
+													onMarkRead={markAsRead}
+													onMarkAllRead={markAllAsRead}
+												/>
+											</div>
+									
+									{/* Mini Cart Dropdown */}
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div data-nav-key="cart" className="relative">
+												<MiniCartDropdown
+													key={clientUser?.id ?? 'guest'}
+													userId={clientUser?.id}
+													cartCount={cartCount}
+												/>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
+									</Tooltip>
+
+
+								</>
+							)}
 						</div>
-
-						<div className="flex shrink-0 items-center gap-2">
-							<div className="md:hidden"><CurrencySelector variant="ghost" size="sm" /></div>
-							{/* Desktop quick actions */}
-							<TooltipProvider delayDuration={200}>
-							<div className="hidden md:flex items-center gap-1">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<div data-nav-key="currency" className="relative">
-											<CurrencySelector variant="ghost" size="sm" />
+						{clientUser && (
+							<div data-nav-key="conversations" className="relative">
+								<ChatLiteDropdown />
+							</div>
+						)}
+						<ThemeToggle />
+						</TooltipProvider>
+						</>
+					}
+					account={
+					<SheetTrigger asChild>
+						<button
+							type="button"
+							data-nav-key="avatar"
+							data-nav-round="true"
+							aria-label="Open menu"
+							disabled={!clientReady}
+							className="group inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-3.5 text-sm font-medium text-foreground backdrop-blur-xl transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-border hover:bg-surface-3 hover:shadow-e1 motion-safe:hover:-translate-y-px motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:size-10 md:px-0"
+						>
+							<span className="inline-flex items-center gap-2 md:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
+							<span className="hidden md:inline-flex">{clientUser ? (
+								<Avatar className="size-8 ring-2 ring-background transition-[box-shadow] duration-200 group-hover:ring-brand-accent/40">
+									<AvatarImage
+										src={clientUser.image || "/users/avatar.webp"}
+										alt="User"
+									/>
+									<AvatarFallback className="bg-muted text-sm text-muted-foreground">
+										<FaUser className="size-4" />
+									</AvatarFallback>
+								</Avatar>
+							) : (
+								<TbHexagons aria-hidden="true" className="size-5 text-muted-foreground transition-[color,transform] duration-300 group-hover:rotate-12 group-hover:text-brand-accent" />
+							)}</span>
+						</button>
+					</SheetTrigger>
+					}
+				/>
+					<SheetContent
+						side="right"
+						className="w-[calc(100%-2rem)] max-w-[380px] h-dvh overflow-hidden overscroll-contain border-l border-border bg-popover pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
+						onTouchStart={onMenuTouchStart}
+						onTouchEnd={onMenuTouchEnd}
+						accessibleTitle="Navigation Menu"
+						onCloseAutoFocus={event => {
+							if (!cookieAfterClose.current) return;
+							cookieAfterClose.current = false;
+							event.preventDefault();
+							requestAnimationFrame(() => window.dispatchEvent(new Event("veggat:cookie-consent-open")));
+						}}
+					>
+						<div className="flex h-full min-h-0 flex-col">
+							{/* User Profile Header */}
+							{clientUser ? (
+								<>
+									<Link
+										href="/profile"
+										onClick={() => setMenuOpen(false)}
+										className="flex items-center gap-3 px-4 py-3 hover:bg-muted/60 transition-colors group"
+										title="View Profile"
+									>
+										<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-brand-accent/50 transition-[box-shadow] duration-200">
+											<AvatarImage
+												src={clientUser.image || "/users/avatar.webp"}
+												alt="User"
+											/>
+											<AvatarFallback className="bg-muted text-muted-foreground text-sm">
+												<FaUser className="h-4 w-4" />
+											</AvatarFallback>
+										</Avatar>
+										<div className="min-w-0 flex-1">
+											<div className="text-sm font-semibold text-foreground truncate">
+												{clientUser.name ?? "Account"}
+											</div>
+											<div className="text-[11px] text-muted-foreground/80 group-hover:text-brand-accent-hover dark:group-hover:text-brand-accent-light transition-colors">
+												View profile →
+											</div>
 										</div>
-									</TooltipTrigger>
-									<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Currency</TooltipContent>
-								</Tooltip>
+									</Link>
+									{/* Quick-copy strips: email + active wallet */}
+									<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
+									<div className="border-b border-border" />
+								</>
+							) : (
+							<>
+							<SheetHeader className="border-b border-border p-6">
+								<SheetTitle className="text-base font-semibold text-foreground">
+									Welcome
+								</SheetTitle>
+								<SheetDescription className="text-xs text-muted-foreground">
+									Sign in to unlock all features
+								</SheetDescription>
+							</SheetHeader>
+							</>
+							)}
 
-								{clientUser && (
+							{/* Two-Pane Tab Navigation */}
+							{clientUser && (
+								<div className="flex border-b border-border">
+									<button
+										type="button"
+										onClick={() => setMenuPane("nav")}
+										aria-pressed={menuPane === "nav"}
+										className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "nav"
+											? "text-foreground border-b-2 border-foreground"
+											: "text-muted-foreground hover:text-foreground"
+											}`}
+									>
+										Navigate
+									</button>
+									<button
+										type="button"
+										onClick={() => setMenuPane("settings")}
+										aria-pressed={menuPane === "settings"}
+										className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "settings"
+											? "text-foreground border-b-2 border-foreground"
+											: "text-muted-foreground hover:text-foreground"
+											}`}
+									>
+										Settings
+									</button>
+								</div>
+							)}
+
+							{/* Main scrollable content */}
+							<div data-navigation-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+								{/* Navigation Pane */}
+								{(!clientUser || menuPane === "nav") && (
+									<div className="p-3">
+										{/* Grouped navigation */}
+										<nav className="space-y-4">
+											{menuGroups.map((group) => (
+												<div key={group.label}>
+													<div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+														{group.label}
+													</div>
+													<div className="space-y-0.5">
+														{group.items.map((item) => {
+															const active = isActivePath(pathname, item.href);
+															const Icon = item.icon;
+															return (
+																<Link
+																	key={item.href}
+																	href={item.href}
+																	onClick={() => setMenuOpen(false)}
+																	aria-current={active ? 'page' : undefined}
+																	className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+																>
+																	{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
+																		<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
+																	<span>{item.label}</span>
+																	{item.href === "/pulse" && (
+																		<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
+																			<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-accent" />
+																		</span>
+																	)}
+																</Link>
+															);
+														})}
+													</div>
+												</div>
+											))}
+										</nav>
+
+										{/* Nexus — flat command palette shortcut */}
+										{clientUser && (
+											<div className="mt-3 border-t border-border pt-3">
+												<button
+													type="button"
+													onClick={() => {
+														setMenuOpen(false);
+														setTimeout(() => setNexusOpen(true), 0);
+													}}
+													className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+												>
+													<TbHexagons className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+													<span>Nexus</span>
+													<kbd className="ml-auto text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+												</button>
+											</div>
+										)}
+
+										{/* Web3 Wallets — only for logged-in users */}
+										{clientUser && (
+											<div className="mt-3 border-t border-border pt-3">
+												{/* Reserve the disconnected panel's geometry while its
+												    optional bundle/data loads; do not move a scrolled drawer. */}
+												<div data-navigation-wallet-slot className="min-h-66">
+												<SidebarWalletPanel
+													isLoggedIn={!!clientUser}
+													web3Enabled={effectiveWeb3ModeEnabled}
+													onClose={() => setMenuOpen(false)}
+													userName={clientUser?.name}
+												/>
+												</div>
+											</div>
+										)}
+									</div>
+								)}
+								{/* Settings pane with visible touch/keyboard controls */}
+								{clientUser && menuPane === "settings" && (
+									<SettingsPaneLite 
+										setMenuOpen={setMenuOpen}
+										effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
+										walletRefreshToken={walletRefreshToken}
+										setWalletRefreshToken={setWalletRefreshToken}
+									/>
+								)}
+								{/* Privacy choices must remain reachable without an account. */}
+								<div className="border-t border-border p-4">
+									<button type="button" onClick={openCookieSettings} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
+								</div>
+
+							</div>
+
+							{/* Footer actions */}
+							<div className="shrink-0 border-t border-border p-4 space-y-2">
+								{clientUser ? (
+									<button
+										type="button"
+										onClick={() => cleanLogout()}
+										className="w-full rounded-xl bg-muted px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors"
+									>
+										Sign out
+									</button>
+								) : (
 									<>
-										{/* Notification Bell */}
-												<div data-nav-key="notifications" className="relative">
-													<NotificationDropdown
-														notifications={notifications}
-														unreadCount={unreadCount}
-														isLoading={notificationsLoading}
-														isError={notificationsError}
-														pending={notificationsPending}
-														readOnly={isDemoUserId(clientUser?.id)}
-														onRefresh={refreshNotifications}
-														onMarkRead={markAsRead}
-														onMarkAllRead={markAllAsRead}
-													/>
-												</div>
-										
-										{/* Mini Cart Dropdown */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div data-nav-key="cart" className="relative">
-													<MiniCartDropdown
-														key={clientUser?.id ?? 'guest'}
-														userId={clientUser?.id}
-														cartCount={cartCount}
-													/>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
-										</Tooltip>
+										{/* Web3 connect — top option */}
+										<button
+											type="button"
+											onClick={openGuestWallet}
+											disabled={!IS_WEB3_CONFIGURED || walletOpening} aria-busy={walletOpening} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground enabled:hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											<FiLink className="w-4 h-4" />
+											{walletOpening ? 'Opening wallet…' : IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
+										</button>
 
+										{/* OAuth providers row */}
+										<div className="flex gap-2">
+											<button
+												type="button"
+												onClick={() => startOauth("google")}
+												disabled={oauthPending !== null}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												title="Continue with Google"
+											>
+												{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
+												Google
+											</button>
+											<button
+												type="button"
+												onClick={() => startOauth("discord")}
+												disabled={oauthPending !== null}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												title="Continue with Discord"
+											>
+												{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
+												Discord
+											</button>
+											<button
+												type="button"
+												onClick={() => startOauth("github")}
+												disabled={oauthPending !== null}
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												title="Continue with GitHub"
+											>
+												{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
+												GitHub
+											</button>
+										</div>
 
+										{/* Sign in / Sign up links */}
+										<div className="flex gap-2 pt-1">
+											<Link
+												href="/auth/login"
+												onClick={() => setMenuOpen(false)}
+												className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+											>
+												Sign in
+											</Link>
+											<Link
+												href="/auth/register"
+												onClick={() => setMenuOpen(false)}
+												className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+											>
+												Sign up
+											</Link>
+										</div>
 									</>
 								)}
 							</div>
-							{clientUser && (
-								<div data-nav-key="conversations" className="relative">
-									<ChatLiteDropdown />
-								</div>
-							)}
-							</TooltipProvider>
-							<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-								<SheetTrigger asChild>
-									<button
-										type="button"
-										data-nav-key="avatar"
-										data-nav-round="true"
-										className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-12 lg:w-12 lg:rounded-full lg:border-0 lg:p-0"
-										aria-label="Open menu"
-										disabled={!clientReady}
-									>
-										<span className="inline-flex items-center gap-2 lg:hidden"><FiMenu aria-hidden="true" className="size-5" /><span>Menu</span></span>
-										<span className="hidden lg:inline-flex">{clientUser ? (
-											<Avatar className="h-12 w-12">
-												<AvatarImage
-													src={clientUser.image || "/users/avatar.webp"}
-													alt="User"
-												/>
-												<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-base">
-													<FaUser className="h-6 w-6" />
-												</AvatarFallback>
-											</Avatar>
-										) : (
-											<TbHexagons className="h-6 w-6" />
-										)}</span>
-									</button>
-								</SheetTrigger>
-
-								<SheetContent
-									side="right"
-									className="w-[calc(100%-2rem)] max-w-[380px] h-dvh overflow-hidden overscroll-contain bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
-									onTouchStart={onMenuTouchStart}
-									onTouchEnd={onMenuTouchEnd}
-									accessibleTitle="Navigation Menu"
-									onCloseAutoFocus={event => {
-										if (!cookieAfterClose.current) return;
-										cookieAfterClose.current = false;
-										event.preventDefault();
-										requestAnimationFrame(() => window.dispatchEvent(new Event("veggat:cookie-consent-open")));
-									}}
-								>
-									<div className="flex h-full min-h-0 flex-col">
-										{/* User Profile Header */}
-										{clientUser ? (
-											<>
-												<Link
-													href="/profile"
-													onClick={() => setMenuOpen(false)}
-													className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors group"
-													title="View Profile"
-												>
-													<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-sky-400/50 transition-all">
-														<AvatarImage
-															src={clientUser.image || "/users/avatar.webp"}
-															alt="User"
-														/>
-														<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm">
-															<FaUser className="h-4 w-4" />
-														</AvatarFallback>
-													</Avatar>
-													<div className="min-w-0 flex-1">
-														<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-															{clientUser.name ?? "Account"}
-														</div>
-														<div className="text-[11px] text-zinc-400 dark:text-zinc-500 group-hover:text-sky-500 transition-colors">
-															View profile →
-														</div>
-													</div>
-												</Link>
-												{/* Quick-copy strips: email + active wallet */}
-												<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
-												<div className="border-b border-zinc-100 dark:border-zinc-800" />
-											</>
-										) : (
-										<>
-										<SheetHeader className="border-b border-zinc-100 dark:border-zinc-800 p-6">
-											<SheetTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-												Welcome
-											</SheetTitle>
-											<SheetDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-												Sign in to unlock all features
-											</SheetDescription>
-										</SheetHeader>
-										</>
-										)}
-
-										{/* Two-Pane Tab Navigation */}
-										{clientUser && (
-											<div className="flex border-b border-zinc-100 dark:border-zinc-800">
-												<button
-													type="button"
-													onClick={() => setMenuPane("nav")}
-													aria-pressed={menuPane === "nav"}
-													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "nav"
-														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
-														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-														}`}
-												>
-													Navigate
-												</button>
-												<button
-													type="button"
-													onClick={() => setMenuPane("settings")}
-													aria-pressed={menuPane === "settings"}
-													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "settings"
-														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
-														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-														}`}
-												>
-													Settings
-												</button>
-											</div>
-										)}
-
-										{/* Main scrollable content */}
-										<div data-navigation-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-											{/* Navigation Pane */}
-											{(!clientUser || menuPane === "nav") && (
-												<div className="p-3">
-													{/* Grouped navigation */}
-													<nav className="space-y-4">
-														{menuGroups.map((group) => (
-															<div key={group.label}>
-																<div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-																	{group.label}
-																</div>
-																<div className="space-y-0.5">
-																	{group.items.map((item) => {
-																		const active = isActivePath(pathname, item.href);
-																		const Icon = item.icon;
-																		return (
-																			<Link
-																				key={item.href}
-																				href={item.href}
-																				onClick={() => setMenuOpen(false)}
-																				aria-current={active ? 'page' : undefined}
-																				className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-																			>
-																				{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
-																					<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
-																				<span>{item.label}</span>
-																				{item.href === "/pulse" && (
-																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
-																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500" />
-																					</span>
-																				)}
-																			</Link>
-																		);
-																	})}
-																</div>
-															</div>
-														))}
-													</nav>
-
-													{/* Nexus — flat command palette shortcut */}
-													{clientUser && (
-														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-															<button
-																type="button"
-																onClick={() => {
-																	setMenuOpen(false);
-																	setTimeout(() => setNexusOpen(true), 0);
-																}}
-																className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-															>
-																<TbHexagons className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
-																<span>Nexus</span>
-																<kbd className="ml-auto text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
-															</button>
-														</div>
-													)}
-
-													{/* Web3 Wallets — only for logged-in users */}
-													{clientUser && (
-														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-															{/* Reserve the disconnected panel's geometry while its
-															    optional bundle/data loads; do not move a scrolled drawer. */}
-															<div data-navigation-wallet-slot className="min-h-66">
-															<SidebarWalletPanel
-																isLoggedIn={!!clientUser}
-																web3Enabled={effectiveWeb3ModeEnabled}
-																onClose={() => setMenuOpen(false)}
-																userName={clientUser?.name}
-															/>
-															</div>
-														</div>
-													)}
-												</div>
-											)}
-											{/* Settings pane with visible touch/keyboard controls */}
-											{clientUser && menuPane === "settings" && (
-												<SettingsPaneLite 
-													setMenuOpen={setMenuOpen}
-													effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
-													walletRefreshToken={walletRefreshToken}
-													setWalletRefreshToken={setWalletRefreshToken}
-												/>
-											)}
-											{/* Privacy choices must remain reachable without an account. */}
-											<div className="border-t border-border p-4">
-												<button type="button" onClick={openCookieSettings} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
-											</div>
-
-										</div>
-
-										{/* Footer actions */}
-										<div className="shrink-0 border-t border-zinc-100 dark:border-zinc-800 p-4 space-y-2">
-											{clientUser ? (
-												<button
-													type="button"
-													onClick={() => cleanLogout()}
-													className="w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-												>
-													Sign out
-												</button>
-											) : (
-												<>
-													{/* Web3 connect — top option */}
-													<button
-														type="button"
-														onClick={openGuestWallet}
-														disabled={!IS_WEB3_CONFIGURED || walletOpening} aria-busy={walletOpening} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 enabled:hover:bg-zinc-800 dark:enabled:hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-													>
-														<FiLink className="w-4 h-4" />
-														{walletOpening ? 'Opening wallet…' : IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
-													</button>
-
-													{/* OAuth providers row */}
-													<div className="flex gap-2">
-														<button
-															type="button"
-															onClick={() => startOauth("google")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with Google"
-														>
-															{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
-															Google
-														</button>
-														<button
-															type="button"
-															onClick={() => startOauth("discord")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with Discord"
-														>
-															{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
-															Discord
-														</button>
-														<button
-															type="button"
-															onClick={() => startOauth("github")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with GitHub"
-														>
-															{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
-															GitHub
-														</button>
-													</div>
-
-													{/* Sign in / Sign up links */}
-													<div className="flex gap-2 pt-1">
-														<Link
-															href="/auth/login"
-															onClick={() => setMenuOpen(false)}
-															className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-														>
-															Sign in
-														</Link>
-														<Link
-															href="/auth/register"
-															onClick={() => setMenuOpen(false)}
-															className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-														>
-															Sign up
-														</Link>
-													</div>
-												</>
-											)}
-										</div>
-									</div>
-								</SheetContent>
-							</Sheet>
 						</div>
-					</div>
-				</div>
-			</header>
+				</SheetContent>
+			</Sheet>
 		</>
 	);
 };
@@ -849,11 +778,11 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 		<div className="mx-3 mb-2 space-y-1">
 			{/* Email row */}
 			{hasEmail && (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
-					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-border bg-muted/40">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Email
 					</span>
-					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1">
+					<span className="text-xs text-foreground/85 truncate font-mono min-w-0 flex-1">
 						{displayEmail}
 					</span>
 					<CopyChip text={displayEmail!} label="Copy email" size="xs" />
@@ -861,24 +790,24 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 			)}
 			{/* Active wallet row */}
 			{hasWallet && trimmed ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-sky-500/30 dark:border-emerald-500/30">
-					<span className="h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-muted/40">
+					<span className="h-1.5 w-1.5 rounded-full bg-brand-accent-light shrink-0" />
 					{walletName && (
-						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-emerald-400 shrink-0">
+						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-accent-hover dark:text-brand-accent-light shrink-0">
 							{isAuthConnector && normalizedAuthProvider === "google" ? <FcGoogle className="h-3 w-3" /> : null}
 							{isAuthConnector && normalizedAuthProvider === "discord" ? <FaDiscord className="h-3 w-3 text-[#5865F2]" /> : null}
 							{isAuthConnector && normalizedAuthProvider === "github" ? <FaGithub className="h-3 w-3" /> : null}
 							{walletName}
 						</span>
 					)}
-					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1" title={effectiveAddress}>
+					<span className="text-xs text-foreground/85 truncate font-mono min-w-0 flex-1" title={effectiveAddress}>
 						{trimmed}
 					</span>
 					{chain && (
 						<span className={`text-[9px] rounded px-1.5 py-0.5 shrink-0 inline-flex items-center gap-1 ${
 							isLocalChain(chain.id)
 								? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700"
-								: "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+								: "bg-muted text-muted-foreground"
 						}`}>
 							{isLocalChain(chain.id) && <span className="font-mono font-bold">&gt;_RPC</span>}
 							{chain.name}
@@ -887,11 +816,11 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 					<CopyChip text={effectiveAddress!} label="Copy wallet address" size="xs" />
 				</div>
 			) : nextAuthEmail ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-dashed border-zinc-200 dark:border-zinc-700">
-					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-dashed border-border bg-muted/40">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Wallet
 					</span>
-					<span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic">
+					<span className="text-[11px] text-muted-foreground/80 italic">
 						No active wallet — connect below ↓
 					</span>
 				</div>
@@ -909,9 +838,9 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 							sessionStorage.removeItem(`${OAUTH_BRIDGE_KEY_PREFIX}${appKitEmail}`);
 							signIn(fallbackProvider, { callbackUrl: window.location.pathname || '/products' });
 						}}
-						className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-[11px] font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
+						className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-brand-accent/10 text-[11px] font-medium text-brand-accent-hover hover:bg-brand-accent/15 dark:text-brand-accent-light transition-colors"
 					>
-						<span className="h-1.5 w-1.5 rounded-full bg-sky-400 shrink-0 animate-pulse" />
+						<span className="h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0 animate-pulse" />
 						Sign in with {providerLabel} to unlock all features →
 					</button>
 				);
@@ -950,12 +879,12 @@ function SidebarWalletInfo() {
 	};
 
 	return (
-		<div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-2.5 space-y-2">
+		<div className="rounded-lg border border-border p-2.5 space-y-2">
 			{/* Address row */}
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-1.5 min-w-0">
-					<span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
-					<span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate" title={effectiveAddress}>
+					<span className="h-2 w-2 rounded-full bg-brand-accent-light shrink-0" />
+					<span className="text-xs font-mono text-foreground/85 truncate" title={effectiveAddress}>
 						{trimmed}
 					</span>
 				</div>
@@ -966,16 +895,16 @@ function SidebarWalletInfo() {
 					title="Copy full address"
 				>
 					{copied ? (
-						<FiCheck className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
+						<FiCheck className="h-3.5 w-3.5 text-brand-accent" />
 					) : (
-						<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
+						<FiCopy className="h-3.5 w-3.5 text-muted-foreground/80" />
 					)}
 				</button>
 			</div>
 
 			{/* Network row */}
 			<div className="flex items-center justify-between gap-2">
-				<span className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
 					Network
 				</span>
 				<select
@@ -998,7 +927,7 @@ function SidebarWalletInfo() {
 
 			{/* Current chain indicator */}
 			{activeChain && (
-				<div className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right">
+				<div className="text-[10px] text-muted-foreground/80 text-right">
 					Chain ID: {activeChain.id}
 				</div>
 			)}
@@ -1057,9 +986,9 @@ function SettingsPaneLite({
       </nav>
 			{/* Wallet Section */}
 			{effectiveWeb3ModeEnabled && (
-				<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-3">
+				<div className="rounded-xl bg-muted/40 p-3">
 					<div className="flex items-center justify-between mb-2">
-						<div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+						<div className="text-xs font-medium text-muted-foreground">
 							Wallet
 						</div>
 						<Link
@@ -1083,11 +1012,11 @@ function SettingsPaneLite({
 						<Link
 							href="/dashboard/trading"
 							onClick={() => setMenuOpen(false)}
-							className="flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+							className="flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors"
 						>
-							<FiPackage className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
-							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Trading · experimental</span>
-							<span className="ml-auto text-[10px] text-zinc-400">→</span>
+							<FiPackage className="h-3.5 w-3.5 text-brand-accent" />
+							<span className="text-xs font-medium text-foreground/85">Trading · experimental</span>
+							<span className="ml-auto text-[10px] text-muted-foreground/80">→</span>
 						</Link>
 
 						<EvmWalletVerify

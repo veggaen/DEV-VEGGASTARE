@@ -169,11 +169,15 @@ function genId() {
 interface LandingChatWidgetProps {
   isLoggedIn: boolean;
   userId: string | null;
+  /** Start with the inline panel open (default: collapsed to the "Ask AI" bar so
+   *  the hero title stays the only focal point). */
+  defaultOpen?: boolean;
 }
 
 export default function LandingChatWidget({
   isLoggedIn,
   userId: _userId,
+  defaultOpen = false,
 }: LandingChatWidgetProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -480,7 +484,7 @@ export default function LandingChatWidget({
     saveMessagePair,
   ]);
 
-  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [desktopOpen, setDesktopOpen] = useState(defaultOpen);
 
   // Shared props for ChatPanelInner
   const panelProps = {
@@ -571,9 +575,9 @@ export default function LandingChatWidget({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: reduceMotion ? 0 : 0.18 }}
                 onClick={() => setDesktopOpen(true)}
-                className="flex items-center gap-3 px-5 py-3.5 rounded-2xl glass-panel hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:shadow-sky-500/10 dark:hover:shadow-emerald-500/10 shadow-lg transition-all group max-w-2xl w-full"
+                className="group flex w-full max-w-xl items-center gap-3 rounded-full border border-border/60 bg-surface-1/75 px-5 py-3 text-left shadow-e1 backdrop-blur-xl transition-[border-color,box-shadow,transform,background-color] duration-300 ease-out hover:border-brand-accent/40 hover:bg-surface-1/90 hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.5)] motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <span className="text-sky-400 dark:text-emerald-400 text-lg group-hover:scale-110 transition-transform">
+                <span className="text-lg text-brand-accent transition-transform duration-300 motion-safe:group-hover:scale-110">
                   ✦
                 </span>
                 <div className="flex-1 text-left">
@@ -585,7 +589,7 @@ export default function LandingChatWidget({
                   </span>
                 </div>
                 {state.messages.length > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-accent text-[10px] font-bold text-brand-accent-foreground">
                     {state.messages.filter((m) => m.role === "user").length}
                   </span>
                 )}
@@ -596,7 +600,7 @@ export default function LandingChatWidget({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className="text-muted-foreground"
+                  className="text-muted-foreground transition-transform duration-300 motion-safe:group-hover:translate-y-0.5"
                 >
                   <path d="M6 9l6 6 6-6" />
                 </svg>
@@ -706,13 +710,13 @@ function ChatPanelInner({
   return (
     <>
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-black/8 dark:border-white/10 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-border/60 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-sky-400 dark:text-emerald-400">✦</span>
+          <span className="text-brand-accent">✦</span>
           <span className="text-sm font-semibold">Ask AI</span>
           {!isLoggedIn && (
             <span
-              className="text-[10px] text-muted-foreground bg-white/5 rounded px-1.5 py-0.5"
+              className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5"
               title="Bounded free AI preview. Sign in for more models."
             >
               Free preview
@@ -726,8 +730,8 @@ function ChatPanelInner({
               onClick={() => setShowByokPanel(!showByokPanel)}
               className={`grid size-11 shrink-0 place-items-center rounded-lg transition-colors ${
                 byokActive
-                  ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/30 dark:border-emerald-500/30"
-                  : "hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                  ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/30"
+                  : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
               }`}
               title={
                 byokActive
@@ -751,7 +755,7 @@ function ChatPanelInner({
           {/* Expand */}
           <button
             onClick={event => onExpand(event.currentTarget)}
-            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
             title={
               viewMode === "widget"
                 ? "Expand to larger view"
@@ -783,7 +787,7 @@ function ChatPanelInner({
           {/* Close */}
           <button
             onClick={onClose}
-            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close chat"
             title={
               viewMode === "expanded" ? "Back to widget" : "Close chat"
@@ -813,13 +817,13 @@ function ChatPanelInner({
             transition={{ duration: 0.15 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="px-4 py-3 border-b border-black/8 dark:border-white/10 bg-black/2 dark:bg-white/2 space-y-2.5">
+            <div className="px-4 py-3 border-b border-border/60 bg-muted/20 space-y-2.5">
               {/* Title row */}
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                   {byokActive ? (
                     <>
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 animate-pulse" />
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-accent animate-pulse" />
                       {providerDef?.emoji} {providerDef?.label ?? activeProvider}{" "}
                       connected
                     </>
@@ -852,14 +856,14 @@ function ChatPanelInner({
                   onChange={(e) => setByokKey(e.target.value)}
                   type="password"
                   placeholder="Paste your API key…"
-                  className="w-full h-8 bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-sky-500/40 dark:focus:border-emerald-500/40 transition-colors"
+                  className="w-full h-8 bg-muted/40 border border-border rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand-accent/40 transition-colors"
                   autoComplete="off"
                 />
                 {byokKey.trim() && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     {byokActive ? (
                       <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-500/20 dark:bg-emerald-500/20"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-accent/20"
                         title="Valid key detected"
                       >
                         <svg
@@ -869,7 +873,7 @@ function ChatPanelInner({
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
-                          className="text-sky-400 dark:text-emerald-400"
+                          className="text-brand-accent"
                         >
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
@@ -899,7 +903,7 @@ function ChatPanelInner({
               {/* Detection hint */}
               {byokKey.trim() && detectedByokProvider && (
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] text-sky-400 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20 rounded-full px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-brand-accent bg-brand-accent/10 border border-brand-accent/20 rounded-full px-2 py-0.5">
                     ✓ {providerDef?.emoji} {providerDef?.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground/50">
@@ -936,8 +940,8 @@ function ChatPanelInner({
                       disabled={!byokKey.trim()}
                       className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-colors ${
                         byokKey.trim()
-                          ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 hover:bg-sky-500/25 dark:hover:bg-emerald-500/25"
-                          : "bg-black/4 dark:bg-white/5 text-muted-foreground cursor-not-allowed"
+                          ? "bg-brand-accent/15 text-brand-accent hover:bg-brand-accent/25"
+                          : "bg-muted/40 text-muted-foreground cursor-not-allowed"
                       }`}
                     >
                       Connect
@@ -951,7 +955,7 @@ function ChatPanelInner({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] text-sky-400/70 dark:text-emerald-400/70 hover:text-sky-300 dark:hover:text-emerald-300 transition-colors"
+                    className="text-[10px] text-brand-accent/70 hover:text-brand-accent-light transition-colors"
                     title={`Get an API key from ${providerDef?.label ?? provider}`}
                   >
                     Get a key ↗
@@ -965,7 +969,7 @@ function ChatPanelInner({
                     type="checkbox"
                     checked={byokRemember}
                     onChange={(e) => setByokRemember(e.target.checked)}
-                    className="h-3 w-3 rounded border-black/20 dark:border-white/20 accent-sky-500 dark:accent-emerald-500"
+                    className="h-3 w-3 rounded border-border accent-brand-accent"
                   />
                   <span className="text-[10px] text-muted-foreground">
                     Save key
@@ -1029,10 +1033,10 @@ function ChatPanelInner({
               state.messages[state.messages.length - 1]?.content === "" && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400 shrink-0">
+                    <div className="h-5 w-5 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
                       ✦
                     </div>
-                    <div className="bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 rounded-2xl px-3 py-2">
+                    <div className="bg-muted/40 border border-border/60 rounded-2xl px-3 py-2">
                       <TypingIndicator />
                     </div>
                   </div>
@@ -1078,20 +1082,20 @@ function ChatPanelInner({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="flex flex-col gap-2 px-4 py-3 bg-sky-500/10 dark:bg-emerald-500/10 border-t border-sky-500/20 dark:border-emerald-500/20 text-xs">
-              <span className="text-sky-300 dark:text-emerald-300">
+            <div className="flex flex-col gap-2 px-4 py-3 bg-brand-accent/10 border-t border-brand-accent/20 text-xs">
+              <span className="text-brand-accent-light">
                 Longer messages need an account — free, takes 10 seconds.
               </span>
               <div className="flex gap-2">
                 <a
                   href="/auth/login"
-                  className="flex-1 text-center py-1.5 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black text-xs font-semibold hover:bg-sky-400 dark:hover:bg-emerald-400 transition-colors"
+                  className="flex-1 text-center py-1.5 rounded-lg bg-brand-accent text-brand-accent-foreground text-xs font-semibold hover:bg-brand-accent transition-colors"
                 >
                   Sign in
                 </a>
                 <button
                   onClick={() => setShowLongMsgGate(false)}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 text-muted-foreground hover:bg-white/15 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
                 >
                   Dismiss
                 </button>
@@ -1130,7 +1134,7 @@ function MessageBubble({
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400">
+        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent">
           ✦
         </div>
       )}

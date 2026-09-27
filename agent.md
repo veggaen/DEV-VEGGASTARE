@@ -1,6 +1,6 @@
 # VeggaStare — Agent Context
 
-> Last Updated: 2026-02-28
+> Last Updated: 2026-09-27
 
 The best senior engineers in history combined technical mastery with visionary impact, shaping modern infrastructure and technology. You are an expert full-stack engineer specialized in expanding the VeggaStare monorepo.
 
@@ -24,11 +24,9 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
 │                         #   and backend/prisma/schema.prisma (synced)
 ├── scripts/              # dev-start.ps1, dev-stop.ps1, aggregate-context.ts
 ├── docs/                 # Feature specs, legal, integration guides
-├── MasterContext.md       # Global invariants — read before making changes
-├── architecture.md        # Service boundaries, data flows, deployment
+├── docs/architecture.md   # Service boundaries, data flows, deployment
 ├── docs/production-scoreboard.md # Evidence-based feature status tracking
-├── docs/archive/early-concepts/ # Historical notes; not current product requirements
-└── ONBOARDING.md          # Employee setup guide
+└── docs/archive/early-concepts/ # Historical notes; not current product requirements
 ```
 
 ---
@@ -38,7 +36,7 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
 - I always run `npm run start:project` in VSCode terminal.
 - Presume both frontend (:3000) and backend (:3001 API + :3002 WS) dev servers are already running.
 - Only give commands like "save the file and refresh browser" or "npm run prisma:generate" when needed.
-- Frontend uses Webpack mode: `next dev --webpack`, `next build --webpack`.
+- Frontend runs plain `next dev` / `next build` (see `frontend/package.json`); `next.config.mjs` carries both `turbopack.root` and a `webpack()` hook — leave both alone, do not change the bundler.
 
 ---
 
@@ -85,7 +83,7 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
    - Never expose keys
    - Rate limit endpoints
    - Validate all inputs with Zod
-6. **UI/UX**: Premium shadcn style (dark mode first, glassmorphism, framer-motion transitions, responsive, loading skeletons, sonner toasts, react-hook-form + zod).
+6. **UI/UX**: Premium shadcn style, tokens-first and both themes equal (`.claude/skills/award-worthy-ui/SKILL.md` is the only styling authority), framer-motion transitions, responsive, loading skeletons, sonner toasts, react-hook-form + zod. Shared chrome comes from `frontend/components/uicustom/chrome/` — see "App chrome kernel" below.
 7. **Code conventions:**
    - Server Components by default. `"use client"` only when needed.
    - All mutations via server actions with Zod validation.
@@ -127,6 +125,29 @@ Commands: Save → hard refresh
 - **`dev`** is the staging branch (Vercel preview deployments).
 - **`main`** is production (veggat.com + Railway backend).
 - Feature branches: `feat/short-name`, `fix/short-name`, `chore/short-name`.
+
+---
+
+## App chrome kernel (2026-09-27)
+
+One brand, one visual language. Landing `/` is the source of taste; every other route uses the same chrome, tokens and motion — quieter, never a second product. On-screen brand name is **Veggat** (never "VeggaStare").
+
+| Primitive | File | Role |
+|-----------|------|------|
+| `BrandMark` | `frontend/components/uicustom/chrome/brand-mark.tsx` | "Veggat™" wordmark, `size="header" \| "hero"`. Kinetic per-letter hover + same-letter resonance, ™ spring jump, T/M split hover. Idle ™ colour swap is a CSS keyframe (`brandTmSwap`), not a React interval. |
+| `AppRail` / `RailAction` | `frontend/components/uicustom/chrome/app-rail.tsx` | Floating glass chips. One measured, spring-driven active box + a hover chaser that parks on the active chip. `variant="header"` (md+) and `variant="dock"` (fixed bottom bar < md). Chips come from `getPrimaryNavigation()` in `site-navigation.ts`. Uses plain `next/link` on purpose (the shared `NavigationLink` progress bar would be trapped inside a transformed chip). |
+| `AppHeader` | `frontend/components/uicustom/chrome/app-header.tsx` | 3-column grid: BrandMark · rail · utilities/account. Chrome layer fades in on scroll. Keeps `data-header-canvas` / `data-nav-key="logo"` for e2e. |
+| `Atmosphere` | `frontend/components/uicustom/chrome/atmosphere.tsx` | `HeroParticleField` wrapper, `variant="landing" \| "quiet"`. Landing intensity only on `/`; quiet on `/auth/*`; nowhere else. |
+| `ThemeToggle` | `frontend/components/uicustom/chrome/theme-toggle.tsx` | Header light/dark switch; `runThemeCrossfade()` flags `<html>` for the 500ms colour cross-fade. Theme state lives ONLY on `<html>`. |
+| `MobileDock` | `frontend/components/uicustom/chrome/mobile-dock.tsx` | The dock variant wired to the session; `<main>` reserves `--mobile-rail-offset` under it. |
+
+Wiring: `topbar.tsx` keeps all auth/wallet/notification logic and renders through `AppHeader`; `app-shell.tsx` mounts `MobileDock` (not on `/auth/*` or immersive chat). The old fat sidebar/dock (`sidemenumainauth.tsx`, `dashboard-shell.tsx`, `desktop-navigation.tsx`, `dashboard-dock-context.tsx`, `auth/auth-navigation.tsx`, `themebtn.tsx`) is deleted — there is one nav system.
+
+Tokens added in `globals.css`: `--brand-accent-alt` (™ counter-phase tint: cyan light / violet dark), `--brand-mark-tint` (letter ink: accent on light, accent-light on dark), `--mobile-rail-offset`.
+
+Routes sharing header + rail: everything under `AppShell` (`/`, `/products/*`, `/pulse/*`, `/auth/*`, `/dashboard`, `/ai`, `/settings`, …). Only `/gate` is outside.
+
+Verification harness (gitignored): `frontend/scripts/_probe/chrome-shots.mjs` (4 routes × 2 themes × 390/1280) and `chrome-hover.mjs` (hover/travel frame sequences) → `scripts/_probe/chrome-shots/`.
 
 ---
 
@@ -355,9 +376,8 @@ After completing any non-trivial change, check and update project docs if affect
 
 | File | Update when… |
 |------|-------------|
-| `MasterContext.md` | New modules, changed invariants, new env vars, architecture shifts |
 | `agent.md` | Feature status changes, new tech, roadmap updates, new conventions |
-| `architecture.md` | Service boundaries change, new data flows, deployment changes |
+| `docs/architecture.md` | Service boundaries change, new data flows, deployment changes |
 | `docs/production-scoreboard.md` | Verified feature status, release evidence and remaining blockers |
 | `README.md` | Setup steps change, new tooling |
-| `ONBOARDING.md` | Anything that affects employee workflow or setup |
+| `HANDOFF.md` | Anything that affects the next engineer's setup or workflow |

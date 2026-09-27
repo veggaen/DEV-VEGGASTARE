@@ -68,6 +68,9 @@
   --color-brand-accent-light: hsl(var(--brand-accent-light));
   --color-brand-accent-muted: hsl(var(--brand-accent-muted));
   --color-brand-accent-foreground: hsl(var(--brand-accent-foreground));
+  /* Second brand tint — the ™ counter-phase colour and "same letter" resonance
+     in the BrandMark. Cyan in light, violet in dark (see :root / .dark). */
+  --color-brand-accent-alt: hsl(var(--brand-accent-alt));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -253,6 +256,14 @@
     --brand-accent-muted: 199 89% 48%;     /* sky-500 at lower opacity (use with /10, /20 etc) */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 199, 89%, 48%;    /* For rgba() usage: rgb(14, 165, 233) */
+    --brand-accent-alt: 192 91% 36%;       /* cyan-600: #0891b2 — ™ counter-phase tint */
+    /* BrandMark letter/™ ink: the accent itself on light, the lighter step on
+       dark so lit letters stay legible on near-black (mid-emerald reads muddy). */
+    --brand-mark-tint: var(--brand-accent);
+
+    /* Chrome layout tokens: the floating mobile dock reserves this much space at
+       the bottom of scrollable pages (set by the media rule below, 0 on md+). */
+    --mobile-rail-offset: 0px;
 
     /* Elevation (light): layered soft ink shadows — realistic, never muddy */
     --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
@@ -320,6 +331,8 @@
     --brand-accent-muted: 160 84% 39%;     /* emerald-500 at lower opacity */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 160, 84%, 39%;    /* For rgba() usage: rgb(16, 185, 129) */
+    --brand-accent-alt: 255 92% 76%;       /* violet-300: #c4b5fd — ™ counter-phase tint */
+    --brand-mark-tint: var(--brand-accent-light);
 
     /* Elevation (dark): shadows barely read on black — keep them whisper-soft;
        elevation is expressed through surface-1/2/3 lightness steps instead */
@@ -353,7 +366,7 @@
 
 /* ─── Smooth theme cross-fade ──────────────────────────────────────────────────
  * The theme toggle adds `.theme-transitioning` to <html> for ~500ms around the
- * swap (see components/uicustom/themebtn.tsx). Only during that window do we let
+ * swap (see components/uicustom/chrome/theme-toggle.tsx). Only during that window do we let
  * color-bearing properties transition — so light↔dark reads as a deliberate,
  * calm cross-fade instead of a hard cut, WITHOUT permanently transitioning every
  * element (which would smear hover states and the kinetic intro). We animate
@@ -1040,6 +1053,47 @@ html.dark .chat-send-btn:not(:disabled):hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
+}
+
+/* ─── App chrome: BrandMark ™ + AppRail ───────────────────────────────────────
+ * The ™ letters idle in counter-phase between the two brand tints. This used to
+ * be a 3s React interval re-rendering the whole hero; a colour keyframe does it
+ * on the compositor for free, on every mark (header + hero) at once. Hovering the
+ * mark pauses the swap so the spring/jump reads clean.
+ * ─────────────────────────────────────────────────────────────────────────────── */
+@keyframes brandTmSwap {
+  0%, 38%   { color: hsl(var(--brand-mark-tint)); }
+  50%, 88%  { color: hsl(var(--brand-accent-alt)); }
+  100%      { color: hsl(var(--brand-mark-tint)); }
+}
+.brand-tm-letter {
+  color: hsl(var(--brand-mark-tint));
+  animation: brandTmSwap 6s ease-in-out infinite;
+}
+.brand-tm-letter[data-phase="m"] {
+  animation-delay: -3s;
+}
+[data-brand-mark]:hover .brand-tm-letter,
+[data-brand-mark][data-active="true"] .brand-tm-letter {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-tm-letter { animation: none; }
+}
+
+/* The floating mobile dock (AppRail variant="dock") reserves room at the bottom
+   of scrolling pages so the last row of content is never hidden under it.
+   Contained routes (products, immersive chat) subtract it from their own height. */
+@media (max-width: 767.98px) {
+  [data-app-shell][data-mobile-rail="true"] {
+    --mobile-rail-offset: 92px;
+  }
+}
+
+/* Rail chips: the chase/active boxes live on their own compositor layer so a
+   spring between chips never repaints the glass behind them. */
+.app-rail-box {
+  will-change: transform, width;
 }
 
 

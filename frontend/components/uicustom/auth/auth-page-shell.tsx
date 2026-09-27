@@ -2,13 +2,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Download, ShieldCheck, Sparkles } from "lucide-react";
-import { AuthNavigation } from "./auth-navigation";
 
 export function AuthPageShell({ title, description, children }: { title: string; description: ReactNode; children: ReactNode }) {
-  return <div className="w-full min-w-0 bg-background text-foreground">
-    <AuthNavigation />
-    <div data-auth-canvas className="mx-auto grid w-full max-w-7xl min-w-0 gap-8 px-4 pb-8 pt-3 sm:px-6 sm:pb-12 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:pt-8">
-      <aside className="hidden min-w-0 self-start rounded-3xl border border-border bg-card p-8 lg:block xl:p-12">
+  // The shared AppHeader (BrandMark → home, theme toggle, menu) sits above this
+  // shell on every auth route, so it carries no navigation of its own.
+  return <div className="w-full min-w-0 text-foreground">
+    <div data-auth-canvas className="mx-auto grid w-full max-w-7xl min-w-0 gap-8 px-4 pb-8 pt-6 sm:px-6 sm:pb-12 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:pt-10">
+      <aside className="hidden min-w-0 self-start rounded-3xl border border-border/70 bg-surface-1/80 p-8 shadow-e1 backdrop-blur-xl lg:block xl:p-12">
         <p className="text-sm font-semibold uppercase tracking-widest text-brand-accent">Veggat marketplace</p>
         <h2 className="mt-5 max-w-md text-4xl font-semibold leading-tight tracking-tight">Digital products.<br />Built on trust.</h2>
         <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">Discover digital products, keep your purchases in one place, and get secure access to your files.</p>
