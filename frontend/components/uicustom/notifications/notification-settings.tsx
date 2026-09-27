@@ -212,6 +212,34 @@ export function NotificationSettings({
         </div>
       </section>
       
+      {/* Trading */}
+      <section>
+        <h3 className="text-sm font-semibold text-foreground mb-4">
+          Trading
+        </h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-chart-up/12">
+                <span className="text-base">📈</span>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground">
+                  Paper order fills
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Tell me when a resting limit or stop order fills (or cannot fill)
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.paperOrderEnabled ?? true}
+              onCheckedChange={(checked) => handleToggle("paperOrderEnabled", checked)}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Quiet Hours */}
       <section>
         <h3 className="text-sm font-semibold text-foreground mb-4">

@@ -1733,6 +1733,8 @@ model NotificationSettings {
   // Category toggles (prompts)
   vibeCheckEnabled        Boolean  @default(false)
   dailyDigestEnabled      Boolean  @default(false)
+  /// Paper terminal: resting limit/stop order fills and failures (2026-09-27)
+  paperOrderEnabled       Boolean  @default(true)
   
   // Condensing settings
   condenseNotifications   Boolean  @default(true)

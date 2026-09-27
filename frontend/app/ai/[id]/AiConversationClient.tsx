@@ -16,11 +16,17 @@ import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToB
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
 import { useAiDraft, useAiDraftTransfer, useAiImageDraft, useAiModelDraft } from "@/components/uicustom/ai/AiDrafts";
 import { DraftImages, MessageImages } from '@/components/uicustom/ai/ChatImages';
+import { detectImageIntent } from '@/lib/ai-chat/image-intent';
+import { MEDIA_MODELS } from '@/lib/ai-media/policy';
 import { CHAT_IMAGE_MAX_BYTES, CHAT_IMAGE_TYPES, imageContext, imageAllowance, type ChatImageView } from '@/lib/ai-chat/image-policy';
 import { ChatComposer } from "@/components/uicustom/ai/ChatComposer";
 import dynamic from "next/dynamic";
-const MessageContent = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.MessageContent));
-const CopyMessage = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.CopyMessage));
+// A `loading` fallback gives each lazy renderer its own Suspense boundary.
+// Without one the first streamed reply suspended up to the route-level
+// loading.tsx, which unmounted the page for a frame and aborted the request
+// ("The response was stopped" on the first message of every visit).
+const MessageContent = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.MessageContent), { loading: () => <span className="sr-only">Loading reply…</span> });
+const CopyMessage = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.CopyMessage), { loading: () => null });
 
 import { ChatSidebar } from "@/components/uicustom/chats/ChatSidebar";
 import { cn } from "@/lib/utils";
@@ -312,6 +318,38 @@ export default function AiConversationClient({
         setDraftImages(current => current.map(item => item.id === image.id ? { ...item, uploaded: { ...data, sessionId: targetId } } : item));
       }
       if (uploaded.length) setConv(previous => previous ? { ...previous, messages: previous.messages.map(message => message.id === tempUserMsg.id ? { ...message, images: uploaded } : message) } : previous);
+      // "Make me an image of…" goes to the image model, not the chat model.
+      // Same credits and job pipeline as Studio; the result is saved into this chat.
+      const imageIntent = detectImageIntent(trimmed);
+      if (imageIntent && !uploaded.length) {
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: `Creating your image… (${MEDIA_MODELS.IMAGE.credits} credits, usually under a minute)` } : message));
+        const started = await fetch('/api/ai-media', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), kind: 'IMAGE', prompt: imageIntent.prompt.slice(0, 1000) }), signal: abort.signal });
+        const startedData = await started.json().catch(() => ({} as { message?: string; job?: { id: string; state: string; contentUrl: string | null; credits: number } }));
+        if (!started.ok || !startedData.job) { setSendError(startedData.message ?? 'Image generation could not start.'); restoreFailedDraft(); return; }
+        let job = startedData.job;
+        const deadline = Date.now() + 150_000;
+        while (['CREATING', 'PROCESSING'].includes(job.state) && Date.now() < deadline) {
+          await new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, 4000); abort.signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true }); });
+          const poll = await fetch('/api/ai-media', { cache: 'no-store', signal: abort.signal });
+          if (poll.ok) { const workspace = await poll.json() as { jobs?: Array<typeof job> }; job = workspace.jobs?.find(item => item.id === job.id) ?? job; }
+        }
+        if (job.state !== 'COMPLETED' || !job.contentUrl) {
+          setSendError(job.state === 'FAILED' ? 'The image could not be generated. Your credits were returned; try a different description.' : 'The image is still rendering. It will appear under AI → Images & video when ready.');
+          restoreFailedDraft(); return;
+        }
+        fullContent = `![${imageIntent.prompt.replace(/[[]]/g, '').slice(0, 200)}](${job.contentUrl})
+
+_Generated with ${MEDIA_MODELS.IMAGE.label} · ${job.credits} credits · [All your creations](/ai/studio)_`;
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: fullContent, done: true } : message));
+        const savedImage = await fetch(`/api/ai-chat/sessions/${targetId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userMessage: trimmed, assistantMessage: fullContent, providerUsed: 'OPENAI', modelUsed: MEDIA_MODELS.IMAGE.model, imageIds: [] }) });
+        if (!savedImage.ok) { setSendError('The image is ready but the message could not be saved. Find it under AI → Images & video.'); return; }
+        savedReply = true;
+        const refreshedImage = await fetch(`/api/ai-chat/sessions/${targetId}`);
+        if (refreshedImage.ok) { const data = await refreshedImage.json(); setConv(data.conversation ?? data); }
+        setStreamingMsgs([]);
+        return;
+      }
+
       const history = (conv?.messages ?? []).filter(message => !message.id.startsWith('temp-'));
       const apiMessages = imageContext([...history.slice(-19), { role: 'user' as const, content: trimmed, images: uploaded }])
         .map(message => ({ role: message.role, content: message.content, ...(message.images.length ? { imageIds: message.images.map(image => image.id) } : {}) }));

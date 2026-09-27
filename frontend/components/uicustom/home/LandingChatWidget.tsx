@@ -20,7 +20,8 @@ import React, {
 import { ChatComposer } from '@/components/uicustom/ai/ChatComposer';
 import { readChatStream } from '@/lib/ai-chat/read-stream';
 import dynamic from 'next/dynamic';
-const MessageContent = dynamic(() => import('@/components/uicustom/ai/MessageContent').then(m => m.MessageContent));
+// Own Suspense boundary: never let a lazy chunk suspend the whole landing page.
+const MessageContent = dynamic(() => import('@/components/uicustom/ai/MessageContent').then(m => m.MessageContent), { loading: () => null });
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';

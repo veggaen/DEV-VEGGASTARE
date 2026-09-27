@@ -5,6 +5,7 @@ export function getNotificationHref(notification: Notification): string | null {
   const trade = segment(notification.metadata?.tradeId);
   if (notification.type.startsWith('TRADE_') && trade) return `/trade/${trade}`;
   if (notification.type === 'SYSTEM' && segment(notification.metadata?.orderId)) return '/my-orders';
+  if (notification.type === 'SYSTEM' && notification.metadata?.kind === 'paper-order') return '/dashboard/paper-trading';
   const pulse = segment(notification.pulseId);
   if (pulse) return `/pulse/${pulse}`;
   const conversation = segment(notification.conversationId);

@@ -16,6 +16,7 @@ const NotificationSettingsSchema = z.object({
   quietHoursTimezone: z.string().max(100).optional(),
   // Engagement toggles
   heartbeatEnabled: z.boolean().optional(),
+  paperOrderEnabled: z.boolean().optional(),
   vibeEnabled: z.boolean().optional(),
   repulseEnabled: z.boolean().optional(),
   // Social toggles

@@ -173,7 +173,9 @@ export function OsrsInventory({
   const dragConsumedRef = useRef(false);
   const lastDragPayloadRef = useRef<DragPayload | null>(null);
 
-  const activeChain = chains.find((c) => c.id === chainId);
+  // A local dev-chain override defines the chain, not the injected wallet.
+  const effectiveChainId = override?.chainId ?? chainId;
+  const activeChain = chains.find((c) => c.id === effectiveChainId) ?? (override ? { id: override.chainId, name: override.label ?? `Chain ${override.chainId}` } : undefined);
 
   // Track whether we just finished a floating-item operation so the grid
   // sync below doesn't immediately overwrite user-modified grid state.
@@ -944,12 +946,16 @@ export function OsrsInventory({
           <div className="relative">
             <select
               className="appearance-none bg-muted border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent transition"
-              value={chainId}
+              value={effectiveChainId}
               onChange={(e) =>
                 switchChain({ chainId: Number(e.target.value) })
               }
-              disabled={switchStatus === "pending"}
+              disabled={switchStatus === "pending" || Boolean(override)}
+              aria-label="Inventory chain"
             >
+              {override && !chains.some((c) => c.id === override.chainId) && (
+                <option value={override.chainId}>{override.label ?? `Chain ${override.chainId}`}</option>
+              )}
               {chains.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

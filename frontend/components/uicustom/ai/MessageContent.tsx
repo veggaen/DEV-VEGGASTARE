@@ -14,7 +14,12 @@ export const MessageContent = memo(function MessageContent({ content }: { conten
       ul: ({ children }) => <ul className="my-3 list-disc space-y-1 pl-6">{children}</ul>,
       ol: ({ children }) => <ol className="my-3 list-decimal space-y-1 pl-6">{children}</ol>,
       a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-foreground/40 underline-offset-4 hover:decoration-foreground">{children}</a>,
-      img: ({ src, alt }) => <a href={typeof src === 'string' ? src : undefined} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{alt || 'Open image'}</a>,
+      // Only our own authenticated media route renders inline (chat-generated
+      // images); anything else stays a link so remote images never auto-load.
+      img: ({ src, alt }) => typeof src === 'string' && /^\/api\/ai-media\/[a-zA-Z0-9_-]+\/content$/.test(src)
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <a href={src} target="_blank" rel="noopener noreferrer" className="my-3 block max-w-md overflow-hidden rounded-xl border border-border/60 bg-foreground/[0.03]"><img src={src} alt={alt ?? 'Generated image'} width={1024} height={1024} className="h-auto w-full" loading="lazy" /></a>
+        : <a href={typeof src === 'string' ? src : undefined} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{alt || 'Open image'}</a>,
       pre: ({ children }) => <pre tabIndex={0} aria-label="Code block" className="my-4 max-w-full overflow-x-auto rounded-xl border border-border bg-foreground/[0.06] p-4 text-sm leading-6 [overflow-wrap:normal] focus-visible:ring-2 focus-visible:ring-ring">{children}</pre>,
       code: ({ children, className }) => <code className={className ?? 'rounded bg-foreground/[0.07] px-1 py-0.5 text-[0.9em]'}>{children}</code>,
       blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-primary/50 pl-4 text-muted-foreground">{children}</blockquote>,

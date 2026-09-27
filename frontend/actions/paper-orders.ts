@@ -43,14 +43,32 @@ type ActionResult<T = unknown> = { success: true; data: T } | { success: false; 
 
 const select = { id: true, side: true, type: true, status: true, tokenSymbol: true, amount: true, triggerPrice: true, leverage: true, filledPriceUsd: true, filledAt: true, failReason: true, createdAt: true } as const;
 
-type PortfolioCtx = { ok: true; portfolioId: string } | { ok: false; error: string };
+type PortfolioCtx = { ok: true; portfolioId: string; userId: string } | { ok: false; error: string };
 async function currentPortfolio(): Promise<PortfolioCtx> {
   const user = await MyLibUserAuth();
   if (!user?.id) return { ok: false, error: "Sign in to place paper orders." };
   if (isDemoUserId(user.id)) return { ok: false, error: "Paper orders are disabled in the demo." };
   const portfolio = await db.paperPortfolio.findUnique({ where: { userId: user.id }, select: { id: true } });
   if (!portfolio) return { ok: false, error: "Create a paper portfolio first." };
-  return { ok: true, portfolioId: portfolio.id };
+  return { ok: true, portfolioId: portfolio.id, userId: user.id };
+}
+
+/** In-app notification for a settled order, honouring Settings → Notifications → Trading. Never throws. */
+async function notifyPaperOrder(userId: string, order: { id: string; side: PaperOrderSide; type: PaperOrderType; tokenSymbol: string; amount: number; triggerPrice: number }, outcome: "FILLED" | "FAILED", detail: string) {
+  try {
+    const settings = await db.notificationSettings.findFirst({ where: { userId }, select: { paperOrderEnabled: true } });
+    if (settings && settings.paperOrderEnabled === false) return;
+    const kind = order.type === "LIMIT" ? "Limit" : "Stop";
+    const side = order.side === "BUY" ? "buy" : "sell";
+    const size = order.side === "BUY" ? `${order.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : `${order.amount.toLocaleString(undefined, { maximumSignificantDigits: 8 })} ${order.tokenSymbol}`;
+    await db.notification.create({ data: {
+      userId, type: "SYSTEM",
+      emoji: outcome === "FILLED" ? (order.side === "BUY" ? "📈" : "📉") : "⚠️",
+      title: outcome === "FILLED" ? `${kind} ${side} filled · ${order.tokenSymbol}` : `${kind} ${side} could not fill · ${order.tokenSymbol}`,
+      message: outcome === "FILLED" ? `${size} ${side === "buy" ? "bought" : "sold"} at ${detail} (paper).` : `${size}: ${detail}`,
+      metadata: { kind: "paper-order", paperOrderId: order.id, outcome },
+    } });
+  } catch { /* A notification must never break settlement. */ }
 }
 
 export async function placePaperOrder(input: z.input<typeof placeSchema>): Promise<ActionResult<PaperOrderRow>> {
@@ -111,9 +129,11 @@ export async function settlePaperOrders(): Promise<ActionResult<{ filled: number
     if (result.success) {
       filled++;
       await db.paperOrder.update({ where: { id: o.id }, data: { status: "FILLED", filledAt: new Date(), filledPriceUsd: result.data.priceUsd } });
+      await notifyPaperOrder(ctx.userId, o, "FILLED", `${result.data.priceUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
     } else {
       failed++;
       await db.paperOrder.update({ where: { id: o.id }, data: { status: "FAILED", failReason: result.error.slice(0, 200) } });
+      await notifyPaperOrder(ctx.userId, o, "FAILED", result.error.slice(0, 160));
     }
   }
   return { success: true, data: { filled, failed } };

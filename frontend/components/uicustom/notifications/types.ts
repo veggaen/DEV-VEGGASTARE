@@ -64,6 +64,8 @@ export interface NotificationSettings {
   hotPulseEnabled: boolean;
   milestoneEnabled: boolean;
   vibeCheckEnabled: boolean;
+  /** Paper terminal: resting order fills/failures (optional: older settings objects predate it) */
+  paperOrderEnabled?: boolean;
   
   // Delivery channels
   pushEnabled: boolean;
