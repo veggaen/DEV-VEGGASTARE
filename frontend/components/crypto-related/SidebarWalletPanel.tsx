@@ -1980,17 +1980,20 @@ function WalletRow({
       {((isActive && chainName) || (isLive && family === "EVM")) && (
         <div className="flex flex-wrap items-center px-3 pb-1.5 -mt-0.5 gap-2">
           {isActive && chainName && (
-            <span className={`text-[9px] shrink-0 inline-flex items-center gap-1 ${
-              isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-muted-foreground/80"
-            }`}>
-              {isLocalChain(chainId) && <span className="font-mono font-bold">&gt;_RPC</span>}
-              on {chainName} (ID: {chainId})
+            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+              isLocalChain(chainId)
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "border-border/50 bg-foreground/[0.04] text-foreground/80"
+            }`} title={`Chain ID ${chainId}`}>
+              <span aria-hidden="true" className={`size-1.5 rounded-full ${isLocalChain(chainId) ? "bg-amber-500" : "bg-brand-accent"}`} />
+              {chainName}
+              <span className="font-mono text-muted-foreground">#{chainId}</span>
             </span>
           )}
           {isLive && family === "EVM" && (
             <div className="ml-auto min-w-0 max-w-full">
               {!verified ? (
-                <WalletVerificationAction flow={verification} />
+                <WalletVerificationAction flow={verification} size="sm" />
               ) : walletTier === "PATRON_1M" ? (
                 <span className="text-[9px] text-muted-foreground/80">
                   🐋 Max tier
@@ -3686,11 +3689,15 @@ export default function SidebarWalletPanel({
 
       await ensureWalletAccount(resolvedConnector, w.address);
 
-      // For injected/EIP-6963 wallets: disconnect the currently active
-      // injected wallet first, otherwise wagmiConnect returns the same provider.
+      // Only the legacy window.ethereum connector ("injected") collides with
+      // another extension; EIP-6963 extensions each own their provider and stay
+      // connected side by side. Disconnecting one would also revoke the site
+      // permission (wagmi calls wallet_revokePermissions), which is why every
+      // switch used to re-prompt "Connect this website".
       const currentInjectedConn = connections.find(
         (c) => (c.connector.type === 'injected' || c.connector.type === 'announced')
           && c.connector.uid !== resolvedConnector.uid
+          && (c.connector.id === 'injected' || resolvedConnector.id === 'injected')
       );
 
       if (currentInjectedConn) {

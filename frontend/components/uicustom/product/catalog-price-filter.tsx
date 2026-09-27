@@ -32,8 +32,6 @@ export default function CatalogPriceFilter({ minUsd, maxUsd, rangeMaxUsd, setMin
   const max = maxUsd == null ? null : rounded(maxUsd / rate);
   const ceiling = Math.max(1, Math.ceil(rangeMaxUsd / rate), min ?? 0, max ?? 0);
   const format = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: fiat, currencyDisplay: 'code', maximumFractionDigits: 2 }).format(value);
-  return <div className="space-y-2">
-    <PriceSlider minValue={min} maxValue={max} rangeMin={0} rangeMax={ceiling} step={0.01} onMinChange={value => setMinUsd(value == null ? null : value * rate)} onMaxChange={value => setMaxUsd(value == null ? null : value * rate)} formatValue={format} />
-    <p className="text-[11px] leading-4 text-muted-foreground">In {fiat}; the budget carries across currencies at estimated rates.</p>
-  </div>;
+  // The "prices in {fiat}" context lives on the group header as an info-icon tooltip.
+  return <PriceSlider minValue={min} maxValue={max} rangeMin={0} rangeMax={ceiling} step={0.01} onMinChange={value => setMinUsd(value == null ? null : value * rate)} onMaxChange={value => setMaxUsd(value == null ? null : value * rate)} formatValue={format} />;
 }

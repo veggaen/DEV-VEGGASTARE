@@ -12,15 +12,20 @@
  */
 
 import * as React from "react";
-import { ChevronDown, Grid2x2, PanelLeftClose, RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronDown, Grid2x2, Info, PanelLeftClose, RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
+import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { useCategories } from "@/components/providers/categoriesContext";
 import { useSidebar } from "@/components/providers/product-layoutProvider";
 import { Checkbox } from "@/components/ui/checkbox";
 import CatalogPriceFilter from "@/components/uicustom/product/catalog-price-filter";
 import { cn } from "@/lib/utils";
 
-function Group({ title, icon: Icon, count, selected, open, onToggle, onReset, children }: {
+function Group({ title, icon: Icon, count, selected, hint, open, onToggle, onReset, children }: {
   title: string; icon: React.ComponentType<{ className?: string }>; count?: number; selected?: number;
+  /** One line of context, shown as a tooltip on an info icon instead of taking sidebar space. */
+  hint?: string;
   open: boolean; onToggle: () => void; onReset?: () => void; children: React.ReactNode;
 }) {
   const id = React.useId();
@@ -33,6 +38,13 @@ function Group({ title, icon: Icon, count, selected, open, onToggle, onReset, ch
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="truncate text-[13px] font-semibold text-foreground">{title}</span>
           {typeof count === "number" && <span className="text-[11px] tabular-nums text-muted-foreground">({count})</span>}
+          {hint && (
+            <HeaderTip label={hint} side="top">
+              <span role="img" tabIndex={0} aria-label={hint} onClick={(e) => e.stopPropagation()} className="grid size-5 place-items-center rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Info className="size-3.5" aria-hidden="true" />
+              </span>
+            </HeaderTip>
+          )}
           {typeof selected === "number" && selected > 0 && <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent/15 px-1.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">{selected}</span>}
           <ChevronDown aria-hidden="true" className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180", typeof selected === "number" && selected > 0 ? "" : "ml-auto")} />
         </button>
@@ -72,6 +84,7 @@ export function CatalogFilters({ variant, onClose, onHide, className }: {
     resetAllFilters, resetPriceFilters, resetCategoryFilters, resetSellerFilters, activeFilterCount,
   } = useCategories();
   const { perPage, setPerPage } = useSidebar();
+  const fiat = useUiPreferences().prefs.preferredFiatCurrency;
   const [open, setOpen] = React.useState({ price: true, categories: true, sellers: true, view: false });
   const toggle = (key: keyof typeof open) => setOpen((o) => ({ ...o, [key]: !o[key] }));
   const [sellerQuery, setSellerQuery] = React.useState("");
@@ -79,6 +92,8 @@ export function CatalogFilters({ variant, onClose, onHide, className }: {
   const priceTouched = minPrice !== null || maxPrice !== null;
 
   return (
+    // Radix tooltips need a provider; the panel lives outside the header, which has its own.
+    <TooltipProvider delayDuration={200} skipDelayDuration={200}>
     <div className={cn("flex min-h-0 flex-col", className)}>
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -97,7 +112,7 @@ export function CatalogFilters({ variant, onClose, onHide, className }: {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1">
-        <Group title="Price" icon={SlidersHorizontal} open={open.price} onToggle={() => toggle("price")} onReset={priceTouched ? resetPriceFilters : undefined}>
+        <Group title="Price" icon={SlidersHorizontal} hint={`Prices in ${fiat}. Your budget carries across currencies at estimated exchange rates.`} open={open.price} onToggle={() => toggle("price")} onReset={priceTouched ? resetPriceFilters : undefined}>
           <CatalogPriceFilter minUsd={minPrice} maxUsd={maxPrice} rangeMaxUsd={initialPriceRange?.max ?? 10000} setMinUsd={setMinPrice} setMaxUsd={setMaxPrice} variant={variant} />
         </Group>
 
@@ -153,6 +168,7 @@ export function CatalogFilters({ variant, onClose, onHide, className }: {
         </button>
       </footer>
     </div>
+    </TooltipProvider>
   );
 }
 
