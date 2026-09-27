@@ -160,7 +160,9 @@ export function ensureAppKit(): Promise<AppKit> {
       allWallets: 'SHOW',
       // The stable wagmi config already supplies the direct injected connector.
       enableInjected: false,
-      themeMode: 'dark', // or 'light' or 'system'
+      // Follow the app theme and accent preset instead of a fixed dark, blue modal.
+      themeMode: currentThemeMode(),
+      themeVariables: appKitThemeVariables(),
       // Suppress 403 noise: don't check allowed origins against Reown API
       allowUnsupportedChain: true,
     });
@@ -186,9 +188,33 @@ export async function openAppKitWallet() {
   await appKit.open({ view: 'Connect' });
 }
 
+/** `.dark` on <html> is the only theme signal (next-themes, class strategy). */
+function currentThemeMode(): 'light' | 'dark' {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+/** Reown's modal/button read these; the accent follows the user's preset via the CSS token. */
+function appKitThemeVariables() {
+  if (typeof document === 'undefined') return undefined;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--brand-accent').trim();
+  return {
+    '--w3m-accent': accent ? `hsl(${accent})` : undefined,
+    '--w3m-font-family': 'inherit',
+    '--w3m-border-radius-master': '2px',
+  } as Record<string, string | undefined>;
+}
+
 /** Previously opted-in accounts can restore; visitors/shop/AI users do not. */
 export function AppKitInitializer() {
   const { data: session, status } = useSession();
+  // Keep the wallet modal in step with theme and accent changes made while it is open.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const sync = () => { const kit = globalThis.__veggatAppKitPromise; if (!kit) return; void kit.then((appKit) => { appKit.setThemeMode(currentThemeMode()); appKit.setThemeVariables(appKitThemeVariables() ?? {}); }).catch(() => {}); };
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-accent'] });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (status === 'loading' || !projectId) return;
     let optedIn = session?.user?.web3ModeEnabled === true;

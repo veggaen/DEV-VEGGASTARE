@@ -28,6 +28,7 @@ import {
   type TradePartner,
 } from "@/components/crypto-related/OsrsTradeWindow";
 import { useAccount, useConnections } from "wagmi";
+import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { useWalletAddressBook } from "@/hooks/use-wallet-address-book";
 import { useTradeMode, MODE_META, MODE_ORDER, type TradeMode } from "@/contexts/trade-mode-context";
 import {
@@ -88,6 +89,11 @@ type UserSearchResult = {
 
 export default function TradingPage() {
   const { isConnected } = useAccount();
+  // A local dev-chain account activated from the wallet panel (Ganache/Anvil
+  // "temporary wallet") is a usable wallet here even without an injected one:
+  // the inventory and the trade window already read the same override.
+  const { override } = useActiveWalletOverride();
+  const walletReady = isConnected || Boolean(override);
   const connections = useConnections();
   const addressBook = useWalletAddressBook();
   const { mode, setMode, modeLabel, isSimulated } = useTradeMode();
@@ -167,7 +173,7 @@ export default function TradingPage() {
   const alwaysShowTradeArea = true;
 
   /* ── Not connected — but paper mode works without wallet ────── */
-  if (!isConnected && mode !== "paper") {
+  if (!walletReady && mode !== "paper") {
     return (
       <section aria-labelledby="trading-empty-title" className="page-rise flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="relative mb-6">
@@ -372,8 +378,8 @@ export default function TradingPage() {
         </div>
 
         {/* Mode Switcher — flat tab bar */}
-        <div className="px-4 sm:px-6 pb-3 overflow-x-auto no-scrollbar">
-          <div role="tablist" aria-label="Trading mode" className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-surface-1/75 p-1 shadow-e1 backdrop-blur-xl">
+        <div className="no-scrollbar flex justify-center overflow-x-auto px-4 pb-3 sm:px-6">
+          <div role="tablist" aria-label="Trading mode" className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border/60 bg-surface-1/75 p-1 shadow-e1 backdrop-blur-xl">
             {MODE_ORDER.map((m) => (
               <button
                 key={m}
@@ -423,7 +429,7 @@ export default function TradingPage() {
           className="grid gap-4 lg:gap-5 items-start lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
         >
           {/* ── Inventory panel ─────────────────────────── */}
-          {(isConnected || mode !== "paper") && (
+          {(walletReady || mode !== "paper") && (
             <section className="min-h-0">
               <div className="pb-2 flex items-center gap-2">
                 <FiPackage className="h-3.5 w-3.5 text-muted-foreground" />

@@ -195,7 +195,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
   const dashOffset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-3 border border-border">
+    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 py-1.5" aria-label="Rotating session code">
       <svg
         width="24"
         height="24"
@@ -209,7 +209,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-foreground"
+          className="text-foreground/15"
         />
         <circle
           cx="12"
@@ -232,10 +232,10 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
         />
       </svg>
       <div className="flex flex-col">
-        <span className="text-[8px] uppercase tracking-widest text-muted-foreground leading-none">
+        <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground leading-none">
           Session
         </span>
-        <span className="text-[11px] font-mono font-bold text-foreground/80 tracking-[0.2em] leading-tight">
+        <span className="text-[11px] font-mono font-semibold text-foreground tracking-[0.2em] leading-tight">
           {code}
         </span>
       </div>
@@ -305,57 +305,34 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const ci = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="flex items-center gap-1 px-4 py-2 bg-surface-3/30">
-      {phases.map((p, i) => (
-        <React.Fragment key={p.key}>
-          <motion.div
-            animate={{
-              backgroundColor:
-                phase === p.key
-                  ? "rgb(16 185 129 / 0.15)"
-                  : ci > i
-                    ? "rgb(16 185 129 / 0.08)"
-                    : "rgb(0 0 0 / 0.03)",
-            }}
-            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md"
-          >
-            <span
-              className={
-                phase === p.key
-                  ? "text-brand-accent"
-                  : ci > i
-                    ? "text-brand-accent/60"
-                    : "text-muted-foreground"
-              }
-            >
-              {p.icon}
-            </span>
-            <span
-              className={`text-[9px] font-medium ${
-                phase === p.key
-                  ? "text-brand-accent"
-                  : ci > i
-                    ? "text-brand-accent/60"
-                    : "text-muted-foreground"
+    <ol className="flex items-center gap-1 border-b border-border/60 bg-foreground/[0.02] px-3 py-2" aria-label="Trade progress">
+      {phases.map((p, i) => {
+        const state = phase === p.key ? "current" : ci > i ? "done" : "todo";
+        return (
+          <React.Fragment key={p.key}>
+            <li
+              aria-current={state === "current" ? "step" : undefined}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1 text-[11px] font-medium transition-[background-color,color] duration-300 ${
+                state === "current"
+                  ? "bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light"
+                  : state === "done"
+                    ? "bg-brand-accent/[0.06] text-brand-accent/70"
+                    : "bg-foreground/[0.03] text-muted-foreground"
               }`}
             >
-              {p.label}
-            </span>
-          </motion.div>
-          {i < phases.length - 1 && (
-            <motion.div
-              className="w-4 h-px"
-              animate={{
-                backgroundColor:
-                  ci > i
-                    ? "rgb(16 185 129 / 0.5)"
-                    : "rgb(255 255 255 / 0.05)",
-              }}
-            />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
+              {p.icon}
+              <span>{p.label}</span>
+            </li>
+            {i < phases.length - 1 && (
+              <span
+                aria-hidden="true"
+                className={`h-px w-4 transition-colors duration-300 ${ci > i ? "bg-brand-accent/50" : "bg-border"}`}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -398,8 +375,8 @@ function WalletSelector({
 
   if (addresses.length === 0) {
     return (
-      <div className="flex items-center justify-center py-2 px-2.5 rounded-lg border border-dashed border-border/60 bg-surface-3/30">
-        <span className="text-[10px] text-muted-foreground italic">No other wallets connected</span>
+      <div className="flex items-center justify-center rounded-lg border border-dashed border-border/60 bg-foreground/[0.03] px-2.5 py-2">
+        <span className="text-[11px] text-muted-foreground">No other wallets connected</span>
       </div>
     );
   }
@@ -407,7 +384,7 @@ function WalletSelector({
   return (
     <div className="relative">
       <select
-        className="appearance-none w-full bg-foreground/[0.09] border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-mono text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent/60 transition hover:bg-muted hover:border-border"
+        className="w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-foreground/[0.05] py-1.5 pl-3 pr-7 font-mono text-xs text-foreground transition-[background-color,border-color,box-shadow] duration-200 hover:border-border hover:bg-foreground/[0.08] focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40"
         value={selectedAddress ?? ""}
         onChange={(e) => onSelect(e.target.value)}
       >
@@ -473,7 +450,7 @@ function OfferGrid({
 
     // Small drag image
     const dragEl = document.createElement("div");
-    dragEl.style.cssText = "width:36px;height:36px;background:rgba(16,185,129,0.25);border-radius:8px;border:2px solid rgba(16,185,129,0.6);position:absolute;top:-9999px;";
+    dragEl.style.cssText = "width:36px;height:36px;background:hsl(var(--brand-accent)/0.25);border-radius:8px;border:2px solid hsl(var(--brand-accent)/0.6);position:absolute;top:-9999px;";
     document.body.appendChild(dragEl);
     e.dataTransfer.setDragImage(dragEl, 18, 18);
     requestAnimationFrame(() => dragEl.remove());
@@ -534,12 +511,12 @@ function OfferGrid({
 
   return (
     <div
-      className={`relative grid gap-1 p-1.5 rounded-lg transition duration-200 ${
+      className={`relative grid gap-1 rounded-xl p-1.5 transition-[background-color,border-color,box-shadow,opacity] duration-200 ${
         isLocked
-          ? "bg-surface-3/60 border-2 border-border/40 opacity-80"
+          ? "border-2 border-border/40 bg-foreground/[0.04] opacity-80"
           : isDragOver
-            ? "bg-brand-accent/10 border-2 border-dashed border-brand-accent/50 shadow-[inset_0_0_20px_rgba(16,185,129,0.08)]"
-            : "bg-surface-3/40 border-2 border-dashed border-border/80"
+            ? "border-2 border-dashed border-brand-accent/60 bg-brand-accent/10 shadow-[inset_0_0_20px_hsl(var(--brand-accent)/0.08)]"
+            : "border-2 border-dashed border-border/70 bg-foreground/[0.03]"
       }`}
       style={{
         gridTemplateColumns: `repeat(${OFFER_COLS}, 1fr)`,
@@ -578,17 +555,17 @@ function OfferGrid({
 
       {/* Lock overlay */}
       {isLocked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl bg-surface-3/20">
-          <FiLock className="h-4 w-4 text-muted-foreground opacity-40" />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-background/20">
+          <FiLock className="h-4 w-4 text-muted-foreground/60" />
         </div>
       )}
 
       {/* Empty state text overlay */}
       {items.length === 0 && !isLocked && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <FiPackage className="h-5 w-5 text-muted-foreground mb-1" />
-          <span className="text-[10px] text-muted-foreground">
-            {isRemote ? "Waiting for items..." : "Drag items here"}
+          <FiPackage className="mb-1 h-5 w-5 text-muted-foreground/70" />
+          <span className="text-[11px] text-muted-foreground">
+            {isRemote ? "Waiting for their items…" : "Drop items here"}
           </span>
         </div>
       )}
@@ -619,16 +596,16 @@ function TradeActionPanel({
 }) {
   if (phase === "offer") {
     return (
-      <div className="w-full rounded-lg border border-border bg-surface-1/70 p-2 space-y-1.5">
-        <div className="flex items-center justify-center gap-2 text-[9px] text-muted-foreground">
-          <span className={`flex items-center gap-1 ${myReady ? "text-brand-accent" : "text-muted-foreground"}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${myReady ? "bg-brand-accent-light" : "bg-muted"}`} />
-            You {myReady ? "ready" : "editing"}
+      <div className="w-full space-y-2 rounded-xl border border-border/60 bg-foreground/[0.03] p-2">
+        <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground" aria-live="polite">
+          <span className={`flex items-center gap-1.5 ${myReady ? "text-brand-accent-hover dark:text-brand-accent-light" : "text-muted-foreground"}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${myReady ? "bg-brand-accent" : "bg-foreground/20"}`} />
+            You {myReady ? "are ready" : "are editing"}
           </span>
-          <span className="text-foreground">&middot;</span>
-          <span className={`flex items-center gap-1 ${theirReady ? "text-brand-accent" : "text-muted-foreground"}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${theirReady ? "bg-brand-accent-light" : "bg-muted"}`} />
-            Partner {theirReady ? "ready" : "editing"}
+          <span aria-hidden="true">&middot;</span>
+          <span className={`flex items-center gap-1.5 ${theirReady ? "text-brand-accent-hover dark:text-brand-accent-light" : "text-muted-foreground"}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${theirReady ? "bg-brand-accent" : "bg-foreground/20"}`} />
+            Partner {theirReady ? "is ready" : "is editing"}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -637,9 +614,9 @@ function TradeActionPanel({
             onClick={onCancel}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center justify-center gap-1 py-2 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-red-900/10 hover:text-red-400 hover:border-red-700/50 transition-colors"
+            className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 text-xs font-medium text-muted-foreground transition-[background-color,color,border-color] duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-red-400"
           >
-            <FiX className="h-3 w-3" />
+            <FiX className="h-3.5 w-3.5" />
             Decline
           </motion.button>
           <motion.button
@@ -648,10 +625,10 @@ function TradeActionPanel({
             disabled={myReady || myItemsCount === 0}
             whileHover={!myReady && myItemsCount > 0 ? { scale: 1.02 } : {}}
             whileTap={!myReady && myItemsCount > 0 ? { scale: 0.98 } : {}}
-            className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition ${
+            className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               myReady
-                ? "bg-brand-accent/30 text-brand-accent border border-brand-accent"
-                : "bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 disabled:opacity-40 disabled:shadow-none"
+                ? "border border-brand-accent/40 bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light"
+                : "bg-brand-accent text-brand-accent-foreground shadow-e1 hover:bg-brand-accent-hover hover:shadow-[0_8px_24px_-12px_hsl(var(--brand-accent)/0.6)] disabled:opacity-40 disabled:shadow-none"
             }`}
           >
             {myReady ? (
@@ -678,16 +655,16 @@ function TradeActionPanel({
 
   if (phase === "confirm") {
     return (
-      <div className="w-full rounded-lg border border-amber-800/40 bg-surface-1/70 p-2 space-y-1.5">
+      <div className="w-full space-y-2 rounded-xl border border-amber-500/30 bg-foreground/[0.03] p-2">
         <motion.div
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-900/20 border border-amber-800/50"
+          className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5"
         >
           <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
-            <FiAlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <FiAlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
           </motion.div>
-          <p className="text-[10px] text-amber-400">Final check before settlement.</p>
+          <p className="text-[11px] text-amber-700 dark:text-amber-300">Last check before anything moves.</p>
         </motion.div>
         <div className="grid grid-cols-2 gap-1.5">
           <motion.button
@@ -695,7 +672,7 @@ function TradeActionPanel({
             onClick={onCancel}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="py-2 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-red-900/10 transition-colors"
+            className="min-h-9 rounded-lg border border-border/60 text-xs font-medium text-muted-foreground transition-[background-color,color,border-color] duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-red-400"
           >
             Cancel
           </motion.button>
@@ -705,21 +682,21 @@ function TradeActionPanel({
             disabled={confirmed || executing}
             whileHover={!confirmed && !executing ? { scale: 1.02 } : {}}
             whileTap={!confirmed && !executing ? { scale: 0.98 } : {}}
-            className="py-2 rounded-lg bg-brand-accent-hover text-brand-accent-foreground text-[11px] font-semibold hover:bg-brand-accent disabled:opacity-40 shadow-lg shadow-brand-accent/25 disabled:shadow-none transition"
+            className="min-h-9 rounded-lg bg-brand-accent text-xs font-semibold text-brand-accent-foreground shadow-e1 transition-[background-color,box-shadow] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_24px_-12px_hsl(var(--brand-accent)/0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:shadow-none"
           >
             {executing ? (
               <span className="flex items-center justify-center gap-1.5">
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}>
                   <FiRepeat className="h-3.5 w-3.5" />
                 </motion.div>
-                Executing...
+                Executing…
               </span>
             ) : confirmed ? (
               <span className="flex items-center justify-center gap-1.5">
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
                   <FiShield className="h-3.5 w-3.5" />
                 </motion.div>
-                Verifying...
+                Verifying…
               </span>
             ) : (
               <span className="flex items-center justify-center gap-1.5">
@@ -779,38 +756,29 @@ function OfferSlot({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       onClick={onRemove}
+      onKeyDown={onRemove ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onRemove(); } } : undefined}
+      role={onRemove ? "button" : undefined}
+      tabIndex={onRemove ? 0 : undefined}
+      aria-label={
+        slot
+          ? `${slot.amount} ${slot.token.symbol}${onRemove ? " — remove from offer" : ""}`
+          : `Empty offer slot ${index + 1}`
+      }
       className={`
-        relative aspect-square rounded-lg select-none transition duration-150
-        ${isDragSource ? "opacity-40 scale-90" : ""}
+        group/slot relative aspect-square select-none rounded-lg transition-[transform,opacity,border-color,background-color,box-shadow] duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+        ${isDragSource ? "scale-90 opacity-40" : ""}
         ${isDragOver
-          ? "ring-2 ring-brand-accent/60 bg-brand-accent/15 border-2 border-brand-accent/50"
+          ? "border-2 border-brand-accent/50 bg-brand-accent/15 shadow-[0_0_16px_hsl(var(--brand-accent)/0.4)]"
           : isEmpty
-            ? "bg-surface-3/50 border border-border/50"
-            : `border-2 ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} flex flex-col items-center justify-center p-0.5
+            ? "border border-border/50 bg-foreground/[0.03] shadow-[inset_0_1px_3px_hsl(var(--foreground)/0.06)]"
+            : `flex flex-col items-center justify-center border-2 p-0.5 ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
                ${isRemote
-                 ? "border-border/80 bg-surface-3/80"
-                 : "border-brand-accent/50 bg-brand-accent/30"
+                 ? "border-border/70 bg-foreground/[0.06]"
+                 : "border-brand-accent/40 bg-brand-accent/15"
                }
-               ${!isLocked && !isRemote ? "hover:scale-105 hover:border-red-500 hover:shadow-[0_4px_16px_rgba(239,68,68,0.2)]" : ""}
-               ${!isLocked && isRemote && !isEmpty ? "hover:scale-[1.03]" : ""}`}
+               ${!isLocked && !isRemote ? "motion-safe:hover:scale-105 hover:border-red-500/60" : ""}
+               ${!isLocked && isRemote && !isEmpty ? "motion-safe:hover:scale-[1.03]" : ""}`}
       `}
-      style={
-        isEmpty && !isDragOver
-          ? {
-              boxShadow:
-                "inset 0 1px 3px rgba(0,0,0,0.3), inset 0 -1px 1px rgba(255,255,255,0.02)",
-            }
-          : isDragOver
-            ? { boxShadow: "0 0 16px rgba(16,185,129,0.4)" }
-            : undefined
-      }
-      title={
-        !isEmpty && !isRemote && !isLocked
-          ? "Click to remove · Drag to reorder"
-          : slot
-            ? `${slot.amount} ${slot.token.symbol}`
-            : undefined
-      }
     >
       {slot && (
         <AnimatePresence>
@@ -830,27 +798,24 @@ function OfferSlot({
                 symbol={slot.token.symbol}
                 logo={slot.token.logo}
                 size={24}
-                className="drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)] pointer-events-none"
+                className="pointer-events-none drop-shadow-[0_2px_3px_hsl(var(--foreground)/0.25)]"
               />
             </div>
 
             {/* Stack count */}
-            <span
-              className="text-[8px] font-bold text-foreground/80 mt-0.5 truncate max-w-full"
-              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
-            >
+            <span className="mt-0.5 max-w-full truncate text-[10px] font-semibold tabular-nums text-foreground">
               {slot.amount}
             </span>
 
             {/* Symbol */}
-            <span className="text-[6px] text-muted-foreground truncate max-w-full">
+            <span className="max-w-full truncate text-[8px] uppercase tracking-wide text-muted-foreground">
               {slot.token.symbol}
             </span>
 
-            {/* Remove indicator on hover (own items only, not locked) */}
+            {/* Remove hint on hover/focus (own items only, not locked) */}
             {!isRemote && !isLocked && (
-              <div className="absolute inset-0 flex items-center justify-center bg-red-900/0 hover:bg-red-900/40 rounded-lg transition-colors opacity-0 hover:opacity-100">
-                <FiX className="h-3 w-3 text-red-400" />
+              <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-500/0 opacity-0 transition-[background-color,opacity] duration-150 group-hover/slot:bg-red-500/20 group-hover/slot:opacity-100 group-focus-visible/slot:opacity-100">
+                <FiX className="h-3.5 w-3.5 text-red-600 dark:text-red-300" />
               </div>
             )}
           </motion.div>
@@ -928,7 +893,7 @@ export function OsrsTradeWindow({
           return prev;
         }
         if (prev.length >= OFFER_SLOTS) {
-          toast.error("Offer grid is full (16 slots max)");
+          toast.error(`Offer grid is full (${OFFER_SLOTS} slots max)`);
           return prev;
         }
         return [...prev, slot];
@@ -1010,7 +975,7 @@ export function OsrsTradeWindow({
           return;
         }
         if (current.length >= OFFER_SLOTS) {
-          toast.error("Offer grid is full (16 slots max)");
+          toast.error(`Offer grid is full (${OFFER_SLOTS} slots max)`);
           return;
         }
         // Tell the inventory this drag really landed; only then may it remove the item.
@@ -1392,34 +1357,35 @@ export function OsrsTradeWindow({
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col bg-surface-1 relative overflow-hidden rounded-xl border border-border max-h-[calc(100vh-10rem)]"
+      className="relative flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-e2 backdrop-blur-xl"
     >
-      {/* Ambient glow */}
-      <div className="absolute inset-0 pointer-events-none">
+      {/* Ambient glow follows the phase */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div
-          className={`absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ${
+          className={`absolute -right-20 -top-20 h-40 w-40 rounded-full opacity-20 blur-3xl transition-colors duration-1000 ${
             phase === "confirm"
               ? "bg-amber-400"
               : phase === "complete"
                 ? "bg-brand-accent-light"
                 : selfTrade
                   ? "bg-purple-400"
-                  : "bg-blue-400"
+                  : "bg-brand-accent"
           }`}
         />
       </div>
 
       {/* ── Header ───────────────────────────────────────── */}
-      <div className="relative flex items-center justify-between px-4 py-3 border-b border-border bg-surface-1/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="relative flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           <motion.button
             type="button"
             onClick={onClose}
+            aria-label="Close trade window"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="p-1 rounded-lg hover:bg-surface-3 transition-colors shrink-0"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-[background-color,color] duration-200 hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <FiChevronLeft className="h-4 w-4 text-muted-foreground" />
+            <FiChevronLeft className="h-4 w-4" />
           </motion.button>
           <div className="flex items-center gap-1.5 min-w-0">
             {selfTrade ? (
@@ -1428,8 +1394,8 @@ export function OsrsTradeWindow({
               <FiRepeat className="h-4 w-4 text-brand-accent shrink-0" />
             )}
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-sm font-semibold text-foreground/80">
-                {selfTrade ? "Self-Trade" : "Trade"}
+              <span className="text-sm font-semibold text-foreground">
+                {selfTrade ? "Move between wallets" : "Trade"}
               </span>
               {isRenaming && displayPartner.walletAddress ? (
                 <div className="flex items-center gap-1">
@@ -1463,11 +1429,11 @@ export function OsrsTradeWindow({
                     }}
                     placeholder="Enter nickname…"
                     autoFocus
-                    className="w-28 bg-muted border border-border rounded px-1.5 py-0.5 text-[10px] text-foreground/80 focus:ring-1 focus:ring-brand-accent/50"
+                    className="w-32 rounded-md border border-border/70 bg-background px-1.5 py-0.5 text-[11px] text-foreground focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/30"
                   />
                 </div>
               ) : (
-                <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                   {displayPartner.name}
                   {displayPartner.walletAddress && (
                     <>
@@ -1483,8 +1449,8 @@ export function OsrsTradeWindow({
                           );
                           setIsRenaming(true);
                         }}
-                        className="p-0.5 rounded hover:bg-foreground/[0.07] text-muted-foreground hover:text-muted-foreground transition"
-                        title="Rename this address"
+                        aria-label="Rename this address"
+                        className="rounded p-0.5 text-muted-foreground transition-[background-color,color] duration-200 hover:bg-foreground/[0.07] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <FiEdit2 className="h-2.5 w-2.5" />
                       </button>
@@ -1504,11 +1470,11 @@ export function OsrsTradeWindow({
 
       {/* ── Self-trade Wallet Selectors ──────────────────── */}
       {selfTrade && phase === "offer" && (
-        <div className="px-3 py-2.5 border-b border-border bg-surface-3/20">
-          <div className="flex items-center gap-1.5 mb-2">
-            <ArrowLeftRight className="h-3.5 w-3.5 text-purple-400" />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Transfer Between Wallets
+        <div className="border-b border-border/60 bg-foreground/[0.02] px-3 py-2.5">
+          <div className="mb-2 flex items-center gap-1.5">
+            <ArrowLeftRight className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              From one wallet to another
             </span>
           </div>
           <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
@@ -1517,7 +1483,7 @@ export function OsrsTradeWindow({
               selectedAddress={selfSourceAddr}
               onSelect={setSelfSourceAddr}
             />
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border">
+            <div className="grid size-6 place-items-center rounded-full border border-border/60 bg-foreground/[0.05]">
               <FiArrowRight className="h-3 w-3 text-muted-foreground" />
             </div>
             <WalletSelector
@@ -1532,10 +1498,10 @@ export function OsrsTradeWindow({
 
       {/* ── P2P Participant Banner (mirrors self-trade layout) ── */}
       {!selfTrade && phase === "offer" && (
-        <div className="px-3 py-2 border-b border-border bg-surface-3/20">
-          <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+        <div className="border-b border-border/60 bg-foreground/[0.02] px-3 py-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             {/* You */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-foreground/[0.06] border border-border/60">
+            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 py-1.5">
               <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-brand-accent shrink-0">
                 <AvatarImage src={currentUser?.image ?? undefined} />
                 <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
@@ -1543,11 +1509,11 @@ export function OsrsTradeWindow({
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-medium text-foreground/80 leading-tight truncate">
+                <span className="truncate text-[11px] font-medium leading-tight text-foreground">
                   {currentUser?.name ?? "You"}
                 </span>
                 {address && (
-                  <span className="text-muted-foreground text-[8px] font-mono leading-tight">
+                  <span className="font-mono text-[9px] leading-tight text-muted-foreground">
                     {address.slice(0, 6)}…{address.slice(-4)}
                   </span>
                 )}
@@ -1555,24 +1521,24 @@ export function OsrsTradeWindow({
             </div>
 
             {/* Arrow */}
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border">
+            <div className="grid size-6 place-items-center rounded-full border border-border/60 bg-foreground/[0.05]">
               <ArrowLeftRight className="h-3 w-3 text-brand-accent" />
             </div>
 
             {/* Partner */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-foreground/[0.06] border border-border/60">
-              <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-border shrink-0">
+            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 py-1.5">
+              <Avatar className="h-6 w-6 shrink-0 ring-1 ring-border ring-offset-1 ring-offset-background">
                 <AvatarImage src={displayPartner.image ?? undefined} />
                 <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
                   {(displayPartner.name ?? "?")[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-medium text-foreground/80 leading-tight truncate">
+                <span className="truncate text-[11px] font-medium leading-tight text-foreground">
                   {displayPartner.name ?? "Partner"}
                 </span>
                 {displayPartner.walletAddress && (
-                  <span className="text-muted-foreground text-[8px] font-mono leading-tight">
+                  <span className="font-mono text-[9px] leading-tight text-muted-foreground">
                     {displayPartner.walletAddress.slice(0, 6)}…{displayPartner.walletAddress.slice(-4)}
                   </span>
                 )}
@@ -1605,10 +1571,10 @@ export function OsrsTradeWindow({
               {/* Two offer grids — always side-by-side */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Your side (left — source) */}
-                <div className="rounded-lg border border-border bg-surface-1/40 p-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {selfTrade ? "Source" : "Your offer"}
+                <div className="rounded-xl border border-border/60 bg-surface-1/50 p-2">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      {selfTrade ? "From" : "Your offer"}
                     </span>
                     <AnimatePresence>
                       {myReady && (
@@ -1616,7 +1582,7 @@ export function OsrsTradeWindow({
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-0.5 text-[9px] text-brand-accent font-medium bg-brand-accent/20 px-1.5 py-0.5 rounded-full"
+                          className="flex items-center gap-1 rounded-full bg-brand-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light"
                         >
                           <FiCheckCircle className="h-2.5 w-2.5" /> Ready
                         </motion.span>
@@ -1634,18 +1600,18 @@ export function OsrsTradeWindow({
                     onDrop={handleOfferDrop}
                   />
                   {phase === "offer" && (
-                    <p className="text-[8px] text-muted-foreground mt-1 flex items-center gap-0.5">
-                      <FiArrowRight className="h-2 w-2" />
-                      Drag from inventory
+                    <p className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <FiArrowRight className="h-2.5 w-2.5" />
+                      Drag from your inventory · click an item to take it back
                     </p>
                   )}
                 </div>
 
                 {/* Their side (right — destination) */}
-                <div className="rounded-lg border border-border bg-surface-1/40 p-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {selfTrade ? "Destination" : displayPartner.name ?? "Partner"}
+                <div className="rounded-xl border border-border/60 bg-surface-1/50 p-2">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      {selfTrade ? "To" : displayPartner.name ?? "Partner"}
                     </span>
                     <AnimatePresence>
                       {theirReady && (
@@ -1653,7 +1619,7 @@ export function OsrsTradeWindow({
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-0.5 text-[9px] text-brand-accent font-medium bg-brand-accent/20 px-1.5 py-0.5 rounded-full"
+                          className="flex items-center gap-1 rounded-full bg-brand-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light"
                         >
                           <FiCheckCircle className="h-2.5 w-2.5" /> Ready
                         </motion.span>
@@ -1671,22 +1637,22 @@ export function OsrsTradeWindow({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="rounded-lg border border-amber-800/40 bg-surface-1/70 p-2 space-y-1.5 overflow-hidden"
+                    className="space-y-1.5 overflow-hidden rounded-xl border border-amber-500/30 bg-foreground/[0.03] p-2"
                   >
-                    <div className="flex items-center gap-2 text-[10px] text-amber-400 font-semibold uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
                       <FiShield className="h-3 w-3" />
-                      Trade Verification
+                      Check the trade
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
                       {/* You give */}
                       <div className="space-y-1">
-                        <span className="text-muted-foreground font-medium">You give:</span>
+                        <span className="font-medium text-muted-foreground">You give</span>
                         {myItems.length === 0 ? (
-                          <span className="text-muted-foreground italic">Nothing</span>
+                          <span className="text-muted-foreground">Nothing</span>
                         ) : (
                           myItems.map((item) => (
-                            <div key={item.id} className="flex items-center gap-1.5 text-red-400">
+                            <div key={item.id} className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
                               <span className="font-mono">−</span>
                               <span className="font-semibold">{item.amount}</span>
                               <span className="text-muted-foreground">{item.token.symbol}</span>
@@ -1697,12 +1663,12 @@ export function OsrsTradeWindow({
 
                       {/* You receive */}
                       <div className="space-y-1">
-                        <span className="text-muted-foreground font-medium">You receive:</span>
+                        <span className="font-medium text-muted-foreground">You receive</span>
                         {theirItems.length === 0 ? (
-                          <span className="text-muted-foreground italic">Nothing</span>
+                          <span className="text-muted-foreground">Nothing</span>
                         ) : (
                           theirItems.map((item) => (
-                            <div key={item.id} className="flex items-center gap-1.5 text-brand-accent">
+                            <div key={item.id} className="flex items-center gap-1.5 text-brand-accent-hover dark:text-brand-accent-light">
                               <span className="font-mono">+</span>
                               <span className="font-semibold">{item.amount}</span>
                               <span className="text-muted-foreground">{item.token.symbol}</span>
@@ -1713,9 +1679,9 @@ export function OsrsTradeWindow({
                     </div>
 
                     {/* Trade Hash */}
-                    <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
-                      <span className="text-[9px] text-muted-foreground">Trade hash</span>
-                      <span className="text-[9px] font-mono text-muted-foreground">{tradeHash}</span>
+                    <div className="flex items-center justify-between border-t border-border/50 pt-1.5">
+                      <span className="text-[10px] text-muted-foreground">Trade hash</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{tradeHash}</span>
                     </div>
                   </motion.div>
                 )}
@@ -1740,11 +1706,11 @@ export function OsrsTradeWindow({
 
       {/* ── Security Footer ──────────────────────────────── */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-3 py-1 border-t border-border bg-surface-3/30">
-          <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground">
+        <div className="border-t border-border/60 bg-foreground/[0.02] px-3 py-1.5">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
             <FiLock className="h-2.5 w-2.5" />
             <span>
-              End-to-end verified &middot; Hash: {tradeHash}
+              Both sides verified &middot; hash <span className="font-mono">{tradeHash}</span>
             </span>
           </div>
         </div>
@@ -1811,9 +1777,9 @@ function TradeComplete({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="text-base font-bold text-foreground/80 mb-1"
+        className="mb-1 text-base font-semibold tracking-tight text-foreground"
       >
-        {selfTrade ? "Transfer Complete!" : "Trade Complete!"}
+        {selfTrade ? "Transfer complete" : "Trade complete"}
       </motion.h3>
       <motion.p
         initial={{ opacity: 0, y: 10 }}
@@ -1822,8 +1788,8 @@ function TradeComplete({
         className="text-xs text-muted-foreground mb-3"
       >
         {selfTrade
-          ? "Tokens have been transferred between your wallets."
-          : `You traded with ${name ?? "a trader"}. Check your wallet for tokens.`}
+          ? "Your tokens moved between your wallets."
+          : `You traded with ${name ?? "a trader"}. The tokens are in your wallet.`}
       </motion.p>
 
       {/* Receipt details for self-trades */}
@@ -1834,14 +1800,14 @@ function TradeComplete({
           transition={{ delay: 0.6 }}
           className="w-full max-w-xs space-y-2 text-left"
         >
-          <div className="rounded-lg border border-border bg-surface-1/60 p-3 space-y-2">
+          <div className="space-y-2 rounded-xl border border-border/60 bg-foreground/[0.03] p-3">
             {/* Addresses */}
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <span className="font-mono text-foreground/80" title={receipt.sourceAddress}>
+              <span className="font-mono text-foreground" aria-label={`From ${receipt.sourceAddress}`}>
                 {receipt.sourceAddress.slice(0, 6)}…{receipt.sourceAddress.slice(-4)}
               </span>
               <FiArrowRight className="h-3 w-3 text-brand-accent shrink-0" />
-              <span className="font-mono text-foreground/80" title={receipt.destAddress}>
+              <span className="font-mono text-foreground" aria-label={`To ${receipt.destAddress}`}>
                 {receipt.destAddress.slice(0, 6)}…{receipt.destAddress.slice(-4)}
               </span>
             </div>
@@ -1852,7 +1818,7 @@ function TradeComplete({
                 {receipt.items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">{item.symbol}</span>
-                    <span className="font-mono text-foreground/80">{item.amount}</span>
+                    <span className="font-mono text-foreground">{item.amount}</span>
                   </div>
                 ))}
               </div>
@@ -1870,7 +1836,7 @@ function TradeComplete({
                 {receipt.txHashes.map((hash, i) => (
                   <div key={i} className="flex items-center gap-1 text-[9px]">
                     <span className="text-muted-foreground">Tx {i + 1}:</span>
-                    <span className="font-mono text-muted-foreground truncate" title={hash}>
+                    <span className="truncate font-mono text-muted-foreground" aria-label={`Transaction ${hash}`}>
                       {hash.slice(0, 10)}…{hash.slice(-8)}
                     </span>
                   </div>
@@ -1914,12 +1880,12 @@ function TradeCancelled() {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 400, damping: 20 }}
-        className="h-12 w-12 rounded-full bg-red-900/20 flex items-center justify-center mb-3"
+        className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-red-500/10 ring-1 ring-red-500/30"
       >
-        <FiX className="h-6 w-6 text-red-400" />
+        <FiX className="h-6 w-6 text-red-600 dark:text-red-400" />
       </motion.div>
-      <h3 className="text-base font-bold text-foreground/80 mb-1">
-        Trade Cancelled
+      <h3 className="mb-1 text-base font-semibold tracking-tight text-foreground">
+        Trade cancelled
       </h3>
       <p className="text-xs text-muted-foreground">
         No items were exchanged. All assets remain in their original wallets.

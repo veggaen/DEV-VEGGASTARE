@@ -812,14 +812,15 @@ html:not(.dark) .chat-desktop-panel:focus-within {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(to bottom right, rgba(14,165,233,0.04), transparent);
+  background: linear-gradient(to bottom right, hsl(var(--brand-accent) / 0.04), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
   z-index: 0;
 }
-.chat-desktop-panel:hover::before,
-.chat-desktop-panel:focus-within::before {
+/* Hover only: while typing the composer is the single focal point, so the
+   panel keeps a flat surface (no tinted gradient behind the input). */
+.chat-desktop-panel:hover::before {
   opacity: 1;
 }
 .chat-desktop-panel > * {
@@ -975,12 +976,12 @@ html.dark .chat-send-btn:not(:disabled):hover {
 .ai-composer-surface {
   transition: border-color 0.2s ease-out, box-shadow 0.25s ease-out;
 }
+/* Focus: a calm accent hairline plus one soft, evenly spread halo. No thick
+   ring (it read as bright side edges on the wide, short composer). */
 .ai-composer-surface:has(textarea:focus-visible) {
-  border-color: hsl(var(--brand-accent) / 0.6);
+  border-color: hsl(var(--brand-accent) / 0.5);
   outline: none;
-  box-shadow:
-    0 0 0 3px hsl(var(--brand-accent) / 0.14),
-    0 0 32px -8px hsl(var(--brand-accent) / 0.35);
+  box-shadow: 0 0 20px -6px hsl(var(--brand-accent) / 0.22);
 }
 .ai-composer-surface textarea:focus-visible {
   outline: none;
@@ -1012,6 +1013,13 @@ html.dark .chat-send-btn:not(:disabled):hover {
 
 /* Update banner — animated gradient sweep so the "new version" bar feels alive
    and the click reads as active while the page reloads. */
+/* Expanding accent ring (drag ghost, live markers). Reads the accent token, so it
+   follows the user's accent preset — framer cannot interpolate var() colours. */
+@keyframes accent-ring {
+  from { box-shadow: 0 0 0 0 hsl(var(--brand-accent) / 0.4); }
+  to { box-shadow: 0 0 0 8px hsl(var(--brand-accent) / 0); }
+}
+
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }

@@ -833,7 +833,7 @@ function DevChainStatusIndicator() {
 
   const statusDot = (s: ChainStatus) => {
     if (s === 'checking') return 'bg-muted animate-pulse';
-    if (s === 'online') return 'bg-brand-accent shadow-[0_0_6px_rgba(16,185,129,0.5)]';
+    if (s === 'online') return 'bg-brand-accent shadow-[0_0_6px_hsl(var(--brand-accent)/0.5)]';
     return 'bg-red-500/60';
   };
 
@@ -856,8 +856,7 @@ function DevChainStatusIndicator() {
           onClick={() => void refetch()}
           disabled={isFetching}
           aria-label="Refresh chain status"
-          className="p-0.5 rounded hover:bg-foreground/[0.05] text-muted-foreground hover:text-foreground/80 transition-colors"
-          title="Refresh chain status"
+          className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FiRefreshCw className="h-2.5 w-2.5" />
         </button>
@@ -882,8 +881,8 @@ function DevChainStatusIndicator() {
         ))}
       </div>
       {!anyOnline && (
-        <p className="text-[9px] text-muted-foreground leading-relaxed">
-          Start a local chain: <code className="text-muted-foreground">npx ganache</code> or <code className="text-muted-foreground">anvil</code>
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          Start a local chain first: in the Ganache app choose <span className="font-medium text-foreground">Quickstart Ethereum</span> (port 7545), or run <code className="rounded bg-foreground/[0.06] px-1">anvil</code> (port 8545).
         </p>
       )}
     </div>
@@ -941,6 +940,7 @@ function LocalDevTools({
   const [sendAmountEth, setSendAmountEth] = useState("1");
   const [localDevExpanded, setLocalDevExpanded] = useState(false);
   const [sendingTx, setSendingTx] = useState(false);
+  const chainPickedByUser = useRef(false);
 
   const selectedChainName = localChainName(selectedChainId) ?? `Chain ${selectedChainId}`;
   const selectedAccounts = availableAccounts.filter((account) => account.chainId === selectedChainId);
@@ -964,6 +964,14 @@ function LocalDevTools({
       .then((accounts) => {
         if (!alive) return;
         setAvailableAccounts(accounts);
+        // Follow the chain that is actually running (Ganache on 7545 vs Anvil on
+        // 8545) until the user picks one explicitly, so the funded accounts show
+        // up without hunting through the dropdown.
+        if (!chainPickedByUser.current) {
+          setSelectedChainId((prev) =>
+            accounts.some((account) => account.chainId === prev) ? prev : (accounts[0]?.chainId ?? prev),
+          );
+        }
       })
       .catch(() => {
         if (!alive) return;
@@ -1015,8 +1023,9 @@ function LocalDevTools({
       <><div className="px-1">
         <select
           value={selectedChainId}
-          onChange={(event) => setSelectedChainId(Number(event.target.value))}
-          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80"
+          onChange={(event) => { chainPickedByUser.current = true; setSelectedChainId(Number(event.target.value)); }}
+          aria-label="Local chain"
+          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {LOCAL_RPC_SOURCES.map((source) => (
             <option key={source.chainId} value={source.chainId}>
@@ -1052,7 +1061,7 @@ function LocalDevTools({
         {loadingAccounts ? (
           <p className="text-[9px] text-muted-foreground/80">Loading local RPC accounts…</p>
         ) : selectedAccounts.length === 0 ? (
-          <p className="text-[9px] text-muted-foreground/80">No accounts detected. Start the local node first.</p>
+          <p className="text-[10px] text-muted-foreground/80">No accounts yet. Start the local chain, then they appear here as temporary wallets.</p>
         ) : (
           <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
             {selectedAccounts.slice(0, 10).map((account) => {
@@ -1073,15 +1082,15 @@ function LocalDevTools({
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className={`text-[9px] font-mono truncate ${isActive ? "text-orange-400" : isAdded ? "text-orange-300/80" : "text-foreground/80"}`}>
+                    <p className={`truncate font-mono text-[9px] ${isActive ? "text-orange-600 dark:text-orange-400" : isAdded ? "text-orange-600/80 dark:text-orange-300/80" : "text-foreground"}`}>
                       {account.address}
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <p className={`text-[8px] ${isActive ? "text-orange-400" : isAdded ? "text-orange-400/60" : "text-muted-foreground/80"}`}>
-                        {isActive ? "⚡ Active" : isAdded ? "✔ In wallet list" : "Not added"}
+                      <p className={`text-[9px] ${isActive ? "text-orange-600 dark:text-orange-400" : isAdded ? "text-orange-600/70 dark:text-orange-400/60" : "text-muted-foreground/80"}`}>
+                        {isActive ? "Active" : isAdded ? "In your wallet list" : "Not added"}
                       </p>
                       {account.balanceEth && (
-                        <p className="text-[8px] font-medium text-orange-400">
+                        <p className="text-[9px] font-medium tabular-nums text-orange-600 dark:text-orange-400">
                           {account.balanceEth} ETH
                         </p>
                       )}
@@ -1094,8 +1103,8 @@ function LocalDevTools({
                         type="button"
                         disabled={busy}
                         onClick={() => onActivateRpcAccount(account.address, account.chainId)}
-                        className="rounded-md border border-orange-500/50 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-orange-400 hover:bg-orange-500/20 hover:text-orange-300 disabled:opacity-50 transition-colors"
-                        title="Set this account as the active wallet — inventory will show this wallet's tokens"
+                        aria-label={`Use ${account.address.slice(0, 6)}…${account.address.slice(-4)} as the active wallet`}
+                        className="rounded-md border border-orange-500/50 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 transition-colors hover:bg-orange-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 dark:text-orange-300"
                       >
                         Activate
                       </button>
@@ -1111,14 +1120,14 @@ function LocalDevTools({
                           address: account.address,
                         })
                       }
-                      className={`rounded-md border px-1.5 py-0.5 text-[9px] disabled:opacity-50 ${
+                      aria-label={isActive ? "This account is active" : isAdded ? "Already in your wallet list" : `Add ${account.address.slice(0, 6)}…${account.address.slice(-4)} to your wallet list`}
+                      className={`rounded-md border px-1.5 py-0.5 text-[9px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                         isActive
-                          ? "border-orange-500/40 text-orange-400 cursor-default"
+                          ? "cursor-default border-orange-500/40 text-orange-600 dark:text-orange-400"
                           : isAdded
-                            ? "border-orange-500/30 text-orange-400/50 cursor-default"
-                            : "border-border text-foreground/80 hover:text-orange-400"
+                            ? "cursor-default border-orange-500/30 text-orange-600/60 dark:text-orange-400/50"
+                            : "border-border text-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"
                       }`}
-                      title={isActive ? "This account is currently active" : isAdded ? "Already in your wallet list" : "Add this account to your wallet list"}
                     >
                       {isActive ? "Active" : isAdded ? "Added" : "Add"}
                     </button>
@@ -1135,8 +1144,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "mine", chainId: selectedChainId })}
-          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
-          title="Mine a new block on the local chain — triggers pending transactions and block-dependent logic"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground transition-colors hover:border-orange-500/40 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 dark:hover:text-orange-400"
         >
           <FiRefreshCw className="inline h-2.5 w-2.5 mr-1" /> Mine 1 block
         </button>

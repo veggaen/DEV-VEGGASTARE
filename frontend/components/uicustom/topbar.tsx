@@ -10,7 +10,6 @@ import { useClientReady } from "@/hooks/use-client-ready";
 import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
-import { useTheme } from "next-themes";
 import { signIn, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
@@ -19,7 +18,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiUser, FiImage, FiShield, FiBell, FiLock, FiSun, FiMoon, FiMonitor, FiCopy, FiLink, FiCheck, FiPackage } from "react-icons/fi";
+import { FiUser, FiImage, FiShield, FiBell, FiLock, FiCopy, FiLink, FiCheck, FiPackage, FiChevronDown } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import {
 	Sheet,
@@ -32,12 +31,11 @@ import {
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { AppHeader } from "@/components/uicustom/chrome/app-header";
 import { AppRail } from "@/components/uicustom/chrome/app-rail";
-import { ThemeToggle, swapThemeWithReveal } from "@/components/uicustom/chrome/theme-toggle";
+import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
 import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
-import { useUiPreferences } from "@/components/providers/ui-preferences";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import usePusher from "@/hooks/usePusher";
 import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
@@ -904,7 +902,8 @@ function SidebarWalletInfo() {
 	);
 }
 
-// Explicit controls work equally with touch, mouse and keyboard.
+// Settings tab of the account drawer. Appearance and currency are not repeated
+// here (both sit in the header); this pane is a launcher plus one wallet card.
 function SettingsPaneLite({
   setMenuOpen, effectiveWeb3ModeEnabled, walletRefreshToken, setWalletRefreshToken,
 }: {
@@ -913,92 +912,82 @@ function SettingsPaneLite({
   walletRefreshToken: number;
   setWalletRefreshToken: (fn: (t: number) => number) => void;
 }) {
-  const { theme, setTheme } = useTheme();
-  const { prefs, setPrefs } = useUiPreferences();
   const settingsItems = [
     { id: 'profile', icon: FiImage, label: 'Profile', desc: 'Avatar, banner & bio' },
-    { id: 'account', icon: FiUser, label: 'Account', desc: 'Name & email' },
-    { id: 'security', icon: FiShield, label: 'Security', desc: 'Password & two-factor authentication' },
+    { id: 'account', icon: FiUser, label: 'Account', desc: 'Name, email & sign-in' },
+    { id: 'security', icon: FiShield, label: 'Security', desc: 'Password & two-factor' },
     { id: 'notifications', icon: FiBell, label: 'Notifications', desc: 'Alerts & sounds' },
     { id: 'privacy', icon: FiLock, label: 'Privacy', desc: 'Visibility & data' },
+    { id: 'wallet', icon: FiLink, label: 'Wallet', desc: 'Web3 & local chains' },
   ];
-  const choiceClass = "flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-border px-2 text-xs font-medium transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-brand-accent aria-pressed:bg-brand-accent/10 aria-pressed:text-foreground";
+  const tileClass = "group flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-foreground/[0.03] px-3 py-2.5 transition-[border-color,background-color,transform] duration-200 motion-reduce:transition-none hover:border-brand-accent/40 hover:bg-foreground/[0.06] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <div className="space-y-4 p-4">
-      <fieldset className="min-w-0 space-y-2">
-        <legend className="mb-2 text-sm font-medium">Appearance</legend>
-        <div className="flex gap-1.5">
-          {([{ id: 'light', label: 'Light', icon: FiSun }, { id: 'dark', label: 'Dark', icon: FiMoon }, { id: 'system', label: 'System', icon: FiMonitor }] as const).map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" aria-pressed={theme === id} className={choiceClass} onClick={(event) => swapThemeWithReveal(() => setTheme(id), { x: event.clientX, y: event.clientY })}>
-              <Icon className="size-3.5 shrink-0" aria-hidden="true" />{label}
-            </button>
+      <nav aria-label="Quick settings">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quick settings</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {settingsItems.map(({ id, icon: Icon, label, desc }) => (
+            <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} className={tileClass}>
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground transition-colors duration-200 group-hover:bg-brand-accent/15 group-hover:text-brand-accent">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-medium text-foreground">{label}</span>
+                <span className="block truncate text-[11px] leading-snug text-muted-foreground">{desc}</span>
+              </span>
+            </Link>
           ))}
         </div>
-      </fieldset>
-      <fieldset className="min-w-0 space-y-2">
-        <legend className="mb-2 text-sm font-medium">Display currency</legend>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(['USD', 'EUR', 'GBP', 'NOK'] as const).map(currency => (
-            <button key={currency} type="button" aria-pressed={prefs.preferredFiatCurrency === currency} className={choiceClass} onClick={() => setPrefs({ preferredFiatCurrency: currency })}>{currency}</button>
-          ))}
-        </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">Display preference only. Checkout shows the charged currency.</p>
-      </fieldset>
-      <nav aria-label="Quick settings" className="space-y-1">
-        {settingsItems.map(({ id, icon: Icon, label, desc }) => (
-          <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} className="flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0"><span className="block text-sm font-medium">{label}</span><span className="block text-xs leading-relaxed text-muted-foreground">{desc}</span></span>
-          </Link>
-        ))}
       </nav>
-			{/* Wallet Section */}
-			{effectiveWeb3ModeEnabled && (
-				<div className="rounded-xl bg-foreground/[0.05] p-3">
-					<div className="flex items-center justify-between mb-2">
-						<div className="text-xs font-medium text-muted-foreground">
-							Wallet
-						</div>
-						<Link
-							href="/settings?section=wallet"
-							onClick={() => setMenuOpen(false)}
-							className="inline-flex min-h-11 items-center rounded-md px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						>
-							Manage →
-						</Link>
-					</div>
-					<div className="space-y-2">
-						{/* AppKit button for polished wallet modal with QR codes & social logins */}
-						<div className="flex justify-center py-1">
-							<AppKitButton size="md" />
-						</div>
 
-						{/* Connected wallet info: address, copy, network */}
-						<SidebarWalletInfo />
+      {effectiveWeb3ModeEnabled && (
+        <section aria-labelledby="drawer-wallet-title" className="rounded-2xl border border-border/60 bg-foreground/[0.03] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 id="drawer-wallet-title" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Wallet</h3>
+            <Link
+              href="/settings?section=wallet"
+              onClick={() => setMenuOpen(false)}
+              className="inline-flex min-h-9 items-center rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Manage →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {/* Connected address, copy and network — renders nothing while disconnected */}
+            <SidebarWalletInfo />
+            <div className="flex justify-center py-1">
+              <AppKitButton size="md" />
+            </div>
+            <Link
+              href="/dashboard/trading"
+              onClick={() => setMenuOpen(false)}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-border/60 px-3 text-xs font-medium text-foreground transition-[border-color,background-color] duration-200 hover:border-brand-accent/40 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <FiPackage className="size-3.5 text-brand-accent" aria-hidden="true" />
+              Open trading
+              <span className="ml-auto text-muted-foreground" aria-hidden="true">→</span>
+            </Link>
+            {/* Ownership verification and the saved-wallet list stay reachable, folded away. */}
+            <details className="group/tools rounded-xl border border-border/60">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                Verify & manage wallets
+                <FiChevronDown aria-hidden="true" className="size-3.5 transition-transform duration-200 group-open/tools:rotate-180" />
+              </summary>
+              <div className="space-y-2 border-t border-border/60 p-3">
+                <EvmWalletVerify
+                  enabled={effectiveWeb3ModeEnabled}
+                  onVerified={() => setWalletRefreshToken((t) => t + 1)}
+                />
+                <EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
+              </div>
+            </details>
+          </div>
+        </section>
+      )}
 
-						{/* Trading shortcut */}
-						<Link
-							href="/dashboard/trading"
-							onClick={() => setMenuOpen(false)}
-							className="flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors"
-						>
-							<FiPackage className="h-3.5 w-3.5 text-brand-accent" />
-							<span className="text-xs font-medium text-foreground/85">Trading · experimental</span>
-							<span className="ml-auto text-[10px] text-muted-foreground/80">→</span>
-						</Link>
-
-						<EvmWalletVerify
-							enabled={effectiveWeb3ModeEnabled}
-							onVerified={() => setWalletRefreshToken((t) => t + 1)}
-						/>
-						<EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
-					</div>
-				</div>
-			)}
-
-      <div className="space-y-1 border-t border-border pt-3">
-        <Link href="/settings" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl bg-muted px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All settings</Link>
+      <div className="border-t border-border pt-3">
+        <Link href="/settings" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl bg-foreground/[0.05] px-4 text-sm font-medium text-foreground transition-colors hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All settings</Link>
       </div>
     </div>
   );

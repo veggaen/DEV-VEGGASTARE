@@ -711,7 +711,7 @@ export function OsrsInventory({
 
       // Create a small drag image so the browser doesn't use the full slot rendering
       const dragEl = document.createElement("div");
-      dragEl.style.cssText = "width:40px;height:40px;background:rgba(16,185,129,0.25);border-radius:8px;border:2px solid rgba(16,185,129,0.6);position:absolute;top:-9999px;";
+      dragEl.style.cssText = "width:40px;height:40px;background:hsl(var(--brand-accent)/0.25);border-radius:8px;border:2px solid hsl(var(--brand-accent)/0.6);position:absolute;top:-9999px;";
       document.body.appendChild(dragEl);
       e.dataTransfer.setDragImage(dragEl, 20, 20);
       requestAnimationFrame(() => dragEl.remove());
@@ -1533,7 +1533,7 @@ function OsrsSlot({
           ? `bg-surface-3/40 border border-border/40 rounded-md ${onClick ? "cursor-pointer hover:border-brand-accent/30 hover:bg-brand-accent/5" : ""}`
           : `cursor-grab active:cursor-grabbing border
              ${isSelected
-               ? "border-brand-accent/80 bg-brand-accent/10 shadow-[0_0_8px_rgba(16,185,129,0.25)] rounded-md"
+               ? "border-brand-accent/80 bg-brand-accent/10 shadow-[0_0_8px_hsl(var(--brand-accent)/0.25)] rounded-md"
                : "border-border/50 bg-surface-3/70 hover:border-border/70 hover:bg-foreground/[0.07] rounded-md"
              }
              ${tradeMode ? "ring-1 ring-amber-500/15" : ""}
@@ -1541,11 +1541,11 @@ function OsrsSlot({
       `}
       style={{
         boxShadow: isDragOver && !isDragging
-          ? "0 0 12px rgba(16,185,129,0.3), inset 0 0 6px rgba(16,185,129,0.1)"
+          ? "0 0 12px hsl(var(--brand-accent)/0.3), inset 0 0 6px hsl(var(--brand-accent)/0.1)"
           : isEmpty
-            ? "inset 0 1px 2px rgba(0,0,0,0.3)"
+            ? "inset 0 1px 2px hsl(var(--foreground)/0.08)"
             : isHovered && !isDragging
-              ? "0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)"
+              ? "0 2px 8px hsl(var(--foreground)/0.12), 0 0 0 1px hsl(var(--foreground)/0.05)"
               : undefined,
       }}
     >
@@ -1942,15 +1942,9 @@ function OsrsFloatingGhost({
       className="fixed pointer-events-none z-200"
       style={{ left: x - 28, top: y - 28 }}
     >
-      <motion.div
-        className="absolute inset-0 rounded-xl border-2 border-brand-accent"
-        animate={{
-          boxShadow: [
-            "0 0 0 0 rgba(16,185,129,0.4)",
-            "0 0 0 8px rgba(16,185,129,0)",
-          ],
-        }}
-        transition={{ duration: 1.2, repeat: Infinity }}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 rounded-xl border-2 border-brand-accent motion-safe:animate-[accent-ring_1.2s_ease-out_infinite]"
       />
       <div className="relative w-14 h-14 rounded-xl border-2 border-brand-accent bg-brand-accent/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-brand-accent/30">
         <div className="w-5 h-5 flex items-center justify-center">

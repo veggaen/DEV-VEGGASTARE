@@ -141,6 +141,13 @@ const nextConfig = {
                 pathname: '**',
             },
             {
+                // Discord OAuth profile pictures (Settings avatar preview crashed without it).
+                protocol: 'https',
+                hostname: 'cdn.discordapp.com',
+                port: '',
+                pathname: '/avatars/**',
+            },
+            {
                 protocol: 'http',
                 hostname: 'localhost',
                 port: '3001',
