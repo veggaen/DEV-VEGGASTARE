@@ -14,6 +14,7 @@ import { useConfirm } from '@/components/providers/confirm-dialog';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { FiPlus, FiMessageCircle, FiUsers, FiLock, FiTrash2, FiMoreVertical, FiShare2, FiEye, FiSearch, FiInbox } from 'react-icons/fi';
 import { formatDistanceToNow } from 'date-fns';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 interface Conversation {
   id: string;
@@ -105,11 +106,14 @@ function Inbox({ userId, role, readOnly }: { userId: string; role?: string; read
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-      <header className="mb-5 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">Messages</h1>
-          <Button asChild className="min-h-11 gap-2"><Link href="/conversations/new"><FiPlus aria-hidden />New chat</Link></Button>
-        </div>
+      <div className="mb-5 space-y-5">
+        <PageHeader
+          eyebrow="Inbox"
+          title="Messages"
+          description="Private conversations with sellers, buyers and support."
+          actions={<Button asChild className="min-h-11 gap-2"><Link href="/conversations/new"><FiPlus aria-hidden />New chat</Link></Button>}
+          className="border-b-0 pb-0"
+        />
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative min-w-0 flex-1">
             <FiSearch aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -120,7 +124,7 @@ function Inbox({ userId, role, readOnly }: { userId: string; role?: string; read
             <SelectContent><SelectItem value="active">Latest activity</SelectItem><SelectItem value="recent">Newest conversations</SelectItem></SelectContent>
           </Select>
         </div>
-      </header>
+      </div>
       {isLoading ? <ConversationListSkeleton count={6} /> : accessLost ? (
         <div role="alert" className="rounded-xl border border-border p-6 text-center"><p className="mb-4">Sign in again to view your messages.</p><Button asChild><Link href="/auth/login">Sign in</Link></Button></div>
       ) : (

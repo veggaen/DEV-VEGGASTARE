@@ -9,6 +9,7 @@ import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { CompaniesPublicResponseSchema, CompaniesByUserRelationResponseSchema } from '@/lib/types/company';
 import { FiPlus, FiBriefcase, FiUsers, FiGlobe, FiHome } from 'react-icons/fi';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 interface PublicCompany {
   id: string;
@@ -182,21 +183,19 @@ const AllCompanies = () => {
     <div className="w-full">
       <div data-company-directory className="mx-auto w-full max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Companies</h1>
-            <p className="mt-1 text-sm text-foreground/80">
-              Discover independent businesses and browse their products.
-            </p>
-          </div>
-          <Link
+        <PageHeader
+          eyebrow="Directory"
+          title="Companies"
+          description="Independent businesses selling on Veggat. Open a storefront to browse its products."
+          actions={<Link
             href="/companies/create"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-foreground/[0.06] px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-surface-1 px-4 py-2 text-sm font-semibold shadow-e1 transition-[border-color,background-color,transform] duration-200 hover:border-foreground/30 hover:bg-foreground/[0.05] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <FiPlus className="h-4 w-4" />
             {isDemo ? 'Company setup preview' : 'Create company'}
-          </Link>
-        </div>
+          </Link>}
+          className="mb-8"
+        />
 
         {isDemo && <p className="mb-6 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Demo preview: explore storefronts below. Company creation and team changes require your own account.</p>}
         {(sessionLoading || relatedQuery.isLoading) && <p role="status" className="mb-6 text-sm text-muted-foreground">Checking your workspace…</p>}

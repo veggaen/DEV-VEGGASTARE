@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { FiDownload, FiFile, FiRefreshCw } from 'react-icons/fi';
 import { usePrivateDownload } from '@/hooks/use-private-download';
 import PrivateDownloadButton from '@/components/checkout/private-download-button';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 interface DownloadToken {
   id: string; token: string; maxUses: number; usedCount: number; expiresAt: string | null; isRevoked: boolean;
@@ -40,10 +41,14 @@ export default function MyDownloadsPage() {
   const loading = !user || isLoading;
   return <section aria-labelledby="downloads-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
     <div className="mx-auto max-w-4xl">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0"><h1 id="downloads-title" className="text-2xl font-semibold tracking-tight">My downloads</h1><p className="mt-1 max-w-lg text-sm leading-relaxed text-muted-foreground">Your private digital files. Stay signed in to download, and check each link’s expiry below.</p></div>
-        <div className="flex w-full gap-2 sm:w-auto"><Button variant="outline" className="h-11 flex-1 gap-2 sm:flex-none" disabled={loading || isValidating || !!pending} onClick={() => void mutate()}><FiRefreshCw aria-hidden />{isValidating && !loading ? 'Refreshing…' : 'Refresh'}</Button><Button variant="outline" className="h-11 flex-1 sm:flex-none" asChild><Link href="/my-orders">My orders</Link></Button></div>
-      </div>
+      <PageHeader
+        eyebrow="Purchases"
+        titleId="downloads-title"
+        title="My downloads"
+        description="Your private digital files. Stay signed in to download, and check each link’s expiry below."
+        actions={<><Button variant="outline" className="h-11 flex-1 gap-2 sm:flex-none" disabled={loading || isValidating || !!pending} onClick={() => void mutate()}><FiRefreshCw aria-hidden />{isValidating && !loading ? 'Refreshing…' : 'Refresh'}</Button><Button variant="outline" className="h-11 flex-1 sm:flex-none" asChild><Link href="/my-orders">My orders</Link></Button></>}
+        className="mb-6"
+      />
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>{error instanceof Error && error.name !== 'TimeoutError' ? error.message : 'The request timed out. Please try again.'}</p><Button variant="outline" className="mt-3 h-11" onClick={() => void mutate()}>Try again</Button></div>}
       {loading ? <div role="status" aria-label="Loading downloads" className="space-y-4">{[0, 1].map(i => <div key={i} className="min-h-80 rounded-xl border border-border p-4 sm:min-h-64 sm:p-5"><div className="flex gap-4"><span className="h-16 w-16 shrink-0 rounded-lg bg-muted motion-safe:animate-pulse" /><span className="h-5 w-1/2 rounded bg-muted motion-safe:animate-pulse" /></div><div className="mt-5 h-4 w-2/3 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-16 w-full rounded bg-muted motion-safe:animate-pulse" /><div className="mt-5 h-11 w-full rounded bg-muted motion-safe:animate-pulse sm:w-36" /></div>)}</div>
         : data?.downloads.length ? <ul aria-label="Your downloads" className="space-y-4">{data.downloads.map(file => {

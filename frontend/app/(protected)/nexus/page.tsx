@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fi';
 import { MdBusiness } from 'react-icons/md';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export default function NexusPage() {
   const reduceMotion = useReducedMotion();
@@ -150,10 +151,12 @@ export default function NexusPage() {
           transition={{ duration: 0.35, ease: "easeOut" }}
         >
           {/* Header */}
-          <header className="mb-10">
-            <h1 className="text-3xl font-semibold text-foreground sm:text-4xl mb-2">Nexus</h1>
-            <p className="text-muted-foreground text-sm">Your command center. Quick access to everything.</p>
-          </header>
+          <PageHeader
+            eyebrow="Your workspace"
+            title="Nexus"
+            description="Your command center: profile, community, jobs and business tools in one place."
+            className="mb-10"
+          />
 
           {/* Quick Links Grid */}
           <div className="space-y-8">

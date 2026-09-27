@@ -5,23 +5,22 @@ import { CreditCard, Store, WalletCards } from 'lucide-react';
 import { MyProductCreationForm } from '@/components/uicustom/product/forms/product-form';
 import { Button } from '@/components/ui/button';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export default function MyProductCreationPage() {
   const { user } = useCurrentUserWithStatus();
   return (
     <div className="h-full w-full overflow-y-auto bg-background text-foreground">
       <section aria-label="Create product" className="mx-auto w-full max-w-[1040px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              <Store aria-hidden="true" className="h-3.5 w-3.5" /> Create listing
-            </div>
-            <h1 className="mt-2 text-2xl font-semibold text-foreground sm:text-3xl">Product details</h1>
-          </div>
-          <Link href="/products" className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+        <PageHeader
+          eyebrow={<span className="inline-flex items-center gap-2"><Store aria-hidden="true" className="h-3.5 w-3.5" /> Create listing</span>}
+          title="Product details"
+          description="Describe what you are selling, set the price and add files or shipping details."
+          actions={<Link href="/products" className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
             Back to products
-          </Link>
-        </div>
+          </Link>}
+          className="mb-5"
+        />
         <aside aria-label="Listing availability" className="mb-6 rounded-lg border border-border bg-muted/25 p-4 text-sm leading-relaxed">
           <p className="font-medium">{user?.isDemo ? 'Explore listing creation in demo mode' : 'Publishing does not activate checkout'}</p>
           <p className="mt-1 text-muted-foreground">

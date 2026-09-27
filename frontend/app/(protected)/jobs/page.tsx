@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { readJobRequests } from '@/lib/job-requests-read';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 const dateFormatter = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' });
 function requestDate(value: string) {
@@ -56,13 +57,12 @@ export default function JobsPage() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-      <header className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Browse requests</h1>
-        <p className="max-w-2xl text-pretty text-muted-foreground">
-          Explore requests for products, services, and custom work. This experimental board is separate from the marketplace and does not process project payments.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Experimental · Job board"
+        size="lg"
+        title="Browse requests"
+        description="Requests for products, services and custom work. This board is separate from the marketplace and does not process project payments."
+      />
 
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0 space-y-2">
