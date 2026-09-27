@@ -404,7 +404,7 @@ export const PriceSlider = ({
               onChange={(e) => setMaxInputValue(e.target.value)}
               onBlur={handleMaxBlur}
               onKeyDown={handleMaxKeyDown}
-              className="w-full h-11 bg-surface-1/60 border border-violet-400/50 dark:border-violet-500/40 rounded px-1.5 text-base font-medium text-foreground/90 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+              className="w-full h-11 bg-surface-1/60 border border-brand-accent/50 rounded px-1.5 text-base font-medium text-foreground/90 tabular-nums text-right outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/50"
               autoFocus
             />
           ) : (
@@ -412,7 +412,7 @@ export const PriceSlider = ({
               type="button"
               onClick={handleMaxClick}
               aria-label="Edit maximum price"
-              className="group min-h-11 w-full text-right text-sm font-medium text-foreground/90 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-surface-1/40 transition-colors cursor-text border border-transparent hover:border-violet-400/30 dark:hover:border-violet-500/20"
+              className="group min-h-11 w-full text-right text-sm font-medium text-foreground/90 tabular-nums truncate rounded px-1 -mx-1 py-0.5 -my-0.5 hover:bg-surface-1/40 transition-colors cursor-text border border-transparent hover:border-brand-accent/30"
               title="Click to edit"
             >
               {formatValue(effectiveMax)}
@@ -449,7 +449,7 @@ export const PriceSlider = ({
             }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
-              background: `radial-gradient(ellipse 200% 100% at ${glowPosition * 100}% 50%, rgba(34,197,94,0.4), rgba(56,189,248,0.3), transparent 70%)`,
+              background: `radial-gradient(ellipse 200% 100% at ${glowPosition * 100}% 50%, hsl(var(--brand-accent) / 0.4), hsl(var(--brand-accent) / 0.2), transparent 70%)`,
             }}
           />
         </motion.div>
@@ -461,8 +461,8 @@ export const PriceSlider = ({
             left: trackPadding + minPx,
             width: Math.max(0, maxPx - minPx),
             background: isDragging
-              ? 'linear-gradient(90deg, rgba(34,197,94,0.8), rgba(56,189,248,0.7), rgba(167,139,250,0.6))'
-              : 'linear-gradient(90deg, rgba(34,197,94,0.6), rgba(56,189,248,0.5), rgba(167,139,250,0.4))',
+              ? 'linear-gradient(90deg, hsl(var(--brand-accent) / 0.85), hsl(var(--brand-accent) / 0.55))'
+              : 'linear-gradient(90deg, hsl(var(--brand-accent) / 0.65), hsl(var(--brand-accent) / 0.35))',
             transition: 'background 0.2s',
           }}
         />
@@ -504,7 +504,7 @@ export const PriceSlider = ({
             }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
-              background: 'radial-gradient(circle, rgba(34,197,94,0.6), rgba(56,189,248,0.4), transparent 70%)',
+              background: 'radial-gradient(circle, hsl(var(--brand-accent) / 0.6), hsl(var(--brand-accent) / 0.25), transparent 70%)',
               filter: 'blur(4px)',
             }}
           />
@@ -534,7 +534,7 @@ export const PriceSlider = ({
           className={cn(
             "absolute size-11 rounded-full cursor-grab active:cursor-grabbing",
             "flex items-center justify-center",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             // Dragging handle always on top, otherwise last dragged handle on top
             isDragging === 'max' ? "z-30" : isDragging === 'min' ? "z-10" : lastDragged === 'max' ? "z-20" : "z-10"
           )}
@@ -558,7 +558,7 @@ export const PriceSlider = ({
             }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
             style={{
-              background: 'radial-gradient(circle, rgba(167,139,250,0.6), rgba(236,72,153,0.4), transparent 70%)',
+              background: 'radial-gradient(circle, hsl(var(--brand-accent) / 0.6), hsl(var(--brand-accent) / 0.25), transparent 70%)',
               filter: 'blur(4px)',
             }}
           />
@@ -567,20 +567,15 @@ export const PriceSlider = ({
             "relative w-5 h-5 rounded-full shadow-md motion-safe:transition-transform motion-safe:duration-150",
             "bg-linear-to-br from-background to-muted",
             "dark:from-muted dark:to-surface-3",
-            "border-2 border-violet-500 dark:border-violet-400",
+            "border-2 border-brand-accent",
             "motion-safe:[@media(hover:hover)]:hover:scale-110 motion-safe:active:scale-110",
             isDragging === 'max' && "scale-115"
           )}>
-            <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-violet-200/30 to-transparent dark:from-violet-400/20" />
+            <div className="absolute inset-0.5 rounded-full bg-linear-to-br from-brand-accent/30 to-transparent dark:from-brand-accent/20" />
           </div>
         </motion.div>
       </div>
 
-      {/* Range labels */}
-      <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground/80">
-        <span>{formatValue(rangeMin)}</span>
-        <span>{formatValue(rangeMax)}</span>
-      </div>
     </div>
   );
 };

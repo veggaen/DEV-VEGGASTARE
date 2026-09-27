@@ -91,7 +91,8 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
     } finally { adding.current = false; setPending(null); }
   }
 
-  const imageClass = 'object-cover transition-transform duration-700 ease-out motion-reduce:transition-none [@media(hover:hover)]:motion-safe:group-hover:scale-[1.05]';
+  // No zoom on hover: the trailing box is the hover; the picture stays still.
+  const imageClass = 'object-cover';
   const arrowClass = 'flex size-10 border-border/60 bg-background/85 text-foreground shadow-e1 backdrop-blur-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 disabled:invisible';
 
   return (
