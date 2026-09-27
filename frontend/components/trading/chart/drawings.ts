@@ -6,7 +6,7 @@
  * @stability     experimental
  */
 
-export type DrawingTool = "cursor" | "trend" | "ray" | "hline" | "rect" | "fib";
+export type DrawingTool = "cursor" | "trend" | "ray" | "extended" | "hline" | "vline" | "crossline" | "rect" | "fib";
 export type DrawingType = Exclude<DrawingTool, "cursor">;
 export type Anchor = { t: number; p: number };
 export type Drawing = { id: string; type: DrawingType; points: Anchor[]; locked?: boolean };
@@ -15,7 +15,10 @@ export const TOOLS: Array<{ id: DrawingTool; label: string; hint: string }> = [
   { id: "cursor", label: "Cursor", hint: "Select, move and pan" },
   { id: "trend", label: "Trend line", hint: "Two clicks, or press and drag" },
   { id: "ray", label: "Ray", hint: "Trend line that extends right" },
+  { id: "extended", label: "Extended line", hint: "Trend line that extends both ways" },
   { id: "hline", label: "Horizontal line", hint: "One click at a price" },
+  { id: "vline", label: "Vertical line", hint: "One click at a time" },
+  { id: "crossline", label: "Cross line", hint: "One click: a price and a time" },
   { id: "rect", label: "Rectangle", hint: "Two corners" },
   { id: "fib", label: "Fib retracement", hint: "From swing low to swing high (or the reverse)" },
 ];
@@ -23,7 +26,7 @@ export const TOOLS: Array<{ id: DrawingTool; label: string; hint: string }> = [
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 
 export function pointsNeeded(type: DrawingType): number {
-  return type === "hline" ? 1 : 2;
+  return type === "hline" || type === "vline" || type === "crossline" ? 1 : 2;
 }
 
 export function newDrawingId(): string {

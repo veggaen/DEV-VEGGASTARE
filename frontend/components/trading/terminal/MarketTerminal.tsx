@@ -14,8 +14,10 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  ChartArea, ChartCandlestick, ChartLine, ChevronDown, Layers, Maximize2, Minimize2, Minus, MousePointer2, MoveUpRight, RefreshCw, RotateCcw, Square, Trash2, TrendingUp,
+  Activity, ChartArea, ChartCandlestick, ChartLine, ChevronDown, Crosshair, GitCompare, Layers, Maximize2, Minimize2, Minus, MousePointer2, MoveHorizontal, MoveUpRight, RefreshCw, RotateCcw, SeparatorVertical, Square, Trash2, TrendingUp, X,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { INDICATOR_CATALOGUE, defaultIndicator, indicatorLabel, loadIndicators, saveIndicators, type IndicatorConfig } from "@/components/trading/chart/indicators";
 import { useCurrentUserWithStatus } from "@/hooks/use-current-user";
 import { useAccount } from "wagmi";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
@@ -41,7 +43,9 @@ const SYMBOL_KEY = "veggat:terminal:symbol";
 const TRADE_MODE_KEY = "veggat:terminal:tradeMode";
 type TerminalTradeMode = "paper" | "live";
 const INTERVAL_KEY = "veggat:terminal:interval";
-const TOOL_ICONS: Record<DrawingTool, React.ComponentType<{ className?: string }>> = { cursor: MousePointer2, trend: TrendingUp, ray: MoveUpRight, hline: Minus, rect: Square, fib: Layers };
+const TOOL_ICONS: Record<DrawingTool, React.ComponentType<{ className?: string }>> = { cursor: MousePointer2, trend: TrendingUp, ray: MoveUpRight, extended: MoveHorizontal, hline: Minus, vline: SeparatorVertical, crossline: Crosshair, rect: Square, fib: Layers };
+const menuContent = "z-[120] min-w-60 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl";
+const menuItem = "min-h-9 gap-2 rounded-lg px-2.5 text-xs";
 
 function readStored<T extends string>(key: string, valid: (v: string) => v is T, fallback: T): T {
   try { const v = localStorage.getItem(key); return v && valid(v) ? v : fallback; } catch { return fallback; }
@@ -49,6 +53,7 @@ function readStored<T extends string>(key: string, valid: (v: string) => v is T,
 
 const iconBtn = "grid size-8 place-items-center rounded-lg text-muted-foreground transition-[background-color,color] duration-150 hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
 const iconBtnActive = "bg-brand-accent/12 text-brand-accent-hover ring-1 ring-inset ring-brand-accent/30 dark:text-brand-accent-light";
+const textBtn = "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-muted-foreground transition-[background-color,color] duration-150 hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function MarketTerminal({ className }: { className?: string }) {
   const { user, status } = useCurrentUserWithStatus();
@@ -83,6 +88,9 @@ export function MarketTerminal({ className }: { className?: string }) {
   const [drawings, setDrawings] = React.useState<Drawing[]>([]);
   const [listOpen, setListOpen] = React.useState(false);
   const [full, setFull] = React.useState(false);
+  const [indicators, setIndicators] = React.useState<IndicatorConfig[]>([]);
+  const updateIndicators = React.useCallback((next: IndicatorConfig[]) => { setIndicators(next); saveIndicators(next); }, []);
+  const [compareSymbol, setCompareSymbol] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     // Restore the last market/timeframe once, after mount (localStorage is
@@ -90,7 +98,7 @@ export function MarketTerminal({ className }: { className?: string }) {
     // so a StrictMode double run can never overwrite the stored value.
     const s = readStored(SYMBOL_KEY, (v): v is string => Boolean(marketBySymbol(v)), "BTC");
     const i = readStored(INTERVAL_KEY, (v): v is Interval => (INTERVALS as readonly string[]).includes(v), "1h");
-    setSymbol(s); setInterval_(i); setDrawings(loadDrawings(s));
+    setSymbol(s); setInterval_(i); setDrawings(loadDrawings(s)); setIndicators(loadIndicators());
   }, []);
   const setInterval = React.useCallback((iv: Interval) => { setInterval_(iv); try { localStorage.setItem(INTERVAL_KEY, iv); } catch { /* optional */ } }, []);
 
@@ -99,6 +107,10 @@ export function MarketTerminal({ className }: { className?: string }) {
   const ticker = tickers.get(market.symbol);
   const { candles, data: candleData, loading: candlesLoading, error: candlesError, refresh: refreshCandles } = useCandles(market.symbol, interval);
   const livePrice = ticker?.price ?? candles[candles.length - 1]?.c ?? null;
+  // Compare: a second market on a percent basis from the first visible bar.
+  const compareMarket = compareSymbol && compareSymbol !== market.symbol ? marketBySymbol(compareSymbol) : undefined;
+  const { candles: compareCandles } = useCandles(compareMarket?.symbol ?? "", interval);
+  const compare = compareMarket ? { symbol: compareMarket.symbol, candles: compareCandles, color: compareMarket.color } : null;
 
   const selectMarket = React.useCallback((m: Market) => {
     setSymbol(m.symbol); setDrawings(loadDrawings(m.symbol)); setTool("cursor"); setListOpen(false);
@@ -268,6 +280,49 @@ export function MarketTerminal({ className }: { className?: string }) {
                 <button type="button" aria-label="Clear drawings" disabled={!drawings.length} onClick={() => updateDrawings([])} className={cn(iconBtn, "size-7 hover:text-chart-down")}><Trash2 className="size-4" /></button>
               </HeaderTip>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="Indicators" className={cn(textBtn, indicators.length > 0 && iconBtnActive)}>
+                  <Activity className="size-4" /> Indicators{indicators.length > 0 && <span className="tabular-nums">· {indicators.length}</span>}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={menuContent}>
+                {indicators.length > 0 && (
+                  <>
+                    <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">On the chart · click to remove</p>
+                    {indicators.map((c) => (
+                      <DropdownMenuItem key={c.id} onSelect={(e) => { e.preventDefault(); updateIndicators(indicators.filter((x) => x.id !== c.id)); }} className={cn(menuItem, "justify-between")}>
+                        <span>{indicatorLabel(c)}</span><X className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                      </DropdownMenuItem>
+                    ))}
+                    <div className="my-1 h-px bg-border/60" role="separator" />
+                  </>
+                )}
+                <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Add</p>
+                {INDICATOR_CATALOGUE.map((m) => (
+                  <DropdownMenuItem key={m.type} onSelect={(e) => { e.preventDefault(); updateIndicators([...indicators, defaultIndicator(m.type)]); }} className={menuItem}>
+                    <span className="min-w-0 flex-1">{m.label}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.placement === "pane" ? "pane" : "overlay"}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="Compare with another market" className={cn(textBtn, compare && iconBtnActive)}>
+                  <GitCompare className="size-4" /> {compare ? `vs ${compare.symbol}` : "Compare"}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={cn(menuContent, "max-h-80 overflow-y-auto")}>
+                <DropdownMenuItem onSelect={() => setCompareSymbol(null)} className={cn(menuItem, !compare && "bg-brand-accent/[0.08]")}>None</DropdownMenuItem>
+                {CHARTABLE_MARKETS.filter((m) => m.symbol !== market.symbol).map((m) => (
+                  <DropdownMenuItem key={m.symbol} onSelect={() => setCompareSymbol(m.symbol)} className={cn(menuItem, compare?.symbol === m.symbol && "bg-brand-accent/[0.08]")}>
+                    <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: m.color }} />
+                    <span className="font-semibold">{m.symbol}</span><span className="min-w-0 flex-1 truncate text-muted-foreground">{m.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -301,7 +356,7 @@ export function MarketTerminal({ className }: { className?: string }) {
 
           <div className="flex min-h-0 flex-col">
             <div className="relative min-h-[360px] flex-1 lg:min-h-0">
-              <CandleChart candles={candles} interval={interval} chartType={chartType} tool={tool} onToolDone={() => setTool("cursor")} drawings={drawings} onDrawingsChange={updateDrawings} fitKey={market.symbol} className="absolute inset-0" />
+              <CandleChart candles={candles} interval={interval} chartType={chartType} tool={tool} onToolDone={() => setTool("cursor")} drawings={drawings} onDrawingsChange={updateDrawings} indicators={indicators} compare={compare} fitKey={market.symbol} className="absolute inset-0" />
               {candlesLoading && !candles.length && <div role="status" className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">Loading {market.symbol} candles…</div>}
               {candlesError && !candles.length && <div role="alert" className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground">Candles are unavailable right now. <button type="button" onClick={() => void refreshCandles()} className="ml-1 underline underline-offset-4 hover:text-foreground">Try again</button></div>}
               {candleData?.approximate && <p className="pointer-events-none absolute bottom-8 left-3 rounded-md bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">Approximate bars from CoinGecko for this market and timeframe.</p>}

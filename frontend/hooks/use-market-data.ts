@@ -27,6 +27,8 @@ export function useCandles(symbol: string, interval: Interval, limit = 500) {
 
   const load = useCallback(async (mode: "full" | "tail") => {
     const id = ++request.current;
+    // No symbol (e.g. no compare market chosen) means nothing to load.
+    if (!symbol) { setLoading(false); return; }
     const n = mode === "full" ? limit : 3;
     try {
       const res = await fetch(`/api/market/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${n}`, { cache: "no-store" });
