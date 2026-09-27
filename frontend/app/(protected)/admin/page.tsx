@@ -311,7 +311,7 @@ export default function AdminPage() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Top Users Today</h3>
                 <div className="space-y-2">
                   {stats.ai.topUsersToday.map((u) => (
-                    <div key={u.userId} className="flex items-center gap-3 px-3 py-2 bg-muted/40 rounded-lg text-sm">
+                    <div key={u.userId} className="flex items-center gap-3 px-3 py-2 bg-foreground/[0.05] rounded-lg text-sm">
                       {u.image ? (
                         <Image src={u.image} alt="" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
                       ) : (
@@ -358,7 +358,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType
   const classes = colorMap[color] ?? colorMap.emerald;
 
   return (
-    <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/40">
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-foreground/[0.05]">
       <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", classes)}>
         <Icon className="h-5 w-5" />
       </div>

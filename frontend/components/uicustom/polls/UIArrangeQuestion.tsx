@@ -357,7 +357,7 @@ export function UIArrangeQuestion({
       </div>
 
       {/* Arrange area */}
-      <div className="relative bg-muted/30 rounded-xl p-4 overflow-hidden">
+      <div className="relative bg-foreground/[0.04] rounded-xl p-4 overflow-hidden">
         {/* Grid background */}
         {showGrid && (
           <div
@@ -468,7 +468,7 @@ export const UI_ARRANGE_PRESETS = {
       { id: "urgent-important", label: "Do First", x: 0, y: 0, width: 2, height: 2, color: "bg-red-500/80" },
       { id: "not-urgent-important", label: "Schedule", x: 2, y: 0, width: 2, height: 2, color: "bg-blue-500/80" },
       { id: "urgent-not-important", label: "Delegate", x: 0, y: 2, width: 2, height: 2, color: "bg-yellow-500/80" },
-      { id: "not-urgent-not-important", label: "Don't Do", x: 2, y: 2, width: 2, height: 2, color: "bg-muted/80" },
+      { id: "not-urgent-not-important", label: "Don't Do", x: 2, y: 2, width: 2, height: 2, color: "bg-foreground/[0.09]" },
     ],
   },
 

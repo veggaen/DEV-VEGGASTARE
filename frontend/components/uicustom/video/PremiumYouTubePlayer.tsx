@@ -187,7 +187,7 @@ export default function PremiumYouTubePlayer({
             onClick={handleReplay}
           >
             <button
-              className="flex items-center justify-center h-20 w-20 rounded-full bg-muted/40 text-foreground backdrop-blur-sm transition hover:bg-muted/60 hover:scale-110"
+              className="flex items-center justify-center h-20 w-20 rounded-full bg-foreground/[0.05] text-foreground backdrop-blur-sm transition hover:bg-foreground/[0.07] hover:scale-110"
             >
               <FiRotateCcw className="h-8 w-8" />
             </button>

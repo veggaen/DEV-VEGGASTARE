@@ -233,7 +233,7 @@ export function QuestionCommentButton({
               )}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/50">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-foreground/[0.06]">
                 <span className="text-xs font-medium flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
                   {hasComment ? "Edit Comment" : "Add Comment"}

@@ -549,7 +549,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
           });
         }}>
             {/* Header */}
-            <div className="relative flex shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3 py-2 sm:px-5">
+            <div className="relative flex shrink-0 items-center justify-between border-b border-border bg-foreground/[0.05] px-3 py-2 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent/20">
                   <FiTrendingUp className="h-4 w-4 text-brand-accent-hover dark:text-brand-accent-light" />
@@ -1051,7 +1051,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
                               {/* Inline reply input */}
                               {replyingToId === message.id && currentUser && (
-                                <div className="mt-3 rounded-lg bg-muted/40 p-2 border border-border">
+                                <div className="mt-3 rounded-lg bg-foreground/[0.05] p-2 border border-border">
                                   <div className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
                                     <FiCornerDownRight className="h-3 w-3" />
                                     <span>Replying to <strong className="text-foreground/80">{message.sender?.name || 'Anonymous'}</strong></span>
@@ -1104,14 +1104,14 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
                 {/* Message input */}
                 {currentUser ? (
-                  <div className="shrink-0 border-t border-border bg-muted/40 p-4">
+                  <div className="shrink-0 border-t border-border bg-foreground/[0.05] p-4">
                     <MessageInput
                       conversationId={pulseId!}
                       onMessageSent={handleMessageSent}
                     />
                   </div>
                 ) : (
-                  <div className="shrink-0 border-t border-border bg-muted/40 p-4">
+                  <div className="shrink-0 border-t border-border bg-foreground/[0.05] p-4">
                     <p className="text-center text-sm text-muted-foreground">
                       <Button
                         variant="link"

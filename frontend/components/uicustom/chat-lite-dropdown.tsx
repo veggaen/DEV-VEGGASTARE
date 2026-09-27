@@ -112,7 +112,7 @@ function MessagePreview({ userId, searchRef, onNavigate }: { userId: string; sea
           const updated = item.lastMessage?.createdAt || item.lastActivityAt || item.updatedAt;
           const date = new Date(updated);
           return <li key={item.id}>
-            <Link href={`/conversations/${encodeURIComponent(item.id)}`} prefetch={false} onClick={onNavigate} className="flex min-w-0 items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+            <Link href={`/conversations/${encodeURIComponent(item.id)}`} prefetch={false} onClick={onNavigate} className="flex min-w-0 items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-foreground/[0.07] focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
               <Avatar className="h-11 w-11 shrink-0"><AvatarImage src={other?.image ?? undefined} alt="" /><AvatarFallback>{name[0]?.toUpperCase() || '?'}</AvatarFallback></Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{name}</p>

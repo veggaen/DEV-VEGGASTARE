@@ -294,7 +294,7 @@ export function ImagePasteInput({
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             isDragOver
               ? "border-primary bg-primary/10"
-              : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50",
+              : "border-muted-foreground/30 hover:border-primary/50 hover:bg-foreground/[0.06]",
             isUploading && "pointer-events-none opacity-70",
             disabled && "opacity-50 cursor-not-allowed"
           )}

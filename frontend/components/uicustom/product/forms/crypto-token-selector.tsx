@@ -137,7 +137,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               className={`group flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 isActive
                   ? 'bg-brand-accent/[0.07] ring-1 ring-brand-accent/40 dark:bg-brand-accent/[0.06]'
-                  : 'hover:-translate-y-0.5 hover:bg-muted/40'
+                  : 'hover:-translate-y-0.5 hover:bg-foreground/[0.05]'
               }`}
             >
               <TokenIcon color={preset.color} glyph={preset.glyph} size="md" />

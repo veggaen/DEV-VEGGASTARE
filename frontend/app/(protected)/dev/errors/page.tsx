@@ -115,7 +115,7 @@ export default function DevClientErrorsPage() {
         {filtered.map((r, idx) => (
           <details
             key={`${r.ts ?? 'no-ts'}-${idx}`}
-            className="rounded-xl border border-border bg-surface-1/70 p-4 shadow-sm shadow-black/[0.03] dark:bg-muted/40"
+            className="rounded-xl border border-border bg-surface-1/70 p-4 shadow-sm shadow-black/[0.03] dark:bg-foreground/[0.05]"
           >
             <summary className="cursor-pointer list-none">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -148,7 +148,7 @@ export default function DevClientErrorsPage() {
               {r.stack && (
                 <div className="text-xs text-muted-foreground">
                   <div className="font-semibold text-foreground/80">Stack</div>
-                  <pre className="mt-1 max-h-[360px] overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-[11px] leading-4 text-foreground dark:bg-muted">
+                  <pre className="mt-1 max-h-[360px] overflow-auto rounded-lg border border-border bg-foreground/[0.05] p-3 text-[11px] leading-4 text-foreground dark:bg-muted">
 {r.stack}
                   </pre>
                 </div>
@@ -156,7 +156,7 @@ export default function DevClientErrorsPage() {
 
               <div className="text-xs text-muted-foreground">
                 <div className="font-semibold text-foreground/80">Raw</div>
-                <pre className="mt-1 max-h-[240px] overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-[11px] leading-4 text-foreground dark:bg-muted">
+                <pre className="mt-1 max-h-[240px] overflow-auto rounded-lg border border-border bg-foreground/[0.05] p-3 text-[11px] leading-4 text-foreground dark:bg-muted">
 {JSON.stringify(r, null, 2)}
                 </pre>
               </div>
@@ -165,7 +165,7 @@ export default function DevClientErrorsPage() {
         ))}
 
         {!loading && filtered.length === 0 && (
-          <div className="rounded-xl border border-border bg-surface-1/70 p-8 text-sm text-muted-foreground dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-surface-1/70 p-8 text-sm text-muted-foreground dark:bg-foreground/[0.05]">
             No records found.
           </div>
         )}

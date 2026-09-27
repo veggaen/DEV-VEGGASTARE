@@ -273,7 +273,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                  className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                 >
                   <FiX className="h-4 w-4" />
                 </button>
@@ -282,7 +282,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
 
             <div className="grid min-h-0 gap-5 overflow-y-auto p-4 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
               <div className="space-y-5">
-                <section className="rounded-3xl border border-border bg-muted/40 p-4 sm:p-5">
+                <section className="rounded-3xl border border-border bg-foreground/[0.05] p-4 sm:p-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -318,7 +318,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                         "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         monitorActive
                           ? "border-brand-accent/40 bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/20"
-                          : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                          : "border-border bg-foreground/[0.05] text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
                       )}
                       aria-pressed={monitorActive}
                       title="Play your microphone back through the selected output"
@@ -333,7 +333,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                           setMonitorActive(false);
                           stop();
                         }}
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                         aria-label="Stop mic test"
                         title="Stop mic test"
                       >
@@ -343,7 +343,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                     )}
                     <button
                       onClick={() => void loadDevices()}
-                      className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                      className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                       aria-label="Refresh devices"
                       title="Refresh devices"
                     >
@@ -358,7 +358,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                       message={error ?? deviceNotice ?? ""}
                     >
                       {debugInfo && (
-                        <div className="basis-full rounded-lg bg-muted/40 px-2.5 py-1.5 font-mono text-[10px] text-current/75">
+                        <div className="basis-full rounded-lg bg-foreground/[0.05] px-2.5 py-1.5 font-mono text-[10px] text-current/75">
                           {debugInfo}
                         </div>
                       )}
@@ -440,14 +440,14 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                   <button
                     onClick={chooseOutput}
                     disabled={!supportsAudioOutputPicker()}
-                    className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm transition-colors hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-border bg-foreground/[0.05] px-3 py-2 text-sm transition-colors hover:bg-foreground/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Choose speaker
                   </button>
                   <button
                     onClick={playOutputTest}
                     disabled={testingOutput}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm transition-colors hover:bg-muted/40 disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-foreground/[0.05] px-3 py-2 text-sm transition-colors hover:bg-foreground/[0.05] disabled:opacity-60"
                   >
                     <FiVolume2 className="h-4 w-4" /> {testingOutput ? "Playing" : "Test"}
                   </button>
@@ -595,7 +595,7 @@ function StatusBadge({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.05] px-2 py-1 text-[10px] font-medium text-muted-foreground">
       <FiMic className="h-3 w-3" /> Idle
     </span>
   );
@@ -705,7 +705,7 @@ function ToggleRow({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/55"
+      className="flex w-full items-center justify-between gap-3 rounded-xl bg-foreground/[0.05] px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/55"
     >
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
@@ -717,7 +717,7 @@ function ToggleRow({
           "relative h-7 w-12 shrink-0 rounded-full border p-0.5 transition-colors",
           checked
             ? "border-brand-accent/40 bg-brand-accent shadow-[0_0_18px_rgba(16,185,129,0.22)]"
-            : "border-border bg-muted dark:bg-muted/60",
+            : "border-border bg-muted dark:bg-foreground/[0.07]",
         )}
       >
         <span
@@ -739,7 +739,7 @@ function ModeButton({ active, onClick, title, desc }: { active: boolean; onClick
         "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
         active
           ? "border-brand-accent/40 bg-brand-accent/12 text-foreground"
-          : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted/40",
+          : "border-transparent bg-foreground/[0.05] text-muted-foreground hover:bg-foreground/[0.05]",
       )}
     >
       <span className="text-sm font-medium">{title}</span>
@@ -770,7 +770,7 @@ function PttKeyCapture({ value, onChange }: { value: string; onChange: (code: st
         "mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors",
         listening
           ? "animate-pulse border-brand-accent/50 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
-          : "border-border bg-muted/40 hover:bg-muted/40",
+          : "border-border bg-foreground/[0.05] hover:bg-foreground/[0.05]",
       )}
     >
       {listening ? "Press any key" : <>Hold key: <span className="font-semibold">{label}</span></>}

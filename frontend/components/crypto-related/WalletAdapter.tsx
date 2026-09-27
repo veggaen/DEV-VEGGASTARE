@@ -86,7 +86,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
           <DialogTrigger asChild>
 						<Button
 							variant="outline"
-							className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-muted/40 dark:hover:bg-muted/40"
+							className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05]"
 						>
 							{busy.evm || busy.sol ? (
 								"Connecting..."
@@ -212,7 +212,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
         <DialogTrigger asChild>
           <Button
             variant="outline"
-            className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-muted/40 dark:hover:bg-muted/40 flex items-center gap-2"
+            className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] flex items-center gap-2"
             title={address || "Not connected"}
           >
             <span className="truncate max-w-[180px]">{address ? trim(address) : "Not connected"}</span>
@@ -299,7 +299,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                         setOpen(false);
                       }}
                       variant="ghost"
-									className="h-[50px] border border-border bg-muted/40 hover:bg-muted text-foreground font-semibold rounded-xl transition-colors gap-3 justify-start dark:hover:bg-muted/40"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors gap-3 justify-start dark:hover:bg-foreground/[0.05]"
                       title={`Connect with ${w.adapter.name}`}
                       disabled={busy.sol}
                     >
@@ -327,7 +327,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                           setOpen(false);
                         }}
                         variant="ghost"
-									className="h-[50px] border border-border bg-muted/40 hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-muted/40"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-foreground/[0.05]"
                         title={`Connect with ${label}`}
                         disabled={busy.evm}
                       >
@@ -367,7 +367,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                           setOpen(false);
                         }}
                         variant="ghost"
-									className="h-[50px] border border-border bg-muted/40 hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-muted/40"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-foreground/[0.05]"
                         title={`Connect with ${label}`}
                         disabled={busy.evm}
                       >

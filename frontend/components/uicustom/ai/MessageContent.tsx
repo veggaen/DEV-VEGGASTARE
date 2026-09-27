@@ -15,11 +15,11 @@ export const MessageContent = memo(function MessageContent({ content }: { conten
       ol: ({ children }) => <ol className="my-3 list-decimal space-y-1 pl-6">{children}</ol>,
       a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-foreground/40 underline-offset-4 hover:decoration-foreground">{children}</a>,
       img: ({ src, alt }) => <a href={typeof src === 'string' ? src : undefined} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{alt || 'Open image'}</a>,
-      pre: ({ children }) => <pre tabIndex={0} aria-label="Code block" className="my-4 max-w-full overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-6 [overflow-wrap:normal] focus-visible:ring-2 focus-visible:ring-ring">{children}</pre>,
-      code: ({ children, className }) => <code className={className ?? 'rounded bg-muted/60 px-1 py-0.5 text-[0.9em]'}>{children}</code>,
+      pre: ({ children }) => <pre tabIndex={0} aria-label="Code block" className="my-4 max-w-full overflow-x-auto rounded-xl border border-border bg-foreground/[0.06] p-4 text-sm leading-6 [overflow-wrap:normal] focus-visible:ring-2 focus-visible:ring-ring">{children}</pre>,
+      code: ({ children, className }) => <code className={className ?? 'rounded bg-foreground/[0.07] px-1 py-0.5 text-[0.9em]'}>{children}</code>,
       blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-primary/50 pl-4 text-muted-foreground">{children}</blockquote>,
       table: ({ children }) => <div role="region" aria-label="Table" tabIndex={0} className="my-4 max-w-full overflow-x-auto rounded-xl border border-border"><table className="w-full border-collapse text-left text-sm">{children}</table></div>,
-      th: ({ children }) => <th className="border-b border-border bg-muted/50 px-3 py-2 font-semibold">{children}</th>,
+      th: ({ children }) => <th className="border-b border-border bg-foreground/[0.06] px-3 py-2 font-semibold">{children}</th>,
       td: ({ children }) => <td className="border-b border-border px-3 py-2">{children}</td>,
     }}>{content}</Markdown>
   </div>;

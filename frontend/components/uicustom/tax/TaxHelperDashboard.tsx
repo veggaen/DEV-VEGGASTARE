@@ -376,7 +376,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           { label: 'Estimated Tax', value: nok(tb.totalTaxLiability), icon: <FiDollarSign />, color: 'amber' },
           { label: 'Effective Tax Rate', value: pct(tb.effectiveTaxRate), icon: <FiFileText />, color: 'indigo' },
         ].map(card => (
-          <div key={card.label} className="rounded-xl border border-border bg-card p-4 dark:bg-muted/40">
+          <div key={card.label} className="rounded-xl border border-border bg-card p-4 dark:bg-foreground/[0.05]">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span className={`text-${card.color}-500`}>{card.icon}</span>
               <span className="text-xs font-medium">{card.label}</span>
@@ -391,7 +391,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
         {/* Left: Charts (2 cols) */}
         <div className="space-y-6 lg:col-span-2">
           {/* Revenue Trend */}
-          <div className="rounded-xl border border-border bg-card p-6 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-6 dark:bg-foreground/[0.05]">
             <h3 className="mb-4 text-sm font-semibold text-foreground">Monthly Revenue & Profit</h3>
             <div className="h-64">
               <Line data={trendData} options={{
@@ -414,7 +414,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           </div>
 
           {/* Tax Breakdown */}
-          <div className="rounded-xl border border-border bg-card p-6 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-6 dark:bg-foreground/[0.05]">
             <button
               onClick={() => setShowBreakdown(!showBreakdown)}
               className="flex w-full items-center justify-between text-left"
@@ -526,7 +526,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
 
           {/* Expense Breakdown Pie */}
           {expensesByCategory.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-6 dark:bg-muted/40">
+            <div className="rounded-xl border border-border bg-card p-6 dark:bg-foreground/[0.05]">
               <h3 className="mb-4 text-sm font-semibold text-foreground">Expenses by Category</h3>
               <div className="mx-auto h-64 max-w-xs">
                 <Pie data={expensePieData} options={{
@@ -543,7 +543,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
         <div className="space-y-6">
           {/* Tax Profile Card */}
           {profile && (
-            <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+            <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
               <h3 className="text-sm font-semibold text-foreground mb-2">Your Company Type</h3>
               <div className="rounded-lg bg-brand-accent/10 p-3 dark:bg-brand-accent/20">
                 <div className="font-medium text-brand-accent-hover dark:text-brand-accent-light">{profile.label}</div>
@@ -574,7 +574,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           )}
 
           {/* Quick Stats */}
-          <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
             <h3 className="text-sm font-semibold text-foreground mb-3">Overview {data.year}</h3>
             <div className="space-y-2 text-sm">
               {[
@@ -593,7 +593,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           </div>
 
           {/* Add Expense */}
-          <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground">Expenses</h3>
               <button
@@ -605,7 +605,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
             </div>
 
             {showExpenseForm && (
-              <div className="mb-4 space-y-2 rounded-lg bg-muted/40 p-3 dark:bg-surface-3/50">
+              <div className="mb-4 space-y-2 rounded-lg bg-foreground/[0.05] p-3 dark:bg-surface-3/50">
                 <select
                   value={expenseForm.category}
                   onChange={e => setExpenseForm(f => ({ ...f, category: e.target.value }))}
@@ -667,7 +667,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           </div>
 
           {/* VAT Summary */}
-          <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
             <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center">
               VAT Rates
               <TaxTip text="Merverdiavgift (MVA). VAT registration required when turnover exceeds NOK 50,000." sourceUrl={TAX_SOURCES.VAT} />
@@ -683,7 +683,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           </div>
 
           {/* Tax Export */}
-          <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
             <h3 className="text-sm font-semibold text-foreground mb-2">Export Tax Data</h3>
             <p className="text-[10px] text-muted-foreground mb-3">
               Download your tax records for Skatteetaten. Includes sales, expenses, salaries, and crypto payments with NOK conversion.
@@ -707,7 +707,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
           </div>
 
           {/* Official Sources & References */}
-          <div className="rounded-xl border border-border bg-card p-5 dark:bg-muted/40">
+          <div className="rounded-xl border border-border bg-card p-5 dark:bg-foreground/[0.05]">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
               <FiBook className="h-3.5 w-3.5 text-indigo-500" />
               Official Sources
@@ -734,7 +734,7 @@ export default function TaxHelperDashboard({ companyId }: { companyId: string })
                   href={src.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 hover:bg-muted/40 transition-colors group"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 hover:bg-foreground/[0.05] transition-colors group"
                 >
                   <div className="min-w-0">
                     <div className="font-medium text-foreground/85 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{src.label}</div>

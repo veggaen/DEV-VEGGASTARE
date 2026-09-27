@@ -204,7 +204,7 @@ export function AddressAutocomplete({
                 type="button"
                 onClick={() => handleSelectSuggestion(suggestion)}
                 className={cn(
-                  'w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors',
+                  'w-full px-3 py-2 text-left text-sm hover:bg-foreground/[0.06] transition-colors',
                   'flex flex-col gap-0.5',
                   selectedIndex === index && 'bg-muted'
                 )}

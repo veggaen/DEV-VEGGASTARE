@@ -68,8 +68,8 @@ const COLOR_TARGET_MAP: Record<ColorType, string> = {
   yellow: "bg-yellow-400/20 border-yellow-500/50 ring-yellow-500/30",
   purple: "bg-purple-500/20 border-purple-500/50 ring-purple-500/30",
   orange: "bg-orange-500/20 border-orange-500/50 ring-orange-500/30",
-  black: "bg-muted/20 border-border/50 ring-border/30",
-  white: "bg-muted/60 border-border/50 ring-border/30",
+  black: "bg-foreground/[0.03] border-border/50 ring-border/30",
+  white: "bg-foreground/[0.07] border-border/50 ring-border/30",
 };
 
 // Shape SVG components
@@ -505,7 +505,7 @@ export function ShapeMatchQuestion({
         
         {/* Instructions */}
         {config.instructions && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-foreground/[0.06] rounded-lg px-3 py-2">
             <Shield className="w-4 h-4 text-blue-500 shrink-0" />
             {config.instructions}
           </div>

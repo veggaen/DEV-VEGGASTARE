@@ -1244,7 +1244,7 @@ function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
               onClick={() => onSelect(idx)}
               className={cn(
                 "w-full p-4 rounded-xl text-left transition",
-                "bg-surface-3/50 hover:bg-muted/70 border border-border/50 hover:border-border/50",
+                "bg-surface-3/50 hover:bg-foreground/[0.08] border border-border/50 hover:border-border/50",
                 isDone && "border-brand-accent/30 bg-brand-accent/5"
               )}
               initial={{ opacity: 0, x: -20 }}
@@ -1843,7 +1843,7 @@ function QuestionScreen({
                   "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors",
                   showComment 
                     ? "text-brand-accent border-brand-accent/30 bg-brand-accent/10" 
-                    : "text-muted-foreground border-border hover:border-border hover:text-foreground bg-muted/50"
+                    : "text-muted-foreground border-border hover:border-border hover:text-foreground bg-foreground/[0.06]"
                 )}
               >
                 <MessageSquarePlus className="h-4 w-4" />
@@ -2018,7 +2018,7 @@ function QuestionScreen({
                       animate={{ height: "auto", opacity: 1 }}
                       className="overflow-hidden"
                     >
-                      <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                      <div className="p-3 rounded-lg bg-foreground/[0.06] text-sm">
                         <p className="text-xs text-muted-foreground mb-2 font-medium">
                           It should have been: {(effectiveCorrectAnswer as string[]).map(id => question.options.find(o => o.id === id)?.text ?? id).join(" → ")}
                         </p>
@@ -2030,9 +2030,9 @@ function QuestionScreen({
                                 <span className={cn(
                                   "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
                                   idx === 0 ? "bg-amber-500/20 text-amber-400" :
-                                  idx === 1 ? "bg-muted/20 text-foreground/80" :
+                                  idx === 1 ? "bg-foreground/[0.03] text-foreground/80" :
                                   idx === 2 ? "bg-orange-600/20 text-orange-400" :
-                                  "bg-muted/50 text-muted-foreground"
+                                  "bg-foreground/[0.06] text-muted-foreground"
                                 )}>
                                   {idx + 1}
                                 </span>
@@ -2076,7 +2076,7 @@ function QuestionScreen({
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="mt-3 p-4 rounded-xl bg-muted/70 text-sm text-foreground/90 border border-border/50 leading-relaxed">
+                            <div className="mt-3 p-4 rounded-xl bg-foreground/[0.08] text-sm text-foreground/90 border border-border/50 leading-relaxed">
                               <span className="text-violet-400 font-medium">💡 Explanation: </span>
                               {explanationContent}
                             </div>
@@ -2294,7 +2294,7 @@ function CompletionScreen({
                   <button
                     key={section.id}
                     onClick={() => onSelectSection(idx)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors bg-surface-3/50 hover:bg-muted/70 border border-border/50"
+                    className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors bg-surface-3/50 hover:bg-foreground/[0.08] border border-border/50"
                   >
                     <span>{section.icon}</span>
                     <span className="flex-1 text-sm font-medium text-left truncate">{section.title}</span>

@@ -107,7 +107,7 @@ export function DragToZone({
                 "border-2 border-dashed transition duration-200",
                 isHovered
                   ? "border-primary bg-primary/10 scale-[1.02]"
-                  : "border-muted-foreground/30 bg-muted/20"
+                  : "border-muted-foreground/30 bg-foreground/[0.03]"
               )}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -225,7 +225,7 @@ export function DragToZone({
       {/* Unplaced Items Pool */}
       {unplacedItems.length > 0 && (
         <motion.div
-          className="p-4 rounded-3xl bg-muted/30 border border-dashed border-muted-foreground/20"
+          className="p-4 rounded-3xl bg-foreground/[0.04] border border-dashed border-muted-foreground/20"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

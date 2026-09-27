@@ -758,7 +758,7 @@ export function DexSwapPanel() {
                     </div>
                     {/* Search input */}
                     <div className="px-2 py-1.5 border-b border-border">
-                      <div className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-2 py-1">
+                      <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.07] px-2 py-1">
                         <FiSearch className="h-3 w-3 text-muted-foreground shrink-0" />
                         <input
                           type="text"
@@ -791,7 +791,7 @@ export function DexSwapPanel() {
                             setInputSide("sell");
                             reset();
                           }}
-                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-muted/80 transition-colors ${
+                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-foreground/[0.09] transition-colors ${
                             sellToken?.id === token.id ? "bg-brand-accent/5" : ""
                           }`}
                         >
@@ -914,7 +914,7 @@ export function DexSwapPanel() {
                     </div>
                     {/* Search input */}
                     <div className="px-2 py-1.5 border-b border-border">
-                      <div className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-2 py-1">
+                      <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.07] px-2 py-1">
                         <FiSearch className="h-3 w-3 text-muted-foreground shrink-0" />
                         <input
                           type="text"
@@ -946,7 +946,7 @@ export function DexSwapPanel() {
                             setInputSide("sell");
                             reset();
                           }}
-                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-muted/80 transition-colors ${
+                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-foreground/[0.09] transition-colors ${
                             buyTokenAddr.toLowerCase() === token.address.toLowerCase() ? "bg-brand-accent/5" : ""
                           }`}
                         >

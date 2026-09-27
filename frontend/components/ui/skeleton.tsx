@@ -281,7 +281,7 @@ function TableSkeleton({
   return (
     <div className={cn("flex flex-col divide-y", className)}>
       {/* Header */}
-      <TableRowSkeleton columns={columns} className="bg-muted/50" />
+      <TableRowSkeleton columns={columns} className="bg-foreground/[0.06]" />
       {/* Rows */}
       {Array.from({ length: rows }).map((_, i) => (
         <TableRowSkeleton key={i} columns={columns} />

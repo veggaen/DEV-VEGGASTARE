@@ -201,7 +201,7 @@ export default function HomeHero({
           {isLoggedIn ? (
             <Link
               href="/settings"
-              className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-foreground/[0.07] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <FiSettings aria-hidden="true" className="size-4 opacity-60 transition-[opacity,transform] duration-500 group-hover:rotate-90 group-hover:opacity-100" />
               <span>Settings</span>
@@ -210,7 +210,7 @@ export default function HomeHero({
             <MyLoginButton mode="modal" asChild>
               <button
                 type="button"
-                className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="group inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-muted-foreground transition-[color,background-color] duration-300 hover:bg-foreground/[0.07] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <span className="relative size-4">
                   <FaLock aria-hidden="true" className="absolute inset-0 size-4 opacity-60 transition-[opacity,transform] duration-300 group-hover:-rotate-12 group-hover:opacity-0" />

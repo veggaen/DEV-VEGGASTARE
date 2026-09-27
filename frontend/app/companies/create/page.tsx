@@ -15,7 +15,7 @@ const CompanyCreatePage = () => {
   const { user, isLoading } = useCurrentUserWithStatus();
   const isDemo = isDemoUserId(user?.id);
   return (
-    <div className="min-h-full bg-muted/40">
+    <div className="min-h-full bg-foreground/[0.05]">
       {/* ── Breadcrumb bar (sticky) ── */}
       <div className="border-b border-border/70 bg-surface-1/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center">

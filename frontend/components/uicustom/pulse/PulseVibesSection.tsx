@@ -376,7 +376,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
           const renderVibe = (message: Message, depth: number) => (
             <div key={message.id} className={depth > 0 ? 'ml-6 border-l-2 border-border/50 pl-3' : ''}>
               <div
-                className={`group/vibe flex gap-3 rounded-xl bg-muted/50 p-3 transition-colors hover:bg-muted ${
+                className={`group/vibe flex gap-3 rounded-xl bg-foreground/[0.06] p-3 transition-colors hover:bg-muted ${
                   deletingMessageId === message.id ? 'opacity-50' : ''
                 }`}
               >
@@ -625,7 +625,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
       )}
 
       {/* Message input */}
-      <div className="mt-4 rounded-xl bg-muted/30 p-3">
+      <div className="mt-4 rounded-xl bg-foreground/[0.04] p-3">
         {currentUser ? (
           <MessageInput
             conversationId={pulseId}

@@ -11,7 +11,7 @@ const variants = {
     'border-0 p-0 min-h-0 min-w-0 relative shadow-md bg-muted rounded-md',
   active: 'border-2',
   disabled:
-    'bg-muted/30 border-border cursor-default pointer-events-none dark:bg-muted',
+    'bg-foreground/[0.04] border-border cursor-default pointer-events-none dark:bg-muted',
   accept: 'border border-blue-500 bg-blue-500/10',
   reject: 'border border-red-700 bg-red-700/10',
 };

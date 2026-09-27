@@ -36,7 +36,7 @@ interface RankingQuestionProps {
 // Medal colors for top 3
 const MEDAL_CONFIG = [
   { icon: Trophy, color: "text-amber-400", bg: "bg-amber-500/20", label: "1st" },
-  { icon: Medal, color: "text-muted-foreground", bg: "bg-muted/20", label: "2nd" },
+  { icon: Medal, color: "text-muted-foreground", bg: "bg-foreground/[0.03]", label: "2nd" },
   { icon: Award, color: "text-amber-600", bg: "bg-amber-600/20", label: "3rd" },
 ];
 
@@ -144,9 +144,9 @@ function RankingItem({
 
   const itemClasses = cn(
     "flex items-center gap-3 select-none transition-colors touch-none cursor-grab active:cursor-grabbing",
-    variant === "cards" && "p-4 rounded-xl bg-muted/80 hover:bg-muted/80 border-none shadow-md",
-    variant === "default" && "p-3 rounded-lg bg-muted/70 hover:bg-muted/70 border-none shadow-sm",
-    variant === "compact" && "p-2 rounded-md bg-muted/50 hover:bg-muted/50 border-none",
+    variant === "cards" && "p-4 rounded-xl bg-foreground/[0.09] hover:bg-foreground/[0.09] border-none shadow-md",
+    variant === "default" && "p-3 rounded-lg bg-foreground/[0.08] hover:bg-foreground/[0.08] border-none shadow-sm",
+    variant === "compact" && "p-2 rounded-md bg-foreground/[0.06] hover:bg-foreground/[0.06] border-none",
     disabled && "opacity-60 cursor-not-allowed"
   );
 

@@ -152,7 +152,7 @@ export default function AccessibilityPage() {
               Vi setter pris på tilbakemeldinger om tilgjengeligheten til veggat.com. Dersom du opplever
               barrierer eller har forslag til forbedringer, kontakt oss:
             </p>
-            <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-1 mt-2">
+            <div className="rounded-lg bg-foreground/[0.04] p-4 text-xs space-y-1 mt-2">
               <p className="font-semibold text-foreground">{BUSINESS.name}</p>
               <p>
                 E-post:{" "}

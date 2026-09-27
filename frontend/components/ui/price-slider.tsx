@@ -432,7 +432,7 @@ export const PriceSlider = ({
       >
         {/* Background track */}
         <div
-          className="absolute h-1.5 rounded-full bg-muted/60"
+          className="absolute h-1.5 rounded-full bg-foreground/[0.07]"
           style={{ left: trackPadding, right: trackPadding }}
         />
 

@@ -217,7 +217,7 @@ export function ImagePositionAdjuster({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onKeyDown={onKeyDown}
-          className={`relative w-full select-none overflow-hidden rounded-xl border border-border bg-muted/40 outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          className={`relative w-full select-none overflow-hidden rounded-xl border border-border bg-foreground/[0.05] outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             dragging ? "cursor-grabbing" : "cursor-grab"
           }`}
           style={{ aspectRatio: `${aspect}`, touchAction: "none" }}

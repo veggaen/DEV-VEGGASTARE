@@ -147,7 +147,7 @@ export default function EvmWalletList({
 	};
 
 	return (
-		<div role="region" aria-label="Saved receiving wallets" className="min-w-0 rounded-xl border border-border bg-surface-1/60 p-3 dark:bg-muted/40">
+		<div role="region" aria-label="Saved receiving wallets" className="min-w-0 rounded-xl border border-border bg-surface-1/60 p-3 dark:bg-foreground/[0.05]">
 			<div className="flex items-start justify-between gap-3">
 				<div>
 					<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

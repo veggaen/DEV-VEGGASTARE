@@ -57,7 +57,7 @@ export function ThemedSelect({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-xl bg-muted/40 border border-border px-3 py-2 text-sm text-foreground outline-none hover:bg-muted/40 focus:border-brand-accent/50 transition-colors"
+        className="w-full flex items-center justify-between gap-2 rounded-xl bg-foreground/[0.05] border border-border px-3 py-2 text-sm text-foreground outline-none hover:bg-foreground/[0.05] focus:border-brand-accent/50 transition-colors"
       >
         <span className={cn("truncate", !current && "text-muted-foreground")}>
           {current?.label ?? placeholder}
@@ -87,7 +87,7 @@ export function ThemedSelect({
                       "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-sm text-left transition-colors",
                       selected
                         ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light"
-                        : "hover:bg-muted/50 text-foreground",
+                        : "hover:bg-foreground/[0.06] text-foreground",
                     )}
                   >
                     <span className="truncate">{o.label}</span>

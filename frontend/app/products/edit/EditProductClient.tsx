@@ -631,7 +631,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
                     {FIAT_OPTIONS.map((opt) => {
                       const checked = acceptedFiatCurrencies.includes(opt.value);
                       return (
-                        <label key={opt.value} className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs cursor-pointer hover:bg-muted/50">
+                        <label key={opt.value} className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs cursor-pointer hover:bg-foreground/[0.06]">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -665,7 +665,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
 
                 <div
                   {...getRootProps()}
-                  className="cursor-pointer rounded border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground text-center hover:bg-muted/50 transition-colors"
+                  className="cursor-pointer rounded border border-dashed border-border bg-foreground/[0.04] p-3 text-xs text-muted-foreground text-center hover:bg-foreground/[0.06] transition-colors"
                 >
                   <input {...getInputProps()} />
                   Drop or click to add images

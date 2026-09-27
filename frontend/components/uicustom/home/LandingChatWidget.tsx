@@ -716,7 +716,7 @@ function ChatPanelInner({
           <span className="text-sm font-semibold">Ask AI</span>
           {!isLoggedIn && (
             <span
-              className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5"
+              className="text-[10px] text-muted-foreground bg-foreground/[0.05] rounded px-1.5 py-0.5"
               title="Bounded free AI preview. Sign in for more models."
             >
               Free preview
@@ -731,7 +731,7 @@ function ChatPanelInner({
               className={`grid size-11 shrink-0 place-items-center rounded-lg transition-colors ${
                 byokActive
                   ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/30"
-                  : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                  : "hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground"
               }`}
               title={
                 byokActive
@@ -755,7 +755,7 @@ function ChatPanelInner({
           {/* Expand */}
           <button
             onClick={event => onExpand(event.currentTarget)}
-            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground transition-colors"
             title={
               viewMode === "widget"
                 ? "Expand to larger view"
@@ -787,7 +787,7 @@ function ChatPanelInner({
           {/* Close */}
           <button
             onClick={onClose}
-            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close chat"
             title={
               viewMode === "expanded" ? "Back to widget" : "Close chat"
@@ -817,7 +817,7 @@ function ChatPanelInner({
             transition={{ duration: 0.15 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="px-4 py-3 border-b border-border/60 bg-muted/20 space-y-2.5">
+            <div className="px-4 py-3 border-b border-border/60 bg-foreground/[0.03] space-y-2.5">
               {/* Title row */}
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
@@ -856,7 +856,7 @@ function ChatPanelInner({
                   onChange={(e) => setByokKey(e.target.value)}
                   type="password"
                   placeholder="Paste your API key…"
-                  className="w-full h-8 bg-muted/40 border border-border rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand-accent/40 transition-colors"
+                  className="w-full h-8 bg-foreground/[0.05] border border-border rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand-accent/40 transition-colors"
                   autoComplete="off"
                 />
                 {byokKey.trim() && (
@@ -941,7 +941,7 @@ function ChatPanelInner({
                       className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-colors ${
                         byokKey.trim()
                           ? "bg-brand-accent/15 text-brand-accent hover:bg-brand-accent/25"
-                          : "bg-muted/40 text-muted-foreground cursor-not-allowed"
+                          : "bg-foreground/[0.05] text-muted-foreground cursor-not-allowed"
                       }`}
                     >
                       Connect
@@ -1036,7 +1036,7 @@ function ChatPanelInner({
                     <div className="h-5 w-5 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
                       ✦
                     </div>
-                    <div className="bg-muted/40 border border-border/60 rounded-2xl px-3 py-2">
+                    <div className="bg-foreground/[0.05] border border-border/60 rounded-2xl px-3 py-2">
                       <TypingIndicator />
                     </div>
                   </div>
@@ -1095,7 +1095,7 @@ function ChatPanelInner({
                 </a>
                 <button
                   onClick={() => setShowLongMsgGate(false)}
-                  className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-foreground/[0.09] transition-colors"
                 >
                   Dismiss
                 </button>

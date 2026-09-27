@@ -337,7 +337,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg ring-1 ring-border/40 bg-muted/60 text-muted-foreground">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg ring-1 ring-border/40 bg-foreground/[0.07] text-muted-foreground">
             <FiClock className="h-4 w-4" />
           </div>
           <div>
@@ -447,9 +447,9 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
                       className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
                         modeFilter === m
                           ? m === "ALL"
-                            ? "border-border/60 bg-muted/30 text-foreground/80"
+                            ? "border-border/60 bg-foreground/[0.04] text-foreground/80"
                             : `${MODE_CONFIG[m].borderClass} ${MODE_CONFIG[m].bgClass} ${MODE_CONFIG[m].textClass}`
-                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
+                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
                       }`}
                     >
                       {m !== "ALL" && MODE_CONFIG[m].icon}
@@ -470,8 +470,8 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
                       onClick={() => setStatusFilter(s)}
                       className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
                         statusFilter === s
-                          ? "border-border/60 bg-muted/30 text-foreground/80"
-                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
+                          ? "border-border/60 bg-foreground/[0.04] text-foreground/80"
+                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
                       }`}
                     >
                       {s !== "ALL" && (
@@ -650,7 +650,7 @@ function TradeRow({
 
   return (
     <div
-      className={`group flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors ${
+      className={`group flex items-center gap-3 px-3 py-2.5 hover:bg-foreground/[0.04] transition-colors ${
         isLast ? "" : ""
       }`}
     >

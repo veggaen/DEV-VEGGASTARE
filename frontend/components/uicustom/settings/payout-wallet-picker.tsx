@@ -61,14 +61,14 @@ export function PayoutWalletPicker({ target, wallets, selectedId, selectedAddres
         {verified.map(wallet => <button key={wallet.id} type="button" aria-label={`Use ${wallet.label} for receiving payments`}
           aria-pressed={wallet.id === selectedId} disabled={blocked || wallet.id === selectedId}
           onClick={() => void run({ action: 'set', walletId: wallet.id, expectedWalletId: selectedId })}
-          className={`flex min-h-11 min-w-0 items-center gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${wallet.id === selectedId ? 'border-brand-accent/50 bg-brand-accent/10' : 'border-border hover:bg-muted/60'} disabled:cursor-default`}>
+          className={`flex min-h-11 min-w-0 items-center gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${wallet.id === selectedId ? 'border-brand-accent/50 bg-brand-accent/10' : 'border-border hover:bg-foreground/[0.07]'} disabled:cursor-default`}>
           <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{wallet.label}</span>
             {wallet.scope && <span className="block text-xs text-muted-foreground">{wallet.scope === 'company' ? 'Company wallet' : 'Your wallet'}{wallet.family ? ` · ${wallet.family}` : ''}</span>}
             <span className="block break-all font-mono text-xs text-muted-foreground">{wallet.address}</span></span>
           {wallet.id === selectedId && <span className="shrink-0 text-xs font-medium text-brand-accent-hover dark:text-brand-accent-light">Selected</span>}
         </button>)}
       </div> : <p className="text-sm text-muted-foreground">No verified wallets available. <Link href="/settings?section=wallet" className="underline underline-offset-4">Connect and verify a wallet</Link>.</p>}
-    {!uncertain && confirmClear && selectedId && <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+    {!uncertain && confirmClear && selectedId && <div className="space-y-3 rounded-lg border border-border bg-foreground/[0.04] p-3">
       <p className="text-sm">Clear this receiving choice? Your wallet stays linked. No replacement is selected.</p>
       <div className="flex flex-wrap gap-2">
         <Button className="min-h-11" disabled={busy} onClick={() => void run({ action: 'clear', expectedWalletId: selectedId })}>{busy ? 'Confirming…' : 'Confirm clear selection'}</Button>

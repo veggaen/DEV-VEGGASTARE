@@ -138,7 +138,7 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
   <label
     className={cn(
       "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors",
-      disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/40",
+      disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-foreground/[0.05]",
       isSelected && "bg-brand-accent/5"
     )}
   >
@@ -690,7 +690,7 @@ export const MySidebarProductsMenu = () => {
                       <label
                         key={seller.id}
                         className={cn(
-                          "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors hover:bg-muted/40",
+                          "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors hover:bg-foreground/[0.05]",
                           selectedSellers.includes(seller.id) && "bg-brand-accent/5"
                         )}
                       >
@@ -752,7 +752,7 @@ export const MySidebarProductsMenu = () => {
               <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
                 <div className="text-xs text-foreground/80">Items / page</div>
                 <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
-                  <SelectTrigger aria-label="Products per page" className="min-h-11 w-full rounded-lg border-border bg-surface-1/60 text-base text-foreground shadow-sm shadow-black/[0.03] hover:bg-surface-1/75 dark:bg-muted/40 dark:hover:bg-muted/40">
+                  <SelectTrigger aria-label="Products per page" className="min-h-11 w-full rounded-lg border-border bg-surface-1/60 text-base text-foreground shadow-sm shadow-black/[0.03] hover:bg-surface-1/75 dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-surface-1/95 text-foreground shadow-xl shadow-black/10 backdrop-blur-xl dark:bg-surface-1/80">

@@ -142,7 +142,7 @@ function Inbox({ userId, role, readOnly }: { userId: string; role?: string; read
               const date = new Date(updated);
               return (
                 <li key={item.id} className="flex min-w-0 items-center gap-1 rounded-xl py-1 [content-visibility:auto] [contain-intrinsic-size:auto_100px]">
-                  <Link href={`/conversations/${item.id}`} prefetch={false} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl px-2 py-4 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring sm:px-3">
+                  <Link href={`/conversations/${item.id}`} prefetch={false} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl px-2 py-4 outline-none transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring sm:px-3">
                     <Avatar className="h-11 w-11 shrink-0">{other?.image && <AvatarImage src={other.image} alt="" />}<AvatarFallback>{other ? other.name?.[0] || '?' : item.type === 'GROUP' ? <FiUsers aria-hidden /> : <FiMessageCircle aria-hidden />}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-2"><h2 className="truncate font-semibold">{title}</h2>{item.isLocked && <FiLock aria-label="Locked" className="shrink-0 text-muted-foreground" />}{item.isPinned && <span className="shrink-0 text-xs text-muted-foreground">Pinned</span>}</div>

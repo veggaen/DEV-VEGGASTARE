@@ -26,7 +26,7 @@ export default function CreditProductPanel({ title, credits, choice, onCredits, 
         <div data-credit-purchase-actions className="mt-3">{actions}</div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">One-time purchase · PayPal at checkout</p>
       </section>
-      <aside aria-label="Included with your credits" className="min-w-0 border-t border-border bg-muted/20 p-5 sm:p-7 xl:border-l xl:border-t-0">
+      <aside aria-label="Included with your credits" className="min-w-0 border-t border-border bg-foreground/[0.03] p-5 sm:p-7 xl:border-l xl:border-t-0">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border pb-5">
           <span data-credit-preview className="text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{credits.toLocaleString('en-US')}</span>
           <span className="text-sm text-muted-foreground">usage credits</span>

@@ -40,7 +40,7 @@ export default function CartPage() {
   return <div className={cartCanvas}>
     <CartHeader />
     <div className="sr-only" role="status" aria-live="polite">{busy ? "Updating your cart…" : `${items.reduce((sum, item) => sum + item.quantity, 0)} items in your cart.`}</div>
-    {error && <div role="alert" className="my-5 rounded-xl border border-border bg-muted/50 p-4 text-sm leading-6">
+    {error && <div role="alert" className="my-5 rounded-xl border border-border bg-foreground/[0.06] p-4 text-sm leading-6">
       <p>{error}</p>
       {needsRefresh && <Button variant="outline" className="mt-3 min-h-11" disabled={busy} onClick={() => void reload()}>
         {refreshing ? "Refreshing cart…" : "Refresh saved cart"}

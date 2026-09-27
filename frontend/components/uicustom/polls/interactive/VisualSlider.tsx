@@ -196,7 +196,7 @@ export function VisualSlider({
                         ? "bg-primary text-primary-foreground scale-125"
                         : isSelected
                         ? "bg-primary/20"
-                        : "bg-muted/50"
+                        : "bg-foreground/[0.06]"
                     )}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}

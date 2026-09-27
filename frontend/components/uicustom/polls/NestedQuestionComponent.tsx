@@ -195,7 +195,7 @@ function QuestionRenderer({
                   "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition",
                   localAnswer === option.id
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-muted/50",
+                    : "border-border hover:bg-foreground/[0.06]",
                   disabled && "opacity-60 cursor-not-allowed"
                 )}
               >
@@ -226,7 +226,7 @@ function QuestionRenderer({
                   "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition",
                   isChecked
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-muted/50",
+                    : "border-border hover:bg-foreground/[0.06]",
                   disabled && "opacity-60 cursor-not-allowed"
                 )}
               >

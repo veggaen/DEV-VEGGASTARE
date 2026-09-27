@@ -71,7 +71,7 @@ export default function MarketplaceOffers({ kind }: { kind: keyof typeof copy })
             <Link href="/terms" className="inline-flex min-h-11 items-center rounded-md text-sm underline underline-offset-4 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">Read the sales terms</Link>
           </section>
         </div>
-        <section aria-labelledby="available-now" className="min-w-0 rounded-2xl border border-border bg-muted/30 p-5 sm:p-7">
+        <section aria-labelledby="available-now" className="min-w-0 rounded-2xl border border-border bg-foreground/[0.04] p-5 sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Available now</p>
           <h2 id="available-now" className="mt-3 flex items-center gap-2 text-xl font-semibold"><Zap aria-hidden="true" className="size-5 shrink-0 text-primary" />AI credit volume pricing</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">Choose any whole amount from {number(MIN_PURCHASE_CREDITS)} to {number(MAX_PURCHASE_CREDITS)} credits on the product page. These are standard quantity-based prices, not a daily or members-only promotion.</p>

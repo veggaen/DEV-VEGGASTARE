@@ -97,7 +97,7 @@ export function MediaStudio() {
           <p className="text-xs leading-relaxed text-muted-foreground">Private to your account. Credits return if generation fails.</p>
           <details className="text-xs text-muted-foreground"><summary className="cursor-pointer py-2 focus-visible:outline">Usage & privacy</summary><p className="pt-2 leading-relaxed">Your prompt is sent to {kind === 'IMAGE' ? 'OpenAI' : 'xAI'}. Avoid private information. Provider safety rules apply. Results are AI-generated and may be inaccurate; review before publishing. Studio uses Veggat credits, not saved personal API keys.</p></details>
         </form>
-        <section ref={resultRef} aria-label="Generation result" aria-live="polite" className="flex min-w-0 scroll-mt-4 flex-col rounded-2xl border border-border bg-muted/20 p-4 sm:p-6">
+        <section ref={resultRef} aria-label="Generation result" aria-live="polite" className="flex min-w-0 scroll-mt-4 flex-col rounded-2xl border border-border bg-foreground/[0.03] p-4 sm:p-6">
           {job?.state === 'COMPLETED' && job.contentUrl ? <>
             <div className="flex min-h-60 flex-1 items-center justify-center overflow-hidden rounded-xl bg-background">
               {job.kind === 'IMAGE' ? /* Authenticated file: do not send to Next's public image optimizer. */

@@ -1251,7 +1251,7 @@ export function OsrsInventory({
                       href={explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                     >
                       <FiExternalLink className="h-3 w-3" />
                       Explorer
@@ -1264,7 +1264,7 @@ export function OsrsInventory({
                         navigator.clipboard.writeText(detailSlot.token.address);
                         toast.success("Contract address copied");
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                     >
                       <FiCopy className="h-3 w-3" />
                       Copy Address
@@ -1276,7 +1276,7 @@ export function OsrsInventory({
                       // Open context menu actions for split
                       if (detailSlot) handleSplit(detailSlot.id);
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                   >
                     <FiScissors className="h-3 w-3" />
                     Split
@@ -1286,7 +1286,7 @@ export function OsrsInventory({
                     onClick={() => {
                       toast.info("Send coming soon");
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                   >
                     <FiSend className="h-3 w-3" />
                     Send
@@ -1530,7 +1530,7 @@ function OsrsSlot({
           : `cursor-grab active:cursor-grabbing border
              ${isSelected
                ? "border-brand-accent/80 bg-brand-accent/10 shadow-[0_0_8px_rgba(16,185,129,0.25)] rounded-md"
-               : "border-border/50 bg-surface-3/70 hover:border-border/70 hover:bg-muted/60 rounded-md"
+               : "border-border/50 bg-surface-3/70 hover:border-border/70 hover:bg-foreground/[0.07] rounded-md"
              }
              ${tradeMode ? "ring-1 ring-amber-500/15" : ""}
              ${isDragging ? "opacity-30 scale-95" : ""}`}

@@ -365,7 +365,7 @@ function PaperTradingWorkspace() {
             ) : (
               <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
                 {/* Table header */}
-                <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2.5 bg-foreground/[0.05] border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   <span>Token</span>
                   <span className="text-right">Amount</span>
                   <span className="text-right">Avg Entry</span>
@@ -379,7 +379,7 @@ function PaperTradingWorkspace() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-border/60 hover:bg-muted/40 transition-colors items-center"
+                    className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-border/60 hover:bg-foreground/[0.05] transition-colors items-center"
                   >
                     {/* Token */}
                     <div>

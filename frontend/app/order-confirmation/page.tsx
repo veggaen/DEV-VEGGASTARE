@@ -113,7 +113,7 @@ const OrderConfirmationPage = () => {
           <Link
             href={`/order-confirmation/${order.id}`}
             key={order.id}
-            className="group block py-5 transition-colors hover:bg-muted/40"
+            className="group block py-5 transition-colors hover:bg-foreground/[0.05]"
           >
             <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
               <div>

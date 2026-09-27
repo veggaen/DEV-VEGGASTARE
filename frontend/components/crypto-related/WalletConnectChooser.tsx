@@ -88,7 +88,7 @@ export default function WalletConnectChooser({
                 type="button"
                 onClick={openAppKit}
                 disabled={opening}
-                className="group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-3.5 text-left hover:border-brand-accent/50 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                className="group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-foreground/[0.04] p-3.5 text-left hover:border-brand-accent/50 hover:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/12 text-brand-accent">
                   {/* Reown / AppKit mark */}
@@ -104,7 +104,7 @@ export default function WalletConnectChooser({
                 <FiChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-          ) : <div className="rounded-xl border border-border bg-muted/30 p-4">
+          ) : <div className="rounded-xl border border-border bg-foreground/[0.04] p-4">
             <p className="text-sm font-medium">WalletConnect unavailable</p>
             <p className="mt-1 text-sm text-muted-foreground">Use a detected browser wallet below.</p>
           </div>}

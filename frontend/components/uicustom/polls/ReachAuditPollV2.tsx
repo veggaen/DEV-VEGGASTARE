@@ -654,7 +654,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
               key={phase.id}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
-                "bg-muted/50 text-muted-foreground border border-border/50"
+                "bg-foreground/[0.06] text-muted-foreground border border-border/50"
               )}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1646,7 +1646,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
 
         {/* Bottom navigation for questions */}
         {screen === "question" && (
-          <div className="flex items-center justify-between p-4 border-t border-border/50 bg-muted/30">
+          <div className="flex items-center justify-between p-4 border-t border-border/50 bg-foreground/[0.04]">
             <Button
               variant="ghost"
               onClick={goPrev}

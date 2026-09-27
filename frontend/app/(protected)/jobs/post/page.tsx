@@ -298,7 +298,7 @@ function PostJobForm() {
               </svg>
               Back to Job Board
             </Link>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-semibold text-foreground/70">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground/[0.05] px-3 py-1 text-xs font-semibold text-foreground/70">
               <motion.span
                 className="h-2 w-2 rounded-full bg-brand-accent-light"
                 aria-hidden
@@ -329,7 +329,7 @@ function PostJobForm() {
                   value={formData.title}
                   onChange={(e) => handleChange(e, undefined, 'title')}
                   required
-                  className="h-12 w-full rounded-xl border border-border bg-muted/40 px-4 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 focus:bg-muted/40"
+                  className="h-12 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 focus:bg-foreground/[0.05]"
                 />
               </label>
             </section>
@@ -361,7 +361,7 @@ function PostJobForm() {
               <button
                 type="button"
                 onClick={() => handleAddFields('descriptions')}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 py-3 text-sm text-foreground/60 transition-colors hover:border-foreground/20 hover:bg-muted/40 hover:text-foreground/80"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-foreground/[0.05] py-3 text-sm text-foreground/60 transition-colors hover:border-foreground/20 hover:bg-foreground/[0.05] hover:text-foreground/80"
               >
                 <FiPlus className="h-4 w-4" />
                 Add another image & description
@@ -372,7 +372,7 @@ function PostJobForm() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              className="flex w-full items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground/70 transition-colors hover:bg-muted/40"
+              className="flex w-full items-center justify-between rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.05]"
             >
               <span className="font-medium">Optional Details</span>
               {showOptional ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
@@ -383,7 +383,7 @@ function PostJobForm() {
               <motion.div
                 initial={reduceMotion ? undefined : { opacity: 0, height: 0 }}
                 animate={reduceMotion ? undefined : { opacity: 1, height: 'auto' }}
-                className="space-y-6 rounded-xl border border-border bg-muted/40 p-5"
+                className="space-y-6 rounded-xl border border-border bg-foreground/[0.05] p-5"
               >
                 {/* Links */}
                 <div className="space-y-3">
@@ -398,12 +398,12 @@ function PostJobForm() {
                         placeholder="https://example.com/reference"
                         value={link}
                         onChange={(e) => handleChange(e, index, 'links')}
-                        className="h-10 flex-1 rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                        className="h-10 flex-1 rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveFields(index, 'links')}
-                        className="rounded-xl border border-border bg-muted/40 px-3 text-muted-foreground transition-colors hover:bg-red-500/20 hover:text-red-400"
+                        className="rounded-xl border border-border bg-foreground/[0.05] px-3 text-muted-foreground transition-colors hover:bg-red-500/20 hover:text-red-400"
                       >
                         <FiTrash2 className="h-4 w-4" />
                       </button>
@@ -434,7 +434,7 @@ function PostJobForm() {
                   {formData.docs.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {formData.docs.map((doc, index) => (
-                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-foreground/[0.05] px-3 py-1.5 text-xs text-muted-foreground">
                           {doc.name}
                           <button type="button" onClick={() => handleRemoveFields(index, 'docs')} className="text-muted-foreground hover:text-red-400">
                             <FiXCircle className="h-3 w-3" />
@@ -457,7 +457,7 @@ function PostJobForm() {
                     placeholder="e.g., Pickup, Shipping, Digital delivery"
                     value={formData.delivery}
                     onChange={(e) => handleChange(e, undefined, 'delivery')}
-                    className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                    className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                   />
                 </div>
 
@@ -473,7 +473,7 @@ function PostJobForm() {
                     value={formData.additionalNotes}
                     onChange={(e) => handleChange(e, undefined, 'additionalNotes')}
                     rows={3}
-                    className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 resize-none"
+                    className="w-full rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
                   />
                 </div>
 
@@ -497,12 +497,12 @@ function PostJobForm() {
                         placeholder="Search companies..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                        className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                       />
                       <select
                         multiple
                         onChange={handleCompanySelect}
-                        className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                        className="w-full rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                         size={Math.min(filteredCompanies.length, 5)}
                       >
                         {filteredCompanies.map(company => (
@@ -531,7 +531,7 @@ function PostJobForm() {
                           name="price"
                           value={formData.price}
                           onChange={(e) => handleChange(e, undefined, 'price')}
-                          className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                          className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                         />
                       </div>
                       <div className="space-y-2">
@@ -541,7 +541,7 @@ function PostJobForm() {
                           name="paymentMethod"
                           value={formData.paymentMethod}
                           onChange={(e) => handleChange(e, undefined, 'paymentMethod')}
-                          className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
+                          className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                         />
                       </div>
                     </div>
@@ -619,7 +619,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
   });
 
   return (
-    <div className="rounded-xl border border-border bg-muted/40 p-4 transition-colors hover:bg-muted/40">
+    <div className="rounded-xl border border-border bg-foreground/[0.05] p-4 transition-colors hover:bg-foreground/[0.05]">
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* Image Dropzone */}
         <div className="w-full lg:w-1/3">
@@ -628,7 +628,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             className={`relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${
               isDragActive 
                 ? 'border-brand-accent bg-brand-accent/10' 
-                : 'border-border bg-muted/40 hover:border-foreground/20 hover:bg-muted/40'
+                : 'border-border bg-foreground/[0.05] hover:border-foreground/20 hover:bg-foreground/[0.05]'
             }`}
           >
             <input {...getInputProps()} />
@@ -677,7 +677,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             onChange={(e) => handleChange(e, index, 'descriptions')}
             required
             rows={6}
-            className="flex-1 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 resize-none"
+            className="flex-1 rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
           />
           {canRemove && (
             <button

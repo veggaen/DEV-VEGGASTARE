@@ -105,7 +105,7 @@ function TokenDropdown({
             }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted transition-colors ${
               t.symbol === selected
-                ? "text-brand-accent bg-muted/50"
+                ? "text-brand-accent bg-foreground/[0.06]"
                 : "text-foreground/80"
             }`}
           >
@@ -465,7 +465,7 @@ export function PaperSwapPanel({
         )}
 
         {/* Trade info */}
-        <div className="rounded-lg bg-muted/40 border border-border px-3 py-2 space-y-1">
+        <div className="rounded-lg bg-foreground/[0.05] border border-border px-3 py-2 space-y-1">
           <div className="flex justify-between text-[10px]">
             <span className="text-muted-foreground">Price</span>
             <span className="text-foreground/80 font-mono">

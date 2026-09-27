@@ -209,7 +209,7 @@ export function ChatSidebar({
               onClick={() => setSettingsOpen(true)}
               aria-label="Voice settings"
               title="Voice settings"
-              className="grid place-items-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors active:rotate-45 active:scale-90"
+              className="grid place-items-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors active:rotate-45 active:scale-90"
             >
               <FiSettings className="h-3.5 w-3.5" />
             </button>
@@ -229,7 +229,7 @@ export function ChatSidebar({
             />
             <button
               onClick={() => void loadVoiceDevices()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
               aria-label="Refresh microphones"
               title="Refresh microphones"
             >
@@ -419,7 +419,7 @@ function ControlButton({
         "grid place-items-center h-9 w-9 rounded-full transition-colors",
         active
           ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light"
-          : "bg-muted/50 text-muted-foreground hover:text-foreground",
+          : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -505,7 +505,7 @@ function MemberRow({
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onContextMenu={onContextMenu}
-      className="group rounded-lg overflow-hidden hover:bg-muted/40 transition-colors"
+      className="group rounded-lg overflow-hidden hover:bg-foreground/[0.05] transition-colors"
     >
       {menu && (
         <MemberContextMenu
@@ -557,7 +557,7 @@ function MemberRow({
                 <button
                   onClick={() => run("mod", onMakeModerator)}
                   disabled={busy !== null}
-                  className="text-[11px] px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors disabled:opacity-50"
+                  className="text-[11px] px-2 py-1 rounded-md bg-foreground/[0.06] hover:bg-muted transition-colors disabled:opacity-50"
                 >
                   {busy === "mod" ? "Making…" : "Make moderator"}
                 </button>
@@ -618,13 +618,13 @@ function MemberContextMenu({
       </div>
       <button
         onClick={() => act(onMute)}
-        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-foreground/[0.06] transition-colors"
       >
         <FiMicOff className="h-3.5 w-3.5 text-muted-foreground" /> Mute
       </button>
       <button
         onClick={() => act(onMakeModerator)}
-        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-foreground/[0.06] transition-colors"
       >
         <FiShield className="h-3.5 w-3.5 text-muted-foreground" /> Make moderator
       </button>

@@ -428,7 +428,7 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
 
       {/* ── Security footer (ZKP indicator) ── */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-4 py-1.5 border-t border-border/60 bg-muted/40">
+        <div className="px-4 py-1.5 border-t border-border/60 bg-foreground/[0.05]">
           <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground/80">
             <FiLock className="h-2.5 w-2.5" />
             <span>End-to-end verified &middot; Zero-knowledge proof ready</span>
@@ -669,7 +669,7 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const currentIndex = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="px-4 py-2 bg-muted/40">
+    <div className="px-4 py-2 bg-foreground/[0.05]">
       <div className="flex items-center gap-1">
         {phases.map((p, i) => (
           <React.Fragment key={p.key}>

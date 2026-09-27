@@ -89,7 +89,7 @@ export default function PrivacyPage() {
             <p>
               Behandlingsansvarlig for personopplysningene vi behandler er:
             </p>
-            <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-1">
+            <div className="rounded-lg bg-foreground/[0.04] p-4 text-xs space-y-1">
               <p className="font-semibold text-foreground">{BUSINESS.name}</p>
               <p>Org.nr: {BUSINESS.orgNumber}</p>
               <p>Adresse: {BUSINESS.address}</p>
@@ -311,7 +311,7 @@ export default function PrivacyPage() {
               <button
                 type="button"
                 onClick={openCookieSettings}
-                className="rounded-xl bg-primary/10 dark:bg-muted/40 px-4 py-2 text-sm font-semibold text-primary dark:text-foreground/90 transition-colors hover:bg-primary/15 dark:hover:bg-muted/60"
+                className="rounded-xl bg-primary/10 dark:bg-foreground/[0.05] px-4 py-2 text-sm font-semibold text-primary dark:text-foreground/90 transition-colors hover:bg-primary/15 dark:hover:bg-foreground/[0.07]"
               >
                 Cookie-innstillinger
               </button>
@@ -364,7 +364,7 @@ export default function PrivacyPage() {
               Dersom du mener at vi behandler personopplysningene dine i strid med personvernlovgivningen,
               har du rett til å klage til:
             </p>
-            <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-1 mt-2">
+            <div className="rounded-lg bg-foreground/[0.04] p-4 text-xs space-y-1 mt-2">
               <p className="font-semibold text-foreground">Datatilsynet</p>
               <p>Postboks 458, Sentrum</p>
               <p>0105 Oslo</p>

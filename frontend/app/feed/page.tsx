@@ -1091,7 +1091,7 @@ const FeedPage: React.FC = () => {
         <div className="mb-4 flex min-w-0 items-center gap-2">
           <span className="text-sm text-muted-foreground">Tag</span>
           <button type="button" aria-label="Clear tag filter" onClick={() => changeTag(null)}
-            className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border border-border bg-muted/40 px-3 text-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border border-border bg-foreground/[0.05] px-3 text-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             <span className="truncate">#{tagFilter}</span><FiX aria-hidden="true" className="h-4 w-4 shrink-0" />
           </button>
         </div>
@@ -1129,13 +1129,13 @@ const FeedPage: React.FC = () => {
           {!currentUser && (
             <Link
               href="/auth/login"
-              className="group rounded-2xl border border-border/50 bg-card/70 dark:bg-surface-3/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
+              className="group block rounded-2xl border border-border/50 bg-card/70 dark:bg-surface-3/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
             >
               <div className="flex gap-3 items-center">
                 <div className="h-10 w-10 shrink-0 rounded-full bg-brand-accent/10 text-brand-accent flex items-center justify-center transition-colors group-hover:bg-brand-accent/15">
                   <FiMessageCircle className="h-5 w-5" />
                 </div>
-                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
+                <div className="flex-1 py-2.5 px-4 rounded-full bg-foreground/[0.07] text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
                   Sign in to pulse your thoughts…
                 </div>
               </div>
@@ -1291,7 +1291,7 @@ const FeedPage: React.FC = () => {
                             />
                           </div>
                         </div>
-                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                        <div className="space-y-2 p-3 rounded-lg border bg-foreground/[0.04]">
                           <Input
                             value={pollQuestion}
                             onChange={(e) => setPollQuestion(e.target.value)}
@@ -1380,7 +1380,7 @@ const FeedPage: React.FC = () => {
 
                       {/* Poll input (if enabled) */}
                       {includePoll && (
-                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                        <div className="space-y-2 p-3 rounded-lg border bg-foreground/[0.04]">
                           <Input
                             value={pollQuestion}
                             onChange={(e) => setPollQuestion(e.target.value)}
@@ -1504,7 +1504,7 @@ const FeedPage: React.FC = () => {
                             'h-11 w-11 rounded-full gap-1 p-0 transition-colors sm:w-auto sm:px-2.5',
                             includePoll
                               ? 'text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10'
-                              : 'text-muted-foreground hover:bg-muted/50',
+                              : 'text-muted-foreground hover:bg-foreground/[0.06]',
                           )}
                         >
                           <span className="sr-only">Poll options</span>
@@ -1520,7 +1520,7 @@ const FeedPage: React.FC = () => {
                           onClick={() => setIncludePoll(!includePoll)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-muted/50 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <FiBarChart2 className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1533,7 +1533,7 @@ const FeedPage: React.FC = () => {
                           onClick={() => setShowPollBuilder(true)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-muted/50 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <Zap className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1557,7 +1557,7 @@ const FeedPage: React.FC = () => {
                           onClick={() => setShowPollImport(true)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-muted/50 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <FileUp className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1594,7 +1594,7 @@ const FeedPage: React.FC = () => {
                           }}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-muted/50 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <Copy className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1615,7 +1615,7 @@ const FeedPage: React.FC = () => {
                         'grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                         showTagInput
                           ? 'text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10'
-                          : 'text-muted-foreground hover:bg-muted/50',
+                          : 'text-muted-foreground hover:bg-foreground/[0.06]',
                       )}
                     >
                       <FiHash className="h-4 w-4" />
@@ -1629,7 +1629,7 @@ const FeedPage: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           aria-label="Post visibility and replies"
-                          className="h-11 w-11 rounded-full gap-1 p-0 text-muted-foreground hover:bg-muted/40 sm:w-auto sm:px-2.5"
+                          className="h-11 w-11 rounded-full gap-1 p-0 text-muted-foreground hover:bg-foreground/[0.05] sm:w-auto sm:px-2.5"
                         >
                           {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
                           <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
@@ -1708,7 +1708,7 @@ const FeedPage: React.FC = () => {
                           'relative grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                           dictation.listening
                             ? 'text-red-500 bg-red-500/10'
-                            : 'text-muted-foreground hover:bg-muted/50',
+                            : 'text-muted-foreground hover:bg-foreground/[0.06]',
                         )}
                       >
                         <FiMic className="h-4 w-4" />
@@ -1744,7 +1744,7 @@ const FeedPage: React.FC = () => {
                             setMicMenu(null);
                           }}
                           className={cn(
-                            "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/40",
+                            "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-foreground/[0.05]",
                             !voicePrefs.micDeviceId ? "text-brand-accent-light" : "text-foreground",
                           )}
                         >
@@ -1761,7 +1761,7 @@ const FeedPage: React.FC = () => {
                                 setMicMenu(null);
                               }}
                               className={cn(
-                                "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/40",
+                                "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-foreground/[0.05]",
                                 voicePrefs.micDeviceId === device.deviceId ? "text-brand-accent-light" : "text-foreground",
                               )}
                             >
@@ -1778,7 +1778,7 @@ const FeedPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => void loadPulseMics()}
-                          className="flex w-full items-center justify-center gap-2 border-t border-border px-3 py-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/40"
+                          className="flex w-full items-center justify-center gap-2 border-t border-border px-3 py-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.05]"
                         >
                           <FiRefreshCw className="h-3.5 w-3.5" />
                           Refresh devices
@@ -1902,7 +1902,7 @@ const FeedPage: React.FC = () => {
               </>
             )}
             {feedError && !loading && (
-              <div role="alert" className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+              <div role="alert" className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-center">
                 <p className="mb-3 text-sm text-muted-foreground">{feedError}</p>
                 <Button variant="outline" className="min-h-11"
                   onClick={() => fetchFeed(false, nextCursor || undefined)}>Retry loading posts</Button>
@@ -2213,7 +2213,7 @@ const FeedPage: React.FC = () => {
         <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
           <div data-pulse-explore-scroll tabIndex={0} aria-label="Explore Pulse panels" className="sticky top-[76px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-92px)] space-y-4 overflow-y-auto overscroll-contain rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-muted/80 dark:bg-card/20 p-4 transition-colors hover:bg-muted/80 dark:hover:bg-card/30">
+              <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -2225,7 +2225,7 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-muted/80 dark:bg-card/20 p-4 transition-colors hover:bg-muted/80 dark:hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
               <div className="flex items-center justify-between">
                 <div className="font-semibold">Trending tags</div>
                 {tagFilter && (
@@ -2252,7 +2252,7 @@ const FeedPage: React.FC = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-muted/80 dark:bg-card/20 p-4 transition-colors hover:bg-muted/80 dark:hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
               <div className="font-semibold">Top heartbeats</div>
               <div className="mt-3 space-y-2">
                 {topPosts.length === 0 ? (
@@ -3148,7 +3148,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* ─── Content Warning Overlay (for flagged content) ──────── */}
           {hasContentWarning && !showFlaggedContent ? (
-            <div className="relative mt-3 rounded-2xl overflow-hidden border border-border/50 bg-muted/40">
+            <div className="relative mt-3 rounded-2xl overflow-hidden border border-border/50 bg-foreground/[0.05]">
               {/* Blurred content behind — with guaranteed min height */}
               <div className="blur-md pointer-events-none select-none opacity-20 min-h-[100px] overflow-hidden px-4 py-3" aria-hidden="true">
                 {rawPreviewText && (
@@ -3172,7 +3172,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   ))}
                 </div>
                 <button
-                  className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-foreground/60 ring-1 ring-inset ring-border hover:ring-border hover:text-foreground/80 hover:bg-muted/40 transition duration-200"
+                  className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-foreground/60 ring-1 ring-inset ring-border hover:ring-border hover:text-foreground/80 hover:bg-foreground/[0.05] transition duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowFlaggedContent(true);
@@ -3352,7 +3352,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-muted/60">
+                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-foreground/[0.07]">
                       <FiEye className="h-4 w-4" />
                       {Math.max(localViewCount, item.uniqueViewCount || 0)}
                     </span>

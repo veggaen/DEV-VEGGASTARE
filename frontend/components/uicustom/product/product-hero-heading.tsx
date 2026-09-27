@@ -144,7 +144,7 @@ export default function ProductHeroHeading({
       </div>
 
       <motion.div
-        className={`relative flex w-full flex-col gap-2 rounded-2xl border border-border/50 bg-surface-1/40 p-4 dark:border-border dark:bg-muted/40 ${alignment}`}
+        className={`relative flex w-full flex-col gap-2 rounded-2xl border border-border/50 bg-surface-1/40 p-4 dark:border-border dark:bg-foreground/[0.05] ${alignment}`}
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={reduceMotion ? undefined : { duration: 0.35, ease: "easeOut" }}

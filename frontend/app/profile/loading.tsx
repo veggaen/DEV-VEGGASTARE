@@ -10,7 +10,7 @@ export default function ProfileLoading() {
         <div className="min-w-0 flex-1 space-y-3 py-2"><Skeleton className="h-7 w-44 max-w-full motion-reduce:animate-none" /><Skeleton className="h-4 w-32 max-w-full motion-reduce:animate-none" /></div>
         <Skeleton className="h-11 w-32 motion-reduce:animate-none" />
       </div>
-      <div className="mt-6 space-y-4 sm:px-4"><Skeleton className="h-5 w-3/4 motion-reduce:animate-none" /><Skeleton className="h-5 w-1/2 motion-reduce:animate-none" /><Skeleton className="h-11 w-64 max-w-full motion-reduce:animate-none" /><div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/30 p-1">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-12 min-w-0 rounded-lg motion-reduce:animate-none" />)}</div><Skeleton className="h-56 w-full rounded-2xl motion-reduce:animate-none" /></div>
+      <div className="mt-6 space-y-4 sm:px-4"><Skeleton className="h-5 w-3/4 motion-reduce:animate-none" /><Skeleton className="h-5 w-1/2 motion-reduce:animate-none" /><Skeleton className="h-11 w-64 max-w-full motion-reduce:animate-none" /><div className="grid grid-cols-4 gap-1 rounded-xl bg-foreground/[0.04] p-1">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-12 min-w-0 rounded-lg motion-reduce:animate-none" />)}</div><Skeleton className="h-56 w-full rounded-2xl motion-reduce:animate-none" /></div>
     </div>
   </section>;
 }

@@ -298,11 +298,11 @@ export function CategorySubBar() {
 
   if (categoriesLoading) {
     return (
-      <div className="border-b border-border/50 bg-muted/40">
+      <div className="border-b border-border/50 bg-foreground/[0.05]">
         <div className="mx-auto max-w-screen-2xl px-3 sm:px-4 md:px-6">
           <div className="flex items-center gap-2 py-2 overflow-x-auto">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-9 w-24 rounded-lg bg-muted/50 animate-pulse" />
+              <div key={i} className="h-9 w-24 rounded-lg bg-foreground/[0.06] animate-pulse" />
             ))}
           </div>
         </div>

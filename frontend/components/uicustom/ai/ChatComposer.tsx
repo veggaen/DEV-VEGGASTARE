@@ -20,7 +20,7 @@ export function ChatComposer({ value, onChange, onSend, onStop, busy = false, di
       onPaste={event => { if (onFiles && !busy && event.clipboardData.files.length) onFiles(Array.from(event.clipboardData.files)); }}
       onDragOver={event => { if (onFiles && event.dataTransfer.types.includes('Files')) event.preventDefault(); }}
       onDrop={event => { if (onFiles && event.dataTransfer.files.length) { event.preventDefault(); if (!busy) onFiles(Array.from(event.dataTransfer.files)); } }}
-      className="ai-composer-surface rounded-3xl border border-border bg-muted/40 p-2 shadow-sm [@media(max-height:500px)_and_(min-width:640px)]:flex [@media(max-height:500px)_and_(min-width:640px)]:items-end [@media(max-height:500px)_and_(min-width:640px)]:gap-2">
+      className="ai-composer-surface rounded-3xl border border-border bg-foreground/[0.05] p-2 shadow-sm [@media(max-height:500px)_and_(min-width:640px)]:flex [@media(max-height:500px)_and_(min-width:640px)]:items-end [@media(max-height:500px)_and_(min-width:640px)]:gap-2">
       <textarea ref={input} name="ai-message" autoComplete="off" aria-label="AI message" aria-describedby={guidance ? guidanceId : undefined}
         value={value} onChange={event => onChange(event.target.value)} placeholder="Ask anything…" rows={2} maxLength={4000}
         onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!busy && !disabled && hasContent) onSend(); } }}

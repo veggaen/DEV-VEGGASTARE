@@ -90,7 +90,7 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
           </h3>
           {company.orgType && (
             <div className="mt-1">
-              <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
+              <span className="inline-flex items-center rounded-full border border-border bg-foreground/[0.05] px-2 py-0.5 text-[11px] font-medium text-foreground">
                 {company.orgType}
               </span>
             </div>
@@ -191,19 +191,19 @@ const AllCompanies = () => {
           </div>
           <Link
             href="/companies/create"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-foreground/[0.06] px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <FiPlus className="h-4 w-4" />
             {isDemo ? 'Company setup preview' : 'Create company'}
           </Link>
         </div>
 
-        {isDemo && <p className="mb-6 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo preview: explore storefronts below. Company creation and team changes require your own account.</p>}
+        {isDemo && <p className="mb-6 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Demo preview: explore storefronts below. Company creation and team changes require your own account.</p>}
         {(sessionLoading || relatedQuery.isLoading) && <p role="status" className="mb-6 text-sm text-muted-foreground">Checking your workspace…</p>}
         {relatedQuery.error && <div role="alert" className="mb-6 rounded-xl border border-border p-4 text-sm">Your organizations could not be loaded. Public storefronts are still available. <Button variant="outline" className="mt-2 min-h-11" onClick={() => void relatedQuery.mutate()}>Retry your companies</Button></div>}
         {/* Compact onboarding leaves actual companies visible on phones. */}
         {hasNoCompanyRelation && (
-          <div className="mb-6 rounded-xl border border-border bg-muted/30 p-4 sm:p-6">
+          <div className="mb-6 rounded-xl border border-border bg-foreground/[0.04] p-4 sm:p-6">
             <FiHome aria-hidden="true" className="h-6 w-6 text-muted-foreground mb-3" />
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Start Your Business Journey

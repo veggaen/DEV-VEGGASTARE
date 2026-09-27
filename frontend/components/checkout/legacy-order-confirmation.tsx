@@ -172,7 +172,7 @@ const OrderConfirmationPage = () => {
         </div>
       )}
 
-      <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-muted/40">
+      <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-foreground/[0.05]">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Order status</h2>
         <div className="grid grid-cols-2 gap-y-3 text-sm">
           <span className="text-muted-foreground">Status:</span>
@@ -251,7 +251,7 @@ const OrderConfirmationPage = () => {
       )}
 
       {orderDetails.shippingAddress && (
-        <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-muted/40">
+        <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-foreground/[0.05]">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Delivery information</h2>
           <div className="grid grid-cols-2 gap-y-3 text-sm">
             {orderDetails.shippingName && (

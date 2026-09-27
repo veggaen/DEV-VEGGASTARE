@@ -406,7 +406,7 @@ function WalletSelector({
   return (
     <div className="relative">
       <select
-        className="appearance-none w-full bg-muted/80 border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-mono text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent/60 transition hover:bg-muted hover:border-border"
+        className="appearance-none w-full bg-foreground/[0.09] border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-mono text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent/60 transition hover:bg-muted hover:border-border"
         value={selectedAddress ?? ""}
         onChange={(e) => onSelect(e.target.value)}
       >
@@ -1475,7 +1475,7 @@ export function OsrsTradeWindow({
                           );
                           setIsRenaming(true);
                         }}
-                        className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground hover:text-muted-foreground transition"
+                        className="p-0.5 rounded hover:bg-foreground/[0.07] text-muted-foreground hover:text-muted-foreground transition"
                         title="Rename this address"
                       >
                         <FiEdit2 className="h-2.5 w-2.5" />
@@ -1527,7 +1527,7 @@ export function OsrsTradeWindow({
         <div className="px-3 py-2 border-b border-border bg-surface-3/20">
           <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
             {/* You */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/60">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-foreground/[0.06] border border-border/60">
               <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-brand-accent shrink-0">
                 <AvatarImage src={currentUser?.image ?? undefined} />
                 <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
@@ -1552,7 +1552,7 @@ export function OsrsTradeWindow({
             </div>
 
             {/* Partner */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/60">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-foreground/[0.06] border border-border/60">
               <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-border shrink-0">
                 <AvatarImage src={displayPartner.image ?? undefined} />
                 <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">

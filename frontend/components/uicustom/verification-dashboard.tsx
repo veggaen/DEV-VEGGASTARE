@@ -177,7 +177,7 @@ function PhoneVerificationFlow({
             aria-label="Country calling code"
             autoComplete="tel-country-code"
             onChange={(e) => setCountryCode(e.target.value)}
-            className="w-24 rounded-lg border border-border bg-surface-1/70 px-2 py-2 text-sm dark:bg-muted/40"
+            className="w-24 rounded-lg border border-border bg-surface-1/70 px-2 py-2 text-sm dark:bg-foreground/[0.05]"
           >
             <option value="+47">🇳🇴 +47</option>
             <option value="+46">🇸🇪 +46</option>
@@ -194,7 +194,7 @@ function PhoneVerificationFlow({
             inputMode="tel"
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
             placeholder="Phone number"
-            className="flex-1 bg-surface-1/70 border-border dark:bg-muted/40"
+            className="flex-1 bg-surface-1/70 border-border dark:bg-foreground/[0.05]"
             maxLength={15}
           />
         </div>
@@ -219,7 +219,7 @@ function PhoneVerificationFlow({
         inputMode="numeric"
         onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
         placeholder="6-digit code"
-        className="text-center text-lg tracking-widest bg-surface-1/70 border-border dark:bg-muted/40"
+        className="text-center text-lg tracking-widest bg-surface-1/70 border-border dark:bg-foreground/[0.05]"
         maxLength={6}
       />
       <p className="text-xs text-muted-foreground">
@@ -440,8 +440,8 @@ export function VerificationDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-muted/40 rounded-xl" />
-        <div className="h-48 bg-muted/40 rounded-xl" />
+        <div className="h-32 bg-foreground/[0.05] rounded-xl" />
+        <div className="h-48 bg-foreground/[0.05] rounded-xl" />
       </div>
     );
   }
@@ -464,7 +464,7 @@ export function VerificationDashboard() {
 
   return (
     <div className="space-y-6">
-      {feedback && <p role="status" aria-live="polite" className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-foreground">{feedback}</p>}
+      {feedback && <p role="status" aria-live="polite" className="rounded-xl border border-border bg-foreground/[0.05] p-4 text-sm text-foreground">{feedback}</p>}
       {oauthToken && (
         <section aria-label="Review account link" className="rounded-xl border border-border bg-card p-4 space-y-3">
           <h3 className="font-semibold">{denyLink ? 'Remove this account link?' : 'Confirm this account link?'}</h3>
@@ -549,7 +549,7 @@ export function VerificationDashboard() {
               {data.score}/100
             </span>
           </div>
-          <div className="w-full h-2.5 bg-muted/40 rounded-full overflow-hidden">
+          <div className="w-full h-2.5 bg-foreground/[0.05] rounded-full overflow-hidden">
             <motion.div
               initial={false}
               animate={{ scaleX: Math.max(0, Math.min(1, data.score / 100)) }}
@@ -622,7 +622,7 @@ export function VerificationDashboard() {
                     ? 'bg-brand-accent/5 border-brand-accent/20'
                     : isPending
                       ? 'bg-yellow-500/5 border-yellow-500/30 dark:border-yellow-500/25'
-                      : 'bg-surface-1/50 border-border hover:border-blue-500/30 dark:bg-muted/40 dark:hover:border-border'
+                      : 'bg-surface-1/50 border-border hover:border-blue-500/30 dark:bg-foreground/[0.05] dark:hover:border-border'
                 }`}
               >
                 {/* Status icon */}
@@ -665,7 +665,7 @@ export function VerificationDashboard() {
                     ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                     : isPending
                       ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                      : 'bg-surface-1/80 text-muted-foreground dark:bg-muted/40'
+                      : 'bg-surface-1/80 text-muted-foreground dark:bg-foreground/[0.05]'
                 }`}>
                   +{item.points}
                 </span>
@@ -755,7 +755,7 @@ export function VerificationDashboard() {
 
       {/* Linked Accounts Overview */}
       {data.linkedProviders.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-surface-1/50 dark:bg-muted/40">
+        <div className="p-4 rounded-xl border border-border bg-surface-1/50 dark:bg-foreground/[0.05]">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Linked Accounts
           </h4>
@@ -789,7 +789,7 @@ export function VerificationDashboard() {
       )}
 
       {/* Reach Impact Explainer */}
-      <details className="p-4 rounded-xl border border-border bg-muted/20">
+      <details className="p-4 rounded-xl border border-border bg-foreground/[0.03]">
         <summary className="cursor-pointer text-sm font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring">About your Reach score</summary>
         <div className="text-xs text-muted-foreground space-y-1.5">
           <p>

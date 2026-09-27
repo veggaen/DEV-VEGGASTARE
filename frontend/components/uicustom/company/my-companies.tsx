@@ -77,7 +77,7 @@ const MyCompanies = () => {
           </div>
           <Link
             href="/companies/create"
-            className="inline-flex items-center justify-center rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted dark:text-white dark:hover:bg-muted/40"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-foreground/[0.05] px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted dark:text-white dark:hover:bg-foreground/[0.05]"
           >
             Create company
           </Link>
@@ -107,7 +107,7 @@ const MyCompanies = () => {
 
           <Link
             href="/companies/create"
-            className="inline-flex items-center justify-center rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted dark:text-white dark:hover:bg-muted/40"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-foreground/[0.05] px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted dark:text-white dark:hover:bg-foreground/[0.05]"
           >
             Create company
           </Link>
@@ -120,7 +120,7 @@ const MyCompanies = () => {
             {ownedCompanies.map((company: any) => (
               <div
                 key={company.id}
-                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
+                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] rounded-lg hover:rounded-2xl"
               >
                 <div className="p-3">
                   <AspectRatio ratio={1 / 1}>
@@ -143,7 +143,7 @@ const MyCompanies = () => {
                     </h3>
                     {company.orgType ? (
                       <div className="mt-1">
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                        <span className="inline-flex items-center rounded-full border border-border bg-foreground/[0.05] px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {company.orgType}
                         </span>
                       </div>
@@ -182,7 +182,7 @@ const MyCompanies = () => {
             {memberCompanies.map((company: any) => (
               <div
                 key={company.id}
-                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
+                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] rounded-lg hover:rounded-2xl"
               >
                 <div className="p-3">
                   <AspectRatio ratio={1 / 1}>
@@ -205,7 +205,7 @@ const MyCompanies = () => {
                     </h3>
                     {company.orgType ? (
                       <div className="mt-1">
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                        <span className="inline-flex items-center rounded-full border border-border bg-foreground/[0.05] px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {company.orgType}
                         </span>
                       </div>
@@ -236,7 +236,7 @@ const MyCompanies = () => {
             {createdCompanies.map((company: any) => (
               <div
                 key={company.id}
-                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
+                className="group flex h-full flex-col border border-border bg-surface-1/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-lg dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] rounded-lg hover:rounded-2xl"
               >
                 <div className="p-3">
                   <AspectRatio ratio={1 / 1}>
@@ -259,7 +259,7 @@ const MyCompanies = () => {
                     </h3>
                     {company.orgType ? (
                       <div className="mt-1">
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                        <span className="inline-flex items-center rounded-full border border-border bg-foreground/[0.05] px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {company.orgType}
                         </span>
                       </div>

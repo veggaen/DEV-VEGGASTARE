@@ -300,7 +300,7 @@ function ConversationThread() {
               side="bottom"
               align="start"
             >
-              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-muted/40 transition-colors">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-foreground/[0.05] transition-colors">
                 <div className="relative shrink-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={otherParticipant.image || undefined} />
@@ -345,7 +345,7 @@ function ConversationThread() {
             'grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             sidebarOpen
               ? 'text-brand-accent bg-brand-accent/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+              : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
           )}
         >
           <FiUsers className="h-4.5 w-4.5" />
@@ -357,7 +357,7 @@ function ConversationThread() {
               variant="ghost"
               size="icon"
               aria-label="Conversation options"
-              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
             >
               <FiMoreVertical className="h-5 w-5" />
             </Button>

@@ -494,7 +494,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setPendingCorrection(null)}
-                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-muted/50"
+                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06]"
                 >
                   Dismiss
                 </button>
@@ -639,7 +639,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               canSend && !isTooLong && !isSending
                 ? 'bg-brand-accent text-brand-accent-foreground dark:text-foreground hover:bg-brand-accent-hover shadow-md shadow-brand-accent/25'
-                : 'bg-muted text-muted-foreground dark:bg-muted/40 cursor-not-allowed',
+                : 'bg-muted text-muted-foreground dark:bg-foreground/[0.05] cursor-not-allowed',
             )}
             aria-label={isEditing ? 'Save message' : 'Send message'}
             title={isEditing ? 'Save' : 'Send'}

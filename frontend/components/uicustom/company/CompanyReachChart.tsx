@@ -17,7 +17,7 @@ export default function CompanyReachChart({ companyName, stats }: CompanyReachCh
       <h2 className="text-lg font-semibold">Storefront activity</h2>
       <p className="mt-1 text-sm text-muted-foreground">Recorded activity across this company’s public products.</p>
       <dl className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {metrics.map(metric => <div key={metric.label} className="min-w-0 rounded-lg bg-muted/40 p-3 sm:p-4">
+        {metrics.map(metric => <div key={metric.label} className="min-w-0 rounded-lg bg-foreground/[0.05] p-3 sm:p-4">
           <dt className="text-sm text-muted-foreground">{metric.label}</dt>
           <dd className="mt-2 break-words text-lg font-semibold tabular-nums sm:text-xl">{metric.value}</dd>
         </div>)}

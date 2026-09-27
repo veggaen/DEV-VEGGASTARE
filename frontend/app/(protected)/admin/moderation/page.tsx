@@ -160,7 +160,7 @@ export default function ModerationPage() {
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   statusFilter === f
                     ? 'bg-foreground text-background'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    : 'bg-foreground/[0.06] text-muted-foreground hover:bg-muted'
                 }`}
               >
                 {f === 'pending' ? 'Ventende' : f === 'resolved' ? 'Behandlet' : 'Alle'}
@@ -173,7 +173,7 @@ export default function ModerationPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 rounded-xl bg-muted/30 animate-pulse" />
+              <div key={i} className="h-24 rounded-xl bg-foreground/[0.04] animate-pulse" />
             ))}
           </div>
         ) : reports.length === 0 ? (
@@ -301,24 +301,24 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Innholds-ID:</span>
-              <code className="ml-1 text-xs bg-muted/50 px-1.5 py-0.5 rounded">{report.contentId}</code>
+              <code className="ml-1 text-xs bg-foreground/[0.06] px-1.5 py-0.5 rounded">{report.contentId}</code>
             </div>
             <div>
               <span className="text-muted-foreground">Rapportør-ID:</span>
-              <code className="ml-1 text-xs bg-muted/50 px-1.5 py-0.5 rounded">{report.Reporter?.id}</code>
+              <code className="ml-1 text-xs bg-foreground/[0.06] px-1.5 py-0.5 rounded">{report.Reporter?.id}</code>
             </div>
           </div>
 
           {report.description && (
             <div>
               <Label className="text-xs text-muted-foreground">Beskrivelse fra rapportør:</Label>
-              <p className="text-sm mt-1 p-3 rounded-lg bg-muted/30">{report.description}</p>
+              <p className="text-sm mt-1 p-3 rounded-lg bg-foreground/[0.04]">{report.description}</p>
             </div>
           )}
 
           {/* Action panel (only for actionable reports) */}
           {isActionable && (
-            <div className="space-y-3 p-4 rounded-lg bg-muted/20 border border-border">
+            <div className="space-y-3 p-4 rounded-lg bg-foreground/[0.03] border border-border">
               <Label className="text-sm font-medium">Handling (DSA Art. 17 — begrunnelsesplikt):</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {actionOptions.map((opt) => (
@@ -332,7 +332,7 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
                           : opt.severity === 'warning'
                           ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           : 'border-brand-accent bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
-                        : 'border-border hover:bg-muted/50'
+                        : 'border-border hover:bg-foreground/[0.06]'
                     }`}
                   >
                     {opt.label}

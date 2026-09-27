@@ -723,7 +723,7 @@ export const MyCompanyCreateForm = () => {
                     group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
                     ${logoPreview.length > 0
                       ? 'border-transparent bg-transparent p-0'
-                      : 'border-border/80 hover:border-brand-accent bg-muted/40 p-4'
+                      : 'border-border/80 hover:border-brand-accent bg-foreground/[0.05] p-4'
                     }
                   `}
                 >
@@ -776,7 +776,7 @@ export const MyCompanyCreateForm = () => {
                     group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
                     ${bannerPreview.length > 0
                       ? 'border-transparent bg-transparent p-0'
-                      : 'border-border/80 hover:border-brand-accent bg-muted/40 p-4'
+                      : 'border-border/80 hover:border-brand-accent bg-foreground/[0.05] p-4'
                     }
                   `}
                 >
@@ -860,7 +860,7 @@ export const MyCompanyCreateForm = () => {
                         return (
                           <div
                             key={employee.userId}
-                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-muted/40 border border-border/70 transition-colors duration-150 hover:bg-muted"
+                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-foreground/[0.05] border border-border/70 transition-colors duration-150 hover:bg-muted"
                           >
                             <span className="text-sm font-medium truncate sm:flex-1">
                               {employee.email}
@@ -931,7 +931,7 @@ export const MyCompanyCreateForm = () => {
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="relative rounded-xl border border-border/70 bg-muted/40 p-4 sm:p-5 space-y-4"
+                  className="relative rounded-xl border border-border/70 bg-foreground/[0.05] p-4 sm:p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground/85">

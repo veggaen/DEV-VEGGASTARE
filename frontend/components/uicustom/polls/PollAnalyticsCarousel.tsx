@@ -424,7 +424,7 @@ export function PollAnalyticsCarousel({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-4 rounded-lg bg-muted/50 border"
+            className="p-4 rounded-lg bg-foreground/[0.06] border"
           >
             <div className="flex items-center gap-2 mb-1">
               <stat.icon className={cn("w-4 h-4", stat.color)} />
@@ -599,7 +599,7 @@ export function PollAnalyticsCarousel({
           {analytics.questions.map((q, i) => (
             <div
               key={q.questionId}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+              className="flex items-center justify-between p-3 rounded-lg bg-foreground/[0.04] border"
             >
               <div className="flex items-center gap-3">
                 <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">

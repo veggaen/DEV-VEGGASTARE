@@ -775,7 +775,7 @@ function SectionItem({
       {...(wrapperProps as any)}
       className={cn(
         "rounded-lg overflow-hidden relative",
-        depth === 0 ? "bg-surface-3/70" : "bg-muted/50 ml-4 border-l-2 border-l-primary/30",
+        depth === 0 ? "bg-surface-3/70" : "bg-foreground/[0.06] ml-4 border-l-2 border-l-primary/30",
         isDropTarget && dropMode === "into" && "ring-2 ring-dashed ring-primary/70",
         isDropTarget && dropMode === "alongside" && "ring-2 ring-dashed ring-amber-500/70",
         isSelected && !isDraggingQuestion && "ring-1 ring-primary/40 bg-primary/[0.03]"
@@ -790,7 +790,7 @@ function SectionItem({
               ? "bg-primary/30 border-2 border-dashed border-primary" 
               : isDropTarget && dropMode === 'alongside'
               ? "bg-amber-500/20 border-2 border-dashed border-amber-500"
-              : "bg-muted/40 border-2 border-dashed border-border"
+              : "bg-foreground/[0.05] border-2 border-dashed border-border"
           )}
         >
           <div className={cn(
@@ -814,10 +814,10 @@ function SectionItem({
         </div>
       )}
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
-        <div className="flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors group/section">
+        <div className="flex items-center gap-2 p-3 hover:bg-foreground/[0.06] transition-colors group/section">
           {/* Larger drag handle area - entire left side is draggable */}
           <div
-            className="shrink-0 touch-none cursor-grab active:cursor-grabbing p-2 -m-2 rounded-lg hover:bg-muted/30 transition-colors select-none"
+            className="shrink-0 touch-none cursor-grab active:cursor-grabbing p-2 -m-2 rounded-lg hover:bg-foreground/[0.04] transition-colors select-none"
             onPointerDown={(e) => {
               e.preventDefault();
               dragControls.start(e);
@@ -919,7 +919,7 @@ function SectionItem({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-9 w-9 shrink-0 bg-muted/50 border-border/50 hover:bg-muted/50"
+                      className="h-9 w-9 shrink-0 bg-foreground/[0.06] border-border/50 hover:bg-foreground/[0.06]"
                     >
                       {section.icon ? (
                         <span className="text-lg">{section.icon}</span>
@@ -940,7 +940,7 @@ function SectionItem({
                       placeholder="Search icons... (e.g. chart, money, star)"
                       value={emojiSearch}
                       onChange={(e) => setEmojiSearch(e.target.value)}
-                      className="h-8 text-xs bg-muted/50 border-border/50 focus:border-border placeholder:text-muted-foreground"
+                      className="h-8 text-xs bg-foreground/[0.06] border-border/50 focus:border-border placeholder:text-muted-foreground"
                     />
                   </div>
                   <div 
@@ -991,7 +991,7 @@ function SectionItem({
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   placeholder="Enter section title..."
-                  className="h-9 text-sm bg-muted/50 border-border/50 focus:border-border"
+                  className="h-9 text-sm bg-foreground/[0.06] border-border/50 focus:border-border"
                 />
               </div>
             </div>
@@ -1005,7 +1005,7 @@ function SectionItem({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 placeholder="Optional section description..."
-                className="min-h-[60px] text-sm bg-muted/50 border-border/50 focus:border-border resize-none"
+                className="min-h-[60px] text-sm bg-foreground/[0.06] border-border/50 focus:border-border resize-none"
               />
             </div>
 
@@ -1155,7 +1155,7 @@ function QuestionDragItem({
       value={question.id}
       dragListener={false}
       dragControls={dragControls}
-      className="flex items-center gap-2 text-sm bg-muted/30 rounded hover:bg-muted/50 transition-colors group"
+      className="flex items-center gap-2 text-sm bg-foreground/[0.04] rounded hover:bg-foreground/[0.06] transition-colors group"
       whileDrag={{
         scale: 1.03,
         boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
@@ -1165,7 +1165,7 @@ function QuestionDragItem({
     >
       {/* Larger drag handle - left side of question */}
       <div
-        className="shrink-0 touch-none cursor-grab active:cursor-grabbing py-2 pl-2 pr-1 rounded-l hover:bg-muted/40 transition-colors select-none flex items-center"
+        className="shrink-0 touch-none cursor-grab active:cursor-grabbing py-2 pl-2 pr-1 rounded-l hover:bg-foreground/[0.05] transition-colors select-none flex items-center"
         onPointerDown={(e) => {
           e.preventDefault();
           dragControls.start(e);
@@ -1244,7 +1244,7 @@ function TopLevelQuestionReorderItem({
       dragControls={dragControls}
       className={cn(
         "rounded-lg overflow-hidden relative transition-[margin,padding] duration-150",
-        index % 2 === 0 ? "bg-muted/70 border border-border/50" : "bg-surface-3/70 border border-border/50",
+        index % 2 === 0 ? "bg-foreground/[0.08] border border-border/50" : "bg-surface-3/70 border border-border/50",
         draggingSectionId && "opacity-50 pointer-events-none",
         insertBefore && "mt-7"
       )}
@@ -1271,9 +1271,9 @@ function TopLevelQuestionReorderItem({
         </div>
       )}
       <Collapsible open={isThisExpanded} onOpenChange={onToggleExpand}>
-        <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors group/bq">
+        <div className="flex items-center gap-2 p-3 hover:bg-foreground/[0.04] transition-colors group/bq">
           <div
-            className="shrink-0 p-2 -m-2 rounded-lg hover:bg-muted/30 cursor-grab active:cursor-grabbing touch-none select-none"
+            className="shrink-0 p-2 -m-2 rounded-lg hover:bg-foreground/[0.04] cursor-grab active:cursor-grabbing touch-none select-none"
             onPointerDown={(e) => dragControls.start(e)}
           >
             <GripVertical className="h-4 w-4 text-muted-foreground group-hover/bq:text-muted-foreground" />
@@ -1305,7 +1305,7 @@ function TopLevelQuestionReorderItem({
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Question Type</Label>
                 <Select value={question.type} onValueChange={(v) => updateQuestion(question.id, { type: v as QuestionType })}>
-                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
+                  <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1329,7 +1329,7 @@ function TopLevelQuestionReorderItem({
                     }
                   }}
                 >
-                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
+                  <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-surface-3 border-border z-100">
@@ -1364,7 +1364,7 @@ function TopLevelQuestionReorderItem({
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => updateQuestion(question.id, { questionText: e.target.value })}
                 placeholder="Enter your question..."
-                className="bg-muted/50 border-border/50"
+                className="bg-foreground/[0.06] border-border/50"
               />
             </div>
             {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && (
@@ -1386,7 +1386,7 @@ function TopLevelQuestionReorderItem({
                               onClick={(e) => { if (handleInputMultiSelect(inputId, opt.text, e)) e.stopPropagation(); }}
                               onChange={(e) => { isMultiSelected ? handleSyncedInputChange(e.target.value) : updateOption(question.id, opt.id, { text: e.target.value }); }}
                               placeholder={`Option ${optIdx + 1}`}
-                              className={cn("flex-1 bg-muted/50 border-border/50 h-8 text-sm", isMultiSelected && "ring-1 ring-primary/50 border-primary/40")}
+                              className={cn("flex-1 bg-foreground/[0.06] border-border/50 h-8 text-sm", isMultiSelected && "ring-1 ring-primary/50 border-primary/40")}
                             />
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-400" onClick={() => removeOption(question.id, opt.id)} disabled={question.options.length <= 2}>
                               <X className="h-3 w-3" />
@@ -1470,7 +1470,7 @@ function SectionQuestionEditor({
       data-question-id={question.id}
       data-source-section={sectionId}
       className={cn(
-        "rounded-lg bg-muted/30 overflow-hidden relative",
+        "rounded-lg bg-foreground/[0.04] overflow-hidden relative",
         isDragging && "opacity-50"
       )}
       drag
@@ -1509,7 +1509,7 @@ function SectionQuestionEditor({
     >
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
         {/* Question Header - entire card is draggable, click grip area to drag */}
-        <div className="flex items-center gap-2 p-2 hover:bg-muted/30 transition-colors group/q cursor-grab active:cursor-grabbing">
+        <div className="flex items-center gap-2 p-2 hover:bg-foreground/[0.04] transition-colors group/q cursor-grab active:cursor-grabbing">
           {/* Drag indicator */}
           <div className="shrink-0 p-1">
             <GripVertical className="h-4 w-4 text-muted-foreground group-hover/q:text-muted-foreground transition-colors" />
@@ -1550,7 +1550,7 @@ function SectionQuestionEditor({
                   value={question.type}
                   onValueChange={(value) => onUpdate({ type: value as PollQuestion["type"] })}
                 >
-                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
+                  <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1587,7 +1587,7 @@ function SectionQuestionEditor({
                 value={question.questionText}
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => onUpdate({ questionText: e.target.value })}
-                className="bg-muted/50 border-border/50 h-9 text-sm"
+                className="bg-foreground/[0.06] border-border/50 h-9 text-sm"
               />
             </div>
 
@@ -1624,7 +1624,7 @@ function SectionQuestionEditor({
                                 }
                               }}
                               className={cn(
-                                "flex-1 bg-muted/50 border-border/50 h-8 text-sm",
+                                "flex-1 bg-foreground/[0.06] border-border/50 h-8 text-sm",
                                 isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
@@ -1670,7 +1670,7 @@ function SectionQuestionEditor({
                     value={(question.correctAnswer as string) || "_none"}
                     onValueChange={(v) => onUpdate({ correctAnswer: v === "_none" ? null : v })}
                   >
-                    <SelectTrigger className="bg-muted/50 border-border/50 h-7 text-xs">
+                    <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-7 text-xs">
                       <SelectValue placeholder="No correct answer" />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-3 border-border z-100">
@@ -1687,12 +1687,12 @@ function SectionQuestionEditor({
               {question.type === "MULTI_CHOICE" && question.options?.length > 0 && (
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Correct Answers (select all that apply)</Label>
-                  <div className="space-y-1 bg-muted/30 rounded-md p-2">
+                  <div className="space-y-1 bg-foreground/[0.04] rounded-md p-2">
                     {question.options?.map((opt) => {
                       const correctArr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
                       const isChecked = correctArr.includes(opt.id);
                       return (
-                        <label key={opt.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/30 rounded px-1 py-0.5">
+                        <label key={opt.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-foreground/[0.04] rounded px-1 py-0.5">
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -1720,7 +1720,7 @@ function SectionQuestionEditor({
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ explanation: e.target.value || null })}
                   placeholder="Explain why this answer is correct..."
-                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[40px] text-xs"
                 />
               </div>
               <div className="space-y-1">
@@ -1730,7 +1730,7 @@ function SectionQuestionEditor({
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ wrongExplanation: e.target.value || null })}
                   placeholder="Explain why they got it wrong..."
-                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[40px] text-xs"
                 />
               </div>
               {/* Deep Explanation � second-layer clarification */}
@@ -1741,7 +1741,7 @@ function SectionQuestionEditor({
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ deepExplanation: e.target.value || null })}
                   placeholder="Provide a deeper explanation for students who need more help..."
-                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[40px] text-xs"
                 />
               </div>
 
@@ -1870,7 +1870,7 @@ function QuestionItem({
       {/* Placeholder shown during drag */}
       {isDragging && (
         <div 
-          className="absolute inset-0 rounded-lg border-2 border-dashed border-border/50 bg-muted/20"
+          className="absolute inset-0 rounded-lg border-2 border-dashed border-border/50 bg-foreground/[0.03]"
         />
       )}
 
@@ -1882,7 +1882,7 @@ function QuestionItem({
             ? "bg-muted border border-border/50 shadow-2xl fixed pointer-events-none" 
             : index % 2 === 0 
               ? "bg-surface-3/60 border border-border/50" 
-              : "bg-muted/40 border border-border/30"
+              : "bg-foreground/[0.05] border border-border/30"
         )}
         style={{
           // When dragging, make it compact and fixed width
@@ -1962,10 +1962,10 @@ function QuestionItem({
           /* Full question editor - shown when not dragging */
           <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
             {/* Question Header */}
-            <div className="flex items-center gap-2 p-3 transition-colors group/question hover:bg-muted/50">
+            <div className="flex items-center gap-2 p-3 transition-colors group/question hover:bg-foreground/[0.06]">
               {/* Drag handle - only this initiates drag */}
               <div 
-                className="shrink-0 p-2 -m-1 rounded-lg hover:bg-muted/30 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+                className="shrink-0 p-2 -m-1 rounded-lg hover:bg-foreground/[0.04] transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
                 onPointerDown={(e) => dragControls.start(e)}
               >
                 <GripVertical className="h-5 w-5 text-muted-foreground group-hover/question:text-muted-foreground transition" />
@@ -2056,7 +2056,7 @@ function QuestionItem({
                         })
                       }
                     >
-                      <SelectTrigger className="bg-muted/50 border-border/50">
+                      <SelectTrigger className="bg-foreground/[0.06] border-border/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-surface-3 border-border z-100">
@@ -2110,7 +2110,7 @@ function QuestionItem({
                       value="_none"
                       onValueChange={(v) => onAssignToSection(v === "_none" ? null : v)}
                     >
-                      <SelectTrigger className="bg-muted/50 border-border/50">
+                      <SelectTrigger className="bg-foreground/[0.06] border-border/50">
                         <SelectValue placeholder="No section" />
                       </SelectTrigger>
                       <SelectContent className="bg-surface-3 border-border z-100">
@@ -2163,7 +2163,7 @@ function QuestionItem({
                 value={question.questionText}
                 onChange={(e) => onUpdate({ questionText: e.target.value })}
                 placeholder="Enter your question..."
-                className="bg-muted/50 border-border/50"
+                className="bg-foreground/[0.06] border-border/50"
               />
             </div>
 
@@ -2173,7 +2173,7 @@ function QuestionItem({
                 value={question.description || ""}
                 onChange={(e) => onUpdate({ description: e.target.value || undefined })}
                 placeholder="Additional context..."
-                className="bg-muted/50 border-border/50"
+                className="bg-foreground/[0.06] border-border/50"
               />
             </div>
 
@@ -2210,7 +2210,7 @@ function QuestionItem({
                               }}
                               placeholder={`Option ${letter}`}
                               className={cn(
-                                "flex-1 bg-muted/50 border-border/50",
+                                "flex-1 bg-foreground/[0.06] border-border/50",
                                 isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
@@ -2246,7 +2246,7 @@ function QuestionItem({
 
             {/* Slider Config */}
             {question.type === "SLIDER" && question.sliderConfig && (
-              <div className="space-y-4 p-3 bg-muted/30 rounded-lg">
+              <div className="space-y-4 p-3 bg-foreground/[0.04] rounded-lg">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Min</Label>
@@ -2262,7 +2262,7 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-muted/50 border-border/50"
+                      className="bg-foreground/[0.06] border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
@@ -2279,7 +2279,7 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-muted/50 border-border/50"
+                      className="bg-foreground/[0.06] border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
@@ -2295,7 +2295,7 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-muted/50 border-border/50"
+                      className="bg-foreground/[0.06] border-border/50"
                     />
                   </div>
                 </div>
@@ -2313,7 +2313,7 @@ function QuestionItem({
                         })
                       }
                       placeholder="Low"
-                      className="bg-muted/50 border-border/50"
+                      className="bg-foreground/[0.06] border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
@@ -2329,7 +2329,7 @@ function QuestionItem({
                         })
                       }
                       placeholder="High"
-                      className="bg-muted/50 border-border/50"
+                      className="bg-foreground/[0.06] border-border/50"
                     />
                   </div>
                 </div>
@@ -2364,7 +2364,7 @@ function QuestionItem({
 
                   >
 
-                    <SelectTrigger className="bg-muted/50 border-border/50">
+                    <SelectTrigger className="bg-foreground/[0.06] border-border/50">
 
                       <SelectValue placeholder="Choose a preset or build custom" />
 
@@ -2439,7 +2439,7 @@ function QuestionItem({
                       value={(question.correctAnswer as string) || "_none"}
                       onValueChange={(v) => onUpdate({ correctAnswer: v === "_none" ? null : v })}
                     >
-                      <SelectTrigger className="bg-muted/50 border-border/50">
+                      <SelectTrigger className="bg-foreground/[0.06] border-border/50">
                         <SelectValue placeholder="No correct answer" />
                       </SelectTrigger>
                       <SelectContent className="bg-surface-3 border-border z-100">
@@ -2520,7 +2520,7 @@ function QuestionItem({
                   value={question.explanation || ""}
                   onChange={(e) => onUpdate({ explanation: e.target.value || null })}
                   placeholder="Explain why this answer is correct (shown when user clicks &quot;Why?&quot;)"
-                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[60px] text-sm"
                 />
               </div>
               {/* Wrong answer explanation */}
@@ -2530,7 +2530,7 @@ function QuestionItem({
                   value={question.wrongExplanation || ""}
                   onChange={(e) => onUpdate({ wrongExplanation: e.target.value || null })}
                   placeholder="Explain why they got it wrong (shown when incorrect)"
-                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[60px] text-sm"
                 />
               </div>
               {/* Deep explanation � second-layer clarification */}
@@ -2540,7 +2540,7 @@ function QuestionItem({
                   value={question.deepExplanation || ""}
                   onChange={(e) => onUpdate({ deepExplanation: e.target.value || null })}
                   placeholder="Provide a deeper explanation for students who need more help..."
-                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
+                  className="bg-foreground/[0.06] border-border/50 min-h-[60px] text-sm"
                 />
               </div>
 
@@ -5232,7 +5232,7 @@ export function PollBuilder({
                     value={data.type}
                     onValueChange={(v) => setData((d) => ({ ...d, type: v as PollType }))}
                   >
-                    <SelectTrigger className="bg-muted/50 border-border/50">
+                    <SelectTrigger className="bg-foreground/[0.06] border-border/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-3 border-border">
@@ -5253,7 +5253,7 @@ export function PollBuilder({
                     onChange={(e) =>
                       setData((d) => ({ ...d, expiresAt: e.target.value || undefined }))
                     }
-                    className="bg-muted/50 border-border/50"
+                    className="bg-foreground/[0.06] border-border/50"
                   />
                 </div>
               </div>
@@ -5437,7 +5437,7 @@ export function PollBuilder({
                             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition cursor-pointer",
                             hasQuotaBypass
                               ? "bg-violet-500/10 text-violet-300 border-violet-500/25 hover:bg-violet-500/15 hover:border-violet-500/35"
-                              : "bg-muted/80 text-muted-foreground border-border/40 hover:bg-muted/60 hover:text-foreground/80 hover:border-border/50"
+                              : "bg-foreground/[0.09] text-muted-foreground border-border/40 hover:bg-foreground/[0.07] hover:text-foreground/80 hover:border-border/50"
                           )}
                         >
                           {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-light animate-pulse" />}
@@ -5549,7 +5549,7 @@ export function PollBuilder({
                         <button
                           type="button"
                           onClick={() => { setAiShowByok(false); if (!aiApiKey.trim()) setAiKeySource("auto"); }}
-                          className="text-muted-foreground hover:text-foreground/80 transition-colors p-0.5 rounded hover:bg-muted/50"
+                          className="text-muted-foreground hover:text-foreground/80 transition-colors p-0.5 rounded hover:bg-foreground/[0.06]"
                           title="Close"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -5663,7 +5663,7 @@ export function PollBuilder({
                             }
                             setTimeout(() => aiTextareaRef.current?.focus(), 0);
                           }}
-                          className="max-w-full text-left rounded-lg border border-border/70 bg-surface-3/40 hover:bg-muted/60 hover:border-border/70 transition-colors px-2.5 py-2 text-[11px] text-foreground/80 truncate"
+                          className="max-w-full text-left rounded-lg border border-border/70 bg-surface-3/40 hover:bg-foreground/[0.07] hover:border-border/70 transition-colors px-2.5 py-2 text-[11px] text-foreground/80 truncate"
                           title={activeStarterSuggestion}
                         >
                           {activeStarterSuggestion}
@@ -5688,10 +5688,10 @@ export function PollBuilder({
                         {/* Quiz snapshot info */}
                         {msg.quizSnapshot && (
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            <span className="px-2 py-0.5 rounded-full bg-muted/80 border border-border/50">
+                            <span className="px-2 py-0.5 rounded-full bg-foreground/[0.09] border border-border/50">
                               {msg.quizSnapshot.questionCount} questions
                             </span>
-                            <span className="px-2 py-0.5 rounded-full bg-muted/80 border border-border/50">
+                            <span className="px-2 py-0.5 rounded-full bg-foreground/[0.09] border border-border/50">
                               {msg.quizSnapshot.type}
                             </span>
                             {msg.quizSnapshot.trustFactor && (
@@ -5708,7 +5708,7 @@ export function PollBuilder({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-[11px] gap-1 border-border/60 bg-muted/50 hover:bg-muted/50 text-foreground/80"
+                            className="h-7 text-[11px] gap-1 border-border/60 bg-foreground/[0.06] hover:bg-foreground/[0.06] text-foreground/80"
                             onClick={() => setShowInteractivePreview(true)}
                           >
                             <Eye className="w-3 h-3" />
@@ -5717,7 +5717,7 @@ export function PollBuilder({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-[11px] gap-1 border-border/60 bg-muted/50 hover:bg-muted/50 text-foreground/80"
+                            className="h-7 text-[11px] gap-1 border-border/60 bg-foreground/[0.06] hover:bg-foreground/[0.06] text-foreground/80"
                             onClick={() => { onAiGenerateClose?.(); }}
                           >
                             <Wrench className="w-3 h-3" />
@@ -5735,7 +5735,7 @@ export function PollBuilder({
                         "max-w-[85%] rounded-xl rounded-tl-sm px-3 py-2 text-sm",
                         msg.content.startsWith("Error:")
                           ? "bg-red-500/10 border border-red-500/20 text-red-300"
-                          : "bg-muted/60 border border-border/40 text-foreground/80"
+                          : "bg-foreground/[0.07] border border-border/40 text-foreground/80"
                       )}>
                         {msg.content}
                       </div>
@@ -5900,7 +5900,7 @@ export function PollBuilder({
                           aiGenerating ||
                           !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
                           limitReachedWithoutBypass
-                            ? "bg-muted/50 text-muted-foreground cursor-not-allowed"
+                            ? "bg-foreground/[0.06] text-muted-foreground cursor-not-allowed"
                             : "bg-violet-600 text-white hover:bg-violet-500 shadow-sm shadow-violet-500/20"
                         )}
                         disabled={
@@ -5927,8 +5927,8 @@ export function PollBuilder({
                               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition",
                               hasQuotaBypass
                                 ? "bg-violet-500/8 hover:bg-violet-500/15 text-violet-300 hover:text-violet-200"
-                                : "hover:bg-muted/60 hover:text-foreground/80",
-                              aiModelDropdownOpen && (hasQuotaBypass ? "bg-violet-500/15 text-violet-200" : "bg-muted/60 text-foreground/80")
+                                : "hover:bg-foreground/[0.07] hover:text-foreground/80",
+                              aiModelDropdownOpen && (hasQuotaBypass ? "bg-violet-500/15 text-violet-200" : "bg-foreground/[0.07] text-foreground/80")
                             )}
                           >
                             {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-light" />}
@@ -5970,7 +5970,7 @@ export function PollBuilder({
                                             "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
                                             isActive
                                               ? "bg-violet-500/10 text-foreground"
-                                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/80"
+                                              : "text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground/80"
                                           )}
                                         >
                                           <div className={cn(
@@ -6021,7 +6021,7 @@ export function PollBuilder({
                                     <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                     <div className="flex-1 space-y-1">
                                       <div className="h-3 w-24 rounded bg-muted" />
-                                      <div className="h-2 w-32 rounded bg-muted/60" />
+                                      <div className="h-2 w-32 rounded bg-foreground/[0.07]" />
                                     </div>
                                   </div>
                                 ))}
@@ -6056,7 +6056,7 @@ export function PollBuilder({
                                             "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
                                             isActive
                                               ? "bg-violet-500/10 text-foreground"
-                                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/80"
+                                              : "text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground/80"
                                           )}
                                         >
                                           <div className={cn(
@@ -6098,7 +6098,7 @@ export function PollBuilder({
                                     <DropdownMenuTrigger asChild>
                                       <button
                                         type="button"
-                                        className="w-full text-left px-3 py-1.5 text-[11px] text-muted-foreground hover:text-muted-foreground hover:bg-muted/40 flex items-center gap-2 transition-colors"
+                                        className="w-full text-left px-3 py-1.5 text-[11px] text-muted-foreground hover:text-muted-foreground hover:bg-foreground/[0.05] flex items-center gap-2 transition-colors"
                                       >
                                         <ChevronRight className="w-3 h-3" />
                                         More models
@@ -6160,7 +6160,7 @@ export function PollBuilder({
                                     requestProviderKey(provDef.value as AiProvider);
                                     setAiModelDropdownOpen(false);
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-foreground/80 hover:bg-muted/50 flex items-center gap-2 transition-colors group"
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.06] flex items-center gap-2 transition-colors group"
                                 >
                                   <span className="text-sm">{provDef.emoji}</span>
                                   <span>{provDef.label}</span>
@@ -6183,7 +6183,7 @@ export function PollBuilder({
                                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition text-[10px] font-medium",
                                 aiThinking
                                   ? "bg-purple-500/15 text-purple-400 border border-purple-500/25 hover:bg-purple-500/25"
-                                  : "text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
+                                  : "text-muted-foreground hover:text-muted-foreground hover:bg-foreground/[0.06]"
                               )}
                             >
                               <BrainCircuit className={cn("w-3 h-3", aiThinking && "text-purple-400")} />
@@ -6432,7 +6432,7 @@ export function PollBuilder({
                   "mb-3 p-3 rounded-lg border-2 border-dashed transition",
                   dropTargetTopLevel
                     ? "bg-amber-500/20 border-amber-500 scale-[1.02]"
-                    : "bg-muted/30 border-border hover:border-amber-500/50"
+                    : "bg-foreground/[0.04] border-border hover:border-amber-500/50"
                 )}
               >
                 <div className="flex items-center justify-center gap-2">

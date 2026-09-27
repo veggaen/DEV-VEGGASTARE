@@ -26,7 +26,7 @@ function CheckoutContents({ initialItems, mode, available, adjustment, cancelled
     <Link href="/cart" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline">Back to cart</Link>
     <h1 className="mt-3 text-3xl font-semibold tracking-tight">Secure checkout</h1>
     <p className="mt-2 text-muted-foreground">One-time purchase · Digital delivery</p>
-    {cancelled && <p role="status" className="mt-5 rounded-xl border border-border bg-muted/30 p-4 text-sm">Your basket is saved. Already approved payment? Check <Link href="/my-orders" className="underline">My orders</Link> before starting another checkout.</p>}
+    {cancelled && <p role="status" className="mt-5 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm">Your basket is saved. Already approved payment? Check <Link href="/my-orders" className="underline">My orders</Link> before starting another checkout.</p>}
     <ReviewerCheckoutButton demo={demo} quoteToken={pricing.token} disabled={!available || !pricing.ready || checkoutBlocked}
       hasFiles={rows.some(row => row.creditAmount === undefined)} hasCredits={rows.some(row => row.creditAmount !== undefined)}
       order={<section className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-6" aria-label="Order items">

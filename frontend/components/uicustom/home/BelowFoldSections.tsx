@@ -527,7 +527,7 @@ export default function BelowFoldSections() {
       </div>
 
       {/* ── Stats strip ────────────────────────────────────────────────────── */}
-      <div className="border-y border-border/60 bg-muted/40">
+      <div className="border-y border-border/60 bg-foreground/[0.05]">
         {/* `relative` here is the positioning context for the indicator */}
         <div
           ref={statsContainerRef}
@@ -695,7 +695,7 @@ export default function BelowFoldSections() {
                 />
                 <Link
                   href="/pulse"
-                  className="relative flex items-center gap-2 rounded-xl border border-border bg-muted/80 px-5 py-3 text-sm font-medium text-foreground backdrop-blur-sm transition duration-300 hover:border-border hover:bg-muted/80 hover:text-foreground group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                  className="relative flex items-center gap-2 rounded-xl border border-border bg-foreground/[0.09] px-5 py-3 text-sm font-medium text-foreground backdrop-blur-sm transition duration-300 hover:border-border hover:bg-foreground/[0.09] hover:text-foreground group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                 >
                   {/* Icon swap: RSS → bolt on hover */}
                   <span className="relative h-4 w-4">

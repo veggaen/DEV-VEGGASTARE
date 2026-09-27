@@ -162,7 +162,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
   if (!options && allProducts.length === 0 && !showLocalPickup) {
     return (
       <div className="text-center py-6">
-        <div className="h-12 w-12 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-3">
+        <div className="h-12 w-12 mx-auto rounded-full bg-foreground/[0.06] flex items-center justify-center mb-3">
           <FiPackage className="h-6 w-6 text-muted-foreground" />
         </div>
         <p className="text-sm text-muted-foreground">No shipping options available</p>
@@ -185,7 +185,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
               'w-full flex items-center justify-between gap-4 p-3 rounded-lg border transition duration-200',
               selectedIndex === idx
                 ? 'border-brand-accent bg-brand-accent/5 ring-1 ring-brand-accent/20'
-                : 'border-border hover:border-brand-accent/50 bg-surface-2/50 dark:bg-muted/40'
+                : 'border-border hover:border-brand-accent/50 bg-surface-2/50 dark:bg-foreground/[0.05]'
             )}
           >
             <div className="flex items-center gap-3">
@@ -193,7 +193,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                 'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
                 selectedIndex === idx
                   ? 'bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light'
-                  : 'bg-muted/50 text-muted-foreground'
+                  : 'bg-foreground/[0.06] text-muted-foreground'
               )}>
                 <FiTruck className="h-4 w-4" />
               </div>
@@ -280,7 +280,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                       />
                     </div>
                   ) : (
-                    <div className="h-12 w-12 rounded-xl bg-surface-2 dark:bg-muted/40 flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 rounded-xl bg-surface-2 dark:bg-foreground/[0.05] flex items-center justify-center shrink-0">
                       <FiPackage className="h-5 w-5 text-muted-foreground" />
                     </div>
                   )}
@@ -482,7 +482,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="rounded-lg bg-surface-2/50 dark:bg-muted/40 border border-border dark:border-border/50 p-3"
+            className="rounded-lg bg-surface-2/50 dark:bg-foreground/[0.05] border border-border dark:border-border/50 p-3"
           >
             <div className="grid grid-cols-2 gap-3 text-xs">
               {allProducts[selectedIndex].product.guiInformation?.maxWeightInKgs && (

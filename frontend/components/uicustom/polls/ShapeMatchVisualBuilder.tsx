@@ -359,7 +359,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                   value={config.mode}
                   onValueChange={(v) => setConfig(prev => ({ ...prev, mode: v as ShapeMatchBuilderConfig["mode"] }))}
                 >
-                  <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs">
+                  <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-surface-3 border-border z-250">
@@ -434,7 +434,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       timeLimit: e.target.value ? parseInt(e.target.value) : undefined,
                     }))}
                     placeholder="No limit"
-                    className="bg-muted/50 border-border/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
                 <div className="space-y-1">
@@ -443,7 +443,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                     value={config.instructions || ""}
                     onChange={(e) => setConfig(prev => ({ ...prev, instructions: e.target.value }))}
                     placeholder="Drag each shape..."
-                    className="bg-muted/50 border-border/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
 
@@ -657,7 +657,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       if (selectedZone) updateZoneProps(selectedZone.id, { shape: v as ShapeType });
                     }}
                   >
-                    <SelectTrigger className="bg-muted/50 border-border/50 h-7 text-xs">
+                    <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-3 border-border z-250">
@@ -705,7 +705,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       if (selectedZone) updateZoneProps(selectedZone.id, { label: e.target.value || undefined });
                     }}
                     placeholder="e.g. Red circle"
-                    className="bg-muted/50 border-border/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
 
@@ -722,7 +722,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                           max={200}
                           value={selectedZone.width}
                           onChange={(e) => updateZoneProps(selectedZone.id, { width: parseInt(e.target.value) || 100 })}
-                          className="bg-muted/50 border-border/50 h-7 text-xs"
+                          className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                         />
                       </div>
                       <div>
@@ -733,7 +733,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                           max={200}
                           value={selectedZone.height}
                           onChange={(e) => updateZoneProps(selectedZone.id, { height: parseInt(e.target.value) || 100 })}
-                          className="bg-muted/50 border-border/50 h-7 text-xs"
+                          className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                         />
                       </div>
                     </div>

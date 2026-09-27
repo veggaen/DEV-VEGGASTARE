@@ -295,7 +295,7 @@ export default function TradingPage() {
                           setPartnerQuery("");
                           setPartnerResults([]);
                         }}
-                        className="w-full px-3 py-2 text-left text-xs hover:bg-muted/80 transition-colors"
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-foreground/[0.09] transition-colors"
                       >
                         <p className="font-medium text-foreground/80 truncate">{user.name ?? "Unknown user"}</p>
                         <p className="text-muted-foreground truncate text-[10px]">{user.email ?? user.id}</p>
@@ -375,7 +375,7 @@ export default function TradingPage() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap ${
                   mode === m
                     ? MODE_BTN_ACTIVE[m]
-                    : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
+                    : "text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
                 }`}
                 title={MODE_META[m].label}
               >
@@ -384,7 +384,7 @@ export default function TradingPage() {
               </button>
             ))}
           </div>
-          <div className="mt-2 h-px bg-muted/40" />
+          <div className="mt-2 h-px bg-foreground/[0.05]" />
         </div>
       </header>
 
@@ -496,7 +496,7 @@ export default function TradingPage() {
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="flex flex-col items-center justify-center min-h-70 py-12 px-6 gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-muted/20 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center">
                     <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <h3 className="text-sm font-semibold text-muted-foreground">No Active Trade</h3>

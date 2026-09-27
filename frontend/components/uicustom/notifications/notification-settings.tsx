@@ -283,7 +283,7 @@ export function NotificationSettings({
                 onClick={() => setExpandedCategory(
                   expandedCategory === categoryKey ? null : categoryKey
                 )}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-foreground/[0.05] transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{getCategoryEmoji(category.icon)}</span>
@@ -323,7 +323,7 @@ export function NotificationSettings({
                         return (
                           <div 
                             key={typeKey}
-                            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors"
+                            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-foreground/[0.05] transition-colors"
                           >
                             <div className="flex items-center gap-3">
                               <span 

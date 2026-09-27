@@ -539,7 +539,7 @@ export default function AiConversationClient({
           <div className="text-4xl mb-4">✦</div>
           <p className="text-lg font-semibold mb-2">Oops</p>
           <p className="text-muted-foreground text-sm mb-6">{error}</p>
-          <Link href="/ai" className="px-4 py-2 rounded-xl bg-brand-accent text-foreground text-sm font-semibold hover:bg-brand-accent-light transition-colors">
+          <Link href="/ai" className="inline-flex items-center px-4 py-2 rounded-xl bg-brand-accent text-brand-accent-foreground text-sm font-semibold hover:bg-brand-accent-light transition-colors">
             Back to AI Chat
           </Link>
         </div>
@@ -601,7 +601,7 @@ export default function AiConversationClient({
             {sessionId && isLoggedIn && !demo && (
               <button
                 onClick={handleShare}
-                className="grid place-items-center h-11 w-11 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                className="grid place-items-center h-11 w-11 rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-colors"
                 title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
                 aria-label="Share"
               >
@@ -618,7 +618,7 @@ export default function AiConversationClient({
                 "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 showSettings
                   ? "text-brand-accent bg-brand-accent/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
               )}
               title="Settings"
               aria-label="Settings"
@@ -636,7 +636,7 @@ export default function AiConversationClient({
                 "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 sidebarOpen
                   ? "text-brand-accent bg-brand-accent/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
               )}
               title="Participants"
               aria-label="Participants"
@@ -807,7 +807,7 @@ export default function AiConversationClient({
                         <button
                           onClick={() => handleModerate("flag")}
                           disabled={moderating}
-                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted/40 disabled:opacity-50 transition-colors"
+                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-foreground/[0.05] disabled:opacity-50 transition-colors"
                         >
                           Flag for review
                         </button>
@@ -848,9 +848,9 @@ function ParticipantCard({
 }) {
   const isAi = p.type === "AI_BYOK" || p.type === "AI_PLATFORM";
   return (
-    <div className="px-3 py-3 rounded-xl bg-muted/40 border border-border/60">
+    <div className="px-3 py-3 rounded-xl bg-foreground/[0.05] border border-border/60">
       <div className="flex items-center gap-2 mb-1">
-        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-brand-accent/20 text-brand-accent" : "bg-muted/40 text-muted-foreground"}`}>
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-brand-accent/20 text-brand-accent" : "bg-foreground/[0.05] text-muted-foreground"}`}>
           {isAi ? "✦" : (p.displayName?.[0] ?? "?")}
         </div>
         <div className="min-w-0 flex-1">
@@ -942,7 +942,7 @@ function ConvSettings({
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTitle(); (e.target as HTMLInputElement).blur(); } }}
           disabled={saving}
           maxLength={120}
-          className="w-full rounded-xl bg-muted/40 border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent/50 transition-colors"
+          className="w-full rounded-xl bg-foreground/[0.05] border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent/50 transition-colors"
           placeholder="Conversation name"
         />
       </div>

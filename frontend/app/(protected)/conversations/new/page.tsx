@@ -99,7 +99,7 @@ export default function NewConversationPage() {
       <div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New Conversation</h1>
       <p className="mt-1 text-sm text-muted-foreground">Private messages and small group chats.</p></div>
     </header>
-    {demo && <aside aria-label="Demo messaging preview" className="mb-6 rounded-xl border border-border bg-muted/40 p-4 text-sm">
+    {demo && <aside aria-label="Demo messaging preview" className="mb-6 rounded-xl border border-border bg-foreground/[0.05] p-4 text-sm">
       <p className="font-medium">Messaging preview</p>
       <p className="mt-1 text-muted-foreground">Demo accounts cannot contact real members. Explore the layout here, or try your private AI chat.</p>
       <Link href="/ai" className="mt-2 inline-flex min-h-11 items-center rounded-md font-medium text-primary underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring">Open AI chat</Link>

@@ -856,7 +856,7 @@ function DevChainStatusIndicator() {
           onClick={() => void refetch()}
           disabled={isFetching}
           aria-label="Refresh chain status"
-          className="p-0.5 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground/80 transition-colors"
+          className="p-0.5 rounded hover:bg-foreground/[0.05] text-muted-foreground hover:text-foreground/80 transition-colors"
           title="Refresh chain status"
         >
           <FiRefreshCw className="h-2.5 w-2.5" />
@@ -872,7 +872,7 @@ function DevChainStatusIndicator() {
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] transition-colors ${
               chains[c.id] === 'online'
                 ? 'bg-brand-accent/5 text-brand-accent'
-                : 'bg-muted/40 text-muted-foreground'
+                : 'bg-foreground/[0.05] text-muted-foreground'
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot(chains[c.id])}`} />
@@ -894,7 +894,7 @@ function DevChainStatusIndicator() {
 /*  Web3EnablePrompt — shown when web3 mode is disabled                */
 /* ------------------------------------------------------------------ */
 function Web3EnablePrompt() {
-  return <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+  return <div className="space-y-2 rounded-lg border border-border bg-foreground/[0.04] p-3">
     <p className="text-sm text-muted-foreground">Experimental Web3 tools are off.</p>
     <Link href="/settings?section=wallet" className="flex min-h-11 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       Review Web3 settings
@@ -1612,8 +1612,8 @@ function WalletRow({
             ? "border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/15"
             : "border-brand-accent/50 bg-brand-accent/50"
           : isLive
-              ? "border-border/60 bg-muted/40"
-              : "border-border/80 bg-muted/40"
+              ? "border-border/60 bg-foreground/[0.05]"
+              : "border-border/80 bg-foreground/[0.05]"
       }`}
       role="group"
       aria-label={`${displayName} wallet`}
@@ -1843,8 +1843,8 @@ function WalletRow({
                 disabled={activationPending}
                 className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
-                    ? "bg-muted/70 text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
-                    : "bg-muted/70 text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover hover:dark:text-brand-accent-light dark:hover:text-brand-accent-light"
+                    ? "bg-foreground/[0.08] text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
+                    : "bg-foreground/[0.08] text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover hover:dark:text-brand-accent-light dark:hover:text-brand-accent-light"
                 }`}
                 title={connectorType === 'LOCAL_RPC' ? "Make this local RPC wallet the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
               >
@@ -4028,7 +4028,7 @@ export default function SidebarWalletPanel({
                           className={`rounded-lg border p-2 text-left transition-colors ${
                             selected
                               ? "border-brand-accent bg-brand-accent/10 dark:bg-brand-accent/30"
-                              : "border-border hover:bg-muted/40 dark:hover:bg-surface-3"
+                              : "border-border hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
                           }`}
                         >
                           <p className="truncate text-[11px] font-medium text-foreground">{destinationLabel}</p>
@@ -4075,7 +4075,7 @@ export default function SidebarWalletPanel({
                         key={pct}
                         type="button"
                         onClick={() => setTransferInput((maxTransferNative * (pct / 100)).toFixed(8))}
-                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted/40 dark:text-foreground/80 dark:hover:bg-surface-3"
+                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-foreground/[0.05] dark:text-foreground/80 dark:hover:bg-surface-3"
                       >
                         {pct}%
                       </button>
@@ -4083,12 +4083,12 @@ export default function SidebarWalletPanel({
                     <button
                       type="button"
                       onClick={() => setTransferInput(maxTransferNative > 0 ? maxTransferNative.toFixed(8) : "")}
-                      className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted/40 dark:text-foreground/80 dark:hover:bg-surface-3"
+                      className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-foreground/[0.05] dark:text-foreground/80 dark:hover:bg-surface-3"
                     >
                       Max
                     </button>
                   </div>
-                  <div className="mt-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[10px] text-muted-foreground dark:bg-surface-3 dark:text-foreground/80">
+                  <div className="mt-2 rounded-md border border-border bg-foreground/[0.05] px-2 py-1.5 text-[10px] text-muted-foreground dark:bg-surface-3 dark:text-foreground/80">
                     <p>Estimated network fee: {estimatedFeeNative.toFixed(6)} {nativeSymbol}{nativeUsdPrice > 0 ? ` (~${estimatedFeeNok.toFixed(2)} kr)` : ""}</p>
                     <p>Total cost: {(parsedNativeAmount + estimatedFeeNative).toFixed(8)} {nativeSymbol}</p>
                   </div>
@@ -4152,7 +4152,7 @@ export default function SidebarWalletPanel({
                 )}
 
                 {transferHistory.length > 0 && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-2 dark:bg-surface-3">
+                  <div className="rounded-lg border border-border bg-foreground/[0.05] p-2 dark:bg-surface-3">
                     <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Recent transfers</p>
                     <div className="space-y-1">
                       {transferHistory.slice(0, 3).map((item) => (
@@ -4168,7 +4168,7 @@ export default function SidebarWalletPanel({
                   <button
                     type="button"
                     onClick={closeTransferFlow}
-                    className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-muted/40 dark:hover:bg-surface-3"
+                    className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
                   >
                     {transferStep === "success" ? "Done" : "Cancel"}
                   </button>
@@ -4179,7 +4179,7 @@ export default function SidebarWalletPanel({
                         resetTransfer();
                         setTransferInput("");
                       }}
-                      className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-muted/40 dark:hover:bg-surface-3"
+                      className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
                     >
                       Make another
                     </button>

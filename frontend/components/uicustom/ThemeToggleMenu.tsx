@@ -77,7 +77,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-9 gap-2 rounded-xl border border-border bg-card text-foreground/85 hover:bg-muted/40 transition-colors"
+          className="h-9 gap-2 rounded-xl border border-border bg-card text-foreground/85 hover:bg-foreground/[0.05] transition-colors"
         >
           <Icon className="h-4 w-4" />
           {showLabel && <span className="text-sm">{label}</span>}

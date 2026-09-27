@@ -244,7 +244,7 @@ export function AdvancedPollDisplay({
 
   if (isExpired && !isComplete) {
     return (
-      <div className={cn("p-6 rounded-lg border bg-muted/50", className)}>
+      <div className={cn("p-6 rounded-lg border bg-foreground/[0.06]", className)}>
         <div className="text-center space-y-2">
           <Clock className="w-12 h-12 mx-auto text-muted-foreground" />
           <h3 className="font-semibold">Poll Expired</h3>
@@ -265,7 +265,7 @@ export function AdvancedPollDisplay({
   // Show completion state
   if (isComplete) {
     return (
-      <div className={cn("p-6 rounded-lg border bg-muted/50", className)}>
+      <div className={cn("p-6 rounded-lg border bg-foreground/[0.06]", className)}>
         <div className="text-center space-y-4">
           <motion.div
             initial={{ scale: 0 }}

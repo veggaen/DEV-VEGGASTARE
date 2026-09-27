@@ -266,7 +266,7 @@ const CompanyDetails = () => {
         return (
             <div className="w-full bg-background">
                 <div className="relative mx-auto w-full max-w-screen-2xl px-4 py-6">
-                    <div className="overflow-hidden rounded-lg border border-border bg-surface-1/60 backdrop-blur-sm transition-[border-radius] duration-200 hover:rounded-2xl dark:bg-muted/40">
+                    <div className="overflow-hidden rounded-lg border border-border bg-surface-1/60 backdrop-blur-sm transition-[border-radius] duration-200 hover:rounded-2xl dark:bg-foreground/[0.05]">
                         <div className="relative w-full">
                             {company.bannerImage?.[0] ? (
                                 <AspectRatio ratio={3 / 1}>
@@ -285,7 +285,7 @@ const CompanyDetails = () => {
 
                             <div className="absolute inset-0 flex items-end justify-between gap-4 p-4 md:p-6">
                                 <div className="flex items-end gap-4">
-                                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-border bg-muted/40 md:h-24 md:w-24">
+                                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-border bg-foreground/[0.05] md:h-24 md:w-24">
                                         <Image
                                             src={company.logo?.[0] || "/users/avatar.webp"}
                                             layout="fill"
@@ -345,7 +345,7 @@ const CompanyDetails = () => {
                             </div>
 
                             {showRegistrationPrompt ? (
-                                <div className="mb-8 rounded-lg border border-border bg-surface-1/50 p-4 text-foreground dark:bg-muted/40">
+                                <div className="mb-8 rounded-lg border border-border bg-surface-1/50 p-4 text-foreground dark:bg-foreground/[0.05]">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-base font-semibold">Optional company metadata</p>
@@ -423,45 +423,45 @@ const CompanyDetails = () => {
                             ) : null}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                                 {hasInternalAccess && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Company ID:</p>
                                         <p className="text-foreground text-lg font-semibold">{company.id || 'N/A'}</p>
                                     </div>
                                 )}
-                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                     <p className="text-foreground/85 text-lg mb-2 font-medium">Founded by:</p>
                                     <p className="text-foreground text-lg font-semibold">{company.creator.name || 'N/A'}</p>
                                 </div>
                                 {hasInternalAccess && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Company Owner:</p>
                                         <p className="text-foreground text-lg font-semibold">{company.owner.name || 'N/A'}</p>
                                     </div>
                                 )}
                                 {hasInternalAccess && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Color Scheme:</p>
                                         <p className="text-foreground text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
                                     </div>
                                 )}
                                 {hasInternalAccess && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Uses Shipping:</p>
                                         <p className="text-foreground text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
                                     </div>
                                 )}
-                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                     <p className="text-foreground/85 text-lg mb-2 font-medium">Founded:</p>
                                     <p className="text-foreground text-lg font-semibold">{formatDate(company.createdAt)}</p>
                                 </div>
                                 {hasInternalAccess && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Last Updated:</p>
                                         <p className="text-foreground text-lg font-semibold">{formatDate(company.updatedAt)}</p>
                                     </div>
                                 )}
                                 {!hasInternalAccess && company.employees && (
-                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-foreground/[0.05] rounded-lg hover:rounded-2xl">
                                         <p className="text-foreground/85 text-lg mb-2 font-medium">Team Size:</p>
                                         <p className="text-foreground text-lg font-semibold">{company.employees.length} {company.employees.length === 1 ? 'member' : 'members'}</p>
                                     </div>
@@ -479,7 +479,7 @@ const CompanyDetails = () => {
                                             return (
                                                 <li
                                                     key={index}
-                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
+                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] rounded-lg hover:rounded-2xl"
                                                 >
                                                     <p className="text-foreground/85 text-lg mb-2">
                                                         {warehouseLocation.address}, {warehouseLocation.city}, {warehouseLocation.country}
@@ -508,7 +508,7 @@ const CompanyDetails = () => {
                                         {sortedEmployeesRole.map((employee) => (
                                                 <div
                                                     key={employee.id}
-                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
+                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] rounded-lg hover:rounded-2xl"
                                                 >
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex-1 min-w-0">

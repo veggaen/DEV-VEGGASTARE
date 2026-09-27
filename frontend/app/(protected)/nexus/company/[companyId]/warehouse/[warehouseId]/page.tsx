@@ -141,31 +141,31 @@ const WarehouseInventory = () => {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Search by title or category…"
-                            className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-brand-accent/30 dark:bg-muted/40 hover:rounded-2xl"
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-brand-accent/30 dark:bg-foreground/[0.05] hover:rounded-2xl"
                         />
                     </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-muted/40">
+                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-foreground/[0.05]">
                         <p className="text-xs font-medium text-foreground/80">SKUs</p>
                         <p className="mt-1 text-2xl font-semibold text-foreground">{fmtNumber(totals.skuCount)}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-muted/40">
+                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-foreground/[0.05]">
                         <p className="text-xs font-medium text-foreground/80">Initial Qty</p>
                         <p className="mt-1 text-2xl font-semibold text-foreground">{fmtNumber(totals.initialTotal)}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-muted/40">
+                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-foreground/[0.05]">
                         <p className="text-xs font-medium text-foreground/80">Current Stock</p>
                         <p className="mt-1 text-2xl font-semibold text-foreground">{fmtNumber(totals.currentTotal)}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-muted/40">
+                    <div className="rounded-lg border border-border bg-surface-1/50 p-4 transition-[border-radius,box-shadow] duration-200 hover:shadow-md hover:rounded-2xl dark:bg-foreground/[0.05]">
                         <p className="text-xs font-medium text-foreground/80">Stock Ratio</p>
                         <p className="mt-1 text-2xl font-semibold text-foreground">{fmtPercent(totals.ratio)}</p>
                     </div>
                 </div>
 
-                <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface-1/50 dark:bg-muted/40">
+                <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface-1/50 dark:bg-foreground/[0.05]">
                     <div className="flex items-center justify-between px-4 py-3">
                         <p className="text-sm font-semibold text-foreground">Inventory</p>
                         <p className="text-sm text-foreground/80">
@@ -178,7 +178,7 @@ const WarehouseInventory = () => {
                                 key={item.id}
                                 className="group grid grid-cols-1 gap-3 px-4 py-4 transition-[background-color] hover:bg-surface-1/60 md:grid-cols-[56px_1fr_220px] md:items-center"
                             >
-                                <div className="relative h-14 w-14 overflow-hidden rounded-md border border-border bg-muted/40">
+                                <div className="relative h-14 w-14 overflow-hidden rounded-md border border-border bg-foreground/[0.05]">
                                     <Image
                                         src={item.product?.image?.[0] || '/users/avatar.webp'}
                                         alt={item.product?.title || 'Product'}
@@ -212,7 +212,7 @@ const WarehouseInventory = () => {
                                 </div>
 
                                 <div className="flex items-center justify-end">
-                                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-foreground transition-[border-radius,background-color] group-hover:bg-muted group-hover:rounded-2xl dark:group-hover:bg-muted/40">
+                                    <div className="rounded-lg border border-border bg-foreground/[0.05] px-3 py-2 text-xs font-medium text-foreground transition-[border-radius,background-color] group-hover:bg-muted group-hover:rounded-2xl dark:group-hover:bg-foreground/[0.05]">
                                         {item.quantity > 0 ? fmtPercent(item.stock / item.quantity) : '—'}
                                     </div>
                                 </div>

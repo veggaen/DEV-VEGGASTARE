@@ -149,7 +149,7 @@ export function PersonalTaxSummary() {
           <select
             value={taxYear}
             onChange={(e) => setTaxYear(Number(e.target.value))}
-            className="rounded-lg border border-border/60 bg-muted/60 px-2 py-1 text-[10px] text-foreground/80 focus:outline-none focus:ring-1 focus:ring-brand-accent/40"
+            className="rounded-lg border border-border/60 bg-foreground/[0.07] px-2 py-1 text-[10px] text-foreground/80 focus:outline-none focus:ring-1 focus:ring-brand-accent/40"
           >
             {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
               <option key={y} value={y}>
@@ -204,7 +204,7 @@ export function PersonalTaxSummary() {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold border transition-colors ${
                       costBasisMethod === method
                         ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent-light"
-                        : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
+                        : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
                     }`}
                   >
                     {costBasisMethod === method && <FiCheck className="h-2.5 w-2.5" />}
@@ -275,7 +275,7 @@ export function PersonalTaxSummary() {
               </div>
 
               {/* Net */}
-              <div className="rounded-xl border border-border/40 bg-muted/30 px-3 py-2">
+              <div className="rounded-xl border border-border/40 bg-foreground/[0.04] px-3 py-2">
                 <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
                   Net Gain/Loss
                 </p>
@@ -347,7 +347,7 @@ export function PersonalTaxSummary() {
                   "_blank"
                 );
               }}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-muted/60 border border-border/60 py-2 text-[11px] font-semibold text-foreground/80 hover:bg-muted/60 transition-colors"
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-foreground/[0.07] border border-border/60 py-2 text-[11px] font-semibold text-foreground/80 hover:bg-foreground/[0.07] transition-colors"
             >
               <FiDownload className="h-3 w-3" />
               Export {taxYear} Trade Data (JSON)

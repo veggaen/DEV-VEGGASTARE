@@ -178,7 +178,7 @@ function StatCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50"
+      className="flex items-center gap-3 p-3 rounded-lg bg-foreground/[0.06] border border-border/50"
     >
       <div className={cn(
         "p-2 rounded-lg",
@@ -467,7 +467,7 @@ function TextResponsesList({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
-              className="p-3 rounded-lg bg-muted/50 border border-border/30"
+              className="p-3 rounded-lg bg-foreground/[0.06] border border-border/30"
             >
               <div className="flex items-start gap-2">
                 <Quote className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />

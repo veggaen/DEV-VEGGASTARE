@@ -317,7 +317,7 @@ export default function WarehouseOrdersPage() {
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                   isActive
                     ? "bg-muted text-foreground ring-1 ring-border"
-                    : "bg-surface-3 text-muted-foreground hover:text-foreground/80 hover:bg-muted/50"
+                    : "bg-surface-3 text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.06]"
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? tab.color : ""}`} />
@@ -370,7 +370,7 @@ export default function WarehouseOrdersPage() {
                     onClick={() =>
                       setExpandedOrder(isExpanded ? null : order.id)
                     }
-                    className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left"
+                    className="w-full flex items-center justify-between p-4 hover:bg-foreground/[0.06] transition-colors text-left"
                   >
                     <div className="flex items-center gap-4">
                       {/* Product thumbnails */}

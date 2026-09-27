@@ -334,7 +334,7 @@ function QuestionRenderer({
                 placeholder="Your thoughts on this question, suggestions for improvement, or any context you'd like to share..."
                 value={answer?.comment ?? ""}
                 onChange={(e) => handleCommentChange(e.target.value)}
-                className="bg-muted/50 border-border text-sm min-h-[80px]"
+                className="bg-foreground/[0.06] border-border text-sm min-h-[80px]"
               />
             </div>
           </motion.div>
@@ -862,7 +862,7 @@ export default function PollTestPage() {
                   value={sliderValue}
                   onChange={setSliderValue}
                 />
-                <div className="mt-4 p-3 bg-muted/50 rounded text-sm">
+                <div className="mt-4 p-3 bg-foreground/[0.06] rounded text-sm">
                   Current: <span className="text-brand-accent font-mono">{sliderValue ?? 'Not set'}</span>
                   {sliderValue && <span className="text-muted-foreground ml-2">({['A','B','C','D','E','F','G'][sliderValue - 1]})</span>}
                 </div>
@@ -953,7 +953,7 @@ export default function PollTestPage() {
                   maxSelections={3}
                   variant="card"
                 />
-                <div className="mt-4 p-3 bg-muted/50 rounded text-sm">
+                <div className="mt-4 p-3 bg-foreground/[0.06] rounded text-sm">
                   Selected: <span className="text-brand-accent">{multiChoiceValue.join(', ') || 'None'}</span>
                 </div>
               </div>

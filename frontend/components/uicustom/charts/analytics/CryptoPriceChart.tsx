@@ -102,7 +102,7 @@ export default function CryptoPriceChart() {
     <div className="h-80 min-w-0 sm:h-96">
       {request.isLoading ? <div role="status" aria-label="Loading historical price data" className="h-full rounded-xl bg-muted motion-safe:animate-pulse" />
         : selected.points.length > 0 ? <PriceHistoryLine points={selected.points} currency={filters.currency} label={chartLabel} />
-        : <div className="flex h-full items-center justify-center rounded-xl bg-muted/40 p-6 text-center text-sm text-muted-foreground">{selected.error ? 'Choose valid dates to view the chart.' : error ? 'Use Retry prices or choose another asset.' : 'No observations available. Try another date range or asset.'}</div>}
+        : <div className="flex h-full items-center justify-center rounded-xl bg-foreground/[0.05] p-6 text-center text-sm text-muted-foreground">{selected.error ? 'Choose valid dates to view the chart.' : error ? 'Use Retry prices or choose another asset.' : 'No observations available. Try another date range or asset.'}</div>}
     </div>
     <p className="text-sm leading-relaxed text-muted-foreground">Date ranges end at the latest available observation. Daily values use the latest observation for each UTC day. Weekly means start on Monday; monthly means use calendar months. Averages include only available days in the selected range, including partial periods.</p>
     {history && <p className="text-xs leading-relaxed text-muted-foreground">Provider response retrieved {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(history.fetchedAt))} UTC. Refresh view reuses the hourly cache.</p>}

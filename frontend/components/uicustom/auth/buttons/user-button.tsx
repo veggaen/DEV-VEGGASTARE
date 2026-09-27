@@ -22,7 +22,7 @@ import { useTheme } from "next-themes";
 import { useCleanLogout } from "@/hooks/use-clean-logout";
 
 const itemClass =
-  "cursor-pointer rounded-xl px-2.5 py-2 focus:bg-muted/50";
+  "cursor-pointer rounded-xl px-2.5 py-2 focus:bg-foreground/[0.06]";
 
 export const MyUserButton = () => {
   const user = useCurrentUser();

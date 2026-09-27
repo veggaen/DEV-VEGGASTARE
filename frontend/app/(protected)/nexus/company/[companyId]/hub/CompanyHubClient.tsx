@@ -105,13 +105,13 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
           <div className="flex items-center gap-2">
             <Link
               href={`/nexus/company/${company.id}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/40 dark:bg-muted/40"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/[0.05] dark:bg-foreground/[0.05]"
             >
               Public Profile
             </Link>
             <Link
               href={`/nexus/company/${company.id}/settings`}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/40 dark:bg-muted/40"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/[0.05] dark:bg-foreground/[0.05]"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
               Settings
@@ -123,7 +123,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
           {/* Main content area - Announcements/Messages */}
           <div className="lg:col-span-2 space-y-6">
             {/* Announcements section */}
-            <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
+            <div className="rounded-lg border border-border bg-card p-6 dark:bg-foreground/[0.05]">
               <h2 className="text-lg font-semibold text-foreground mb-4">Announcements</h2>
               <div className="text-center py-8 text-muted-foreground">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
@@ -133,33 +133,33 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
+            <div className="rounded-lg border border-border bg-card p-6 dark:bg-foreground/[0.05]">
               <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Link
                   href={`/nexus/company/${company.id}/settings`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-foreground/[0.05] p-4 text-center transition-colors hover:bg-muted dark:hover:bg-foreground/[0.05]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
                   <span className="text-sm font-medium text-foreground/85">Add Employee</span>
                 </Link>
                 <Link
                   href="/products/create"
-                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-foreground/[0.05] p-4 text-center transition-colors hover:bg-muted dark:hover:bg-foreground/[0.05]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                   <span className="text-sm font-medium text-foreground/85">New Product</span>
                 </Link>
                 <Link
                   href={`/nexus/company/${company.id}`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-foreground/[0.05] p-4 text-center transition-colors hover:bg-muted dark:hover:bg-foreground/[0.05]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                   <span className="text-sm font-medium text-foreground/85">View Store</span>
                 </Link>
                 <Link
                   href={`/nexus/company/${company.id}/settings`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-foreground/[0.05] p-4 text-center transition-colors hover:bg-muted dark:hover:bg-foreground/[0.05]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                   <span className="text-sm font-medium text-foreground/85">Settings</span>
@@ -170,7 +170,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
 
           {/* Sidebar - Team */}
           <div className="space-y-6">
-            <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
+            <div className="rounded-lg border border-border bg-card p-6 dark:bg-foreground/[0.05]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Team</h2>
                 <span className="text-sm text-muted-foreground">{company.employees.length} members</span>

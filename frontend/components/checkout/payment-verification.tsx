@@ -45,7 +45,7 @@ export default function PaymentVerification({ orderId }: { orderId: string }) {
         )}
       </div>
       {!error && <div aria-hidden="true" className="mt-5 grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)] lg:gap-6">
-        <div className="space-y-5"><div className="h-44 rounded-2xl border border-border bg-muted/30 p-6"><div className="h-5 w-44 max-w-full rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-3 w-56 max-w-full rounded bg-muted motion-safe:animate-pulse" /><div className="mt-5 h-11 w-44 max-w-full rounded-lg bg-muted motion-safe:animate-pulse" /></div><div className="h-28 rounded-2xl border border-border bg-muted/30" /></div>
+        <div className="space-y-5"><div className="h-44 rounded-2xl border border-border bg-foreground/[0.04] p-6"><div className="h-5 w-44 max-w-full rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-3 w-56 max-w-full rounded bg-muted motion-safe:animate-pulse" /><div className="mt-5 h-11 w-44 max-w-full rounded-lg bg-muted motion-safe:animate-pulse" /></div><div className="h-28 rounded-2xl border border-border bg-foreground/[0.04]" /></div>
         <div className="h-72 space-y-6 rounded-2xl border border-border bg-card p-6">{[0, 1, 2, 3].map(row => <div key={row} className="h-4 rounded bg-muted motion-safe:animate-pulse" />)}</div>
       </div>}
       {error && <Button className="mt-6 min-h-11" onClick={() => {

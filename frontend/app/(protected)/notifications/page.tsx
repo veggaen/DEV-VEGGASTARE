@@ -36,8 +36,8 @@ export default function NotificationsPage() {
         </>}
         className="mb-6"
       />
-      {readOnly && <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo notifications are read-only. Sign in to your own account to mark updates as read or archive them.</p>}
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-muted/50 p-1" role="group" aria-label="Notification filters">
+      {readOnly && <p className="mb-4 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Demo notifications are read-only. Sign in to your own account to mark updates as read or archive them.</p>}
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-foreground/[0.06] p-1" role="group" aria-label="Notification filters">
         {(['all', 'unread', 'archived'] as const).map(value => <Button key={value} variant={tab === value ? 'secondary' : 'ghost'} className="h-11 min-w-0 px-2 capitalize" aria-pressed={tab === value} onClick={() => selectTab(value)}>{value === 'all' ? 'Inbox' : value}</Button>)}
       </div>
       {!readOnly && tab !== 'archived' && <div className="mb-3 flex justify-end"><Button variant="ghost" className="h-11" disabled={inbox.pending || !inbox.unreadCount || loading} onClick={() => void inbox.markAllAsRead()}>{inbox.pending ? 'Saving…' : 'Mark all as read'}</Button></div>}

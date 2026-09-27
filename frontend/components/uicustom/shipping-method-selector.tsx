@@ -361,7 +361,7 @@ export function ShippingMethodSelector({
       <button
         type="button"
         onClick={onAddressNeeded}
-        className="mt-4 w-full p-4 bg-muted/30 dark:bg-muted/40 rounded-lg border border-border text-left transition-colors hover:border-brand-accent/50 hover:bg-brand-accent/5 focus:outline-none focus:ring-2 focus:ring-brand-accent/30"
+        className="mt-4 w-full p-4 bg-foreground/[0.04] dark:bg-foreground/[0.05] rounded-lg border border-border text-left transition-colors hover:border-brand-accent/50 hover:bg-brand-accent/5 focus:outline-none focus:ring-2 focus:ring-brand-accent/30"
       >
         <p className="text-sm font-medium text-foreground">
           Enter delivery address
@@ -381,7 +381,7 @@ export function ShippingMethodSelector({
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center gap-2 p-4 bg-muted/30 dark:bg-muted/40 rounded-lg border border-border">
+        <div className="flex items-center gap-2 p-4 bg-foreground/[0.04] dark:bg-foreground/[0.05] rounded-lg border border-border">
           <motion.div
             className="h-4 w-4 rounded-full border-2 border-brand-accent border-t-transparent"
             animate={{ rotate: 360 }}
@@ -417,7 +417,7 @@ export function ShippingMethodSelector({
                 className={`w-full text-left p-4 rounded-lg border transition ${
                   isSelected
                     ? "bg-brand-accent/10 border-brand-accent ring-1 ring-brand-accent/30"
-                    : "bg-muted/20 dark:bg-muted/40 border-border hover:border-brand-accent/50"
+                    : "bg-foreground/[0.03] dark:bg-foreground/[0.05] border-border hover:border-brand-accent/50"
                 }`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -493,7 +493,7 @@ export function ShippingMethodSelector({
             </h4>
 
             {pickupLoading && (
-              <div className="flex items-center gap-2 p-3 bg-muted/20 dark:bg-muted/40 rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-foreground/[0.03] dark:bg-foreground/[0.05] rounded-lg">
                 <motion.div
                   className="h-3 w-3 rounded-full border-2 border-brand-accent border-t-transparent"
                   animate={{ rotate: 360 }}
@@ -515,7 +515,7 @@ export function ShippingMethodSelector({
                       className={`w-full text-left p-3 rounded-lg border transition text-sm ${
                         isPickupSelected
                           ? "bg-brand-accent/50 border-brand-accent"
-                          : "bg-muted/10 dark:bg-muted/40 border-border/50 hover:border-brand-accent/30"
+                          : "bg-muted/10 dark:bg-foreground/[0.05] border-border/50 hover:border-brand-accent/30"
                       }`}
                     >
                       <div className="flex justify-between items-start">

@@ -145,7 +145,7 @@ export default function CookieBanner() {
           </div>
         </div>
         {showCustomize && (
-          <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/40 p-4">
+          <div className="mt-4 space-y-4 rounded-xl border border-border bg-foreground/[0.05] p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div><p className="text-sm font-medium">Essential</p><p className="text-xs text-muted-foreground">Sign-in, security and core features</p></div>
               <span className="text-xs font-medium text-muted-foreground">Always on</span>

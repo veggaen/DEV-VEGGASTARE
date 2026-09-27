@@ -96,7 +96,7 @@ function QuestionLevel({
                   ? "border-primary bg-primary/10 shadow-lg"
                   : isActive
                   ? "border-border hover:border-primary/50 bg-surface-1/50"
-                  : "border-muted bg-muted/50 opacity-50",
+                  : "border-muted bg-foreground/[0.06] opacity-50",
                 !isActive && "cursor-not-allowed"
               )}
               initial={{ opacity: 0, y: 10 }}

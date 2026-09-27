@@ -461,7 +461,7 @@ function ProductDetails({ product }: { product: Product }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-2 border-border/40 text-muted-foreground hover:bg-muted/40"
+                    className="gap-2 border-border/40 text-muted-foreground hover:bg-foreground/[0.05]"
                     disabled={isUpdatingVisibility}
                     onClick={() => handleSetVisibility("HIDDEN")}
                   >
@@ -512,7 +512,7 @@ function ProductDetails({ product }: { product: Product }) {
             )}
           </motion.div>
   </details>;
-  const purchaseActions = <>          {purchaseState !== 'AVAILABLE' && <section aria-label="Purchase availability" className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-6">
+  const purchaseActions = <>          {purchaseState !== 'AVAILABLE' && <section aria-label="Purchase availability" className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm leading-6">
             <h2 className="font-semibold">{PRODUCT_PURCHASE_NOTICE[purchaseState].title}</h2>
             <p className="mt-1 text-muted-foreground">{PRODUCT_PURCHASE_NOTICE[purchaseState].description}</p>
             <Link href="/products" className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4">Explore available products</Link>
@@ -900,7 +900,7 @@ function ProductDetails({ product }: { product: Product }) {
                 <div className="text-xs text-muted-foreground">{isCreditPack ? "Credits appear in your AI balance after verified payment." : "Private files appear in My downloads after verified payment."}</div>
               </div>
             </div>
-            <div className="grid gap-px bg-muted/40 sm:grid-cols-2">
+            <div className="grid gap-px bg-foreground/[0.05] sm:grid-cols-2">
               <div className="bg-card p-4">
                 <div className="text-xs font-medium text-muted-foreground">Access</div>
                 <div className="mt-1.5 text-sm text-foreground">{isCreditPack ? `${selectedCredits} usage credits` : "Account-protected downloads"}</div>

@@ -1352,13 +1352,13 @@ export const MyProductCreationForm = () => {
     labelHint: 'text-xs text-muted-foreground/70 mt-0.5 font-normal',
     // NOTE: shadcn Input/SelectTrigger/Textarea components come with their own border/bg.
     // These classes intentionally override that so everything looks consistent.
-    input: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
-    selectTrigger: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
-    textarea: `w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150 resize-y`,
+    input: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
+    selectTrigger: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
+    textarea: `w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150 resize-y`,
     selectContent: `border border-border bg-popover text-popover-foreground shadow-lg`,
     selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-brand-accent/15 data-[state=checked]:text-foreground`,
     inputCheckbox: `rounded border border-input bg-background text-brand-accent-hover dark:text-brand-accent-light focus:ring-brand-accent/30 focus:ring-offset-0`,
-    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-muted/30 transition-colors duration-150`,
+    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-foreground/[0.04] transition-colors duration-150`,
   };
 
   // Debug: get validation errors
@@ -1745,7 +1745,7 @@ export const MyProductCreationForm = () => {
               // EMPTY STATE — big, inviting single drop target (fixed aspect)
               <div
                 {...getRootProps()}
-                className="relative mx-auto flex aspect-[4/5] w-full max-w-[380px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:bg-muted/20"
+                className="relative mx-auto flex aspect-[4/5] w-full max-w-[380px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:bg-foreground/[0.03]"
               >
                 <input {...getInputProps()} />
                 <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border/70 bg-muted/35">
@@ -1798,7 +1798,7 @@ export const MyProductCreationForm = () => {
                         setDragImageIndex(null);
                         setDragOverImageIndex(null);
                       }}
-                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-muted/30 transition duration-200 active:cursor-grabbing ${
+                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-foreground/[0.04] transition duration-200 active:cursor-grabbing ${
                         isDragging
                           ? 'border-brand-accent/60 opacity-40'
                           : isDropTarget
@@ -1848,7 +1848,7 @@ export const MyProductCreationForm = () => {
                   {imagePreviews.length < MAX_IMAGES && (
                     <div
                       {...getRootProps()}
-                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/20 hover:text-foreground"
+                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-foreground/[0.03] hover:text-foreground"
                     >
                       <input {...getInputProps()} />
                       <span className="text-2xl leading-none">+</span>
@@ -2054,7 +2054,7 @@ export const MyProductCreationForm = () => {
                                 className={`min-h-11 min-w-11 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                                   isSelected
                                     ? 'border-brand-accent/60 bg-brand-accent/10 text-foreground'
-                                    : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                                    : 'border-border bg-foreground/[0.04] text-muted-foreground hover:bg-foreground/[0.06]'
                                 } ${isLocked ? 'ring-1 ring-brand-accent/30' : ''}`}
                               >
                                 {code}
@@ -2092,7 +2092,7 @@ export const MyProductCreationForm = () => {
                   ? 'border-brand-accent/30 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                   : sellerPaypalEmail
                     ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                    : 'border-border bg-muted/20 text-muted-foreground'
+                    : 'border-border bg-foreground/[0.03] text-muted-foreground'
               }`}>
                 <span className="shrink-0">{sellerPaypalEmail && sellerPaypalVerified ? '✅' : sellerPaypalEmail ? '⏳' : '—'}</span>
                 <span>
@@ -2528,7 +2528,7 @@ export const MyProductCreationForm = () => {
                       key={option.value}
                       title={optionBlockedByWarehouse ? 'Disabled: Add a warehouse address in Company Settings to list physical or hybrid products.' : undefined}
                       className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition duration-200 ${
-                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-muted/30'
+                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-foreground/[0.04]'
                       } ${
                         productType === option.value
                           ? 'bg-brand-accent/[0.07]'
@@ -2941,7 +2941,7 @@ export const MyProductCreationForm = () => {
                         {specifications.map((spec, index) => (
                           <div key={index} className="flex gap-2 items-center">
                             {isPhysicalProduct && SHIPPING_SPEC_KEYS.includes(spec.key) ? (
-                              <div className="w-28 shrink-0 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm font-medium text-foreground sm:w-32">
+                              <div className="w-28 shrink-0 rounded-lg border border-border/70 bg-foreground/[0.03] px-3 py-2 text-sm font-medium text-foreground sm:w-32">
                                 {spec.key}
                               </div>
                             ) : spec.key === 'Custom' || !examplePlaceholders.includes(spec.key) ? (
@@ -3056,7 +3056,7 @@ export const MyProductCreationForm = () => {
             {/* Listing preview — text-on-background, mirrors how buyers see it */}
             <div className="mt-4 flex flex-col gap-5 sm:flex-row">
               {/* Cover */}
-              <div className="relative aspect-[4/5] w-full max-w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted/30">
+              <div className="relative aspect-[4/5] w-full max-w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-foreground/[0.04]">
                 {imagePreviews[0] ? (
                   <Image
                     src={imagePreviews[0]}

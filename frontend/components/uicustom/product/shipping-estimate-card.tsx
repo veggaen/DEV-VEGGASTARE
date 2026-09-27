@@ -225,7 +225,7 @@ export function ShippingEstimateCard({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-foreground/[0.04] transition-colors"
         disabled={disabled}
       >
         <div className="flex items-center gap-2">
@@ -278,7 +278,7 @@ export function ShippingEstimateCard({
                 value={toCity}
                 readOnly
                 placeholder="City"
-                className="flex-1 text-sm bg-muted/20"
+                className="flex-1 text-sm bg-foreground/[0.03]"
               />
               <Button
                 type="button"
@@ -318,7 +318,7 @@ export function ShippingEstimateCard({
                 {result.products.slice(0, 5).map((product) => (
                   <div
                     key={product.id}
-                    className="flex items-center justify-between p-2 rounded-md bg-muted/20 hover:bg-muted/30"
+                    className="flex items-center justify-between p-2 rounded-md bg-foreground/[0.03] hover:bg-foreground/[0.04]"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{product.displayName}</p>

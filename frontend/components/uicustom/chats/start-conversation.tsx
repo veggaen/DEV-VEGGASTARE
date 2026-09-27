@@ -86,14 +86,14 @@ function StartConversationForm() {
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full px-4 py-2',
     baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-surface-1/30 transition-colors duration-300 rounded',
-    txtArea: 'p-2 w-full border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    input: 'p-2 w-full border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    inputCheckbox: 'border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    txtArea: 'p-2 w-full border bg-foreground/[0.05] hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    input: 'p-2 w-full border bg-foreground/[0.05] hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    inputCheckbox: 'border bg-foreground/[0.05] hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
     dropzone: 'border border-dashed border-border rounded-md p-2 text-center',
   };
 
   return (
-    <div className={`${style.baseRoot} hover:bg-muted/60 transition-colors duration-300 rounded`}>
+    <div className={`${style.baseRoot} hover:bg-foreground/[0.07] transition-colors duration-300 rounded`}>
       <h1 className='font-bold text-lg'>Create a new Conversation</h1>
       <div className={`flex flex-col justify-between items-center w-full p-4 gap-2`}>
         <input

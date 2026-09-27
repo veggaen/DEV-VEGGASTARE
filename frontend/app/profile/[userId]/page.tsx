@@ -204,7 +204,7 @@ function SectionError({ retry }: { retry: () => void }) {
   return <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>This section could not load. Your profile is still available.</p><Button variant="outline" className="mt-3 h-11" onClick={retry}>Try again</Button></div>;
 }
 function PostsLoading() {
-  return <div role="status" aria-label="Loading profile posts" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-36 rounded-xl border border-border bg-muted/30 motion-safe:animate-pulse" />)}</div>;
+  return <div role="status" aria-label="Loading profile posts" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-36 rounded-xl border border-border bg-foreground/[0.04] motion-safe:animate-pulse" />)}</div>;
 }
 
 export default function ProfilePage() {
@@ -897,7 +897,7 @@ export default function ProfilePage() {
             {bannerUploadError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">{bannerUploadError}</p>}
             {avatarUploadError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">{avatarUploadError}</p>}
           </div>}
-          {readOnly && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo profiles are read-only. Explore posts and connections; sign in to your own account to edit, follow or send messages.</p>}
+          {readOnly && <p className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Demo profiles are read-only. Explore posts and connections; sign in to your own account to edit, follow or send messages.</p>}
           {followQuery.error && <SectionError retry={() => void followQuery.mutate()} />}
           {profile.bio && (
             <p className="max-w-2xl whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/80 [overflow-wrap:anywhere] sm:text-base">{profile.bio}</p>
@@ -935,7 +935,7 @@ export default function ProfilePage() {
             className="flex flex-wrap items-center gap-1 pt-3"
           >
             {/* Posts */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors cursor-default">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-foreground/[0.06] transition-colors cursor-default">
               <span className="text-base font-semibold text-foreground tabular-nums">{profile._count?.posts ?? 0}</span>
               <span className="text-sm text-muted-foreground">Pulses</span>
             </div>
@@ -945,7 +945,7 @@ export default function ProfilePage() {
             {/* Synced (Followers) */}
             <button
               onClick={() => setActiveTab('connections', 'followers')}
-              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted/50"
+              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-foreground/[0.06]"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followerCount}</span>
               <span className="text-sm text-muted-foreground">Followers</span>
@@ -956,7 +956,7 @@ export default function ProfilePage() {
             {/* Syncs (Following) */}
             <button
               onClick={() => setActiveTab('connections', 'following')}
-              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted/50"
+              className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:hover:bg-foreground/[0.06]"
             >
               <span className="text-base font-semibold text-foreground tabular-nums">{followingCount}</span>
               <span className="text-sm text-muted-foreground">Following</span>
@@ -1034,7 +1034,7 @@ export default function ProfilePage() {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
             <TabsList
               aria-label="Profile sections"
-              className="grid h-auto w-full grid-cols-4 gap-1 rounded-xl border border-border/50 bg-muted/30 p-1 sm:inline-flex sm:w-auto"
+              className="grid h-auto w-full grid-cols-4 gap-1 rounded-xl border border-border/50 bg-foreground/[0.04] p-1 sm:inline-flex sm:w-auto"
             >
               <TabsTrigger
                 value="posts"
@@ -1352,7 +1352,7 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="reach" className="mt-6">
-              <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Experimental analytics · engagement estimates, not a measure of personal worth or verified financial results.</p>
+              <p className="mb-4 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Experimental analytics · engagement estimates, not a measure of personal worth or verified financial results.</p>
               {reachQuery.error && <SectionError retry={() => void reachQuery.mutate()} />}
               {reachQuery.isLoading && <p role="status" className="mb-4 text-sm text-muted-foreground">Loading reach details…</p>}
               {/* True Reach Analytics - 7 Pillar System */}
@@ -1652,7 +1652,7 @@ export default function ProfilePage() {
                           </div>
 
                           {/* Progress bar */}
-                          <div className="mt-3 h-1.5 rounded-full bg-muted/30 dark:bg-muted/40 overflow-hidden">
+                          <div className="mt-3 h-1.5 rounded-full bg-foreground/[0.04] dark:bg-foreground/[0.05] overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
                               style={{ backgroundColor: pillar.color, transformOrigin: 'left' }}

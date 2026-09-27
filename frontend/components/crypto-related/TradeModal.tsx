@@ -142,7 +142,7 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const ci = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="flex items-center gap-1 px-4 py-2 bg-muted/40">
+    <div className="flex items-center gap-1 px-4 py-2 bg-foreground/[0.05]">
       {phases.map((p, i) => (
         <React.Fragment key={p.key}>
           <motion.div
@@ -685,7 +685,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                 </div>
 
                 {/* Compact Inventory — click to add items to offer */}
-                <div className="flex-1 px-5 py-4 bg-muted/40">
+                <div className="flex-1 px-5 py-4 bg-foreground/[0.05]">
                   <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-3 font-medium flex items-center gap-1.5">
                     <FiPackage className="h-3 w-3" /> Your Inventory
                     <FiArrowRight className="h-2.5 w-2.5 ml-1" />
@@ -707,7 +707,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
 
       {/* Security footer */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-4 py-1.5 border-t border-border/60 bg-muted/40 shrink-0">
+        <div className="px-4 py-1.5 border-t border-border/60 bg-foreground/[0.05] shrink-0">
           <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground/80">
             <FiLock className="h-2.5 w-2.5" />
             <span>End-to-end verified &middot; Zero-knowledge proof ready &middot; VeggaSystem: {VEGGA_SYSTEM.walletAddress.slice(0, 6)}...{VEGGA_SYSTEM.walletAddress.slice(-4)}</span>

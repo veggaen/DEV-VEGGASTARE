@@ -259,7 +259,7 @@ export function DragToMatch({
                     ? "bg-brand-accent/10 border-brand-accent/50"
                     : isHovered
                     ? "bg-primary/10 border-primary scale-105"
-                    : "bg-muted/30 border-muted-foreground/30 hover:border-primary/50"
+                    : "bg-foreground/[0.04] border-muted-foreground/30 hover:border-primary/50"
                 )}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}

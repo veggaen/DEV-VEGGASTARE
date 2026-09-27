@@ -52,7 +52,7 @@ import { getNavigationGroups, getPrimaryNavigation, isActiveNavigationPath as is
 // These panels are only mounted inside the open navigation/settings sheet.
 // Keep connection providers stable; defer optional UI, not the entire app tree.
 function WalletPanelLoading() {
-	return <div role="status" className="min-h-24 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Loading wallet controls…</div>;
+	return <div role="status" className="min-h-24 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Loading wallet controls…</div>;
 }
 const SidebarWalletPanel = dynamic(() => import('../crypto-related/SidebarWalletPanel'), { ssr: false, loading: WalletPanelLoading });
 const EvmWalletVerify = dynamic(() => import('@/components/crypto-related/EvmWalletVerify'), { ssr: false, loading: WalletPanelLoading });
@@ -460,7 +460,7 @@ const MyTopBar = () => {
 									<Link
 										href="/profile"
 										onClick={() => setMenuOpen(false)}
-										className="flex items-center gap-3 px-4 py-3 hover:bg-muted/60 transition-colors group"
+										className="flex items-center gap-3 px-4 py-3 hover:bg-foreground/[0.07] transition-colors group"
 										title="View Profile"
 									>
 										<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-brand-accent/50 transition-[box-shadow] duration-200">
@@ -548,7 +548,7 @@ const MyTopBar = () => {
 																	href={item.href}
 																	onClick={() => setMenuOpen(false)}
 																	aria-current={active ? 'page' : undefined}
-																	className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+																	className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground"}`}
 																>
 																	{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
 																		<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
@@ -575,7 +575,7 @@ const MyTopBar = () => {
 														setMenuOpen(false);
 														setTimeout(() => setNexusOpen(true), 0);
 													}}
-													className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+													className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground transition-colors"
 												>
 													<TbHexagons className="h-4 w-4 text-muted-foreground/80 shrink-0" />
 													<span>Nexus</span>
@@ -645,7 +645,7 @@ const MyTopBar = () => {
 												type="button"
 												onClick={() => startOauth("google")}
 												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
 												title="Continue with Google"
 											>
 												{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
@@ -655,7 +655,7 @@ const MyTopBar = () => {
 												type="button"
 												onClick={() => startOauth("discord")}
 												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
 												title="Continue with Discord"
 											>
 												{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
@@ -665,7 +665,7 @@ const MyTopBar = () => {
 												type="button"
 												onClick={() => startOauth("github")}
 												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors"
+												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
 												title="Continue with GitHub"
 											>
 												{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
@@ -778,7 +778,7 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 		<div className="mx-3 mb-2 space-y-1">
 			{/* Email row */}
 			{hasEmail && (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-border bg-muted/40">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-border bg-foreground/[0.05]">
 					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Email
 					</span>
@@ -790,7 +790,7 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 			)}
 			{/* Active wallet row */}
 			{hasWallet && trimmed ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-muted/40">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-foreground/[0.05]">
 					<span className="h-1.5 w-1.5 rounded-full bg-brand-accent-light shrink-0" />
 					{walletName && (
 						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-accent-hover dark:text-brand-accent-light shrink-0">
@@ -816,7 +816,7 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 					<CopyChip text={effectiveAddress!} label="Copy wallet address" size="xs" />
 				</div>
 			) : nextAuthEmail ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-dashed border-border bg-muted/40">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-dashed border-border bg-foreground/[0.05]">
 					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Wallet
 					</span>
@@ -986,7 +986,7 @@ function SettingsPaneLite({
       </nav>
 			{/* Wallet Section */}
 			{effectiveWeb3ModeEnabled && (
-				<div className="rounded-xl bg-muted/40 p-3">
+				<div className="rounded-xl bg-foreground/[0.05] p-3">
 					<div className="flex items-center justify-between mb-2">
 						<div className="text-xs font-medium text-muted-foreground">
 							Wallet

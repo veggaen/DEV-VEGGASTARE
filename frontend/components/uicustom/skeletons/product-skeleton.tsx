@@ -68,7 +68,7 @@ export default function ProductSkeleton({ credits = false }: { credits?: boolean
       </section>
 
       {/* Specifications skeleton */}
-      <section aria-hidden className="mt-8 rounded-2xl bg-muted/60 border border-border p-6 motion-safe:animate-pulse">
+      <section aria-hidden className="mt-8 rounded-2xl bg-foreground/[0.07] border border-border p-6 motion-safe:animate-pulse">
         <div className="h-6 w-36 bg-muted rounded mb-4" />
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (

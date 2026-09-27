@@ -576,7 +576,7 @@ export default function SettingsPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleDiscardChanges}
-                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
+                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-foreground/[0.05]"
                         >
                           <FiX className="h-4 w-4 mr-1" />
                           Discard
@@ -613,10 +613,10 @@ export default function SettingsPage() {
                     
                     {/* Show comparison if there's a pending change */}
                     {'banner' in pendingChanges && originalData.banner !== pendingChanges.banner && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-foreground/[0.05]">
                         <div className="flex-1">
                           <div className="text-xs text-muted-foreground mb-1">Current</div>
-                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-muted/60">
+                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-foreground/[0.07]">
                             {originalData.banner ? (
                               <Image src={originalData.banner} alt="Current banner" fill className="object-cover opacity-60" />
                             ) : (
@@ -649,8 +649,8 @@ export default function SettingsPage() {
                         isDraggingBanner 
                           ? 'border-brand-accent bg-brand-accent/10' 
                           : prefs.hoverEffects === 'colorful'
-                            ? 'border-border/70 bg-muted/40 hover:border-border dark:bg-linear-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-foreground/20'
-                            : 'border-border/70 bg-muted/40 hover:border-border dark:hover:border-foreground/20'
+                            ? 'border-border/70 bg-foreground/[0.05] hover:border-border dark:bg-linear-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-foreground/20'
+                            : 'border-border/70 bg-foreground/[0.05] hover:border-border dark:hover:border-foreground/20'
                       }`}
                       onClick={() => bannerInputRef.current?.click()}
                     >
@@ -683,7 +683,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-border text-foreground hover:bg-muted dark:border-foreground/20 dark:hover:bg-muted/60"
+                            className="border-border text-foreground hover:bg-muted dark:border-foreground/20 dark:hover:bg-foreground/[0.07]"
                           >
                             <FiUpload className="h-4 w-4 mr-2" />
                             Change Banner
@@ -723,10 +723,10 @@ export default function SettingsPage() {
                     
                     {/* Show comparison if there's a pending change */}
                     {'image' in pendingChanges && originalData.image !== pendingChanges.image && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-foreground/[0.05]">
                         <div className="text-center">
                           <div className="text-xs text-muted-foreground mb-1">Current</div>
-                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-muted/60 mx-auto">
+                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-foreground/[0.07] mx-auto">
                             {originalData.image ? (
                               <Image src={originalData.image} alt="Current avatar" fill className="object-cover opacity-60" />
                             ) : (
@@ -760,8 +760,8 @@ export default function SettingsPage() {
                           isDraggingAvatar 
                             ? 'border-brand-accent bg-brand-accent/10' 
                             : prefs.hoverEffects === 'colorful'
-                              ? 'border-border/70 bg-muted/40 hover:border-border dark:bg-linear-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-foreground/20'
-                              : 'border-border/70 bg-muted/40 hover:border-border dark:hover:border-foreground/20'
+                              ? 'border-border/70 bg-foreground/[0.05] hover:border-border dark:bg-linear-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-foreground/20'
+                              : 'border-border/70 bg-foreground/[0.05] hover:border-border dark:hover:border-foreground/20'
                         }`}
                         onClick={() => avatarInputRef.current?.click()}
                       >
@@ -800,7 +800,7 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={() => avatarInputRef.current?.click()}
                           disabled={isUploadingAvatar}
-                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
+                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-foreground/[0.05]"
                         >
                           {isUploadingAvatar ? 'Uploading...' : 'Choose Image'}
                         </Button>
@@ -822,7 +822,7 @@ export default function SettingsPage() {
                     
                     {/* Show comparison if bio changed */}
                     {'bio' in pendingChanges && originalData.bio !== pendingChanges.bio && (
-                      <div className="p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40 space-y-2">
+                      <div className="p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-foreground/[0.05] space-y-2">
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">Current</div>
                           <div className="text-sm text-muted-foreground line-through">{originalData.bio || '(no bio)'}</div>
@@ -838,7 +838,7 @@ export default function SettingsPage() {
                       value={'bio' in pendingChanges ? (pendingChanges.bio || '') : (originalData.bio || '')}
                       onChange={(e) => setPendingChanges(prev => ({ ...prev, bio: e.target.value }))}
                       placeholder="Tell others about yourself..."
-                      className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-brand-accent/50 min-h-[100px] resize-none dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
+                      className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-brand-accent/50 min-h-[100px] resize-none dark:bg-foreground/[0.05] dark:placeholder:text-muted-foreground/70"
                       maxLength={500}
                     />
                     <div className="flex items-center justify-between">
@@ -859,7 +859,7 @@ export default function SettingsPage() {
                     </div>
                     
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+                      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
                         <div className="max-w-[240px] mx-auto">
                           <Radar data={reachChartData} options={reachChartOptions} />
                         </div>
@@ -915,7 +915,7 @@ export default function SettingsPage() {
                         </div>
                         
                         {/* Post Count */}
-                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40">
+                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-foreground/[0.05]">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground dark:text-foreground/70">Posts</span>
                             <span className="font-bold text-foreground">{reach?.postCount || 0}</span>
@@ -926,7 +926,7 @@ export default function SettingsPage() {
                         </div>
                         
                         {/* Followers */}
-                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40">
+                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-foreground/[0.05]">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground dark:text-foreground/70">Followers</span>
                             <span className="font-bold text-foreground">{reach?.followerCount || 0}</span>
@@ -964,7 +964,7 @@ export default function SettingsPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleStartEdit}
-                      className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
+                      className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-foreground/[0.05]"
                     >
                       {isEditing ? <FiX className="h-4 w-4 mr-2" /> : <FiEdit2 className="h-4 w-4 mr-2" />}
                       {isEditing ? 'Cancel' : 'Edit'}
@@ -984,7 +984,7 @@ export default function SettingsPage() {
                                 {...field}
                                 disabled={isPending || !isEditing}
                                 placeholder={user?.name || 'Enter your name'}
-                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-foreground/[0.05] dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1006,7 +1006,7 @@ export default function SettingsPage() {
                                 autoComplete="email"
                                 spellCheck={false}
                                 placeholder={user?.email || 'Enter your email'}
-                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-foreground/[0.05] dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormDescription className="text-muted-foreground">
@@ -1030,7 +1030,7 @@ export default function SettingsPage() {
                                 value={field.value ?? 'AUTO'}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
+                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-foreground/[0.05]">
                                     <SelectValue placeholder="Choose name source" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -1062,7 +1062,7 @@ export default function SettingsPage() {
                                 value={field.value ?? 'AUTO'}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
+                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-foreground/[0.05]">
                                     <SelectValue placeholder="Choose avatar source" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -1095,7 +1095,7 @@ export default function SettingsPage() {
                               value={field.value ?? 'PRIMARY'}
                             >
                               <FormControl>
-                                <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
+                                <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-foreground/[0.05]">
                                   <SelectValue placeholder="Choose email visibility" />
                                 </SelectTrigger>
                               </FormControl>
@@ -1137,7 +1137,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             onClick={handleCancelEdit}
-                            className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
+                            className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-foreground/[0.05]"
                           >
                             Cancel
                           </Button>
@@ -1173,7 +1173,7 @@ export default function SettingsPage() {
                                 autoComplete="current-password"
                                 disabled={isPending}
                                 placeholder="Enter current password"
-                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-foreground/[0.05] dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1194,7 +1194,7 @@ export default function SettingsPage() {
                                 autoComplete="new-password"
                                 disabled={isPending}
                                 placeholder="Enter new password"
-                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-foreground/[0.05] dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormDescription className="text-muted-foreground">
@@ -1210,7 +1210,7 @@ export default function SettingsPage() {
                           control={form.control}
                           name="isTwoFactorEnabled"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+                            <FormItem className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
                               <div className="space-y-0.5">
                                 <FormLabel className="text-foreground/80">Two-Factor Authentication</FormLabel>
                                 <FormDescription className="text-muted-foreground">
@@ -1425,12 +1425,12 @@ function AiKeysSettings() {
         <p className="text-sm text-muted-foreground">Bring your own API key. Keys are encrypted, scoped to your account, and can be removed anytime.</p>
       </div>
 
-      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-4">
+      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05] space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-foreground/80">Provider</Label>
             <Select value={provider} onValueChange={(v) => setProvider(v as 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC')}>
-              <SelectTrigger className="bg-surface-1/70 border-border dark:bg-muted/40">
+              <SelectTrigger className="bg-surface-1/70 border-border dark:bg-foreground/[0.05]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="dark:bg-surface-1 dark:border-border">
@@ -1448,12 +1448,12 @@ function AiKeysSettings() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Paste your API key"
-              className="bg-surface-1/70 border-border text-foreground dark:bg-muted/40"
+              className="bg-surface-1/70 border-border text-foreground dark:bg-foreground/[0.05]"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl bg-muted/70 border border-border p-3 dark:bg-muted/40">
+        <div className="flex items-center justify-between rounded-xl bg-foreground/[0.08] border border-border p-3 dark:bg-foreground/[0.05]">
           <div>
             <div className="font-medium text-foreground">Set as default provider</div>
             <div className="text-sm text-muted-foreground">This key/provider will be used when you choose saved-key generation.</div>
@@ -1482,7 +1482,7 @@ function AiKeysSettings() {
           </div>
         ) : (
           keys.map((entry) => (
-            <div key={entry.provider} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+            <div key={entry.provider} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
               <div>
                 <div className="font-medium text-foreground flex items-center gap-2">
                   {providerLabels[entry.provider]}
@@ -1500,7 +1500,7 @@ function AiKeysSettings() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleSetDefault(entry.provider)}
-                    className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
+                    className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-foreground/[0.05]"
                   >
                     Set default
                   </Button>
@@ -1596,7 +1596,7 @@ function PrivacySettings() {
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Heartbeat Settings</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Show Heartbeats Given</div>
               <div className="text-sm text-muted-foreground">Let others see what content you&apos;ve heartbeated</div>
@@ -1608,7 +1608,7 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Show Heartbeats Received</div>
               <div className="text-sm text-muted-foreground">Display heartbeat counts on your content</div>
@@ -1620,7 +1620,7 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Show Negative Heartbeats</div>
               <div className="text-sm text-muted-foreground">Display negative heartbeat counts publicly (hidden by default)</div>
@@ -1632,7 +1632,7 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Show Repulses</div>
               <div className="text-sm text-muted-foreground">Let others see your repulse activity</div>
@@ -1644,7 +1644,7 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Allow Negative Heartbeats</div>
               <div className="text-sm text-muted-foreground">Let others give negative heartbeats to your content</div>
@@ -1667,7 +1667,7 @@ function PrivacySettings() {
             { id: 'activity', label: 'Show Activity Status', description: "Let others see when you're online" },
             { id: 'analytics', label: 'Usage Analytics', description: 'Help us improve by sharing anonymous usage data' },
           ].map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
               <div>
                 <div className="font-medium text-foreground">{item.label}</div>
                 <div className="text-sm text-muted-foreground">{item.description}</div>
@@ -1728,7 +1728,7 @@ function DataExportCard() {
   };
 
   return (
-    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-3">
+    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05] space-y-3">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
           <FiDownload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -1844,7 +1844,7 @@ function AccountDeletionCard() {
   }
 
   return (
-    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-3">
+    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05] space-y-3">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
           <FiTrash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -1942,7 +1942,7 @@ function MyReportsCard() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Laster...</p>
       ) : reports.length === 0 ? (
-        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
           <div className="flex items-center gap-3">
             <FiFlag className="h-5 w-5 text-muted-foreground" />
             <div className="text-sm text-muted-foreground">
@@ -1955,7 +1955,7 @@ function MyReportsCard() {
           {reports.map((report) => {
             const status = statusLabels[report.status] || statusLabels.PENDING;
             return (
-              <div key={report.id} className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40 flex items-center justify-between gap-3">
+              <div key={report.id} className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-foreground/[0.05] flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-medium text-foreground">{reasonLabels[report.reason] || report.reason}</span>
@@ -2095,7 +2095,7 @@ function AppearanceSettings() {
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Visual Effects</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Gradient Backgrounds</div>
               <div className="text-sm text-muted-foreground">Colorful gradient backgrounds on pages and cards</div>
@@ -2106,7 +2106,7 @@ function AppearanceSettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Floating Spheres</div>
               <div className="text-sm text-muted-foreground">Animated gradient orbs in the background</div>
@@ -2123,7 +2123,7 @@ function AppearanceSettings() {
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Animations</h3>
         <div className="space-y-3">
-          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div className="font-medium text-foreground mb-3">Page Transitions</div>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -2137,7 +2137,7 @@ function AppearanceSettings() {
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition ${
                     prefs.pageAnimations === option.id
                       ? 'bg-brand-accent text-brand-accent-foreground shadow-md shadow-brand-accent/30'
-                      : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-muted/60'
+                      : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-foreground/[0.07]'
                   }`}
                 >
                   {option.label}
@@ -2146,7 +2146,7 @@ function AppearanceSettings() {
             </div>
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Colorful Hover Effects</div>
               <div className="text-sm text-muted-foreground">Fancy color transitions on hover (instead of simple highlights)</div>
@@ -2162,7 +2162,7 @@ function AppearanceSettings() {
       {/* Chat */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Chat</h3>
-        <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+        <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
           <div className="font-medium text-foreground mb-1">AI chat layout</div>
           <div className="text-sm text-muted-foreground mb-3">
             How the conversation list sits next to the chat on the AI page.
@@ -2178,7 +2178,7 @@ function AppearanceSettings() {
                 className={`flex flex-col items-start gap-0.5 py-2.5 px-3 rounded-lg text-left transition ${
                   prefs.aiChatLayout === option.id
                     ? 'bg-brand-accent text-brand-accent-foreground shadow-md shadow-brand-accent/30'
-                    : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-muted/60'
+                    : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-foreground/[0.07]'
                 }`}
               >
                 <span className="text-sm font-medium">{option.label}</span>
@@ -2195,14 +2195,14 @@ function AppearanceSettings() {
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Advanced</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Web3 Mode</div>
               <div className="text-sm text-muted-foreground">Enable advanced wallet controls and crypto features</div>
             </div>
             <Web3ModeControl />
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
             <div>
               <div className="font-medium text-foreground">Experimental Effects</div>
               <div className="text-sm text-muted-foreground">Enable bleeding-edge visual features (may be unstable)</div>
@@ -2280,10 +2280,10 @@ function Web3WalletSettings() {
       </div>
 
       {/* Web3 Mode Toggle */}
-      {demo && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+      {demo && <p className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">
         Demo preview: you can inspect wallet connection options. Saving a wallet link, changing payout settings and on-chain transactions are disabled. No signature is requested here.
       </p>}
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+      <div className="flex items-center justify-between gap-4 rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05]">
         <div className="min-w-0">
           <div className="font-medium text-foreground">Web3 Mode</div>
           <div className="text-sm text-muted-foreground">
@@ -2297,7 +2297,7 @@ function Web3WalletSettings() {
       {(web3Enabled || demo) && (
         <div className="space-y-4">
           {/* Connect Wallet */}
-          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
+          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05] space-y-3">
             <div>
               <div className="font-medium text-foreground">Connect Wallet</div>
               <div className="text-sm text-muted-foreground">
@@ -2313,7 +2313,7 @@ function Web3WalletSettings() {
           </div>
 
           {/* Verify & Link */}
-          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
+          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05] space-y-3">
             <div>
               <div className="font-medium text-foreground">Verify & Link Wallet</div>
               <div className="text-sm text-muted-foreground">
@@ -2327,7 +2327,7 @@ function Web3WalletSettings() {
           </div>}
 
           {/* Linked Wallets */}
-          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
+          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-foreground/[0.05] space-y-3">
             <div>
               <div className="font-medium text-foreground">Verified Wallet Links</div>
               <div className="text-sm text-muted-foreground">
@@ -2359,7 +2359,7 @@ function Web3WalletSettings() {
         </div>
       )}
 
-      {web3State.data === undefined && !demo && <div role="status" className="min-h-40 rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">{web3State.isError ? 'Wallet settings unavailable. Retry above.' : 'Loading wallet settings…'}</div>}
+      {web3State.data === undefined && !demo && <div role="status" className="min-h-40 rounded-xl border border-border bg-foreground/[0.03] p-4 text-sm text-muted-foreground">{web3State.isError ? 'Wallet settings unavailable. Retry above.' : 'Loading wallet settings…'}</div>}
       {web3State.data === false && !demo && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <FiLock className="h-8 w-8 text-muted-foreground/60" />
@@ -2414,7 +2414,7 @@ function WalletSessionDisconnectButton() {
         size="sm"
         disabled={busy}
         onClick={disconnectSession}
-        className="min-h-11 border-brand-accent/30 bg-muted/40 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/15"
+        className="min-h-11 border-brand-accent/30 bg-foreground/[0.05] text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/15"
       >
         {busy ? "Disconnecting..." : "Disconnect session"}
       </Button>
@@ -2605,7 +2605,7 @@ function CurrencySettings() {
       {/* Quick Preview */}
       <div className="pt-4 border-t border-border">
         <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider mb-3">Preview</h3>
-        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
+        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-foreground/[0.05]">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Example price:</span>
             <div className="text-right">
@@ -2729,7 +2729,7 @@ function AddressesSettings() {
     return (
       <div className="space-y-4 animate-pulse">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 rounded-lg bg-muted/50" />
+          <div key={i} className="h-20 rounded-lg bg-foreground/[0.06]" />
         ))}
       </div>
     );

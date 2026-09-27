@@ -112,7 +112,7 @@ export default function DirectWalletConnect({
 
   if (direct.length === 0) {
     return (
-      <div className={`rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground ${className}`}>
+      <div className={`rounded-xl border border-dashed border-border/70 bg-foreground/[0.03] p-3 text-sm text-muted-foreground ${className}`}>
         No browser extension wallets detected. Open Veggat in your wallet browser or use a browser with a wallet extension installed.
       </div>
     );
@@ -132,7 +132,7 @@ export default function DirectWalletConnect({
             type="button"
             disabled={isPending || authing || unavailable}
             onClick={() => handleConnect(w.connector)}
-            className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-foreground/[0.03] px-3 py-2 text-sm font-medium text-foreground enabled:hover:border-brand-accent/40 enabled:hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             title={`Connect with ${w.label}`}
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-background">

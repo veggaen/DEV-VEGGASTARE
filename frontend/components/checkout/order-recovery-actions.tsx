@@ -45,7 +45,7 @@ export default function OrderRecoveryActions({ order, refresh }: { order: OrderD
     }
   }
   return <div className="space-y-3">
-    {confirming ? <div className="rounded-xl border border-border bg-muted/30 p-4" aria-label="Confirm order cancellation">
+    {confirming ? <div className="rounded-xl border border-border bg-foreground/[0.04] p-4" aria-label="Confirm order cancellation">
       <p className="text-sm font-medium">Cancel this unpaid order?</p>
       <p className="mt-1 text-sm text-muted-foreground">Your cart stays saved. Purchase limits are unchanged.</p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">

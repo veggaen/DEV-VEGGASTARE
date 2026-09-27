@@ -625,7 +625,7 @@ function PollPreview({ poll }: { poll: ImportedPoll }) {
   const hasSections = poll.sections && poll.sections.length > 0;
   
   return (
-    <div className="space-y-4 max-h-[300px] overflow-y-auto p-4 bg-muted/30 rounded-lg">
+    <div className="space-y-4 max-h-[300px] overflow-y-auto p-4 bg-foreground/[0.04] rounded-lg">
       <div>
         <h4 className="font-semibold text-lg">{poll.title}</h4>
         {poll.description && (
@@ -949,7 +949,7 @@ Range: 1-10
                     "p-4 rounded-xl border cursor-pointer transition",
                     selectedTemplate === template.id
                       ? "border-primary bg-primary/5"
-                      : "hover:border-primary/50 hover:bg-muted/50"
+                      : "hover:border-primary/50 hover:bg-foreground/[0.06]"
                   )}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}

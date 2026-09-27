@@ -476,7 +476,7 @@ export function CategoryTagInput({
 
       {/* Hierarchical Category Browser */}
       {showBrowser && (
-        <div className="mt-2 p-3 rounded-md border border-border bg-muted/30 max-h-[300px] overflow-y-auto">
+        <div className="mt-2 p-3 rounded-md border border-border bg-foreground/[0.04] max-h-[300px] overflow-y-auto">
           <p className="text-xs font-medium text-muted-foreground mb-2">
             Browse categories (click to add, expand for subcategories)
           </p>

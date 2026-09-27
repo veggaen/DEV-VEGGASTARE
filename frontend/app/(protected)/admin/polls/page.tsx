@@ -446,7 +446,7 @@ function ScheduledPollsTab() {
                   value={newCron}
                   onChange={(e) => setNewCron(e.target.value)}
                   placeholder="0 8 * * *"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-foreground/[0.05] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">Default: 0 8 * * * = 8 AM UTC daily</p>
               </div>
@@ -460,7 +460,7 @@ function ScheduledPollsTab() {
                   onChange={(e) => setNewPrompt(e.target.value)}
                   placeholder="Generate a challenging quiz about Norwegian history with 5 questions..."
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30 resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-foreground/[0.05] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30 resize-none"
                 />
               </div>
 

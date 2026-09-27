@@ -180,7 +180,7 @@ export default function CommunityGuidelinesPage() {
             <p>
               Spørsmål om disse retningslinjene kan rettes til:
             </p>
-            <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-1 mt-2">
+            <div className="rounded-lg bg-foreground/[0.04] p-4 text-xs space-y-1 mt-2">
               <p className="font-semibold text-foreground">THORSEN SOFTWARE</p>
               <p>
                 E-post:{" "}

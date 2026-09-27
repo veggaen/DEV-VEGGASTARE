@@ -122,7 +122,7 @@ function SortableItem({
           "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
           index === 0 
             ? "bg-linear-to-br from-amber-400/20 to-amber-600/20" 
-            : "bg-muted/50"
+            : "bg-foreground/[0.06]"
         )}
         layout
       >

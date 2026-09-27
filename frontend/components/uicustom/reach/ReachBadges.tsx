@@ -27,7 +27,7 @@ const TIER_COLORS: Record<string, { bg: string; border: string; text: string; gl
     glow: 'rgba(234, 88, 12, 0.2)',
   },
   silver: {
-    bg: 'bg-muted/40',
+    bg: 'bg-foreground/[0.05]',
     border: 'border-border',
     text: 'text-foreground/85',
     glow: 'rgba(161, 161, 170, 0.2)',
@@ -123,14 +123,14 @@ export default function ReachBadges({ badges, compact, className = '' }: ReachBa
               return (
                 <div
                   key={badge.id}
-                  className="flex min-w-0 items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5"
+                  className="flex min-w-0 items-center gap-3 rounded-xl border border-border/50 bg-foreground/[0.03] px-3 py-2.5"
                 >
                   <span className="text-2xl grayscale">{badge.icon}</span>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-sm text-foreground">{badge.label}</div>
                     <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{badge.description}</div>
                     {/* Progress bar */}
-                    <div className="mt-1.5 h-1 rounded-full bg-muted/50 overflow-hidden">
+                    <div className="mt-1.5 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
                       <div
                         className="h-full origin-left rounded-full motion-safe:transition-transform motion-safe:duration-200"
                         style={{

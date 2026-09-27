@@ -422,7 +422,7 @@ export function PostalCodeAutocomplete({
                 className={cn(
                   'w-full px-3 py-2.5 text-left transition-colors',
                   'flex items-center gap-3',
-                  'hover:bg-muted/40',
+                  'hover:bg-foreground/[0.05]',
                   selectedIndex === index && 'bg-brand-accent/10'
                 )}
               >

@@ -1946,7 +1946,7 @@ function CompletionScreen({
           {answeredCount} of {totalQuestions} questions answered ({percentage}%)
         </motion.p>
 
-        <motion.div className="bg-muted/50 rounded-2xl p-4 mb-6 max-w-xs mx-auto" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
+        <motion.div className="bg-foreground/[0.06] rounded-2xl p-4 mb-6 max-w-xs mx-auto" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}>
           <p className="text-sm text-muted-foreground mb-2">Your influence on REACH design</p>
           <div className="text-3xl font-bold text-primary">{voteWeight}%</div>
           {percentage < 100 && <p className="text-xs text-muted-foreground mt-2">Complete more for higher influence!</p>}
@@ -2461,7 +2461,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
                 </motion.div>
                 <motion.h2 className="text-2xl font-bold mb-2" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>Welcome Back! 👋</motion.h2>
                 <motion.p className="text-muted-foreground mb-2" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>You have progress saved</motion.p>
-                <motion.div className="bg-muted/50 rounded-xl p-4 mb-8 max-w-sm" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+                <motion.div className="bg-foreground/[0.06] rounded-xl p-4 mb-8 max-w-sm" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Questions answered:</span>
                     <span className="font-semibold text-primary">{Object.keys(savedProgress.answers).length} / {totalQuestions}</span>
@@ -2515,7 +2515,7 @@ export function ReachPollV3({ pollId, onClose, onComplete }: ReachPollV3Props) {
         </AnimatePresence>
 
         {screen === "question" && !showResumePrompt && (
-          <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30 shrink-0">
+          <div className="flex items-center justify-between p-4 border-t border-border bg-foreground/[0.04] shrink-0">
             <Button variant="ghost" onClick={goPrev} disabled={currentPhase === 0 && currentQuestion === 0} className="gap-1"><ChevronLeft className="w-4 h-4" /> Back</Button>
             <div className="hidden md:flex items-center gap-3">
               {PHASES.map((p, idx) => (

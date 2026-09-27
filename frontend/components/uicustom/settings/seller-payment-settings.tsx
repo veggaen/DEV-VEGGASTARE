@@ -36,7 +36,7 @@ function DemoSellerPayments() {
       <h2 id="seller-payment-heading" className="text-xl font-semibold">Seller Payments</h2>
       <p className="mt-1 text-sm text-muted-foreground">Payout setup preview · no money moves in the demo.</p>
     </div>
-    <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+    <p className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">
       Use your own account to save and verify a PayPal receiving email or link a payout wallet. Demo accounts cannot change payout details.
     </p>
     <div className="space-y-2">

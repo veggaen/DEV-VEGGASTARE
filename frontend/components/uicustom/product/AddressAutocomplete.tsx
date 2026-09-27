@@ -220,7 +220,7 @@ export function AddressAutocomplete({
           disabled={disabled}
           className={cn(
             'w-full pl-10 pr-20 py-2.5 rounded-lg text-sm',
-            'bg-surface-2 dark:bg-muted/40',
+            'bg-surface-2 dark:bg-foreground/[0.05]',
             'border border-border',
             'text-foreground placeholder:text-muted-foreground',
             'focus:outline-none focus:ring-2 focus:ring-brand-accent/30 focus:border-brand-accent',
@@ -311,7 +311,7 @@ export function AddressAutocomplete({
                   'transition-colors duration-100',
                   highlightedIndex === index
                     ? 'bg-brand-accent/10 text-foreground'
-                    : 'hover:bg-muted/50 text-foreground'
+                    : 'hover:bg-foreground/[0.06] text-foreground'
                 )}
                 role="option"
                 aria-selected={highlightedIndex === index}

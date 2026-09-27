@@ -5,8 +5,8 @@ export default function CheckoutLoading() {
     <div className="mt-3 h-9 w-64 rounded bg-muted motion-safe:animate-pulse" />
     <div className="mt-2 h-6 max-w-sm rounded bg-muted motion-safe:animate-pulse" />
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)] lg:gap-8">
-      <div className="space-y-6"><div className="h-72 rounded-2xl border border-border bg-muted/40 motion-safe:animate-pulse" /><div className="h-44 rounded-2xl border border-border bg-muted/40 motion-safe:animate-pulse" /></div>
-      <div className="h-80 rounded-2xl border border-border bg-muted/40 motion-safe:animate-pulse" />
+      <div className="space-y-6"><div className="h-72 rounded-2xl border border-border bg-foreground/[0.05] motion-safe:animate-pulse" /><div className="h-44 rounded-2xl border border-border bg-foreground/[0.05] motion-safe:animate-pulse" /></div>
+      <div className="h-80 rounded-2xl border border-border bg-foreground/[0.05] motion-safe:animate-pulse" />
     </div>
   </div>;
 }

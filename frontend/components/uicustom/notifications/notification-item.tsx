@@ -29,7 +29,7 @@ export function NotificationItem({ notification, onClick, onMarkRead, compact = 
     </div>
     {notification.imageUrl && !compact && <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg"><Image src={notification.imageUrl} alt="" fill sizes="48px" className="object-cover" /></span>}
   </>;
-  const classes = cn('relative flex w-full min-w-0 gap-3 rounded-xl p-4 text-left', !notification.isRead && 'bg-muted/30', href && 'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', className);
+  const classes = cn('relative flex w-full min-w-0 gap-3 rounded-xl p-4 text-left', !notification.isRead && 'bg-foreground/[0.04]', href && 'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', className);
   const activate = () => { if (!notification.isRead) onMarkRead?.(); onClick?.(); };
   if (href) return <Link href={href} className={classes} onClick={activate}>{content}</Link>;
   return <div className={classes}>{content}</div>;

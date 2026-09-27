@@ -157,7 +157,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
           href="/"
           className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <span className="grid place-items-center h-7 w-7 rounded-full bg-muted/50 group-hover:bg-muted transition-colors">
+          <span className="grid place-items-center h-7 w-7 rounded-full bg-foreground/[0.06] group-hover:bg-muted transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           </span>
           Home
@@ -220,7 +220,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search…"
-                    className="w-40 rounded-lg bg-muted/40 border border-border/60 px-3 py-1.5 text-xs outline-none focus:border-brand-accent/40 transition-colors"
+                    className="w-40 rounded-lg bg-foreground/[0.05] border border-border/60 px-3 py-1.5 text-xs outline-none focus:border-brand-accent/40 transition-colors"
                   />
                 )}
               </div>
@@ -234,7 +234,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
               {loading ? (
                 <div className="space-y-2.5">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-[68px] rounded-2xl bg-muted/40 animate-pulse" />
+                    <div key={i} className="h-[68px] rounded-2xl bg-foreground/[0.05] animate-pulse" />
                   ))}
                 </div>
               ) : sessions.length === 0 ? (
@@ -468,7 +468,7 @@ function AnonymousHero({
         <button
           onClick={onCreate}
           disabled={creating}
-          className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted/40 disabled:opacity-50 transition-colors"
+          className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-foreground/[0.05] disabled:opacity-50 transition-colors"
         >
           {creating ? "Starting…" : "Try anonymously"}
         </button>

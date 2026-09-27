@@ -213,7 +213,7 @@ function AiChatRail({
         <button
           onClick={onNewChat}
           disabled={creating}
-          className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-muted text-foreground text-sm font-medium px-4 py-2.5 hover:bg-muted/70 disabled:opacity-50 transition-colors"
+          className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-muted text-foreground text-sm font-medium px-4 py-2.5 hover:bg-foreground/[0.08] disabled:opacity-50 transition-colors"
         >
           {creating
             ? <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-transparent motion-safe:animate-spin" />
@@ -233,7 +233,7 @@ function AiChatRail({
             placeholder="Search chats…"
             aria-label="Search conversations"
             name="conversation-search" type="search" autoComplete="off" maxLength={200} disabled={!isLoggedIn}
-            className="w-full rounded-lg bg-muted/40 border border-border h-11 pl-9 pr-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors"
+            className="w-full rounded-lg bg-foreground/[0.05] border border-border h-11 pl-9 pr-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors"
           />
         </div>
       </div>
@@ -308,7 +308,7 @@ export function RailRow({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted/50">
+      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-foreground/[0.06]">
         <input
           ref={inputRef}
           value={draft}
@@ -343,7 +343,7 @@ export function RailRow({
       className={cn(
         "group/row relative flex items-center gap-2 rounded-lg pl-3 pr-1 py-1.5 transition-colors",
         onDragStart && "cursor-grab active:cursor-grabbing",
-        active ? "bg-brand-accent/12 text-foreground" : "hover:bg-muted/50",
+        active ? "bg-brand-accent/12 text-foreground" : "hover:bg-foreground/[0.06]",
       )}
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />}
