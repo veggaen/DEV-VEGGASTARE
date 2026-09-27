@@ -96,8 +96,8 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
             </CarouselItem>)}
           </CarouselContent>
           {product.image.length > 1 && <>
-            <CarouselPrevious aria-label={`Previous image of ${product.title}`} className="flex size-11 border-white/20 bg-black/70 text-white disabled:invisible" />
-            <CarouselNext aria-label={`Next image of ${product.title}`} className="flex size-11 border-white/20 bg-black/70 text-white disabled:invisible" />
+            <CarouselPrevious aria-label={`Previous image of ${product.title}`} className="flex size-11 border-border bg-black/70 text-white disabled:invisible" />
+            <CarouselNext aria-label={`Next image of ${product.title}`} className="flex size-11 border-border bg-black/70 text-white disabled:invisible" />
           </>}
         </Carousel> : <Link href={href} aria-label={`View ${product.title}`} className="flex aspect-[4/3] items-center justify-center"><Package className="size-12 text-muted-foreground" /><span className="sr-only">Preview unavailable</span></Link>}
         <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-background/95 px-2 py-1 text-xs font-medium shadow-sm">

@@ -157,15 +157,15 @@ const CompanyDetails = () => {
         // Redirect non-members to public page
         if (!hasInternalAccess) {
             return (
-                <div className="w-full bg-zinc-50 dark:bg-zinc-950">
+                <div className="w-full bg-background">
                     <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
-                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">Access Restricted</h1>
-                        <p className="text-zinc-600 dark:text-zinc-300 mb-6">
+                        <h1 className="text-2xl font-semibold text-foreground mb-4">Access Restricted</h1>
+                        <p className="text-foreground/80 mb-6">
                             You don&apos;t have permission to access company settings.
                         </p>
                         <Link
                             href={`/nexus/company/${company.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-surface-3 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             View Company Profile
                         </Link>
@@ -264,9 +264,9 @@ const CompanyDetails = () => {
         };
 
         return (
-            <div className="w-full bg-zinc-50 dark:bg-zinc-950">
+            <div className="w-full bg-background">
                 <div className="relative mx-auto w-full max-w-screen-2xl px-4 py-6">
-                    <div className="overflow-hidden rounded-lg border border-black/10 bg-white/60 backdrop-blur-sm transition-[border-radius] duration-200 hover:rounded-2xl dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="overflow-hidden rounded-lg border border-border bg-surface-1/60 backdrop-blur-sm transition-[border-radius] duration-200 hover:rounded-2xl dark:bg-muted/40">
                         <div className="relative w-full">
                             {company.bannerImage?.[0] ? (
                                 <AspectRatio ratio={3 / 1}>
@@ -279,13 +279,13 @@ const CompanyDetails = () => {
                                     />
                                 </AspectRatio>
                             ) : (
-                                <div className="h-44 w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
+                                <div className="h-44 w-full bg-linear-to-r from-indigo-500/30 via-brand-accent/20 to-brand-accent/30 dark:from-indigo-500/20 dark:via-brand-accent/10 dark:to-brand-accent/20" />
                             )}
-                            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-linear-to-t from-background/70 via-background/20 to-transparent" />
 
                             <div className="absolute inset-0 flex items-end justify-between gap-4 p-4 md:p-6">
                                 <div className="flex items-end gap-4">
-                                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-white/20 bg-white/10 md:h-24 md:w-24">
+                                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-border bg-muted/40 md:h-24 md:w-24">
                                         <Image
                                             src={company.logo?.[0] || "/users/avatar.webp"}
                                             layout="fill"
@@ -295,15 +295,15 @@ const CompanyDetails = () => {
                                         />
                                     </div>
                                     <div className="pb-1">
-                                        <h1 className="text-xl font-semibold tracking-tight text-white md:text-3xl">{company.name}</h1>
-                                        <div className="mt-1 flex items-center gap-3 text-sm text-white/80">
+                                        <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-3xl">{company.name}</h1>
+                                        <div className="mt-1 flex items-center gap-3 text-sm text-foreground/80">
                                             <span>Company Settings</span>
                                             <span className="opacity-50">•</span>
-                                            <Link href={`/nexus/company/${company.id}`} className="hover:text-white hover:underline underline-offset-2">
+                                            <Link href={`/nexus/company/${company.id}`} className="hover:text-foreground hover:underline underline-offset-2">
                                                 Public profile
                                             </Link>
                                             <span className="opacity-50">•</span>
-                                            <Link href={`/nexus/company/${company.id}/hub`} className="hover:text-white hover:underline underline-offset-2">
+                                            <Link href={`/nexus/company/${company.id}/hub`} className="hover:text-foreground hover:underline underline-offset-2">
                                                 Hub
                                             </Link>
                                         </div>
@@ -325,16 +325,16 @@ const CompanyDetails = () => {
 
                         <div className="px-4 py-5 md:px-6">
                             <div className="mb-8">
-                                <p className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">Description</p>
-                                <p className="text-base text-zinc-700 dark:text-zinc-300 mb-4">{company.description}</p>
-                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                <p className="text-lg font-semibold text-foreground mb-3">Description</p>
+                                <p className="text-base text-foreground/85 mb-4">{company.description}</p>
+                                <div className="text-sm text-foreground/85">
                                     <span className="font-medium">Website:</span>{' '}
                                     {company.websiteUrl ? (
                                         <a
                                             href={company.websiteUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="text-sky-700 hover:underline dark:text-sky-300"
+                                            className="text-brand-accent-hover dark:text-brand-accent-light hover:underline"
                                         >
                                             {company.websiteUrl}
                                         </a>
@@ -345,11 +345,11 @@ const CompanyDetails = () => {
                             </div>
 
                             {showRegistrationPrompt ? (
-                                <div className="mb-8 rounded-lg border border-black/10 bg-white/50 p-4 text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-white">
+                                <div className="mb-8 rounded-lg border border-border bg-surface-1/50 p-4 text-foreground dark:bg-muted/40">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-base font-semibold">Optional company metadata</p>
-                                            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                                            <p className="text-sm text-foreground/80">
                                                 Add these details to improve invoices, contracts, and internal settings. Nothing is required.
                                             </p>
                                         </div>
@@ -362,7 +362,7 @@ const CompanyDetails = () => {
                                                 value={regOrgType}
                                                 onChange={(e) => setRegOrgType(e.target.value)}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="h-10 rounded-md border border-border bg-card px-3 text-sm dark:bg-surface-3"
                                             >
                                                 <option value="">Not specified</option>
                                                 <option value="ENK">Enkeltpersonforetak (ENK)</option>
@@ -386,7 +386,7 @@ const CompanyDetails = () => {
                                                 pattern="\d*"
                                                 maxLength={9}
                                                 placeholder="123456789"
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="h-10 rounded-md border border-border bg-card px-3 text-sm dark:bg-surface-3"
                                             />
                                         </label>
 
@@ -399,7 +399,7 @@ const CompanyDetails = () => {
                                                 value={regNoticeDays}
                                                 onChange={(e) => setRegNoticeDays(Number(e.target.value))}
                                                 disabled={!canUpdateRegistration || regSaving}
-                                                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-900"
+                                                className="h-10 rounded-md border border-border bg-card px-3 text-sm dark:bg-surface-3"
                                             />
                                         </label>
                                     </div>
@@ -409,12 +409,12 @@ const CompanyDetails = () => {
                                             type="button"
                                             onClick={saveRegistration}
                                             disabled={!canUpdateRegistration || regSaving}
-                                            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900"
+                                            className="rounded-md bg-surface-3 px-4 py-2 text-sm font-semibold text-foreground disabled:opacity-60 dark:bg-card"
                                         >
                                             {regSaving ? 'Saving…' : 'Save'}
                                         </button>
                                         {regError ? <span className="text-sm text-red-700 dark:text-red-300">{regError}</span> : null}
-                                        {regSuccess ? <span className="text-sm text-emerald-700 dark:text-emerald-300">{regSuccess}</span> : null}
+                                        {regSuccess ? <span className="text-sm text-brand-accent-hover dark:text-brand-accent-light">{regSuccess}</span> : null}
                                         {!canUpdateRegistration ? (
                                             <span className="text-sm opacity-80">Only the company owner (or admins) can update this.</span>
                                         ) : null}
@@ -423,54 +423,54 @@ const CompanyDetails = () => {
                             ) : null}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                                 {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company ID:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.id || 'N/A'}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Company ID:</p>
+                                        <p className="text-foreground text-lg font-semibold">{company.id || 'N/A'}</p>
                                     </div>
                                 )}
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded by:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.creator.name || 'N/A'}</p>
+                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <p className="text-foreground/85 text-lg mb-2 font-medium">Founded by:</p>
+                                    <p className="text-foreground text-lg font-semibold">{company.creator.name || 'N/A'}</p>
                                 </div>
                                 {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Company Owner:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.owner.name || 'N/A'}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Company Owner:</p>
+                                        <p className="text-foreground text-lg font-semibold">{company.owner.name || 'N/A'}</p>
                                     </div>
                                 )}
                                 {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Color Scheme:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Color Scheme:</p>
+                                        <p className="text-foreground text-lg font-semibold">{company.colorScheme || 'N/A'}</p>
                                     </div>
                                 )}
                                 {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Uses Shipping:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Uses Shipping:</p>
+                                        <p className="text-foreground text-lg font-semibold">{company.usesShipping ? 'Yes' : 'No'}</p>
                                     </div>
                                 )}
-                                <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Founded:</p>
-                                    <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.createdAt)}</p>
+                                <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                    <p className="text-foreground/85 text-lg mb-2 font-medium">Founded:</p>
+                                    <p className="text-foreground text-lg font-semibold">{formatDate(company.createdAt)}</p>
                                 </div>
                                 {hasInternalAccess && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Last Updated:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{formatDate(company.updatedAt)}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Last Updated:</p>
+                                        <p className="text-foreground text-lg font-semibold">{formatDate(company.updatedAt)}</p>
                                     </div>
                                 )}
                                 {!hasInternalAccess && company.employees && (
-                                    <div className="border border-black/10 bg-white/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] rounded-lg hover:rounded-2xl">
-                                        <p className="text-gray-700 dark:text-gray-300 text-lg mb-2 font-medium">Team Size:</p>
-                                        <p className="text-gray-900 dark:text-gray-100 text-lg font-semibold">{company.employees.length} {company.employees.length === 1 ? 'member' : 'members'}</p>
+                                    <div className="border border-border bg-surface-1/50 p-5 transition-[border-radius,box-shadow] duration-200 hover:shadow-md dark:bg-muted/40 rounded-lg hover:rounded-2xl">
+                                        <p className="text-foreground/85 text-lg mb-2 font-medium">Team Size:</p>
+                                        <p className="text-foreground text-lg font-semibold">{company.employees.length} {company.employees.length === 1 ? 'member' : 'members'}</p>
                                     </div>
                                 )}
                             </div>
                             {hasInternalAccess && company.usesShipping && company.warehouseLocations && company.warehouseLocations.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
+                                <div className="border-t border-border mt-2">
                             <div className='flex justify-start items-center w-full h-10'>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Warehouse Locations:</h2>
+                                        <h2 className="text-2xl font-bold text-foreground">Warehouse Locations:</h2>
                                     </div>
                                     <ul className="space-y-6">
                                         {warehouses.map((warehouseLocation, index) => {
@@ -479,15 +479,15 @@ const CompanyDetails = () => {
                                             return (
                                                 <li
                                                     key={index}
-                                                    className="border border-black/10 bg-white/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
                                                 >
-                                                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
+                                                    <p className="text-foreground/85 text-lg mb-2">
                                                         {warehouseLocation.address}, {warehouseLocation.city}, {warehouseLocation.country}
                                                     </p>
-                                                    <p className="text-gray-700 dark:text-gray-300 mb-2">
+                                                    <p className="text-foreground/85 mb-2">
                                                         Initial Stock: <span className="font-semibold">{warehouseLocation.initialStock || 'N/A'}</span>
                                                     </p>
-                                                    <p className="text-gray-700 dark:text-gray-300 mb-4">
+                                                    <p className="text-foreground/85 mb-4">
                                                         Current Stock: <span className="font-semibold">{warehouseLocation.currentStock || 'N/A'}</span>
                                                     </p>
                                                     {/* Add the overall progress bar */}
@@ -500,15 +500,15 @@ const CompanyDetails = () => {
                                 </div>
                             )}
                             {hasInternalAccess && company.employees && company.employees.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-700 mt-2">
+                                <div className="border-t border-border mt-2">
                                     <div className='flex justify-start items-center w-full h-10'>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employees:</h2>
+                                        <h2 className="text-2xl font-bold text-foreground">Employees:</h2>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {sortedEmployeesRole.map((employee) => (
                                                 <div
                                                     key={employee.id}
-                                                    className="border border-black/10 bg-white/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
+                                                    className="border border-border bg-surface-1/40 p-4 transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-surface-1/60 hover:shadow-md dark:bg-muted/40 dark:hover:bg-muted/40 rounded-lg hover:rounded-2xl"
                                                 >
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex-1 min-w-0">
@@ -533,11 +533,11 @@ const CompanyDetails = () => {
                                                                 )}
                                                             </div>
                                                             <div>
-                                                                <div className="text-lg font-semibold text-gray-900 dark:text-white">{employee.user.name}</div>
-                                                                <p className="text-gray-600 dark:text-gray-400">{employee.user.email}</p>
-                                                                <p className="text-gray-600 dark:text-gray-400">{employee.role}</p>
+                                                                <div className="text-lg font-semibold text-foreground">{employee.user.name}</div>
+                                                                <p className="text-muted-foreground">{employee.user.email}</p>
+                                                                <p className="text-muted-foreground">{employee.role}</p>
                                                                 {(employee as any).jobTitle ? (
-                                                                    <p className="text-gray-500 dark:text-gray-400 text-sm">{(employee as any).jobTitle}</p>
+                                                                    <p className="text-muted-foreground text-sm">{(employee as any).jobTitle}</p>
                                                                 ) : null}
                                                             </div>
                                                         </div>
@@ -545,20 +545,20 @@ const CompanyDetails = () => {
                                                             <p className="font-semibold">Permissions</p>
                                                             <div className="space-y-2">
                                                                 {Object.keys(employee.permissions ?? {}).length === 0 ? (
-                                                                        <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded text-center text-gray-500 dark:text-gray-400">No permissions</div>
+                                                                        <div className="bg-muted p-2 rounded text-center text-muted-foreground">No permissions</div>
                                                                 ) : (
                                                                     Object.entries(employee.permissions ?? {}).map(([key, value]) => {
                                                                         const tag = TAG_REPLACEMENTS[key] || { name: key, description: '', icon: null };
                                                                         return (
                                                                             <div 
                                                                                     key={key} 
-                                                                                    className="flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded"
+                                                                                    className="flex justify-between items-center bg-muted p-2 rounded"
                                                                             >
                                                                                 <div className="flex items-center space-x-2">
                                                                                     {tag.icon}
                                                                                     <p>{tag.name}</p>
                                                                                 </div>
-                                                                                <p className={`px-2 py-1 rounded ${value === true ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                                                <p className={`px-2 py-1 rounded ${value === true ? 'bg-brand-accent text-brand-accent-foreground' : 'bg-red-500 text-brand-accent-foreground'}`}>
                                                                                     {value !== null && value !== undefined ? value.toString() : 'N/A'}
                                                                                 </p>
                                                                             </div>
@@ -567,7 +567,7 @@ const CompanyDetails = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className="mt-4 text-gray-600 dark:text-gray-400">
+                                                        <div className="mt-4 text-muted-foreground">
                                                             <div className="flex justify-between">
                                                                 <span className="font-semibold">Created At</span>
                                                                 <span>{formatDate(employee.createdAt)}</span>
@@ -610,8 +610,8 @@ const CompanyDetails = () => {
                                 </div>
                             )}
                             {(canManageTeam || currentUserPermissions?.CAN_ADD_EMPLOYEE === true) && (
-                                <div className="border-t border-gray-200 dark:border-gray-700">
-                                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Add a New Employee</h1>
+                                <div className="border-t border-border">
+                                    <h1 className="text-2xl font-bold text-foreground mb-6">Add a New Employee</h1>
                                     <MyNewEmployeeForm
                                         companyId={company.id}
                                         handleNewEmployee={handleNewEmployee}
@@ -620,7 +620,7 @@ const CompanyDetails = () => {
                                     />
                                 </div>
                             )}
-                            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <div className="p-6 border-t border-border flex justify-between items-center">
                                 <Link 
                                     href="/nexus/company" 
                                     className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

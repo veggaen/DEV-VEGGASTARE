@@ -15,6 +15,8 @@ export const publicRoutes = [
   "/pricing", // ✅ Public SaaS storefront / pricing page
   "/privacy", // ✅ Privacy page is public
   "/terms", // ✅ Sales terms page (required for Vipps)
+  "/accessibility", // Legal: accessibility statement, linked from /terms and the footer
+  "/community-guidelines", // Legal: community guidelines, linked from /terms
   "/contact",
   "/auth/new-verification",
   "/auth/security-action", // Retired email-link notice; never reads or consumes a token.

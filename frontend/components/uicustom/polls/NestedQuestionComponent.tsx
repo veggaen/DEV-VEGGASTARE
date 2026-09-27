@@ -192,7 +192,7 @@ function QuestionRenderer({
               <Label
                 htmlFor={`${question.id}-${option.id}`}
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition",
                   localAnswer === option.id
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50",
@@ -223,7 +223,7 @@ function QuestionRenderer({
                 key={option.id}
                 htmlFor={`${question.id}-${option.id}`}
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition",
                   isChecked
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50",
@@ -280,7 +280,7 @@ function QuestionRenderer({
                 onClick={() => handleAnswerChange(value)}
                 disabled={disabled}
                 className={cn(
-                  "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
+                  "flex-1 py-2 rounded-lg border text-sm font-medium transition",
                   localAnswer === value
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border hover:bg-muted",

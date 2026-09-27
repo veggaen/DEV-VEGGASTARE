@@ -204,24 +204,24 @@ const FeatureCard = React.memo(function FeatureCard({
       transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       whileTap={{ scale: 0.98 }}
       onMouseEnter={onMouseEnter}
-      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-gray-200/60 dark:border-white/7 bg-white/70 dark:bg-white/2.5 p-6 backdrop-blur-sm transition-all duration-300 hover:border-gray-300 dark:hover:border-white/12 hover:shadow-lg dark:hover:shadow-[0_8px_40px_rgba(0,0,0,0.25)] cursor-pointer"
+      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 bg-surface-1/70 p-6 backdrop-blur-sm transition duration-300 hover:border-border hover:shadow-lg dark:hover:shadow-[0_8px_40px_rgba(0,0,0,0.25)] cursor-pointer"
     >
       <div
         className={`pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-br ${accentClass} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
       />
-      <div className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-white/6 text-gray-500 dark:text-white/60 transition-all duration-200 group-hover:bg-gray-200 dark:group-hover:bg-white/10 group-hover:scale-110">
+      <div className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground transition duration-200 group-hover:bg-muted group-hover:scale-110">
         {icon}
       </div>
       <div className="relative flex flex-col gap-2">
-        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-[15px] font-semibold text-foreground">
           <HoverableHeading text={title} />
         </h3>
-        <p className="text-sm leading-relaxed text-gray-500 dark:text-white/45">{description}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       <Link
         href={href}
         aria-label={`Explore ${title}`}
-        className="relative mt-auto inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-gray-600 dark:text-white/70 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+        className="relative mt-auto inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground transition-colors duration-200 group-hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
       >
         Explore
         <svg
@@ -316,7 +316,7 @@ const StepCard = React.memo(function StepCard({
             which all but vanishes on the soft #F9FAFB bg and made the whole step
             sequence read as missing until hovered. */}
         <motion.span
-          className="select-none text-5xl font-black leading-none tracking-tighter text-gray-300/80 dark:text-white/[0.07]"
+          className="select-none text-5xl font-black leading-none tracking-tighter text-muted-foreground/40"
           animate={{
             scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
             x: isHovered ? 8 : isNeighbor ? 3 : 0,
@@ -328,7 +328,7 @@ const StepCard = React.memo(function StepCard({
         </motion.span>
         {/* Brand accent overlay — fades in on hover, no border box needed */}
         <motion.span
-          className="absolute inset-0 select-none text-5xl font-black leading-none tracking-tighter text-sky-400 dark:text-emerald-400"
+          className="absolute inset-0 select-none text-5xl font-black leading-none tracking-tighter text-brand-accent"
           animate={{
             opacity: isHovered ? 0.65 : isNeighbor ? 0.22 : 0,
             scale: isHovered ? 1.16 : isNeighbor ? 1.06 : 1,
@@ -342,10 +342,10 @@ const StepCard = React.memo(function StepCard({
         </motion.span>
       </div>
 
-      <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">
+      <h3 className="text-[15px] font-semibold text-foreground">
         <HoverableHeading text={title} />
       </h3>
-      <p className="text-sm leading-relaxed text-gray-400 dark:text-white/40">{description}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
     </motion.div>
   );
 });
@@ -364,7 +364,7 @@ const SectionHeading = React.memo(function SectionHeading({
   return (
     <div className="mb-12 text-center">
       <motion.p
-        className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-emerald-400/60"
+        className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent-hover dark:text-brand-accent-light"
         initial={false}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
@@ -373,7 +373,7 @@ const SectionHeading = React.memo(function SectionHeading({
         <HoverableHeading text={eyebrow} />
       </motion.p>
       <motion.h2
-        className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl"
+        className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
         initial={false}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -383,7 +383,7 @@ const SectionHeading = React.memo(function SectionHeading({
       </motion.h2>
       {subtitle && (
         <motion.p
-          className="mx-auto mt-3 max-w-lg text-sm text-gray-400 dark:text-white/35"
+          className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground"
           initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
@@ -466,7 +466,7 @@ export default function BelowFoldSections() {
     <div className="relative w-full">
       {/* Top divider */}
       <div className="mx-auto max-w-5xl px-6 xl:max-w-6xl">
-        <div className="h-px bg-linear-to-r from-transparent via-gray-200 dark:via-white/7 to-transparent" />
+        <div className="h-px bg-linear-to-r from-transparent via-muted to-transparent" />
       </div>
 
       {/* ── Features grid ──────────────────────────────────────────────────── */}
@@ -485,7 +485,7 @@ export default function BelowFoldSections() {
           {/* Sliding indicator — matches hovered card, fades on leave */}
           {featureIndicatorStyle !== null && (
             <div
-              className="absolute pointer-events-none z-10 rounded-2xl border border-sky-500/50 dark:border-emerald-400/40"
+              className="absolute pointer-events-none z-10 rounded-2xl border border-brand-accent/50"
               style={{
                 left: featureIndicatorStyle.left,
                 top: featureIndicatorStyle.top,
@@ -512,7 +512,7 @@ export default function BelowFoldSections() {
             title="Prepaid AI chat"
             description="Choose an available model and see its credit cost before sending. Personal API keys bill your provider directly; daily safety limits apply."
             icon={AI_ICON}
-            accentClass="from-emerald-500/6 to-transparent"
+            accentClass="from-brand-accent/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
           />
           <FeatureCard
@@ -521,14 +521,14 @@ export default function BelowFoldSections() {
             title="Experimental modules"
             description="Pulse, polls and Web3 trading are experiments on the same stack. They are separate from the digital-product purchase and delivery flow."
             icon={POLL_ICON}
-            accentClass="from-sky-500/6 to-transparent"
+            accentClass="from-brand-accent/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
           />
         </div>
       </div>
 
       {/* ── Stats strip ────────────────────────────────────────────────────── */}
-      <div className="border-y border-gray-100 dark:border-white/5 bg-gray-50/60 dark:bg-white/1.5">
+      <div className="border-y border-border/60 bg-muted/40">
         {/* `relative` here is the positioning context for the indicator */}
         <div
           ref={statsContainerRef}
@@ -541,7 +541,7 @@ export default function BelowFoldSections() {
           {/* Sliding indicator — 4 positions, all 4 borders, smooth CSS transition */}
           {indicatorStyle !== null && (
             <div
-              className="absolute pointer-events-none z-10 border border-sky-500/50 dark:border-emerald-400/40 rounded-sm"
+              className="absolute pointer-events-none z-10 border border-brand-accent/50 rounded-sm"
               style={{
                 left: indicatorStyle.left,
                 top: indicatorStyle.top,
@@ -554,10 +554,10 @@ export default function BelowFoldSections() {
           )}
 
           {/* Gray edge dividers at left and right of the grid */}
-          <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-100 dark:bg-white/5" />
-          <div className="absolute right-0 top-0 bottom-0 w-px bg-gray-100 dark:bg-white/5" />
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-muted" />
+          <div className="absolute right-0 top-0 bottom-0 w-px bg-muted" />
 
-          <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 dark:divide-white/5 sm:grid-cols-4 sm:divide-y-0">
+          <div className="grid grid-cols-2 divide-x divide-y divide-border/60 sm:grid-cols-4 sm:divide-y-0">
             {(
               [
                 { value: "Demo", label: "No card required" },
@@ -578,10 +578,10 @@ export default function BelowFoldSections() {
                 transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
                 onMouseEnter={() => handleStatEnter(i)}
               >
-                <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
+                <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                   {value}
                 </span>
-                <span className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-white/35">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {label}
                 </span>
               </motion.div>
@@ -620,7 +620,7 @@ export default function BelowFoldSections() {
       </div>
 
       {/* ── Bottom CTA strip ─────────────────────────────────────────────────── */}
-      <div className="border-t border-gray-100 dark:border-white/5">
+      <div className="border-t border-border/60">
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20 xl:max-w-6xl">
           <motion.div
             className="flex flex-col items-center gap-5 text-center"
@@ -629,10 +629,10 @@ export default function BelowFoldSections() {
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               <HoverableHeading text="Start exploring Veggat" />
             </h2>
-            <p className="max-w-md text-sm leading-relaxed text-gray-400 dark:text-white/40">
+            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
               Discover digital goods and explore the free demo. Premium AI uses prepaid credits;
               personal keys bill your provider directly. Daily limits apply.
             </p>
@@ -648,7 +648,7 @@ export default function BelowFoldSections() {
               <MagneticButton>
                 {/* Animated gradient border */}
                 <motion.div
-                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-sky-500 via-cyan-400 to-sky-500 dark:from-emerald-500 dark:via-cyan-400 dark:to-emerald-500 blur-[2px] group-hover:blur-[3px]"
+                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-brand-accent via-cyan-400 to-brand-accent-hover blur-[2px] group-hover:blur-[3px]"
                   animate={{
                     backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                     opacity: [0.5, 0.8, 0.5],
@@ -671,13 +671,13 @@ export default function BelowFoldSections() {
                 />
                 <Link
                   href="/products"
-                  className="relative flex items-center gap-2 rounded-xl bg-sky-600 dark:bg-black/80 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-300 group-hover:bg-sky-700 dark:group-hover:bg-black/90 group-hover:text-sky-100 dark:group-hover:text-emerald-300"
+                  className="relative flex items-center gap-2 rounded-xl bg-brand-accent-hover px-6 py-3 text-sm font-semibold text-brand-accent-foreground backdrop-blur-sm transition duration-300 group-hover:bg-brand-accent-hover group-hover:text-brand-accent-light"
                 >
                   <span>Browse products</span>
                   <motion.svg
                     width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
                     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-                    className="opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300"
+                    className="opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 transition duration-300"
                   >
                     <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
                   </motion.svg>
@@ -688,7 +688,7 @@ export default function BelowFoldSections() {
               <MagneticButton>
                 {/* Subtle idle border pulse */}
                 <motion.div
-                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-gray-400/20 via-gray-400/40 to-gray-400/20 dark:from-white/5 dark:via-white/15 dark:to-white/5 blur-[1px]"
+                  className="absolute -inset-[1px] rounded-xl bg-linear-to-r from-muted/20 via-muted/40 to-muted/20 dark:from-background/5 dark:via-background/15 dark:to-background/5 blur-[1px]"
                   animate={{ opacity: [0.2, 0.4, 0.2] }}
                   whileHover={{ opacity: 0.7 }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -696,16 +696,16 @@ export default function BelowFoldSections() {
                 />
                 <Link
                   href="/pulse"
-                  className="relative flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/20 bg-gray-100/80 dark:bg-white/5 px-5 py-3 text-sm font-medium text-gray-700 dark:text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-gray-400 dark:hover:border-white/40 hover:bg-gray-200/80 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                  className="relative flex items-center gap-2 rounded-xl border border-border bg-muted/80 px-5 py-3 text-sm font-medium text-foreground backdrop-blur-sm transition duration-300 hover:border-border hover:bg-muted/80 hover:text-foreground group-hover:shadow-[0_0_20px_rgba(0,0,0,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                 >
                   {/* Icon swap: RSS → bolt on hover */}
                   <span className="relative h-4 w-4">
-                    <span className="absolute inset-0 opacity-60 transition-all duration-300 group-hover:opacity-0 group-hover:-rotate-12">
+                    <span className="absolute inset-0 opacity-60 transition duration-300 group-hover:opacity-0 group-hover:-rotate-12">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M4 11a9 9 0 0 1 9 9" /><path d="M4 4a16 16 0 0 1 16 16" /><circle cx="5" cy="19" r="1" />
                       </svg>
                     </span>
-                    <span className="absolute inset-0 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:rotate-12">
+                    <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 group-hover:rotate-12">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M13 2 3 14h7l-1 8 12-14h-7l1-6z" />
                       </svg>
@@ -725,16 +725,16 @@ export default function BelowFoldSections() {
                 />
                 <Link
                   href="/ai"
-                  className="relative flex items-center gap-2 rounded-xl border border-violet-300/60 dark:border-violet-400/20 bg-violet-50/70 dark:bg-violet-500/5 px-5 py-3 text-sm font-medium text-violet-700 dark:text-violet-300/80 backdrop-blur-sm transition-all duration-300 hover:border-violet-400/80 dark:hover:border-violet-400/40 hover:bg-violet-100/80 dark:hover:bg-violet-500/10 hover:text-violet-900 dark:hover:text-violet-200 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(139,92,246,0.12)]"
+                  className="relative flex items-center gap-2 rounded-xl border border-violet-300/60 dark:border-violet-400/20 bg-violet-50/70 dark:bg-violet-500/5 px-5 py-3 text-sm font-medium text-violet-700 dark:text-violet-300/80 backdrop-blur-sm transition duration-300 hover:border-violet-400/80 dark:hover:border-violet-400/40 hover:bg-violet-100/80 dark:hover:bg-violet-500/10 hover:text-violet-900 dark:hover:text-violet-200 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.08)] dark:group-hover:shadow-[0_0_20px_rgba(139,92,246,0.12)]"
                 >
                   {/* Icon swap: sparkle → message on hover */}
                   <span className="relative h-4 w-4">
-                    <span className="absolute inset-0 opacity-70 transition-all duration-300 group-hover:opacity-0 group-hover:scale-75">
+                    <span className="absolute inset-0 opacity-70 transition duration-300 group-hover:opacity-0 group-hover:scale-75">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
                       </svg>
                     </span>
-                    <span className="absolute inset-0 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100">
+                    <span className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 group-hover:scale-100">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>

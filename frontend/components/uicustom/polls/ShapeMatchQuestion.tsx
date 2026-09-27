@@ -52,24 +52,24 @@ interface ShapeMatchQuestionProps {
 // Color mapping
 const COLOR_MAP: Record<ColorType, string> = {
   red: "bg-red-500 border-red-600",
-  green: "bg-emerald-500 border-emerald-600",
+  green: "bg-brand-accent border-brand-accent",
   blue: "bg-blue-500 border-blue-600",
   yellow: "bg-yellow-400 border-yellow-500",
   purple: "bg-purple-500 border-purple-600",
   orange: "bg-orange-500 border-orange-600",
-  black: "bg-neutral-800 border-neutral-900",
-  white: "bg-white border-neutral-300",
+  black: "bg-muted border-border",
+  white: "bg-card border-border",
 };
 
 const COLOR_TARGET_MAP: Record<ColorType, string> = {
   red: "bg-red-500/20 border-red-500/50 ring-red-500/30",
-  green: "bg-emerald-500/20 border-emerald-500/50 ring-emerald-500/30",
+  green: "bg-brand-accent/20 border-brand-accent/50 ring-brand-accent/30",
   blue: "bg-blue-500/20 border-blue-500/50 ring-blue-500/30",
   yellow: "bg-yellow-400/20 border-yellow-500/50 ring-yellow-500/30",
   purple: "bg-purple-500/20 border-purple-500/50 ring-purple-500/30",
   orange: "bg-orange-500/20 border-orange-500/50 ring-orange-500/30",
-  black: "bg-neutral-800/20 border-neutral-500/50 ring-neutral-500/30",
-  white: "bg-white/20 border-neutral-300/50 ring-neutral-300/30",
+  black: "bg-muted/20 border-border/50 ring-border/30",
+  white: "bg-muted/60 border-border/50 ring-border/30",
 };
 
 // Shape SVG components
@@ -142,11 +142,11 @@ function TargetZone({
   return (
     <motion.div
       className={cn(
-        "relative w-24 h-24 rounded-2xl border-2 border-dashed transition-all duration-200",
+        "relative w-24 h-24 rounded-2xl border-2 border-dashed transition duration-200",
         "flex items-center justify-center",
         colorClass,
         isActive && "ring-4 scale-110 border-solid brightness-125 shadow-lg shadow-current/20",
-        isCorrect && "bg-emerald-500/30 border-emerald-500 ring-emerald-500/50",
+        isCorrect && "bg-brand-accent/30 border-brand-accent ring-brand-accent/50",
         isIncorrect && "bg-red-500/30 border-red-500 ring-red-500/50 animate-shake",
         hasShape && "border-solid"
       )}
@@ -174,7 +174,7 @@ function TargetZone({
           animate={{ scale: 1 }}
           className="absolute -top-2 -right-2"
         >
-          <CheckCircle2 className="w-6 h-6 text-emerald-500 fill-emerald-500/20" />
+          <CheckCircle2 className="w-6 h-6 text-brand-accent fill-brand-accent/20" />
         </motion.div>
       )}
     </motion.div>
@@ -223,7 +223,7 @@ function DraggableShapeItem({
     >
       <ShapeSVG 
         shape={shape.shape} 
-        className={shape.color === "white" ? "text-neutral-800" : "text-white"} 
+        className={shape.color === "white" ? "text-foreground" : "text-foreground"} 
       />
     </motion.div>
   );
@@ -527,7 +527,7 @@ export function ShapeMatchQuestion({
       </div>
 
       {/* Game area */}
-      <div className="relative bg-linear-to-br from-neutral-900/50 to-neutral-800/50 rounded-2xl p-6 min-h-[300px]">
+      <div className="relative bg-linear-to-br from-surface-3/50 to-surface-3/50 rounded-2xl p-6 min-h-[300px]">
         {/* Target zones */}
         <div className="flex flex-wrap justify-center gap-8 mb-8">
           {config.targets.map((target) => {
@@ -563,7 +563,7 @@ export function ShapeMatchQuestion({
                   >
                     <ShapeSVG 
                       shape={shape.shape} 
-                      className={shape.color === "white" ? "text-neutral-800" : "text-white"} 
+                      className={shape.color === "white" ? "text-foreground" : "text-foreground"} 
                     />
                   </motion.div>
                 )}
@@ -602,9 +602,9 @@ export function ShapeMatchQuestion({
                 animate={{ scale: 1 }}
                 className="text-center"
               >
-                <Sparkles className="w-12 h-12 mx-auto mb-3 text-emerald-400" />
-                <p className="text-xl font-bold text-white mb-1">Complete!</p>
-                <p className="text-emerald-400">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 text-brand-accent" />
+                <p className="text-xl font-bold text-foreground mb-1">Complete!</p>
+                <p className="text-brand-accent">
                   {correctCount}/{config.shapes.length} correct
                 </p>
               </motion.div>

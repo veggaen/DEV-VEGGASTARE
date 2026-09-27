@@ -54,7 +54,7 @@ function TokenIcon({ color, glyph, size = 'sm' }: { color: string; glyph: string
   const dim = size === 'md' ? 'h-7 w-7 text-[13px]' : 'h-5 w-5 text-[10px]';
   return (
     <span
-      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full font-semibold text-white`}
+      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full font-semibold text-foreground`}
       style={{ backgroundColor: color }}
       aria-hidden
     >
@@ -136,7 +136,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               onClick={() => togglePreset(preset)}
               className={`group flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 isActive
-                  ? 'bg-emerald-500/[0.07] ring-1 ring-emerald-500/40 dark:bg-emerald-400/[0.06]'
+                  ? 'bg-brand-accent/[0.07] ring-1 ring-brand-accent/40 dark:bg-brand-accent/[0.06]'
                   : 'hover:-translate-y-0.5 hover:bg-muted/40'
               }`}
             >
@@ -147,7 +147,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               </span>
               <span
                 className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
-                  isActive ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-transparent group-hover:bg-border'
+                  isActive ? 'bg-brand-accent' : 'bg-transparent group-hover:bg-border'
                 }`}
               />
             </button>
@@ -160,7 +160,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
           aria-expanded={showCustom}
           onClick={() => setShowCustom(!showCustom)}
           className={`flex min-h-11 items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-            showCustom ? 'border-emerald-500/40 text-foreground' : 'border-border/80 text-muted-foreground hover:-translate-y-0.5 hover:text-foreground'
+            showCustom ? 'border-brand-accent/40 text-foreground' : 'border-border/80 text-muted-foreground hover:-translate-y-0.5 hover:text-foreground'
           }`}
         >
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current">
@@ -172,7 +172,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
 
       {/* Custom token form */}
       {showCustom && (
-        <div className="mt-3 space-y-2 border-l-2 border-emerald-500/30 pl-4">
+        <div className="mt-3 space-y-2 border-l-2 border-brand-accent/30 pl-4">
           <p className="text-xs text-muted-foreground">Find your token by its chain and contract / mint address.</p>
           <div className="grid grid-cols-2 gap-2">
             <Select
@@ -220,7 +220,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
             size="sm"
             onClick={addCustom}
             disabled={disabled || !customSymbol.trim()}
-            className="h-8 bg-emerald-600 text-xs text-white hover:bg-emerald-500"
+            className="h-8 bg-brand-accent-hover text-xs text-brand-accent-foreground hover:bg-brand-accent"
           >
             Add token
           </Button>

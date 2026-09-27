@@ -23,9 +23,9 @@ const FilterSkeleton = ({ count = 5 }: { count?: number }) => (
   <div className="space-y-2 animate-pulse">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="flex items-center gap-2">
-        <div className="h-4 w-4 rounded bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-4 w-4 rounded bg-muted" />
         <div
-          className="h-4 flex-1 rounded bg-zinc-200 dark:bg-zinc-700"
+          className="h-4 flex-1 rounded bg-muted"
           style={{ width: `${FILTER_SKELETON_WIDTHS[i % FILTER_SKELETON_WIDTHS.length]}%` }}
         />
       </div>
@@ -61,7 +61,7 @@ const FilterSection = ({
   children,
 }: FilterSectionProps) => (
   <div className={cn(
-    "border-b border-black/5 dark:border-white/10 last:border-b-0 flex flex-col min-h-0",
+    "border-b border-border/60 last:border-b-0 flex flex-col min-h-0",
     isOpen && canGrow && "flex-1"
   )}>
     {/* Header row - uses div + onClick to avoid nesting buttons */}
@@ -73,13 +73,13 @@ const FilterSection = ({
         className="flex min-h-11 items-center gap-2 flex-1 min-w-0 text-left transition-colors hover:opacity-80 focus-visible:outline focus-visible:outline-2"
         aria-expanded={isOpen}
       >
-        {icon && <span className="text-zinc-500 dark:text-zinc-400 shrink-0">{icon}</span>}
-        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{title}</span>
+        {icon && <span className="text-muted-foreground shrink-0">{icon}</span>}
+        <span className="text-sm font-medium text-foreground/90 truncate">{title}</span>
         {typeof count === 'number' && (
-          <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0">({count})</span>
+          <span className="text-xs text-muted-foreground/80 shrink-0">({count})</span>
         )}
         {typeof selectedCount === 'number' && selectedCount > 0 && (
-          <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500/15 px-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 shrink-0">
+          <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent/15 px-1.5 text-xs font-medium text-brand-accent-hover dark:text-brand-accent-light shrink-0">
             {selectedCount}
           </span>
         )}
@@ -90,7 +90,7 @@ const FilterSection = ({
           <button
             type="button"
             onClick={onReset}
-            className="flex size-11 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors focus-visible:outline focus-visible:outline-2"
+            className="flex size-11 items-center justify-center text-muted-foreground hover:text-foreground/80 rounded transition-colors focus-visible:outline focus-visible:outline-2"
             aria-label={`Reset ${title.toLowerCase()}`}
           >
             <FiRotateCcw className="h-3.5 w-3.5" />
@@ -99,7 +99,7 @@ const FilterSection = ({
         <button
           type="button"
           onClick={onToggle}
-          className="flex size-11 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors focus-visible:outline focus-visible:outline-2"
+          className="flex size-11 items-center justify-center text-muted-foreground hover:text-foreground/80 rounded transition-colors focus-visible:outline focus-visible:outline-2"
           aria-label={isOpen ? `Collapse ${title.toLowerCase()}` : `Expand ${title.toLowerCase()}`}
         >
           {isOpen ? (
@@ -138,25 +138,25 @@ const CategoryItem = ({ category, isSelected, onToggle, disabled }: CategoryItem
   <label
     className={cn(
       "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors",
-      disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]",
-      isSelected && "bg-sky-500/5 dark:bg-sky-500/10"
+      disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/40",
+      isSelected && "bg-brand-accent/5"
     )}
   >
     <Checkbox
       checked={isSelected}
       onCheckedChange={onToggle}
       disabled={disabled}
-      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+      className="h-4 w-4 rounded border-border"
     />
     <span className={cn(
       "flex-1 text-sm capitalize",
-      isSelected ? "text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-700 dark:text-zinc-300"
+      isSelected ? "text-foreground font-medium" : "text-foreground/85"
     )}>
       {category.category}
     </span>
     <span className={cn(
       "text-xs tabular-nums",
-      category.count === 0 ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
+      category.count === 0 ? "text-muted-foreground/60" : "text-muted-foreground/80"
     )}>
       {category.count}
     </span>
@@ -520,7 +520,7 @@ export const MySidebarProductsMenu = () => {
         {/* ─── Sticky Header ─── */}
         <div
           className={cn(
-            "flex shrink-0 items-center justify-between gap-2 px-4 border-b border-black/5 dark:border-white/10",
+            "flex shrink-0 items-center justify-between gap-2 px-4 border-b border-border/60",
             enableDrag && "cursor-grab active:cursor-grabbing select-none touch-none"
           )}
           style={{
@@ -540,9 +540,9 @@ export const MySidebarProductsMenu = () => {
           <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center">
             <div />
             <div className="flex items-center justify-center gap-2">
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Filters</span>
+              <span className="text-sm font-semibold text-foreground">Filters</span>
               {activeFilterCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent px-1.5 text-xs font-medium text-brand-accent-foreground">
                   {activeFilterCount}
                 </span>
               )}
@@ -565,9 +565,9 @@ export const MySidebarProductsMenu = () => {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Filters</span>
+              <span className="text-sm font-semibold text-foreground">Filters</span>
               {activeFilterCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 text-xs font-medium text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent px-1.5 text-xs font-medium text-brand-accent-foreground">
                   {activeFilterCount}
                 </span>
               )}
@@ -622,14 +622,14 @@ export const MySidebarProductsMenu = () => {
                 {/* Category search - always render to maintain focus */}
                 {categoriesWithCounts.length > 6 && (
                   <div className="relative shrink-0 mx-0.5">
-                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search categories…"
                       aria-label="Search categories"
                       value={categorySearch}
                       onChange={(e) => setCategorySearch(e.target.value)}
-                      className="w-full h-11 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
+                      className="w-full h-11 pl-8 pr-3 bg-surface-1/60 border border-border rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 focus-visible:border-brand-accent"
                     />
                   </div>
                 )}
@@ -646,7 +646,7 @@ export const MySidebarProductsMenu = () => {
                       />
                     ))
                   ) : (
-                    <div className="text-sm text-zinc-400 py-2 px-1">No categories found</div>
+                    <div className="text-sm text-muted-foreground py-2 px-1">No categories found</div>
                   )}
                 </div>
               </div>
@@ -672,14 +672,14 @@ export const MySidebarProductsMenu = () => {
                 {/* Seller search */}
                 {sellers.length > 6 && (
                   <div className="relative shrink-0 mx-0.5">
-                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search sellers…"
                       aria-label="Search sellers"
                       value={sellerSearch}
                       onChange={(e) => setSellerSearch(e.target.value)}
-                      className="w-full h-11 pl-8 pr-3 bg-white/60 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:border-sky-500"
+                      className="w-full h-11 pl-8 pr-3 bg-surface-1/60 border border-border rounded-lg text-base outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 focus-visible:border-brand-accent"
                     />
                   </div>
                 )}
@@ -690,38 +690,38 @@ export const MySidebarProductsMenu = () => {
                       <label
                         key={seller.id}
                         className={cn(
-                          "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]",
-                          selectedSellers.includes(seller.id) && "bg-sky-500/5 dark:bg-sky-500/10"
+                          "flex min-h-11 items-center gap-2.5 py-1.5 px-3 rounded-md cursor-pointer transition-colors hover:bg-muted/40",
+                          selectedSellers.includes(seller.id) && "bg-brand-accent/5"
                         )}
                       >
                         <Checkbox
                           checked={selectedSellers.includes(seller.id)}
                           onCheckedChange={() => handleSellerChange(seller.id)}
-                          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+                          className="h-4 w-4 rounded border-border"
                         />
                         <span className={cn(
                           "flex-1 text-sm capitalize truncate",
                           selectedSellers.includes(seller.id)
-                            ? "text-zinc-900 dark:text-zinc-100 font-medium"
-                            : "text-zinc-700 dark:text-zinc-300"
+                            ? "text-foreground font-medium"
+                            : "text-foreground/85"
                         )}>
                           {seller.name}
                         </span>
                         <span className={cn(
                           "text-xs tabular-nums shrink-0",
-                          seller.count === 0 ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
+                          seller.count === 0 ? "text-muted-foreground/60" : "text-muted-foreground/80"
                         )}>
                           {seller.count}
                         </span>
                       </label>
                     ))
                   ) : (
-                    <div className="text-sm text-zinc-400 py-2 px-1">No sellers found</div>
+                    <div className="text-sm text-muted-foreground py-2 px-1">No sellers found</div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-zinc-400 py-2">No sellers available</div>
+              <div className="text-sm text-muted-foreground py-2">No sellers available</div>
             )}
           </FilterSection>
 
@@ -733,8 +733,8 @@ export const MySidebarProductsMenu = () => {
               isOpen={isAdminOpen}
               onToggle={() => setIsAdminOpen((p) => !p)}
             >
-              <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <p className="text-xs text-zinc-500">Mod/Admin only features</p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">Mod/Admin only features</p>
                 {/* Future: add moderation toggles here */}
                 <div className="text-xs opacity-60">No admin filters yet</div>
               </div>
@@ -750,12 +750,12 @@ export const MySidebarProductsMenu = () => {
           >
             <div className="grid gap-2">
               <div className="grid gap-1.5 sm:grid-cols-[auto,1fr] sm:items-center sm:gap-2">
-                <div className="text-xs text-zinc-600 dark:text-zinc-300">Items / page</div>
+                <div className="text-xs text-foreground/80">Items / page</div>
                 <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
-                  <SelectTrigger aria-label="Products per page" className="min-h-11 w-full rounded-lg border-black/10 bg-white/60 text-base text-zinc-800 shadow-sm shadow-black/[0.03] hover:bg-white/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10]">
+                  <SelectTrigger aria-label="Products per page" className="min-h-11 w-full rounded-lg border-border bg-surface-1/60 text-base text-foreground shadow-sm shadow-black/[0.03] hover:bg-surface-1/75 dark:bg-muted/40 dark:hover:bg-muted/40">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-lg border-black/10 bg-white/95 text-zinc-950 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-surface-1/80 dark:text-zinc-50">
+                  <SelectContent className="rounded-lg border-border bg-surface-1/95 text-foreground shadow-xl shadow-black/10 backdrop-blur-xl dark:bg-surface-1/80">
                     <SelectItem value="10" className="whitespace-nowrap">10 per page</SelectItem>
                     <SelectItem value="20" className="whitespace-nowrap">20 per page</SelectItem>
                     <SelectItem value="30" className="whitespace-nowrap">30 per page</SelectItem>
@@ -768,7 +768,7 @@ export const MySidebarProductsMenu = () => {
         </div>
 
         {/* ─── Footer with Reset All ─── */}
-        <div className="shrink-0 p-4 border-t border-black/5 dark:border-white/10">
+        <div className="shrink-0 p-4 border-t border-border/60">
           <Button
             variant="outline"
             onClick={resetAllFilters}
@@ -834,19 +834,19 @@ export const MySidebarProductsMenu = () => {
 					>
 						<div
 							className={cn(
-								"w-full h-full bg-white/55 dark:bg-surface-1/40 backdrop-blur-xl",
+								"w-full h-full bg-surface-1/55 dark:bg-surface-1/40 backdrop-blur-xl",
 								isDocked
 									? cn(
 										"shadow-none rounded-none",
 										// When edge-docked, only show border on the inner side (toward content)
 										// to avoid a visual gap between sidebar and controls bar
 										isEdgeDock && sidebarDock === 'edge-right'
-											? "border-y border-l border-black/10 dark:border-white/10"
+											? "border-y border-l border-border"
 											: isEdgeDock && sidebarDock === 'edge-left'
-												? "border-y border-r border-black/10 dark:border-white/10"
-												: "border border-black/10 dark:border-white/10"
+												? "border-y border-r border-border"
+												: "border border-border"
 									)
-									: "border border-black/10 dark:border-white/10 shadow-xl rounded-2xl"
+									: "border border-border shadow-xl rounded-2xl"
 							)}
 						>
 							{renderSidebarPanel('desktop')}

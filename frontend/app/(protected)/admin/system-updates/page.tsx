@@ -97,10 +97,10 @@ export default function SystemUpdatesPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <FiAlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
           Access Denied
         </h1>
-        <p className="text-zinc-500 dark:text-zinc-400">
+        <p className="text-muted-foreground">
           You need admin privileges to post system updates.
         </p>
       </div>
@@ -110,11 +110,11 @@ export default function SystemUpdatesPage() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-          <FiZap className="text-emerald-500" />
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+          <FiZap className="text-brand-accent" />
           Post System Update
         </h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-2">
+        <p className="text-muted-foreground mt-2">
           Create a new update pulse as VeggaSystem. All users will be notified.
         </p>
       </div>
@@ -126,26 +126,26 @@ export default function SystemUpdatesPage() {
           className={cn(
             "mb-6 p-4 rounded-lg border flex items-start gap-3",
             result.success
-              ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+              ? "bg-brand-accent/10 border-brand-accent"
               : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
           )}
         >
           {result.success ? (
-            <FiCheck className="w-5 h-5 text-emerald-500 mt-0.5" />
+            <FiCheck className="w-5 h-5 text-brand-accent mt-0.5" />
           ) : (
             <FiAlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
           )}
           <div>
             <p className={cn(
               "font-medium",
-              result.success ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+              result.success ? "text-brand-accent-hover dark:text-brand-accent-light" : "text-red-700 dark:text-red-300"
             )}>
               {result.message}
             </p>
             {result.conversationId && (
               <button
                 onClick={() => router.push(`/feed/${result.conversationId}`)}
-                className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline mt-1"
+                className="text-sm text-brand-accent-hover dark:text-brand-accent-light hover:underline mt-1"
               >
                 View the pulse →
               </button>
@@ -157,7 +157,7 @@ export default function SystemUpdatesPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Title */}
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <label className="block text-sm font-medium text-foreground/85 mb-2">
             Update Title
           </label>
           <input
@@ -167,11 +167,11 @@ export default function SystemUpdatesPage() {
             placeholder="e.g., Notification System Launch 🔔"
             className={cn(
               "w-full px-4 py-3 rounded-lg",
-              "bg-white dark:bg-zinc-900",
-              "border border-zinc-200 dark:border-zinc-700",
-              "text-zinc-900 dark:text-zinc-100",
-              "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
-              "focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              "bg-card",
+              "border border-border",
+              "text-foreground",
+              "placeholder:text-muted-foreground/80",
+              "focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
             )}
             required
           />
@@ -179,7 +179,7 @@ export default function SystemUpdatesPage() {
 
         {/* Changes */}
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <label className="block text-sm font-medium text-foreground/85 mb-2">
             What&apos;s New (Changelog Items)
           </label>
           <div className="space-y-3">
@@ -192,18 +192,18 @@ export default function SystemUpdatesPage() {
                   placeholder={`Change #${index + 1}...`}
                   className={cn(
                     "flex-1 px-4 py-2.5 rounded-lg",
-                    "bg-white dark:bg-zinc-900",
-                    "border border-zinc-200 dark:border-zinc-700",
-                    "text-zinc-900 dark:text-zinc-100",
-                    "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
-                    "focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    "bg-card",
+                    "border border-border",
+                    "text-foreground",
+                    "placeholder:text-muted-foreground/80",
+                    "focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
                   )}
                 />
                 {changes.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeChange(index)}
-                    className="p-2.5 text-zinc-400 hover:text-red-500 transition-colors"
+                    className="p-2.5 text-muted-foreground hover:text-red-500 transition-colors"
                   >
                     <FiX className="w-5 h-5" />
                   </button>
@@ -214,7 +214,7 @@ export default function SystemUpdatesPage() {
           <button
             type="button"
             onClick={addChange}
-            className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+            className="mt-3 flex items-center gap-2 text-sm text-brand-accent-hover dark:text-brand-accent-light hover:text-brand-accent-hover hover:dark:text-brand-accent-light"
           >
             <FiPlus className="w-4 h-4" />
             Add another change
@@ -223,7 +223,7 @@ export default function SystemUpdatesPage() {
 
         {/* Tags */}
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <label className="block text-sm font-medium text-foreground/85 mb-2">
             Tags
           </label>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -232,8 +232,8 @@ export default function SystemUpdatesPage() {
                 key={tag}
                 className={cn(
                   "px-3 py-1 rounded-full text-sm",
-                  "bg-emerald-100 dark:bg-emerald-900/30",
-                  "text-emerald-700 dark:text-emerald-300",
+                  "bg-brand-accent/15",
+                  "text-brand-accent-hover dark:text-brand-accent-light",
                   "flex items-center gap-1.5"
                 )}
               >
@@ -257,11 +257,11 @@ export default function SystemUpdatesPage() {
               placeholder="Add a tag..."
               className={cn(
                 "flex-1 px-4 py-2 rounded-lg",
-                "bg-white dark:bg-zinc-900",
-                "border border-zinc-200 dark:border-zinc-700",
-                "text-zinc-900 dark:text-zinc-100",
-                "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
-                "focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                "bg-card",
+                "border border-border",
+                "text-foreground",
+                "placeholder:text-muted-foreground/80",
+                "focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
               )}
             />
             <button
@@ -269,9 +269,9 @@ export default function SystemUpdatesPage() {
               onClick={addTag}
               className={cn(
                 "px-4 py-2 rounded-lg",
-                "bg-zinc-100 dark:bg-zinc-800",
-                "text-zinc-700 dark:text-zinc-300",
-                "hover:bg-zinc-200 dark:hover:bg-zinc-700",
+                "bg-muted",
+                "text-foreground/85",
+                "hover:bg-muted",
                 "transition-colors"
               )}
             >
@@ -286,7 +286,7 @@ export default function SystemUpdatesPage() {
           disabled={isSubmitting || !title.trim() || changes.every((c) => !c.trim())}
           className={cn(
             "w-full py-3 px-6 rounded-lg",
-            "bg-emerald-500 hover:bg-emerald-600",
+            "bg-brand-accent hover:bg-brand-accent-hover",
             "text-white font-medium",
             "flex items-center justify-center gap-2",
             "transition-colors",

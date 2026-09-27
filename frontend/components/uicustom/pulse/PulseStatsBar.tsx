@@ -126,7 +126,7 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
           <FiTrendingUp className="w-4 h-4 text-amber-500" />
           {Math.round(stats.reachScore)} reach
           {(stats.reachMomentum ?? 0) > 0 && (
-            <span className="flex items-center gap-0.5 text-xs text-emerald-500">
+            <span className="flex items-center gap-0.5 text-xs text-brand-accent">
               <FiZap className="w-3 h-3" />
               {Math.round(stats.reachMomentum!)}
             </span>

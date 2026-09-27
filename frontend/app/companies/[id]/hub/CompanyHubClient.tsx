@@ -78,8 +78,8 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
       <div className="w-full">
         <div className="mx-auto w-full max-w-screen-2xl px-4 py-12">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-48"></div>
-            <div className="h-64 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
+            <div className="h-8 bg-muted rounded w-48"></div>
+            <div className="h-64 bg-muted rounded-lg"></div>
           </div>
         </div>
       </div>
@@ -101,13 +101,13 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
     return (
       <div className="w-full">
         <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">Access Restricted</h1>
-          <p className="text-zinc-600 dark:text-zinc-300 mb-6">
+          <h1 className="text-2xl font-semibold text-foreground mb-4">Access Restricted</h1>
+          <p className="text-foreground/80 mb-6">
             You must be a member of this company to access the hub.
           </p>
           <Link
             href={`/companies/${company.id}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+            className="inline-flex items-center gap-2 rounded-lg bg-surface-3 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             View Company Profile
           </Link>
@@ -129,7 +129,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border">
               <Image
                 src={company.logo?.[0] || '/users/avatar.webp'}
                 alt={company.name}
@@ -138,20 +138,20 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
               />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-zinc-900 dark:text-white">{company.name}</h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Company Hub</p>
+              <h1 className="text-xl font-semibold text-foreground">{company.name}</h1>
+              <p className="text-sm text-muted-foreground">Company Hub</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href={`/companies/${company.id}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 dark:hover:bg-white/[0.05]"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/40 dark:bg-muted/40"
             >
               Public Profile
             </Link>
             <Link
               href={`/companies/${company.id}/settings`}
-              className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 dark:hover:bg-white/[0.05]"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/40 dark:bg-muted/40"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
               Settings
@@ -166,7 +166,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
             <div className="flex gap-2 bg-muted/30 border border-border/50 p-1 rounded-xl w-fit">
               <button
                 onClick={() => setActiveSection('overview')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   activeSection === 'overview'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -176,7 +176,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
               </button>
               <button
                 onClick={() => setActiveSection('analytics')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   activeSection === 'analytics'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -187,7 +187,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
               </button>
               <button
                 onClick={() => setActiveSection('tax')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   activeSection === 'tax'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -203,16 +203,16 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                 {/* Reach Score Summary Cards */}
                 {reachData && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40">
                       <div className="flex items-center gap-2 mb-1">
-                        <FiZap className="h-4 w-4 text-emerald-500" />
+                        <FiZap className="h-4 w-4 text-brand-accent" />
                         <span className="text-xs text-muted-foreground">Momentum</span>
                       </div>
-                      <div className="text-2xl font-bold text-emerald-500 tabular-nums">
+                      <div className="text-2xl font-bold text-brand-accent tabular-nums">
                         {reachData.reachMomentum.toFixed(0)}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40">
                       <div className="flex items-center gap-2 mb-1">
                         <FiTrendingUp className="h-4 w-4 text-blue-500" />
                         <span className="text-xs text-muted-foreground">Lifetime</span>
@@ -221,7 +221,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                         {reachData.reachLifetime.toFixed(0)}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40">
                       <div className="flex items-center gap-2 mb-1">
                         <FiEye className="h-4 w-4 text-purple-500" />
                         <span className="text-xs text-muted-foreground">Total Views</span>
@@ -230,7 +230,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                         {reachData.totalViews.toLocaleString()}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40">
                       <div className="flex items-center gap-2 mb-1">
                         <FiUsers className="h-4 w-4 text-pink-500" />
                         <span className="text-xs text-muted-foreground">Unique Viewers</span>
@@ -244,8 +244,8 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
 
                 {/* Badges */}
                 {reachData?.badges && reachData.badges.some(b => b.earned) && (
-                  <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                  <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40">
+                    <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                       🏆 Reach Badges
                     </h3>
                     <ReachBadges badges={reachData.badges} compact />
@@ -253,9 +253,9 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                 )}
 
                 {/* Announcements section */}
-                <div className="rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Announcements</h2>
-                  <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Announcements</h2>
+                  <div className="text-center py-8 text-muted-foreground">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
                     <p>No announcements yet</p>
                     <p className="text-sm mt-1">Company announcements will appear here</p>
@@ -269,15 +269,15 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                   <div className="space-y-6">
                     {/* Radar Chart + Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="rounded-lg border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <div className="rounded-lg border border-border bg-card p-5 dark:bg-muted/40">
+                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-brand-accent" />
                           7-Pillar Breakdown
                         </h3>
                         <ReachRadarChart data={reachData.pillarBreakdown} size={240} />
                       </div>
-                      <div className="rounded-lg border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                      <div className="rounded-lg border border-border bg-card p-5 dark:bg-muted/40">
+                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full bg-blue-500" />
                           Momentum Trend (30d)
                         </h3>
@@ -287,19 +287,19 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
 
                     {/* Key metrics row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] text-center">
+                      <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40 text-center">
                         <div className="text-xs text-muted-foreground mb-1">Pulses</div>
                         <div className="text-xl font-bold text-foreground">{reachData.pulseCount}</div>
                       </div>
-                      <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] text-center">
+                      <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40 text-center">
                         <div className="text-xs text-muted-foreground mb-1">Products</div>
                         <div className="text-xl font-bold text-foreground">{reachData.productCount}</div>
                       </div>
-                      <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] text-center">
+                      <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40 text-center">
                         <div className="text-xs text-muted-foreground mb-1">Momentum</div>
-                        <div className="text-xl font-bold text-emerald-500">{reachData.reachMomentum.toFixed(0)}</div>
+                        <div className="text-xl font-bold text-brand-accent">{reachData.reachMomentum.toFixed(0)}</div>
                       </div>
-                      <div className="rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] text-center">
+                      <div className="rounded-lg border border-border bg-card p-4 dark:bg-muted/40 text-center">
                         <div className="text-xs text-muted-foreground mb-1">Lifetime</div>
                         <div className="text-xl font-bold text-blue-500">{reachData.reachLifetime.toFixed(0)}</div>
                       </div>
@@ -307,8 +307,8 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
 
                     {/* Top Products by Momentum */}
                     {reachData.topProducts.length > 0 && (
-                      <div className="rounded-lg border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                      <div className="rounded-lg border border-border bg-card p-5 dark:bg-muted/40">
+                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <FiPackage className="h-4 w-4 text-amber-500" />
                           Top Products by Momentum
                         </h3>
@@ -317,7 +317,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                             <Link
                               key={product.id}
                               href={`/products/${product.id}`}
-                              className="flex items-center gap-3 rounded-lg p-2 hover:bg-zinc-50 dark:hover:bg-white/[0.03] transition-colors"
+                              className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/40 transition-colors"
                             >
                               <span className="text-xs font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
                               {product.image && (
@@ -329,7 +329,7 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                                 <div className="text-sm font-medium text-foreground truncate">{product.name}</div>
                                 <div className="text-[11px] text-muted-foreground">{product.views.toLocaleString()} views</div>
                               </div>
-                              <div className="text-sm font-semibold text-emerald-500 tabular-nums">
+                              <div className="text-sm font-semibold text-brand-accent tabular-nums">
                                 {product.reachMomentum.toFixed(0)}
                               </div>
                             </Link>
@@ -340,8 +340,8 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
 
                     {/* Top Pulses by Momentum */}
                     {reachData.topPulses.length > 0 && (
-                      <div className="rounded-lg border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                      <div className="rounded-lg border border-border bg-card p-5 dark:bg-muted/40">
+                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <FiMessageCircle className="h-4 w-4 text-blue-500" />
                           Top Pulses by Momentum
                         </h3>
@@ -350,14 +350,14 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                             <Link
                               key={pulse.id}
                               href={`/pulse/${pulse.id}`}
-                              className="flex items-center gap-3 rounded-lg p-2 hover:bg-zinc-50 dark:hover:bg-white/[0.03] transition-colors"
+                              className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/40 transition-colors"
                             >
                               <span className="text-xs font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-foreground truncate">{pulse.title || 'Untitled pulse'}</div>
                                 <div className="text-[11px] text-muted-foreground">{pulse.views.toLocaleString()} views</div>
                               </div>
-                              <div className="text-sm font-semibold text-emerald-500 tabular-nums">
+                              <div className="text-sm font-semibold text-brand-accent tabular-nums">
                                 {pulse.reachMomentum.toFixed(0)}
                               </div>
                             </Link>
@@ -367,15 +367,15 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                     )}
 
                     {/* Badges - Full View */}
-                    <div className="rounded-lg border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                    <div className="rounded-lg border border-border bg-card p-5 dark:bg-muted/40">
+                      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                         🏆 Reach Badges & Milestones
                       </h3>
                       <ReachBadges badges={reachData.badges} />
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-black/10 bg-white p-12 text-center dark:border-white/10 dark:bg-white/[0.03]">
+                  <div className="rounded-lg border border-border bg-card p-12 text-center dark:bg-muted/40">
                     <FiTrendingUp className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                     <p className="text-muted-foreground">Reach analytics will appear as your company gains engagement</p>
                   </div>
@@ -386,36 +386,36 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
             ) : null}
 
             {/* Quick Actions — always visible */}
-            <div className="rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Quick Actions</h2>
+            <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Link
                   href={`/companies/${company.id}/settings`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-4 text-center transition-colors hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-300"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Add Employee</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                  <span className="text-sm font-medium text-foreground/85">Add Employee</span>
                 </Link>
                 <Link
                   href={`/products/create?source=company-hub&companyId=${encodeURIComponent(company.id)}`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-4 text-center transition-colors hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-300"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">New Product</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  <span className="text-sm font-medium text-foreground/85">New Product</span>
                 </Link>
                 <Link
                   href={`/companies/${company.id}`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-4 text-center transition-colors hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-300"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">View Store</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span className="text-sm font-medium text-foreground/85">View Store</span>
                 </Link>
                 <Link
                   href={`/companies/${company.id}/settings`}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-4 text-center transition-colors hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-center transition-colors hover:bg-muted dark:hover:bg-muted/40"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-300"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Settings</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground/80"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span className="text-sm font-medium text-foreground/85">Settings</span>
                 </Link>
               </div>
             </div>
@@ -425,10 +425,10 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
           <div className="space-y-6">
             {/* Top Reach Contributors */}
             {reachData?.topEmployees && reachData.topEmployees.length > 0 && (
-              <div className="rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
+              <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
                 <div className="flex items-center gap-2 mb-4">
-                  <FiZap className="h-4 w-4 text-emerald-500" />
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Top Contributors</h2>
+                  <FiZap className="h-4 w-4 text-brand-accent" />
+                  <h2 className="text-lg font-semibold text-foreground">Top Contributors</h2>
                 </div>
                 <div className="space-y-3">
                   {reachData.topEmployees.map((emp, i) => (
@@ -443,11 +443,11 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-zinc-900 dark:text-white truncate">{emp.name}</div>
+                        <div className="text-sm font-medium text-foreground truncate">{emp.name}</div>
                         <div className="text-[11px] text-muted-foreground">{emp.role}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-semibold text-emerald-500 tabular-nums">{emp.reachMomentum.toFixed(0)}</div>
+                        <div className="text-sm font-semibold text-brand-accent tabular-nums">{emp.reachMomentum.toFixed(0)}</div>
                         <div className="text-[10px] text-muted-foreground">momentum</div>
                       </div>
                     </div>
@@ -456,10 +456,10 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
               </div>
             )}
 
-            <div className="rounded-lg border border-black/10 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
+            <div className="rounded-lg border border-border bg-card p-6 dark:bg-muted/40">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Team</h2>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">{company.employees.length} members</span>
+                <h2 className="text-lg font-semibold text-foreground">Team</h2>
+                <span className="text-sm text-muted-foreground">{company.employees.length} members</span>
               </div>
               <div className="space-y-3">
                 {sortedEmployees.map((employee) => (
@@ -473,17 +473,17 @@ export default function CompanyHubClient({ companyId }: { companyId: string }) {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-zinc-900 dark:text-white truncate">
+                      <div className="font-medium text-foreground truncate">
                         {employee.user.name}
                       </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs text-muted-foreground">
                         {employee.jobTitle || employee.role}
                       </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       employee.role === 'OWNER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
                       employee.role === 'MANAGER' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                      'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                      'bg-muted text-muted-foreground'
                     }`}>
                       {employee.role}
                     </span>

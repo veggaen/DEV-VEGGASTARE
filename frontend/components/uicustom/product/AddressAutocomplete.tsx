@@ -220,11 +220,11 @@ export function AddressAutocomplete({
           disabled={disabled}
           className={cn(
             'w-full pl-10 pr-20 py-2.5 rounded-lg text-sm',
-            'bg-surface-2 dark:bg-white/5',
-            'border border-border dark:border-white/10',
+            'bg-surface-2 dark:bg-muted/40',
+            'border border-border',
             'text-foreground placeholder:text-muted-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500',
-            'transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-brand-accent/30 focus:border-brand-accent',
+            'transition duration-200',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           autoComplete="off"
@@ -259,8 +259,8 @@ export function AddressAutocomplete({
               className={cn(
                 'p-1.5 rounded-md transition-colors',
                 isLocating 
-                  ? 'text-emerald-500 animate-pulse' 
-                  : 'text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10'
+                  ? 'text-brand-accent animate-pulse' 
+                  : 'text-muted-foreground hover:text-brand-accent hover:bg-brand-accent/10'
               )}
               aria-label="Use my location"
               title="Use my location"
@@ -293,8 +293,8 @@ export function AddressAutocomplete({
             transition={{ duration: 0.15 }}
             className={cn(
               'absolute z-50 w-full mt-1 py-1',
-              'bg-background dark:bg-zinc-900',
-              'border border-border dark:border-white/10',
+              'bg-background dark:bg-surface-3',
+              'border border-border',
               'rounded-lg shadow-lg',
               'max-h-64 overflow-y-auto'
             )}
@@ -310,7 +310,7 @@ export function AddressAutocomplete({
                   'w-full px-3 py-2.5 text-left flex items-start gap-3',
                   'transition-colors duration-100',
                   highlightedIndex === index
-                    ? 'bg-emerald-500/10 text-foreground'
+                    ? 'bg-brand-accent/10 text-foreground'
                     : 'hover:bg-muted/50 text-foreground'
                 )}
                 role="option"
@@ -319,7 +319,7 @@ export function AddressAutocomplete({
                 <FiMapPin className={cn(
                   'h-4 w-4 mt-0.5 shrink-0',
                   highlightedIndex === index 
-                    ? 'text-emerald-500' 
+                    ? 'text-brand-accent' 
                     : 'text-muted-foreground'
                 )} />
                 <div className="flex-1 min-w-0">
@@ -339,7 +339,7 @@ export function AddressAutocomplete({
                 <span className={cn(
                   'text-[10px] px-1.5 py-0.5 rounded uppercase font-medium shrink-0',
                   suggestion.type === 'STREET' && 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                  suggestion.type === 'PLACE' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                  suggestion.type === 'PLACE' && 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light',
                   suggestion.type === 'POSTAL_PLACE' && 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
                   suggestion.type === 'PO_BOX' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                 )}>
@@ -353,7 +353,7 @@ export function AddressAutocomplete({
 
       {/* No results */}
       {isOpen && !isLoading && value.length >= 2 && suggestions.length === 0 && !error && (
-        <div className="absolute z-50 w-full mt-1 py-3 px-4 bg-background dark:bg-zinc-900 border border-border dark:border-white/10 rounded-lg shadow-lg">
+        <div className="absolute z-50 w-full mt-1 py-3 px-4 bg-background dark:bg-surface-3 border border-border rounded-lg shadow-lg">
           <p className="text-sm text-muted-foreground text-center">
             No addresses found. Try entering a postal code.
           </p>

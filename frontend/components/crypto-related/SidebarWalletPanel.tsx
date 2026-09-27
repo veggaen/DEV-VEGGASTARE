@@ -506,7 +506,7 @@ function ConnectWalletButton({
       onClick={handleOpen}
       disabled={opening}
       aria-busy={opening}
-      className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition-colors hover:border-sky-500/50 hover:text-sky-500 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+      className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-accent/50 hover:text-brand-accent disabled:opacity-60"
     >
       <WalletIcon src={REOWN_ICON_DATA_URI} alt="Reown" />
       <span className="min-w-0 flex-1 text-left">{opening ? 'Opening wallet…' : 'Reown · Social · Email · 520+ wallets'}</span>
@@ -642,12 +642,12 @@ function DirectConnectors({
                 onClick={() => handleConnect(c)}
                 className={`w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors truncate ${
                   inUse
-                    ? "border-zinc-200/50 dark:border-zinc-700/50 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
-                    : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 disabled:opacity-50"
+                    ? "border-border/50 text-muted-foreground/70 cursor-not-allowed"
+                    : "border-border text-muted-foreground hover:text-brand-accent hover:border-brand-accent/50 disabled:opacity-50"
                 }`}
               >
                 {connecting === c.uid ? (
-                  <span className="flex items-center gap-2 text-sky-500 dark:text-emerald-400">
+                  <span className="flex items-center gap-2 text-brand-accent">
                     <div className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
                     <span>Connecting {label}…</span>
                   </span>
@@ -674,7 +674,7 @@ function DirectConnectors({
           type="button"
           disabled={connecting !== null}
           onClick={() => handleConnect(wcConnector)}
-          className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-colors disabled:opacity-50"
+          className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition-colors disabled:opacity-50"
         >
           {connecting === wcConnector.uid ? (
             <span className="flex items-center gap-2 text-blue-500 dark:text-blue-400">
@@ -758,7 +758,7 @@ function ConnectSection({
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
-        className="w-full flex items-center justify-center gap-1.5 text-[11px] font-medium px-3 py-2 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors"
+        className="w-full flex items-center justify-center gap-1.5 text-[11px] font-medium px-3 py-2 rounded-lg border border-dashed border-border text-muted-foreground hover:text-brand-accent hover:border-brand-accent/50 transition-colors"
       >
         <span>+ Connect a wallet</span>
         <FiChevronDown
@@ -832,8 +832,8 @@ function DevChainStatusIndicator() {
   const chains = data ?? { 31337: 'checking', 1337: 'checking' };
 
   const statusDot = (s: ChainStatus) => {
-    if (s === 'checking') return 'bg-zinc-500 animate-pulse';
-    if (s === 'online') return 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]';
+    if (s === 'checking') return 'bg-muted animate-pulse';
+    if (s === 'online') return 'bg-brand-accent shadow-[0_0_6px_rgba(16,185,129,0.5)]';
     return 'bg-red-500/60';
   };
 
@@ -846,9 +846,9 @@ function DevChainStatusIndicator() {
   const anyOnline = chains[31337] === 'online' || chains[1337] === 'online';
 
   return (
-    <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/40 p-2 space-y-1.5">
+    <div className="rounded-lg border border-border/60 bg-surface-3/40 p-2 space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
           Dev Chains
         </span>
         <button
@@ -856,7 +856,7 @@ function DevChainStatusIndicator() {
           onClick={() => void refetch()}
           disabled={isFetching}
           aria-label="Refresh chain status"
-          className="p-0.5 rounded hover:bg-zinc-700/40 text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="p-0.5 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground/80 transition-colors"
           title="Refresh chain status"
         >
           <FiRefreshCw className="h-2.5 w-2.5" />
@@ -871,8 +871,8 @@ function DevChainStatusIndicator() {
             key={c.id}
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] transition-colors ${
               chains[c.id] === 'online'
-                ? 'bg-emerald-500/5 text-emerald-400'
-                : 'bg-zinc-800/40 text-zinc-500'
+                ? 'bg-brand-accent/5 text-brand-accent'
+                : 'bg-muted/40 text-muted-foreground'
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot(chains[c.id])}`} />
@@ -882,8 +882,8 @@ function DevChainStatusIndicator() {
         ))}
       </div>
       {!anyOnline && (
-        <p className="text-[9px] text-zinc-500 leading-relaxed">
-          Start a local chain: <code className="text-zinc-400">npx ganache</code> or <code className="text-zinc-400">anvil</code>
+        <p className="text-[9px] text-muted-foreground leading-relaxed">
+          Start a local chain: <code className="text-muted-foreground">npx ganache</code> or <code className="text-muted-foreground">anvil</code>
         </p>
       )}
     </div>
@@ -993,22 +993,22 @@ function LocalDevTools({
   }, [selectedAccounts, sendFromAddress]);
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2 space-y-2">
+    <div className="rounded-lg border border-border p-2 space-y-2">
       <button
         type="button"
         onClick={() => setLocalDevExpanded((p) => !p)}
         className="flex items-center justify-between gap-1.5 px-1 w-full hover:opacity-80 transition-opacity"
       >
         <div className="flex items-center gap-1.5">
-          <FiTerminal className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-400" />
-          <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-300">Local Dev Chains</span>
+          <FiTerminal className="h-3.5 w-3.5 text-brand-accent" />
+          <span className="text-[10px] font-semibold text-foreground/80">Local Dev Chains</span>
           {selectedAccounts.length > 0 && (
-            <span className="text-[8px] text-zinc-500 dark:text-zinc-400">
+            <span className="text-[8px] text-muted-foreground">
               ({selectedAccounts.length})
             </span>
           )}
         </div>
-        <FiChevronDown className={`h-3 w-3 text-zinc-500 transition-transform ${localDevExpanded ? "rotate-180" : ""}`} />
+        <FiChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${localDevExpanded ? "rotate-180" : ""}`} />
       </button>
 
       {localDevExpanded && (
@@ -1016,7 +1016,7 @@ function LocalDevTools({
         <select
           value={selectedChainId}
           onChange={(event) => setSelectedChainId(Number(event.target.value))}
-          className="w-full appearance-none rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300"
+          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80"
         >
           {LOCAL_RPC_SOURCES.map((source) => (
             <option key={source.chainId} value={source.chainId}>
@@ -1031,7 +1031,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onAddWallet({ chainId: selectedChainId, addAll: false })}
-          className="flex items-center justify-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-sky-500 dark:hover:text-emerald-400 disabled:opacity-50"
+          className="flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-brand-accent disabled:opacity-50"
         >
           <FiPlusCircle className="h-3 w-3" /> Add first
         </button>
@@ -1039,20 +1039,20 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onAddWallet({ chainId: selectedChainId, addAll: true })}
-          className="flex items-center justify-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-sky-500 dark:hover:text-emerald-400 disabled:opacity-50"
+          className="flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-brand-accent disabled:opacity-50"
         >
           <FiPlusCircle className="h-3 w-3" /> Add all
         </button>
       </div>
 
-      <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-1.5 space-y-1">
-        <p className="text-[9px] text-zinc-500 dark:text-zinc-400">
+      <div className="rounded-md border border-border p-1.5 space-y-1">
+        <p className="text-[9px] text-muted-foreground">
           Available Accounts · {selectedChainName}
         </p>
         {loadingAccounts ? (
-          <p className="text-[9px] text-zinc-400 dark:text-zinc-500">Loading local RPC accounts…</p>
+          <p className="text-[9px] text-muted-foreground/80">Loading local RPC accounts…</p>
         ) : selectedAccounts.length === 0 ? (
-          <p className="text-[9px] text-zinc-400 dark:text-zinc-500">No accounts detected. Start the local node first.</p>
+          <p className="text-[9px] text-muted-foreground/80">No accounts detected. Start the local node first.</p>
         ) : (
           <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
             {selectedAccounts.slice(0, 10).map((account) => {
@@ -1066,22 +1066,22 @@ function LocalDevTools({
                   key={addedKey}
                   className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-1 ${
                     isActive
-                      ? "border-orange-500/60 bg-orange-500/10 dark:border-orange-500/50 dark:bg-orange-500/10"
+                      ? "border-orange-500/60 bg-orange-500/10 dark:border-orange-500/50"
                       : isAdded
                         ? "border-orange-400/40 dark:border-orange-500/30 bg-orange-500/5"
-                        : "border-zinc-200 dark:border-zinc-700"
+                        : "border-border"
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className={`text-[9px] font-mono truncate ${isActive ? "text-orange-400" : isAdded ? "text-orange-300/80" : "text-zinc-600 dark:text-zinc-300"}`}>
+                    <p className={`text-[9px] font-mono truncate ${isActive ? "text-orange-400" : isAdded ? "text-orange-300/80" : "text-foreground/80"}`}>
                       {account.address}
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <p className={`text-[8px] ${isActive ? "text-orange-400" : isAdded ? "text-orange-400/60" : "text-zinc-400 dark:text-zinc-500"}`}>
+                      <p className={`text-[8px] ${isActive ? "text-orange-400" : isAdded ? "text-orange-400/60" : "text-muted-foreground/80"}`}>
                         {isActive ? "⚡ Active" : isAdded ? "✔ In wallet list" : "Not added"}
                       </p>
                       {account.balanceEth && (
-                        <p className="text-[8px] font-medium text-orange-400 dark:text-orange-400">
+                        <p className="text-[8px] font-medium text-orange-400">
                           {account.balanceEth} ETH
                         </p>
                       )}
@@ -1116,7 +1116,7 @@ function LocalDevTools({
                           ? "border-orange-500/40 text-orange-400 cursor-default"
                           : isAdded
                             ? "border-orange-500/30 text-orange-400/50 cursor-default"
-                            : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400"
+                            : "border-border text-foreground/80 hover:text-orange-400"
                       }`}
                       title={isActive ? "This account is currently active" : isAdded ? "Already in your wallet list" : "Add this account to your wallet list"}
                     >
@@ -1135,7 +1135,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "mine", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title="Mine a new block on the local chain — triggers pending transactions and block-dependent logic"
         >
           <FiRefreshCw className="inline h-2.5 w-2.5 mr-1" /> Mine 1 block
@@ -1143,11 +1143,11 @@ function LocalDevTools({
       </div>
 
       <div className="space-y-1">
-        <p className="text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-0.5">Send ETH between accounts</p>
+        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Send ETH between accounts</p>
         <select
           value={sendFromAddress}
           onChange={(event) => setSendFromAddress(event.target.value)}
-          className="w-full appearance-none rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300"
+          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80"
           title="Select the source account to send from"
         >
           {selectedAccounts.map((account) => (
@@ -1160,14 +1160,14 @@ function LocalDevTools({
           <input
             value={sendTargetAddress}
             onChange={(event) => setSendTargetAddress(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] font-mono text-foreground/80 focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
             placeholder="0x45Ce…8C99"
             title="Recipient address — paste a 0x address from the accounts above or any wallet"
           />
           <input
             value={sendAmountEth}
             onChange={(event) => setSendAmountEth(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 text-right focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 text-right focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
             placeholder="e.g. 1.5"
             title="Amount in ETH to send (e.g. 0.5, 1, 100)"
             type="text"
@@ -1200,10 +1200,10 @@ function LocalDevTools({
               setSendingTx(false);
             }
           }}
-          className={`w-full rounded-md border px-2 py-1.5 text-[10px] font-medium transition-all disabled:opacity-50 ${
+          className={`w-full rounded-md border px-2 py-1.5 text-[10px] font-medium transition disabled:opacity-50 ${
             sendingTx
               ? "border-orange-500/40 bg-orange-500/10 text-orange-400 animate-pulse"
-              : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40"
+              : "border-border text-foreground/80 hover:text-orange-400 hover:border-orange-500/40"
           }`}
           title="Send ETH via local RPC — no wallet approval needed for dev accounts"
         >
@@ -1222,7 +1222,7 @@ function LocalDevTools({
         <input
           value={balanceEth}
           onChange={(event) => setBalanceEth(event.target.value)}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="e.g. 100 (ETH)"
           title="Amount in ETH to set as the wallet's balance"
         />
@@ -1238,7 +1238,7 @@ function LocalDevTools({
               amountEth: balanceEth,
             });
           }}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title={activeEvmAddress ? `Instantly set ${activeEvmAddress.slice(0, 6)}…${activeEvmAddress.slice(-4)} balance to ${balanceEth} ETH (no tx needed)` : "Connect an active EVM wallet first"}
         >
           Fund active wallet
@@ -1249,7 +1249,7 @@ function LocalDevTools({
         <input
           value={secondsInput}
           onChange={(event) => setSecondsInput(event.target.value)}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="e.g. 3600 (1 hour)"
           title="Number of seconds to fast-forward the chain's clock"
         />
@@ -1257,7 +1257,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "increase-time", chainId: selectedChainId, seconds: Number(secondsInput) || 0 })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title="Fast-forward the local chain clock by the specified seconds — useful for testing time-locked contracts"
         >
           <FiClock className="inline h-2.5 w-2.5 mr-1" /> +Time
@@ -1269,7 +1269,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "snapshot", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title="Save the current chain state — you can revert back to this point later"
         >
           Snapshot
@@ -1278,7 +1278,7 @@ function LocalDevTools({
           type="button"
           disabled={busy || snapshots[selectedChainId] == null}
           onClick={() => void onRunAction({ action: "revert", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title={snapshots[selectedChainId] != null ? "Revert the chain to the last snapshot — undoes all transactions since then" : "Take a snapshot first before reverting"}
         >
           Revert snapshot
@@ -1286,11 +1286,11 @@ function LocalDevTools({
       </div>
 
       <div className="space-y-1">
-        <p className="text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-0.5">Set arbitrary balance</p>
+        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Set arbitrary balance</p>
         <input
           value={balanceAddress}
           onChange={(event) => setBalanceAddress(event.target.value)}
-          className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="w-full rounded-md border border-border bg-card px-2 py-1 text-[10px] font-mono text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="0x… (target address)"
           title="The address whose balance will be overwritten — defaults to your active wallet"
         />
@@ -1298,7 +1298,7 @@ function LocalDevTools({
           <input
             value={balanceEth}
             onChange={(event) => setBalanceEth(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
             placeholder="e.g. 100 (ETH)"
             title="New balance in ETH — overwrites the current balance entirely"
           />
@@ -1306,7 +1306,7 @@ function LocalDevTools({
             type="button"
             disabled={busy || !balanceAddress}
             onClick={() => void onRunAction({ action: "set-balance", chainId: selectedChainId, targetAddress: balanceAddress, amountEth: balanceEth })}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+            className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
             title={`Overwrite the balance of ${balanceAddress || 'target address'} on ${selectedChainName} — anvil_setBalance / hardhat_setBalance`}
           >
             Set balance
@@ -1315,7 +1315,7 @@ function LocalDevTools({
       </div>
 
       {(error || notice) && (
-        <p className={`px-1 text-[9px] ${error ? "text-red-500 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+        <p className={`px-1 text-[9px] ${error ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
           {error ?? notice}
         </p>
       )}
@@ -1382,7 +1382,7 @@ function DonateActionRow({
         <button
           type="button"
           onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:underline"
+          className="text-[9px] text-muted-foreground hover:text-brand-accent hover:underline"
         >
           Try again
         </button>
@@ -1399,7 +1399,7 @@ function DonateActionRow({
         <button
           type="button"
           onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
+          className="text-[9px] text-muted-foreground hover:text-red-400 transition-colors"
           title="Cancel"
         >
           ✕
@@ -1411,7 +1411,7 @@ function DonateActionRow({
   if (step === "confirming") {
     return (
       <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
+        <span className="text-[9px] text-brand-accent font-medium">
           <WaitingDots prefix="On-chain" />
         </span>
       </div>
@@ -1421,7 +1421,7 @@ function DonateActionRow({
   if (step === "recording") {
     return (
       <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
+        <span className="text-[9px] text-brand-accent font-medium">
           <WaitingDots prefix="Recording" />
         </span>
       </div>
@@ -1609,11 +1609,11 @@ function WalletRow({
       className={`group/row relative rounded-lg border transition-colors ${
         isActive
           ? connectorType === 'LOCAL_RPC'
-            ? "border-orange-500/50 dark:border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/15"
-            : "border-sky-500/50 dark:border-emerald-500/50 bg-sky-50/50 dark:bg-emerald-950/20"
+            ? "border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/15"
+            : "border-brand-accent/50 bg-brand-accent/50"
           : isLive
-              ? "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60"
-              : "border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/70 dark:bg-zinc-900/45"
+              ? "border-border/60 bg-muted/40"
+              : "border-border/80 bg-muted/40"
       }`}
       role="group"
       aria-label={`${displayName} wallet`}
@@ -1628,7 +1628,7 @@ function WalletRow({
         <span
           aria-hidden
           className={`absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full ${
-            connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-sky-500 dark:bg-emerald-500"
+            connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-brand-accent"
           }`}
         />
       )}
@@ -1639,7 +1639,7 @@ function WalletRow({
           <div className="relative shrink-0" style={{ width: 22, height: 22 }}>
             <WalletIcon src={REOWN_ICON_DATA_URI} alt="Reown" size={22} />
             {AUTH_PROVIDER_ICONS[normalizedAuthProvider] && (
-              <div className="absolute -bottom-1 -right-1 rounded-full border border-white dark:border-zinc-900 bg-white dark:bg-zinc-900" style={{ padding: 1 }}>
+              <div className="absolute -bottom-1 -right-1 rounded-full border border-background bg-card" style={{ padding: 1 }}>
                 <WalletIcon src={AUTH_PROVIDER_ICONS[normalizedAuthProvider]} alt={authProviderLabel(normalizedAuthProvider)} size={11} />
               </div>
             )}
@@ -1668,11 +1668,11 @@ function WalletRow({
               className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1"
               title={`${displayName}${sourceMethodLabel ? ` (via ${sourceMethodLabel})` : ""}${label && label !== displayName ? ` — ${label}` : ""}`}
             >
-              <span className="min-w-0 break-words text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <span className="min-w-0 break-words text-xs font-medium text-foreground/85">
                 {displayName}
               </span>
               {sourceMethodLabel && (
-                <span className="inline-flex items-center gap-0.5 text-[8px] text-zinc-400 dark:text-zinc-500 shrink-0 whitespace-nowrap">
+                <span className="inline-flex items-center gap-0.5 text-[8px] text-muted-foreground/80 shrink-0 whitespace-nowrap">
                   <span>via</span>
                   {sourceIconSrc && <WalletIcon src={sourceIconSrc} alt={sourceMethodLabel} size={10} />}
                   <span>{sourceMethodLabel}</span>
@@ -1680,7 +1680,7 @@ function WalletRow({
               )}
             </span>
             {isDefault && (
-              <span className="text-[8px] uppercase tracking-wider px-1 py-px rounded bg-sky-500/10 dark:bg-emerald-500/10 text-sky-600 dark:text-emerald-400 font-semibold shrink-0">
+              <span className="text-[8px] uppercase tracking-wider px-1 py-px rounded bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light font-semibold shrink-0">
                 Primary
               </span>
             )}
@@ -1688,7 +1688,7 @@ function WalletRow({
               <span className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
                 connectorType === 'LOCAL_RPC'
                   ? "bg-orange-500/15 text-orange-500 dark:text-orange-300"
-                  : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+                  : "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
               }`}>
                 <span aria-hidden className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60 motion-reduce:hidden" />
@@ -1697,7 +1697,7 @@ function WalletRow({
                 Active
               </span>
             ) : isLive ? (
-              <span className="inline-flex items-center gap-0.5 rounded bg-zinc-500/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-0.5 rounded bg-muted/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Connected
               </span>
             ) : null}
@@ -1705,7 +1705,7 @@ function WalletRow({
             {walletTier !== "CONNECTED" ? (
               <TierBadge tier={walletTier} />
             ) : isLive ? (
-              <span className="inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider px-1 py-px rounded bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 font-semibold shrink-0 whitespace-nowrap">
+              <span className="inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider px-1 py-px rounded bg-muted/10 text-muted-foreground font-semibold shrink-0 whitespace-nowrap">
                 <FiShield className="h-2 w-2 opacity-60" />
                 Unverified
               </span>
@@ -1716,7 +1716,7 @@ function WalletRow({
           {/* ENS / CB.ID */}
           {resolvedName && (
             <span
-              className="text-[10px] font-medium text-sky-600 dark:text-emerald-400 block truncate"
+              className="text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light block truncate"
               title={ensName ? `ENS: ${ensName}` : `CB.ID: ${baseName}`}
             >
               {resolvedName}
@@ -1725,7 +1725,7 @@ function WalletRow({
           {/* AUTH wallets: user display name + email */}
           {isAuthWallet && (userName || socialName || socialEmail) && (
             <span
-              className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate"
+              className="text-[10px] text-muted-foreground block truncate"
               title={[userName, socialName, socialEmail].filter(Boolean).join(' · ')}
             >
               {(() => {
@@ -1757,10 +1757,10 @@ function WalletRow({
                     }}
                     maxLength={40}
                     placeholder={label || "Wallet name"}
-                    className={`w-24 rounded border bg-white dark:bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-600 dark:text-zinc-400 outline-none ${
+                    className={`w-24 rounded border bg-card px-1 py-0.5 text-[10px] text-muted-foreground outline-none ${
                       connectorType === 'LOCAL_RPC'
                         ? "border-orange-400 dark:border-orange-500"
-                        : "border-sky-400 dark:border-emerald-500"
+                        : "border-brand-accent"
                     }`}
                   />
                   <button
@@ -1769,7 +1769,7 @@ function WalletRow({
                     className={`p-0.5 rounded ${
                       connectorType === 'LOCAL_RPC'
                         ? "hover:bg-orange-100 dark:hover:bg-orange-900/40 text-orange-500 dark:text-orange-400"
-                        : "hover:bg-sky-100 dark:hover:bg-emerald-900/40 text-sky-500 dark:text-emerald-400"
+                        : "hover:bg-brand-accent/10 text-brand-accent"
                     }`}
                     title="Save"
                   >
@@ -1778,7 +1778,7 @@ function WalletRow({
                   <button
                     type="button"
                     onClick={() => { setRenameValue(customLabel ?? ''); setRenaming(false); }}
-                    className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400"
+                    className="p-0.5 rounded hover:bg-muted text-muted-foreground"
                     title="Cancel"
                   >
                     <FiX className="h-3 w-3" />
@@ -1786,14 +1786,14 @@ function WalletRow({
                 </span>
               ) : customLabel ? (
                 <>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                  <span className="text-[10px] text-muted-foreground truncate">
                     {customLabel}
                   </span>
                   <button
                     type="button"
                     onClick={() => { setRenameValue(customLabel ?? ''); setRenaming(true); }}
-                    className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 transition-opacity ${
-                      connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-sky-500 dark:hover:text-emerald-400"
+                    className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-muted text-muted-foreground transition-opacity ${
+                      connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-brand-accent"
                     }`}
                     title="Rename wallet"
                   >
@@ -1804,8 +1804,8 @@ function WalletRow({
                 <button
                   type="button"
                   onClick={() => { setRenameValue(''); setRenaming(true); }}
-                  className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 transition-opacity ${
-                    connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-sky-500 dark:hover:text-emerald-400"
+                  className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-muted text-muted-foreground transition-opacity ${
+                    connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-brand-accent"
                   }`}
                   title="Name this wallet"
                 >
@@ -1818,7 +1818,7 @@ function WalletRow({
           {/* Browser / extension wallets: DB label as subtitle when no custom name set */}
           {!customLabel && !isAuthWallet && connectorType !== 'LOCAL_RPC' && label && label !== displayName && !resolvedName && (
             <span
-              className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate"
+              className="text-[10px] text-muted-foreground block truncate"
               title={label}
             >
               {label}
@@ -1827,7 +1827,7 @@ function WalletRow({
           {/* Address + copy + inline actions */}
           <span className="flex flex-wrap items-center gap-1">
             <span
-              className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 truncate"
+              className="text-[10px] font-mono text-muted-foreground truncate"
               title={address}
             >
               {trimAddress(address)}
@@ -1844,7 +1844,7 @@ function WalletRow({
                 className={`inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
                     ? "bg-muted/70 text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
-                    : "bg-muted/70 text-muted-foreground hover:bg-sky-500/15 hover:text-sky-600 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
+                    : "bg-muted/70 text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover hover:dark:text-brand-accent-light dark:hover:text-brand-accent-light"
                 }`}
                 title={connectorType === 'LOCAL_RPC' ? "Make this local RPC wallet the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
               >
@@ -1857,7 +1857,7 @@ function WalletRow({
               <button
                 type="button"
                 onClick={onDisconnect}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-300"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-300"
                 title={isLive ? "Disconnect this wallet" : "Remove this wallet from the sidebar list"}
               >
                 <FiLogOut className="h-2.5 w-2.5" />
@@ -1874,8 +1874,8 @@ function WalletRow({
                   isActive
                     ? connectorType === 'LOCAL_RPC'
                       ? "text-orange-400 hover:bg-orange-950/30"
-                      : "text-sky-600 dark:text-emerald-400 hover:bg-sky-50 dark:hover:bg-emerald-950/30"
-                    : "text-zinc-500 hover:text-amber-400 hover:bg-amber-950/20"
+                      : "text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10"
+                    : "text-muted-foreground hover:text-amber-400 hover:bg-amber-950/20"
                 }`}
                 title={
                   isActive
@@ -1894,7 +1894,7 @@ function WalletRow({
                 <button
                   type="button"
                   onClick={() => setNetOpen((o) => !o)}
-                  className="rounded px-1 py-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors text-[9px] flex items-center gap-0.5 text-zinc-500 dark:text-zinc-400"
+                  className="rounded px-1 py-0.5 hover:bg-muted transition-colors text-[9px] flex items-center gap-0.5 text-muted-foreground"
                   title="Switch network"
                 >
                   <span className="max-w-16 truncate">{chainName ?? "Network"}</span>
@@ -1907,7 +1907,7 @@ function WalletRow({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-1 z-50 min-w-32.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1"
+                      className="absolute right-0 top-full mt-1 z-50 min-w-32.5 rounded-lg border border-border bg-card shadow-xl py-1"
                     >
                       {chains.map((c) => (
                         <button
@@ -1920,8 +1920,8 @@ function WalletRow({
                           }}
                           className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
                             c.id === chainId
-                              ? "text-sky-600 dark:text-emerald-400 font-medium bg-sky-50 dark:bg-emerald-950/30"
-                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              ? "text-brand-accent-hover dark:text-brand-accent-light font-medium bg-brand-accent/10"
+                              : "text-muted-foreground hover:bg-muted"
                           } ${switchPending ? "opacity-50 cursor-wait" : ""}`}
                         >
                           {isLocalChain(c.id) && <span className="font-mono font-bold text-amber-500 dark:text-amber-400 mr-1">&gt;_RPC</span>}
@@ -1940,15 +1940,15 @@ function WalletRow({
               <button
                 type="button"
                 onClick={() => setExpanded((e) => !e)}
-                className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                className="p-0.5 rounded hover:bg-muted transition-colors shrink-0"
                 title={expanded ? "Collapse" : "Show wallet details"}
               >
-                <FiChevronDown className={`h-3 w-3 text-zinc-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+                <FiChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
               </button>
             )}
           </span>
           {isActive && summaryNativeBalance && (
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate">
+            <span className="text-[10px] text-muted-foreground block truncate">
               {summaryNativeBalance}
               {typeof summaryTokenCount === "number" && ` · ${summaryTokenCount} token${summaryTokenCount === 1 ? "" : "s"}`}
               {summaryPortfolioValue ? ` · ${summaryPortfolioValue}` : ""}
@@ -1969,7 +1969,7 @@ function WalletRow({
         <div className="flex flex-wrap items-center px-3 pb-1.5 -mt-0.5 gap-2">
           {isActive && chainName && (
             <span className={`text-[9px] shrink-0 inline-flex items-center gap-1 ${
-              isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
+              isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-muted-foreground/80"
             }`}>
               {isLocalChain(chainId) && <span className="font-mono font-bold">&gt;_RPC</span>}
               on {chainName} (ID: {chainId})
@@ -1980,7 +1980,7 @@ function WalletRow({
               {!verified ? (
                 <WalletVerificationAction flow={verification} />
               ) : walletTier === "PATRON_1M" ? (
-                <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                <span className="text-[9px] text-muted-foreground/80">
                   🐋 Max tier
                 </span>
               ) : nextTier && nextTier.nextCta !== "Max tier reached" && onDonate ? (
@@ -2007,16 +2007,16 @@ function WalletRow({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-2.5 pt-1.5 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+            <div className="px-3 pb-2.5 pt-1.5 border-t border-border/60 space-y-2">
               {/* Balance display for active wallet — custom instead of <w3m-account-button>
                   which shows a broken "appkitgooglemethod..." name for social logins */}
               {isActive && summaryNativeBalance && (
                 <div className="flex items-center justify-center gap-1.5">
                   {sourceIconSrc && <WalletIcon src={sourceIconSrc} alt={sourceMethodLabel ?? 'wallet'} size={14} />}
-                  <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                  <span className="text-[11px] font-medium text-foreground/80">
                     {displayName}{sourceMethodLabel ? ` (${sourceMethodLabel})` : ''}
                   </span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="text-[11px] text-muted-foreground">
                     {summaryNativeBalance}
                   </span>
                 </div>
@@ -2025,7 +2025,7 @@ function WalletRow({
               {!isActive && chainName && (
                 <div className="text-center">
                   <span className={`text-[9px] inline-flex items-center gap-1 ${
-                    isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
+                    isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-muted-foreground/80"
                   }`}>
                     {isLocalChain(chainId) && <span className="font-mono font-bold">&gt;_RPC</span>}
                     on {chainName} (ID: {chainId})
@@ -3715,12 +3715,12 @@ export default function SidebarWalletPanel({
     <div>
       {/* Section label */}
       <div className="flex items-center gap-2 px-1 pb-2">
-        <FiZap className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500 shrink-0" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+        <FiZap className="h-3.5 w-3.5 text-brand-accent shrink-0" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
           Wallets
         </span>
         {hasAnyWallet && (
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+          <span className="text-[10px] text-muted-foreground/80 tabular-nums">
             {displayWallets.length}
           </span>
         )}
@@ -3730,7 +3730,7 @@ export default function SidebarWalletPanel({
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-mono ${
               activeDisplayWallet.connectorType === 'LOCAL_RPC'
                 ? "bg-orange-500/10 text-orange-500 dark:text-orange-300"
-                : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+                : "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
             }`}
             title={`Active wallet: ${activeDisplayWallet.address}`}
           >
@@ -3742,7 +3742,7 @@ export default function SidebarWalletPanel({
           <Link
             href="/settings?section=wallet"
             onClick={onClose}
-            className="ml-auto text-[10px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
+            className="ml-auto text-[10px] text-muted-foreground hover:text-brand-accent transition-colors"
           >
             Manage →
           </Link>
@@ -3858,10 +3858,10 @@ export default function SidebarWalletPanel({
         {!hasAnyWallet && !loading && (
           <div className="text-center py-4 space-y-1.5">
             <span className="text-lg">🔗</span>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p className="text-[11px] text-muted-foreground">
               Connect a wallet to get started
             </p>
-            <p className="text-[9px] text-zinc-400 dark:text-zinc-500">
+            <p className="text-[9px] text-muted-foreground/80">
               Extension, WalletConnect, or social login
             </p>
           </div>
@@ -3870,7 +3870,7 @@ export default function SidebarWalletPanel({
         {/* Loading */}
         {loading && !hasAnyWallet && (
           <div className="flex justify-center py-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-500 dark:border-emerald-500 border-t-transparent" />
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-accent border-t-transparent" />
           </div>
         )}
 
@@ -3928,7 +3928,7 @@ export default function SidebarWalletPanel({
           <Link
             href="/dashboard/trading"
             onClick={onClose}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-brand-accent hover:bg-muted transition-colors"
           >
             <FiExternalLink className="h-3 w-3" />
             Trading
@@ -3951,7 +3951,7 @@ export default function SidebarWalletPanel({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="mx-auto mt-6 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
+              className="mx-auto mt-6 w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl dark:bg-surface-1"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
@@ -3972,7 +3972,7 @@ export default function SidebarWalletPanel({
                     {transferSourceIsAuth &&
                       normalizedTransferSourceProvider &&
                       AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider] && (
-                        <div className="absolute -bottom-1 -right-1 rounded-full border border-white dark:border-zinc-900 bg-white dark:bg-zinc-900" style={{ padding: 1 }}>
+                        <div className="absolute -bottom-1 -right-1 rounded-full border border-background bg-card" style={{ padding: 1 }}>
                           <WalletIcon
                             src={AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider]}
                             alt={transferSourceProviderName ?? "Provider"}
@@ -3982,11 +3982,11 @@ export default function SidebarWalletPanel({
                       )}
                   </div>
                   <div>
-                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Transfer</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs font-semibold text-foreground">Transfer</p>
+                  <p className="text-[11px] text-muted-foreground">
                     {transferSourceLabel} · {trimAddress(transferSourceWallet.address)}
                   </p>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[10px] text-muted-foreground">
                     Chain: {transferSourceWallet.chainName ?? nativeSymbol} ·{" "}
                     Balance: {sourceBalanceNative.toFixed(6)} {nativeSymbol}
                     {nativeUsdPrice > 0 ? ` (~${(sourceBalanceNative * nativeUsdPrice).toFixed(2)} kr)` : ""}
@@ -3996,7 +3996,7 @@ export default function SidebarWalletPanel({
                 <button
                   type="button"
                   onClick={closeTransferFlow}
-                  className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
                 >
                   Close
                 </button>
@@ -4004,7 +4004,7 @@ export default function SidebarWalletPanel({
 
               <div className="space-y-3">
                 <div>
-                  <p className="mb-2 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Destination account</p>
+                  <p className="mb-2 text-[11px] font-medium text-foreground/85">Destination account</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {transferDestinations.map((wallet) => {
                       const selected = wallet.address.toLowerCase() === transferDestinationAddress.toLowerCase();
@@ -4027,12 +4027,12 @@ export default function SidebarWalletPanel({
                           onClick={() => setTransferDestinationAddress(wallet.address)}
                           className={`rounded-lg border p-2 text-left transition-colors ${
                             selected
-                              ? "border-sky-500 bg-sky-50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                              : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                              ? "border-brand-accent bg-brand-accent/10 dark:bg-brand-accent/30"
+                              : "border-border hover:bg-muted/40 dark:hover:bg-surface-3"
                           }`}
                         >
-                          <p className="truncate text-[11px] font-medium text-zinc-900 dark:text-zinc-100">{destinationLabel}</p>
-                          <p className="truncate font-mono text-[10px] text-zinc-500 dark:text-zinc-400">{trimAddress(wallet.address)}</p>
+                          <p className="truncate text-[11px] font-medium text-foreground">{destinationLabel}</p>
+                          <p className="truncate font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</p>
                         </button>
                       );
                     })}
@@ -4041,7 +4041,7 @@ export default function SidebarWalletPanel({
                     type="text"
                     value={transferDestinationAddress}
                     onChange={(event) => setTransferDestinationAddress(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-[11px] text-zinc-900 outline-none focus:border-sky-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500"
+                    className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px] text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
                     placeholder="Or enter destination address (0x...)"
                     autoComplete="off"
                     spellCheck={false}
@@ -4057,16 +4057,16 @@ export default function SidebarWalletPanel({
                 </div>
 
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Amount ({nativeSymbol} or kr)</p>
+                  <p className="mb-1 text-[11px] font-medium text-foreground/85">Amount ({nativeSymbol} or kr)</p>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={transferInput}
                     onChange={(event) => setTransferInput(event.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-sky-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
                     placeholder={`e.g. 0.05 ${nativeSymbol} or 100 kr`}
                   />
-                  <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-1 text-[10px] text-muted-foreground">
                     ≈ {parsedNokAmount > 0 ? `${parsedNokAmount.toFixed(2)} kr` : "0.00 kr"} · {parsedNativeAmount > 0 ? `${parsedNativeAmount.toFixed(8)} ${nativeSymbol}` : `0 ${nativeSymbol}`}
                   </p>
                   <div className="mt-2 flex items-center gap-1">
@@ -4075,7 +4075,7 @@ export default function SidebarWalletPanel({
                         key={pct}
                         type="button"
                         onClick={() => setTransferInput((maxTransferNative * (pct / 100)).toFixed(8))}
-                        className="rounded-md border border-zinc-200 px-2 py-1 text-[10px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted/40 dark:text-foreground/80 dark:hover:bg-surface-3"
                       >
                         {pct}%
                       </button>
@@ -4083,12 +4083,12 @@ export default function SidebarWalletPanel({
                     <button
                       type="button"
                       onClick={() => setTransferInput(maxTransferNative > 0 ? maxTransferNative.toFixed(8) : "")}
-                      className="rounded-md border border-zinc-200 px-2 py-1 text-[10px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted/40 dark:text-foreground/80 dark:hover:bg-surface-3"
                     >
                       Max
                     </button>
                   </div>
-                  <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[10px] text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+                  <div className="mt-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[10px] text-muted-foreground dark:bg-surface-3 dark:text-foreground/80">
                     <p>Estimated network fee: {estimatedFeeNative.toFixed(6)} {nativeSymbol}{nativeUsdPrice > 0 ? ` (~${estimatedFeeNok.toFixed(2)} kr)` : ""}</p>
                     <p>Total cost: {(parsedNativeAmount + estimatedFeeNative).toFixed(8)} {nativeSymbol}</p>
                   </div>
@@ -4105,7 +4105,7 @@ export default function SidebarWalletPanel({
                   <p className="text-[11px] font-medium text-amber-500">Step 1/3 · Signing in wallet…</p>
                 )}
                 {transferStep === "confirming" && (
-                  <div className="text-[11px] font-medium text-sky-500 dark:text-emerald-400">
+                  <div className="text-[11px] font-medium text-brand-accent">
                     <p>Step 2/3 · Broadcasted, waiting for confirmation…</p>
                     {transferTxHash && (
                       <p className="mt-0.5 font-mono text-[10px]">Tx: {trimAddress(transferTxHash, 10, 8)}</p>
@@ -4113,14 +4113,14 @@ export default function SidebarWalletPanel({
                   </div>
                 )}
                 {transferStep === "success" && (
-                  <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-[11px] dark:border-emerald-700 dark:bg-emerald-950/30">
-                    <p className="font-semibold text-emerald-700 dark:text-emerald-300">Step 3/3 · Transfer complete</p>
-                    <p className="mt-0.5 text-emerald-700/90 dark:text-emerald-300/90">
+                  <div className="rounded-lg border border-brand-accent bg-brand-accent/10 p-2 text-[11px] dark:bg-brand-accent/30">
+                    <p className="font-semibold text-brand-accent-hover dark:text-brand-accent-light">Step 3/3 · Transfer complete</p>
+                    <p className="mt-0.5 text-brand-accent-hover/90">
                       {parsedNativeAmount.toFixed(8)} {nativeSymbol} sent
                     </p>
                     {transferTxHash && (
                       <div className="mt-1 flex items-center gap-2">
-                        <p className="font-mono text-emerald-700/90 dark:text-emerald-300/90">{trimAddress(transferTxHash, 10, 8)}</p>
+                        <p className="font-mono text-brand-accent-hover/90">{trimAddress(transferTxHash, 10, 8)}</p>
                         {explorerTxUrl(transferSourceWallet.chainId ?? evmChainId, transferTxHash) && (
                           <a
                             href={explorerTxUrl(transferSourceWallet.chainId ?? evmChainId, transferTxHash) ?? "#"}
@@ -4144,7 +4144,7 @@ export default function SidebarWalletPanel({
                         const details = `from=${transferSourceAddress};to=${transferDestinationAddress};input=${transferInput};error=${transferError ?? "unknown"}`;
                         navigator.clipboard.writeText(details).catch(() => undefined);
                       }}
-                      className="text-[10px] text-zinc-500 underline"
+                      className="text-[10px] text-muted-foreground underline"
                     >
                       Copy details
                     </button>
@@ -4152,11 +4152,11 @@ export default function SidebarWalletPanel({
                 )}
 
                 {transferHistory.length > 0 && (
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Recent transfers</p>
+                  <div className="rounded-lg border border-border bg-muted/40 p-2 dark:bg-surface-3">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Recent transfers</p>
                     <div className="space-y-1">
                       {transferHistory.slice(0, 3).map((item) => (
-                        <p key={item.id} className="text-[10px] text-zinc-600 dark:text-zinc-300">
+                        <p key={item.id} className="text-[10px] text-foreground/80">
                           {trimAddress(item.sourceAddress)} → {trimAddress(item.destinationAddress)} · {Number(item.amountNative).toFixed(6)} {item.nativeSymbol}
                         </p>
                       ))}
@@ -4168,7 +4168,7 @@ export default function SidebarWalletPanel({
                   <button
                     type="button"
                     onClick={closeTransferFlow}
-                    className="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                    className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-muted/40 dark:hover:bg-surface-3"
                   >
                     {transferStep === "success" ? "Done" : "Cancel"}
                   </button>
@@ -4179,7 +4179,7 @@ export default function SidebarWalletPanel({
                         resetTransfer();
                         setTransferInput("");
                       }}
-                      className="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-muted/40 dark:hover:bg-surface-3"
                     >
                       Make another
                     </button>
@@ -4198,7 +4198,7 @@ export default function SidebarWalletPanel({
                       sameAddress ||
                       hasInsufficientFunds
                     }
-                    className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600"
+                    className="inline-flex items-center gap-1 rounded-md bg-brand-accent-hover px-3 py-1.5 text-[11px] font-semibold text-brand-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <FiSend className="h-3 w-3" />
                     Send

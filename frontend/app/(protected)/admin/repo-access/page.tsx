@@ -89,7 +89,7 @@ export default function AdminRepoAccessPage() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-emerald-500" />
+        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-brand-accent" />
       </div>
     );
   }
@@ -99,20 +99,20 @@ export default function AdminRepoAccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 flex items-center justify-center">
+          <div className="h-11 w-11 rounded-xl bg-primary text-foreground flex items-center justify-center">
             <FiGithub className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Repo Access Ops</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Inspect and retry GitHub repo access grants by order ID.</p>
+            <h1 className="text-2xl font-bold text-foreground">Repo Access Ops</h1>
+            <p className="text-sm text-muted-foreground">Inspect and retry GitHub repo access grants by order ID.</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 space-y-3">
-          <label className="text-sm text-zinc-600 dark:text-zinc-300" htmlFor="repo-order-id">
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-3">
+          <label className="text-sm text-foreground/80" htmlFor="repo-order-id">
             Order ID
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -121,13 +121,13 @@ export default function AdminRepoAccessPage() {
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               placeholder="Paste order id"
-              className="flex-1 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+              className="flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm"
             />
             <button
               type="button"
               disabled={loading || !orderId.trim()}
               onClick={() => fetchOrder(orderId.trim())}
-              className="rounded-xl border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
               {loading ? 'Loading…' : 'Load status'}
             </button>
@@ -137,12 +137,12 @@ export default function AdminRepoAccessPage() {
 
         {result && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Order</p>
-                  <p className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{result.order.id}</p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  <p className="text-sm text-muted-foreground">Order</p>
+                  <p className="font-mono text-xs text-foreground/85 break-all">{result.order.id}</p>
+                  <p className="text-sm text-foreground/80">
                     Status: <span className="font-semibold">{result.order.status}</span>
                     {result.order.paymentStatus ? ` • Payment: ${result.order.paymentStatus}` : ''}
                   </p>
@@ -151,7 +151,7 @@ export default function AdminRepoAccessPage() {
                   type="button"
                   disabled={!canRetry || retrying}
                   onClick={handleRetry}
-                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
                   title={!canRetry ? 'Order must be COMPLETED before retrying' : 'Retry repo access grant'}
                 >
                   <FiRefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
@@ -165,21 +165,21 @@ export default function AdminRepoAccessPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border text-sm font-semibold text-foreground/90">
                 Recent repo-access events
               </div>
               {result.events.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">No events found for this order yet.</p>
+                <p className="px-4 py-4 text-sm text-muted-foreground">No events found for this order yet.</p>
               ) : (
-                <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                <div className="divide-y divide-border">
                   {result.events.map((event) => (
                     <div key={event.id} className="px-4 py-3 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-medium text-zinc-800 dark:text-zinc-100">{event.eventType}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{new Date(event.createdAt).toLocaleString()}</p>
+                        <p className="font-medium text-foreground">{event.eventType}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleString()}</p>
                       </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         orderStatus: {event.orderStatus ?? 'n/a'} • paymentStatus: {event.paymentStatus ?? 'n/a'}
                       </p>
                       {event.processingError && (

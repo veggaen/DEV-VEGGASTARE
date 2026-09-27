@@ -31,7 +31,7 @@ export function MicWaveform({
         return (
           <span
             key={i}
-            className="w-[3px] rounded-full bg-sky-500/70 dark:bg-emerald-400/70 transition-[height] duration-75 ease-out"
+            className="w-[3px] rounded-full bg-brand-accent/70 transition-[height] duration-75 ease-out"
             style={{ height: h }}
           />
         );

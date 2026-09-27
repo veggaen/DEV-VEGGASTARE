@@ -1356,8 +1356,8 @@ export const MyProductCreationForm = () => {
     selectTrigger: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
     textarea: `w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150 resize-y`,
     selectContent: `border border-border bg-popover text-popover-foreground shadow-lg`,
-    selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-emerald-500/15 data-[state=checked]:text-foreground`,
-    inputCheckbox: `rounded border border-input bg-background text-emerald-600 focus:ring-emerald-500/30 focus:ring-offset-0`,
+    selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-brand-accent/15 data-[state=checked]:text-foreground`,
+    inputCheckbox: `rounded border border-input bg-background text-brand-accent-hover dark:text-brand-accent-light focus:ring-brand-accent/30 focus:ring-offset-0`,
     toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-muted/30 transition-colors duration-150`,
   };
 
@@ -1695,7 +1695,7 @@ export const MyProductCreationForm = () => {
                       type="button"
                       onClick={() => goToStep(idx)}
                       aria-current={active ? 'step' : undefined}
-                      className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition-all duration-200 lg:whitespace-normal ${
+                      className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition duration-200 lg:whitespace-normal ${
                         active
                           ? 'text-foreground'
                           : 'text-muted-foreground hover:text-foreground hover:translate-x-0.5'
@@ -1703,9 +1703,9 @@ export const MyProductCreationForm = () => {
                     >
                       {/* active marker — a quiet accent bar, not a pill */}
                       <span
-                        className={`hidden h-5 w-px shrink-0 rounded-full transition-all duration-200 lg:block ${
+                        className={`hidden h-5 w-px shrink-0 rounded-full transition duration-200 lg:block ${
                           active
-                            ? 'bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_8px] shadow-emerald-500/40'
+                            ? 'bg-brand-accent shadow-[0_0_8px] shadow-brand-accent/40'
                             : 'bg-border group-hover:bg-foreground/40'
                         }`}
                       />
@@ -1721,7 +1721,7 @@ export const MyProductCreationForm = () => {
                       </span>
                       {/* soft "done" dot */}
                       {s.done && !active && (
-                        <span className="ml-auto hidden h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60 lg:block" />
+                        <span className="ml-auto hidden h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent/60 lg:block" />
                       )}
                     </button>
                   </li>
@@ -1798,11 +1798,11 @@ export const MyProductCreationForm = () => {
                         setDragImageIndex(null);
                         setDragOverImageIndex(null);
                       }}
-                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-muted/30 transition-all duration-200 active:cursor-grabbing ${
+                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-muted/30 transition duration-200 active:cursor-grabbing ${
                         isDragging
-                          ? 'border-emerald-500/60 opacity-40'
+                          ? 'border-brand-accent/60 opacity-40'
                           : isDropTarget
-                            ? 'border-emerald-500 ring-2 ring-emerald-500/40 -translate-y-0.5'
+                            ? 'border-brand-accent ring-2 ring-brand-accent/40 -translate-y-0.5'
                             : 'border-border hover:-translate-y-0.5 hover:shadow-md'
                       }`}
                     >
@@ -1821,14 +1821,14 @@ export const MyProductCreationForm = () => {
                         onClick={(e) => removeImage(e, index)}
                         title="Remove image"
                       >
-                        <RxCrossCircled className="h-4 w-4 text-white/90 transition-colors duration-150 group-hover/remove:text-red-400" />
+                        <RxCrossCircled className="h-4 w-4 text-foreground/90 transition-colors duration-150 group-hover/remove:text-red-400" />
                       </button>
 
                       {/* Upload progress */}
                       {(isUploadingImages || isSubmitting) && images.length > 0 && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
                           <div
-                            className="h-full bg-emerald-400 transition-[width] duration-100"
+                            className="h-full bg-brand-accent-light transition-[width] duration-100"
                             style={{ width: `${Math.max(0, Math.min(100, uploadProgress[index] ?? 0))}%` }}
                           />
                         </div>
@@ -1836,7 +1836,7 @@ export const MyProductCreationForm = () => {
 
                       {/* Cover badge (first tile) */}
                       {index === 0 && (
-                        <div className="absolute left-1 top-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        <div className="absolute left-1 top-1 rounded bg-brand-accent px-1.5 py-0.5 text-[9px] font-semibold text-brand-accent-foreground">
                           Cover
                         </div>
                       )}
@@ -1848,7 +1848,7 @@ export const MyProductCreationForm = () => {
                   {imagePreviews.length < MAX_IMAGES && (
                     <div
                       {...getRootProps()}
-                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/20 hover:text-foreground"
+                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/20 hover:text-foreground"
                     >
                       <input {...getInputProps()} />
                       <span className="text-2xl leading-none">+</span>
@@ -2053,9 +2053,9 @@ export const MyProductCreationForm = () => {
                                 }}
                                 className={`min-h-11 min-w-11 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                                   isSelected
-                                    ? 'border-emerald-500/60 bg-emerald-500/10 text-foreground'
+                                    ? 'border-brand-accent/60 bg-brand-accent/10 text-foreground'
                                     : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                                } ${isLocked ? 'ring-1 ring-emerald-500/30' : ''}`}
+                                } ${isLocked ? 'ring-1 ring-brand-accent/30' : ''}`}
                               >
                                 {code}
                               </button>
@@ -2089,10 +2089,10 @@ export const MyProductCreationForm = () => {
               {/* PayPal status indicator */}
               <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
                 sellerPaypalEmail && sellerPaypalVerified
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  ? 'border-brand-accent/30 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                   : sellerPaypalEmail
                     ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                    : 'border-zinc-200 dark:border-white/10 bg-muted/20 text-muted-foreground'
+                    : 'border-border bg-muted/20 text-muted-foreground'
               }`}>
                 <span className="shrink-0">{sellerPaypalEmail && sellerPaypalVerified ? '✅' : sellerPaypalEmail ? '⏳' : '—'}</span>
                 <span>
@@ -2132,7 +2132,7 @@ export const MyProductCreationForm = () => {
                     ))}
                   </select>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-white/10 p-3 text-xs text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
                     No verified wallet yet. You can verify one below without leaving this listing.
                   </div>
                 )}
@@ -2162,7 +2162,7 @@ export const MyProductCreationForm = () => {
                           <p className="text-sm font-medium text-foreground">EVM receiving wallet</p>
                           <p className="text-xs text-muted-foreground">Used by ETH, USDC, HEX, PLS, and custom EVM tokens.</p>
                         </div>
-                        <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-emerald-500 hover:underline">
+                        <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-brand-accent hover:underline">
                           Manage wallets
                         </a>
                       </div>
@@ -2300,7 +2300,7 @@ export const MyProductCreationForm = () => {
                     >
                       Open Wallet Settings ↗
                     </a>
-                    <div className="mt-2 rounded-lg bg-black/10 p-2 dark:bg-black/20">
+                    <div className="mt-2 rounded-lg bg-muted p-2">
                       <EvmWalletVerify
                         enabled={true}
                         onVerified={() => {
@@ -2527,19 +2527,19 @@ export const MyProductCreationForm = () => {
                     <label
                       key={option.value}
                       title={optionBlockedByWarehouse ? 'Disabled: Add a warehouse address in Company Settings to list physical or hybrid products.' : undefined}
-                      className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition-all duration-200 ${
+                      className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition duration-200 ${
                         optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-muted/30'
                       } ${
                         productType === option.value
-                          ? 'bg-emerald-500/[0.07] dark:bg-emerald-400/[0.06]'
+                          ? 'bg-brand-accent/[0.07]'
                           : ''
                       }`}
                     >
                       {/* selected marker — a quiet accent rail, not a filled box */}
                       <span
-                        className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full transition-all duration-200 ${
+                        className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full transition duration-200 ${
                           productType === option.value
-                            ? 'bg-emerald-500 dark:bg-emerald-400'
+                            ? 'bg-brand-accent'
                             : 'bg-transparent group-hover:bg-border'
                         }`}
                       />
@@ -2576,7 +2576,7 @@ export const MyProductCreationForm = () => {
                       <span
                         className={`text-sm font-medium transition-colors ${
                           productType === option.value
-                            ? 'text-emerald-700 dark:text-emerald-300'
+                            ? 'text-brand-accent-hover dark:text-brand-accent-light'
                             : 'text-foreground'
                         }`}
                       >
@@ -2595,7 +2595,7 @@ export const MyProductCreationForm = () => {
                 <div hidden={!isStepActive('digital')} data-listing-step="digital" className={`${customStyles.section} scroll-mt-4 order-6`}>
                   <h3 className={customStyles.sectionTitle}>
                     Digital File
-                    <span className="font-normal text-emerald-400/70 ml-1 normal-case tracking-normal">— required</span>
+                    <span className="font-normal text-brand-accent/70 ml-1 normal-case tracking-normal">— required</span>
                   </h3>
                   
                   {!digitalFile ? (
@@ -2699,7 +2699,7 @@ export const MyProductCreationForm = () => {
                 {/* Company product toggle */}
                 <div className="space-y-2">
                   {cameFromCompanyHub ? (
-                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs">
+                    <div className="rounded-md border border-brand-accent/30 bg-brand-accent/10 px-3 py-2 text-xs">
                       <div className="text-foreground font-medium">Posting on behalf of business</div>
                       <div className="text-muted-foreground mt-1">
                         {isPrefilledCompanyLoading
@@ -2724,7 +2724,7 @@ export const MyProductCreationForm = () => {
                       </label>
 
                       {isCompanyProduct && (
-                        <div className="pl-4 ml-2 border-l border-emerald-500/20">
+                        <div className="pl-4 ml-2 border-l border-brand-accent/20">
                           <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
                         </div>
                       )}
@@ -2754,7 +2754,7 @@ export const MyProductCreationForm = () => {
                             <label
                               key={index}
                               className={`${customStyles.toggle} !py-2 !px-3 !w-auto cursor-pointer ${
-                                postalCodes.includes(location.postalCode) ? 'ring-1 ring-emerald-500/40 bg-emerald-500/10' : ''
+                                postalCodes.includes(location.postalCode) ? 'ring-1 ring-brand-accent/40 bg-brand-accent/10' : ''
                               }`}
                             >
                               <input
@@ -2889,7 +2889,7 @@ export const MyProductCreationForm = () => {
                     <button
                       type="button"
                       onClick={() => addFeature()}
-                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                     >
                       + Add feature
                     </button>
@@ -2906,7 +2906,7 @@ export const MyProductCreationForm = () => {
                           setFeatures(prev => [...prev, ...lines.map(t => ({ text: t, key: '' }))]);
                         }
                       }}
-                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                     >
                       + Paste multiple
                     </button>
@@ -3013,7 +3013,7 @@ export const MyProductCreationForm = () => {
                           <button
                             type="button"
                             onClick={addSpecification}
-                            className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                            className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                           >
                             + Add preset spec
                           </button>
@@ -3021,7 +3021,7 @@ export const MyProductCreationForm = () => {
                           <button
                             type="button"
                             onClick={() => setSpecifications([...specifications, { key: 'Custom', value: '', type: 'text' }])}
-                            className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                            className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                           >
                             + Add custom spec
                           </button>
@@ -3077,7 +3077,7 @@ export const MyProductCreationForm = () => {
                 <div className="text-xl font-semibold tracking-tight text-foreground">
                   {watchedTitle?.trim() || <span className="text-muted-foreground">Untitled listing</span>}
                 </div>
-                <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                <div className="text-lg font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                   {Number(watchedPrice) > 0
                     ? `${priceCurrencyMeta.prefix}${Number(watchedPrice).toLocaleString()} ${priceCurrencyMeta.label}`
                     : <span className="text-muted-foreground text-base font-normal">No price set</span>}
@@ -3106,7 +3106,7 @@ export const MyProductCreationForm = () => {
             {/* Login prompt — quiet inline line */}
             {sessionStatus === 'unauthenticated' && (
               <p className="mt-5 text-sm text-muted-foreground">
-                <ShieldCheck className="mr-1.5 inline h-4 w-4 text-sky-500 align-text-bottom" />
+                <ShieldCheck className="mr-1.5 inline h-4 w-4 text-brand-accent align-text-bottom" />
                 You&apos;ll need to log in to publish — your draft is saved automatically.
               </p>
             )}
@@ -3128,10 +3128,10 @@ export const MyProductCreationForm = () => {
                           const targetIndex = visibleSteps.findIndex((step) => step.id === targetStep);
                           goToStep(targetIndex >= 0 ? targetIndex : safeActiveStep);
                         }}
-                        className="flex min-h-11 w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex min-h-11 w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand-accent/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span>{item}</span>
-                        <span className="shrink-0 text-emerald-500">Fix</span>
+                        <span className="shrink-0 text-brand-accent">Fix</span>
                       </button>
                     );
                   })}
@@ -3151,7 +3151,7 @@ export const MyProductCreationForm = () => {
               type="button"
               onClick={() => goToStep(safeActiveStep - 1)}
               disabled={safeActiveStep === 0}
-              className="text-sm font-medium text-muted-foreground transition-all duration-200 hover:-translate-x-0.5 hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
+              className="text-sm font-medium text-muted-foreground transition duration-200 hover:-translate-x-0.5 hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
             >
               ← Back
             </button>
@@ -3175,7 +3175,7 @@ export const MyProductCreationForm = () => {
                 <Button
                   type='submit'
                   disabled={isSubmitDisabled}
-                  className='group h-11 px-6 text-sm font-medium bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 hover:bg-emerald-500 hover:shadow-md hover:shadow-emerald-500/30 disabled:opacity-60 disabled:hover:bg-emerald-600 disabled:hover:shadow-none'
+                  className='group h-11 px-6 text-sm font-medium bg-brand-accent-hover text-brand-accent-foreground shadow-sm shadow-brand-accent/20 transition duration-200 hover:bg-brand-accent hover:shadow-md hover:shadow-brand-accent/30 disabled:opacity-60 disabled:hover:bg-brand-accent-hover disabled:hover:shadow-none'
                 >
                   {submitLabel}
                 </Button>
@@ -3184,7 +3184,7 @@ export const MyProductCreationForm = () => {
               <button
                 type="button"
                 onClick={() => goToStep(safeActiveStep + 1)}
-                className="group inline-flex items-center gap-2 self-start rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3 hover:shadow-md sm:self-auto"
+                className="group inline-flex items-center gap-2 self-start rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition duration-200 hover:gap-3 hover:shadow-md sm:self-auto"
               >
                 Continue
                 <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>

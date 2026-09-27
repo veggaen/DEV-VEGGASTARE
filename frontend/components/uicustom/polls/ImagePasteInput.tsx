@@ -290,7 +290,7 @@ export function ImagePasteInput({
             }
           }}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-3 p-6 rounded-lg border-2 border-dashed transition-all cursor-pointer outline-none",
+            "relative flex flex-col items-center justify-center gap-3 p-6 rounded-lg border-2 border-dashed transition cursor-pointer outline-none",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             isDragOver
               ? "border-primary bg-primary/10"

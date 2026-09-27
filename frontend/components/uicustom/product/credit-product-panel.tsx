@@ -12,7 +12,7 @@ export default function CreditProductPanel({ title, credits, choice, onCredits, 
 }) {
   return <section aria-labelledby="credit-product-title" data-credit-product className="overflow-hidden rounded-2xl border border-border bg-card">
     <header className="flex items-start gap-4 border-b border-border p-5 sm:p-7">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"><Sparkles aria-hidden className="size-6" /></span>
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"><Sparkles aria-hidden className="size-6" /></span>
       <div className="min-w-0">
         <h1 id="credit-product-title" className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Chat, create images, and turn ideas into short videos.</p>
@@ -33,7 +33,7 @@ export default function CreditProductPanel({ title, credits, choice, onCredits, 
         </div>
         <h2 className="mt-5 flex items-center gap-2 text-base font-semibold"><MessageSquare aria-hidden className="size-4" />One balance. More ways to create.</h2>
         <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-          {['Multi-model chat, PNG images, and 4-second clips.', 'See the credit cost before every generation.', 'No subscription or automatic top-ups.'].map(text => <li key={text} className="flex items-start gap-2"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-emerald-700 dark:text-emerald-300" /><span>{text}</span></li>)}
+          {['Multi-model chat, PNG images, and 4-second clips.', 'See the credit cost before every generation.', 'No subscription or automatic top-ups.'].map(text => <li key={text} className="flex items-start gap-2"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-accent-hover dark:text-brand-accent-light" /><span>{text}</span></li>)}
         </ul>
         <Link href="/ai" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4 focus-visible:outline-2">Explore available models<ArrowUpRight aria-hidden className="size-4" /></Link>
         <Link href="/ai/studio" className="ml-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4 focus-visible:outline-2">Open Studio<ArrowUpRight aria-hidden className="size-4" /></Link>

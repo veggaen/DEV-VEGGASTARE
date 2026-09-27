@@ -169,15 +169,15 @@ const CompanySettingsClient = () => {
         // Redirect non-members to public page
         if (!hasInternalAccess) {
             return (
-                <div className="w-full bg-zinc-50 dark:bg-zinc-950">
+                <div className="w-full bg-background">
                     <div className="mx-auto w-full max-w-screen-2xl px-4 py-12 text-center">
-                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">Access Restricted</h1>
-                        <p className="text-zinc-600 dark:text-zinc-300 mb-6">
+                        <h1 className="text-2xl font-semibold text-foreground mb-4">Access Restricted</h1>
+                        <p className="text-foreground/80 mb-6">
                             You don&apos;t have permission to access company settings.
                         </p>
                         <Link
                             href={`/companies/${company.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-surface-3 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             View Company Profile
                         </Link>
@@ -301,7 +301,7 @@ const CompanySettingsClient = () => {
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-base font-semibold">Optional company metadata</p>
-                                            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                                            <p className="text-sm text-foreground/80">
                                                 Add these details to improve invoices, contracts, and internal settings. Nothing is required.
                                             </p>
                                         </div>
@@ -366,7 +366,7 @@ const CompanySettingsClient = () => {
                                             {regSaving ? 'Saving…' : 'Save'}
                                         </button>
                                         {regError ? <span role="alert" className="text-sm text-destructive">{regError}</span> : null}
-                                        {regSuccess ? <span role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{regSuccess}</span> : null}
+                                        {regSuccess ? <span role="status" className="text-sm text-brand-accent-hover dark:text-brand-accent-light">{regSuccess}</span> : null}
                                         {!canUpdateRegistration ? (
                                             <span className="text-sm opacity-80">Only the company owner (or admins) can update this.</span>
                                         ) : null}

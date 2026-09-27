@@ -67,7 +67,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
     return `${diffSeconds} sec ago`;
   };
   return (
-    <div className="job-box bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 m-4">
+    <div className="job-box bg-card rounded-lg shadow-md p-6 m-4">
       <div className="w-full xl:relative flex justify-center flex-col xl:flex-row-reverse">
         <div className='flex justify-center items-center xl:h-[72px] mb-2 md:mb-0'>
           {jobRequest.title && 
@@ -99,7 +99,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
                   )}
                 </div>
                 {jobRequest.user.email && (
-                  <p className="text-sm text-gray-600">{jobRequest.user.email}</p>
+                  <p className="text-sm text-muted-foreground">{jobRequest.user.email}</p>
                 )}
               </div>
             </div>
@@ -153,7 +153,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
           <p>
             {jobRequest.docs.map((doc, index) => (
               doc.trim() !== '' && isSafeUrl(doc) && (
-                <a className="text-blue-500 hover:text-sky-500 hover:underline" key={index} href={doc} target="_blank" rel="noopener noreferrer">Document {index + 1}</a>
+                <a className="text-blue-500 hover:text-brand-accent hover:underline" key={index} href={doc} target="_blank" rel="noopener noreferrer">Document {index + 1}</a>
               )
             ))}
           </p>
@@ -195,7 +195,7 @@ const JobBox: React.FC<JobBoxProps> = ({ jobRequest }) => {
         </div>
       )}
       {jobRequest.createdAt && (
-        <div className="text-gray-500 flex gap-2 w-full justify-end"><p className='hidden sm:block'>posted</p>{formatDate(jobRequest.createdAt)}</div>
+        <div className="text-muted-foreground flex gap-2 w-full justify-end"><p className='hidden sm:block'>posted</p>{formatDate(jobRequest.createdAt)}</div>
       )}
     </div>
   );

@@ -64,17 +64,17 @@ const MODE_COLORS: Record<TradeMode, string> = {
 };
 
 const MODE_RING_CLASSES: Record<TradeMode, string> = {
-  p2p:        "ring-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+  p2p:        "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   self:       "ring-purple-500/20 bg-purple-500/10 text-purple-400",
-  dex:        "ring-sky-500/20 bg-sky-500/10 text-sky-400",
+  dex:        "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   paper:      "ring-amber-500/20 bg-amber-500/10 text-amber-400",
   localchain: "ring-orange-500/20 bg-orange-500/10 text-orange-400",
 };
 
 const MODE_BTN_ACTIVE: Record<TradeMode, string> = {
-  p2p:        "border-emerald-500/60 bg-emerald-500/10 text-emerald-300",
+  p2p:        "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-light",
   self:       "border-purple-500/60 bg-purple-500/10 text-purple-300",
-  dex:        "border-sky-500/60 bg-sky-500/10 text-sky-300",
+  dex:        "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-light",
   paper:      "border-amber-500/60 bg-amber-500/10 text-amber-300",
   localchain: "border-orange-500/60 bg-orange-500/10 text-orange-300",
 };
@@ -171,17 +171,17 @@ export default function TradingPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
         <div className="relative mb-6">
-          <div className="h-20 w-20 rounded-2xl bg-zinc-900/40 flex items-center justify-center">
-            <FiWifi className="h-8 w-8 text-zinc-600" />
+          <div className="h-20 w-20 rounded-2xl bg-surface-3/40 flex items-center justify-center">
+            <FiWifi className="h-8 w-8 text-muted-foreground" />
           </div>
           <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-amber-500/10 flex items-center justify-center">
             <FiAlertCircle className="h-3.5 w-3.5 text-amber-400" />
           </div>
         </div>
-        <h2 className="text-lg font-semibold text-zinc-200 mb-1">
+        <h2 className="text-lg font-semibold text-foreground/80 mb-1">
           Wallet Not Connected
         </h2>
-        <p className="text-sm text-zinc-400 text-center max-w-sm mb-4">
+        <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
           Connect a wallet from the sidebar to view your inventory and start trading.
         </p>
         <button
@@ -197,9 +197,9 @@ export default function TradingPage() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-zinc-950">
+    <div className="w-full h-full flex flex-col bg-surface-1">
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 shrink-0 bg-zinc-950/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-20 shrink-0 bg-surface-1/80 backdrop-blur-xl">
         {/* Top row: title + actions */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2.5">
@@ -207,10 +207,10 @@ export default function TradingPage() {
               {MODE_ICONS[mode]}
             </div>
             <div>
-              <h1 className="text-sm font-bold text-zinc-200 leading-tight">
+              <h1 className="text-sm font-bold text-foreground/80 leading-tight">
                 Trading Hub
               </h1>
-              <p className="text-[10px] text-zinc-500 leading-tight">
+              <p className="text-[10px] text-muted-foreground leading-tight">
                 {modeLabel}
                 {isSimulated && " · Simulated"}
               </p>
@@ -222,24 +222,24 @@ export default function TradingPage() {
           {/* Partner search — only in P2P mode */}
           {mode === "p2p" && !tradePartner && (
             <div className="relative">
-              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
                 value={partnerQuery}
                 onChange={(event) => setPartnerQuery(event.target.value)}
                 placeholder="Search user to trade..."
-                className="w-44 sm:w-56 rounded-lg border border-zinc-700/60 bg-zinc-900/60 pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:w-64 transition-all"
+                className="w-44 sm:w-56 rounded-lg border border-border/60 bg-surface-3/60 pl-8 pr-3 py-1.5 text-xs text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-accent/40 focus:w-64 transition"
               />
 
               {partnerQuery.trim().length >= 2 && (
-                <div className="absolute top-[calc(100%+4px)] right-0 z-40 w-72 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
+                <div className="absolute top-[calc(100%+4px)] right-0 z-40 w-72 rounded-xl border border-border bg-surface-3 shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
                   {/* Address book matches */}
                   {(() => {
                     const abResults = addressBook.search(partnerQuery.trim(), 3);
                     if (abResults.length === 0) return null;
                     return (
                       <>
-                        <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50 flex items-center gap-1">
+                        <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50 flex items-center gap-1">
                           <FiBookOpen className="h-2.5 w-2.5" />
                           Address Book
                         </div>
@@ -259,10 +259,10 @@ export default function TradingPage() {
                               setPartnerQuery("");
                               setPartnerResults([]);
                             }}
-                            className="w-full px-3 py-2 text-left text-xs hover:bg-emerald-800/20 transition-colors"
+                            className="w-full px-3 py-2 text-left text-xs hover:bg-brand-accent/20 transition-colors"
                           >
-                            <p className="font-medium text-emerald-300 truncate">{entry.nickname}</p>
-                            <p className="text-zinc-500 truncate text-[10px] font-mono">
+                            <p className="font-medium text-brand-accent-light truncate">{entry.nickname}</p>
+                            <p className="text-muted-foreground truncate text-[10px] font-mono">
                               {entry.address.slice(0, 10)}…{entry.address.slice(-6)}
                             </p>
                           </button>
@@ -273,13 +273,13 @@ export default function TradingPage() {
 
                   {/* User search results */}
                   {searchingPartners && (
-                    <p className="px-3 py-2 text-[11px] text-zinc-500">Searching…</p>
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground">Searching…</p>
                   )}
                   {!searchingPartners && partnerResults.length === 0 && addressBook.search(partnerQuery.trim(), 1).length === 0 && (
-                    <p className="px-3 py-2 text-[11px] text-zinc-500">No users found</p>
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground">No users found</p>
                   )}
                   {!searchingPartners && partnerResults.length > 0 && (
-                    <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50">
+                    <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50">
                       Users
                     </div>
                   )}
@@ -295,10 +295,10 @@ export default function TradingPage() {
                           setPartnerQuery("");
                           setPartnerResults([]);
                         }}
-                        className="w-full px-3 py-2 text-left text-xs hover:bg-zinc-800/80 transition-colors"
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-muted/80 transition-colors"
                       >
-                        <p className="font-medium text-zinc-200 truncate">{user.name ?? "Unknown user"}</p>
-                        <p className="text-zinc-500 truncate text-[10px]">{user.email ?? user.id}</p>
+                        <p className="font-medium text-foreground/80 truncate">{user.name ?? "Unknown user"}</p>
+                        <p className="text-muted-foreground truncate text-[10px]">{user.email ?? user.id}</p>
                       </button>
                     ))}
                 </div>
@@ -311,7 +311,7 @@ export default function TradingPage() {
             <button
               type="button"
               onClick={() => { setTradePartner(null); setSelfTradeOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/15 border border-purple-700/30 text-xs font-semibold text-purple-300 hover:bg-purple-600/25 hover:border-purple-600/50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/15 border border-purple-700/30 text-xs font-semibold text-purple-300 hover:bg-purple-600/25 hover:border-purple-600/50 transition"
               title="Transfer between your connected wallets"
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -321,13 +321,13 @@ export default function TradingPage() {
 
           {/* Active partner badge */}
           {tradePartner && (mode === "p2p" || mode === "localchain") && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-700/60 bg-emerald-900/20 text-[11px] text-emerald-300">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-brand-accent/60 bg-brand-accent/20 text-[11px] text-brand-accent-light">
               <FiUserPlus className="h-3 w-3" />
               <span className="max-w-24 truncate">{tradePartner.name ?? "Partner"}</span>
               <button
                 type="button"
                 onClick={handleCloseTradeWindow}
-                className="rounded p-0.5 hover:bg-emerald-800/40"
+                className="rounded p-0.5 hover:bg-brand-accent/40"
                 aria-label="Clear selected partner"
               >
                 <FiX className="h-2.5 w-2.5" />
@@ -340,7 +340,7 @@ export default function TradingPage() {
             <button
               type="button"
               onClick={handleCloseTradeWindow}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted hover:text-foreground/80 transition"
             >
               <FiX className="h-3 w-3" />
               Close Trade
@@ -351,10 +351,10 @@ export default function TradingPage() {
           <button
             type="button"
             onClick={() => setShowHistory((p) => !p)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border ${
               showHistory
-                ? "border-sky-500/50 bg-sky-500/10 text-sky-400"
-                : "border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
+                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground/80"
             }`}
             title="Trade History"
           >
@@ -375,7 +375,7 @@ export default function TradingPage() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap ${
                   mode === m
                     ? MODE_BTN_ACTIVE[m]
-                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                    : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
                 }`}
                 title={MODE_META[m].label}
               >
@@ -384,7 +384,7 @@ export default function TradingPage() {
               </button>
             ))}
           </div>
-          <div className="mt-2 h-px bg-zinc-800/40" />
+          <div className="mt-2 h-px bg-muted/40" />
         </div>
       </header>
 
@@ -418,8 +418,8 @@ export default function TradingPage() {
           {(isConnected || mode !== "paper") && (
             <section className="min-h-0">
               <div className="pb-2 flex items-center gap-2">
-                <FiPackage className="h-3.5 w-3.5 text-zinc-500" />
-                <h2 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Inventory</h2>
+                <FiPackage className="h-3.5 w-3.5 text-muted-foreground" />
+                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Inventory</h2>
               </div>
               <div>
                 <OsrsInventory
@@ -496,19 +496,19 @@ export default function TradingPage() {
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="flex flex-col items-center justify-center min-h-70 py-12 px-6 gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-zinc-800/20 flex items-center justify-center">
-                    <ArrowLeftRight className="h-5 w-5 text-zinc-600" />
+                  <div className="h-12 w-12 rounded-xl bg-muted/20 flex items-center justify-center">
+                    <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <h3 className="text-sm font-semibold text-zinc-400">No Active Trade</h3>
-                  <p className="text-[11px] text-zinc-500 text-center max-w-xs leading-relaxed">
+                  <h3 className="text-sm font-semibold text-muted-foreground">No Active Trade</h3>
+                  <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
                     {mode === "p2p" || mode === "localchain"
                       ? "Search for a user above to start a P2P trade, or click Transfer for an internal swap."
                       : mode === "self"
                         ? "Open a transfer window to move tokens between your connected wallets."
                         : "Select a trade mode to get started."}
                   </p>
-                  <p className="text-[9px] text-zinc-600 mt-1">
-                    💡 Drag items from inventory or <kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[8px]">Shift</kbd>+click to add
+                  <p className="text-[9px] text-muted-foreground mt-1">
+                    💡 Drag items from inventory or <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[8px]">Shift</kbd>+click to add
                   </p>
                 </div>
               </motion.div>
@@ -538,27 +538,27 @@ function PaperTradingInline() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-zinc-200">Paper Trading</h3>
+          <h3 className="text-sm font-semibold text-foreground/80">Paper Trading</h3>
           <span className="text-[9px] font-semibold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded">
             Simulated
           </span>
         </div>
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Trade crypto with virtual USD at real market prices. Zero risk, real learning.
           Track your P&L, sharpen your strategy, then go live.
         </p>
         <div className="space-y-2 py-2">
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Prices</span>
-            <span className="text-zinc-400">CoinGecko (live)</span>
+            <span className="text-muted-foreground">Prices</span>
+            <span className="text-muted-foreground">CoinGecko (live)</span>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Fee simulation</span>
-            <span className="text-zinc-400">0.3% (like Uniswap V3)</span>
+            <span className="text-muted-foreground">Fee simulation</span>
+            <span className="text-muted-foreground">0.3% (like Uniswap V3)</span>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Daily limit</span>
-            <span className="text-zinc-400">200 trades/day</span>
+            <span className="text-muted-foreground">Daily limit</span>
+            <span className="text-muted-foreground">200 trades/day</span>
           </div>
         </div>
         <a

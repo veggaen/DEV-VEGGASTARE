@@ -242,10 +242,10 @@ export function ImagePositionAdjuster({
                 aria-hidden
                 className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${dragging ? "opacity-100" : "opacity-0"}`}
               >
-                <div className="absolute left-1/3 top-0 h-full w-px bg-white/40" />
-                <div className="absolute left-2/3 top-0 h-full w-px bg-white/40" />
-                <div className="absolute top-1/3 left-0 w-full h-px bg-white/40" />
-                <div className="absolute top-2/3 left-0 w-full h-px bg-white/40" />
+                <div className="absolute left-1/3 top-0 h-full w-px bg-surface-1/40" />
+                <div className="absolute left-2/3 top-0 h-full w-px bg-surface-1/40" />
+                <div className="absolute top-1/3 left-0 w-full h-px bg-surface-1/40" />
+                <div className="absolute top-2/3 left-0 w-full h-px bg-surface-1/40" />
               </div>
               {/* Circular mask preview for avatars */}
               {round && (

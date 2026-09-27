@@ -48,7 +48,7 @@ export function StatusDot({
           className={cn(
             "absolute inline-flex rounded-full opacity-75 animate-ping",
             pulseSizeClasses[size],
-            status === "LIVE" ? "bg-purple-400" : "bg-emerald-400"
+            status === "LIVE" ? "bg-purple-400" : "bg-brand-accent-light"
           )}
           style={{
             animationDuration: status === "LIVE" ? "1s" : "1.5s",
@@ -76,10 +76,10 @@ export function StatusDot({
           "relative inline-flex rounded-full",
           sizeClasses[size],
           // Status-specific colors
-          status === "ONLINE" && "bg-emerald-500",
+          status === "ONLINE" && "bg-brand-accent",
           status === "IDLE" && "bg-amber-500",
           status === "DND" && "bg-rose-500",
-          status === "OFFLINE" && "bg-zinc-400 dark:bg-zinc-600",
+          status === "OFFLINE" && "bg-muted",
           status === "LIVE" && "bg-purple-500",
           status === "SYNCING" && "bg-blue-500 animate-pulse"
         )}
@@ -137,7 +137,7 @@ export function StatusLabel({
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs", className)}>
       {showIcon && <StatusDot status={status} size="xs" showPulse={false} />}
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-muted-foreground">
         {config.label}
       </span>
     </span>

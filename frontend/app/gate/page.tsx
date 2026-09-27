@@ -59,24 +59,24 @@ export default function GatePage() {
   }, [password, redirectTo]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950">
+    <div className="min-h-screen flex flex-col bg-surface-1">
       {/* Clean solid background */}
       <div 
-        className="fixed inset-0 pointer-events-none bg-neutral-950"
+        className="fixed inset-0 pointer-events-none bg-surface-1"
       />
 
       {/* Main content - centered */}
       <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-12">
         <div 
-          className={`w-full max-w-md p-8 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl ${
+          className={`w-full max-w-md p-8 rounded-2xl bg-surface-3 border border-border shadow-2xl ${
             shake ? 'motion-safe:animate-shake' : ''
           }`}
         >
           {/* Logo/Brand */}
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">🔐</div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">VeggaStare</h1>
-            <p className="text-sm text-neutral-400 mt-3">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">VeggaStare</h1>
+            <p className="text-sm text-muted-foreground mt-3">
               This site is currently in private testing mode.
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function GatePage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="access-password" className="block text-sm font-medium text-neutral-300 mb-2">
+              <label htmlFor="access-password" className="block text-sm font-medium text-foreground/80 mb-2">
                 Access Password
               </label>
               <input
@@ -93,7 +93,7 @@ export default function GatePage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-neutral-600 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-border focus:border-border transition"
                 autoComplete="off"
                 disabled={isLoading}
               />
@@ -108,7 +108,7 @@ export default function GatePage() {
             <button
               type="submit"
               disabled={isLoading || !password.trim()}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              className="w-full py-3 px-4 rounded-xl bg-brand-accent-hover hover:bg-brand-accent disabled:bg-muted disabled:cursor-not-allowed text-brand-accent-foreground font-medium transition focus:outline-none focus:ring-2 focus:ring-brand-accent/50"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -124,29 +124,29 @@ export default function GatePage() {
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-zinc-500 text-center">
+          <p className="mt-6 text-xs text-muted-foreground text-center">
             Contact administrator for access credentials.
           </p>
         </div>
       </main>
 
       {/* Minimal footer with legal links */}
-      <footer className="relative z-10 py-6 border-t border-zinc-800/50">
+      <footer className="relative z-10 py-6 border-t border-border/50">
         <div className="max-w-md mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-500">
-            <Link href="/privacy" className="hover:text-zinc-300 transition-colors">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+            <Link href="/privacy" className="hover:text-foreground/80 transition-colors">
               Personvern
             </Link>
-            <span className="text-zinc-700">•</span>
-            <Link href="/terms" className="hover:text-zinc-300 transition-colors">
+            <span className="text-foreground">•</span>
+            <Link href="/terms" className="hover:text-foreground/80 transition-colors">
               Salgsvilkår
             </Link>
-            <span className="text-zinc-700">•</span>
-            <Link href="/info" className="hover:text-zinc-300 transition-colors">
+            <span className="text-foreground">•</span>
+            <Link href="/info" className="hover:text-foreground/80 transition-colors">
               Om oss
             </Link>
           </div>
-          <p className="mt-3 text-center text-xs text-zinc-600">
+          <p className="mt-3 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} THORSEN SOFTWARE · Org.nr 937 051 107
           </p>
         </div>

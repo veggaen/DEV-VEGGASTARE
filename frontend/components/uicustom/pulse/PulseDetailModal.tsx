@@ -551,10 +551,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
             {/* Header */}
             <div className="relative flex shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3 py-2 sm:px-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20">
-                  <FiTrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent/20">
+                  <FiTrendingUp className="h-4 w-4 text-brand-accent-hover dark:text-brand-accent-light" />
                 </div>
-                <span className="text-sm font-medium text-foreground/80 dark:text-white/80">Pulse</span>
+                <span className="text-sm font-medium text-foreground/80">Pulse</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -564,7 +564,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                   aria-label={copied ? 'Copied link' : 'Share'}
                   className="min-h-11 gap-1.5 text-muted-foreground hover:bg-muted hover:text-foreground max-sm:size-11 max-sm:p-0"
                 >
-                  {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-500" /> : <FiCopy className="h-3.5 w-3.5" />}
+                  {copied ? <FiCheck className="h-3.5 w-3.5 text-brand-accent" /> : <FiCopy className="h-3.5 w-3.5" />}
                   <span className="hidden text-xs sm:inline">{copied ? 'Copied!' : 'Share'}</span>
                 </Button>
                 <Button
@@ -591,7 +591,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
             {/* Advanced Poll Banner - Show when pulse has an advanced poll */}
             {effectiveAdvancedPoll && (
-              <div className="border-b border-emerald-500/20 bg-linear-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10">
+              <div className="border-b border-brand-accent/20 bg-linear-to-r from-brand-accent/10 via-cyan-500/10 to-brand-accent/10">
                 <button
                   onClick={() => {
                     if (onOpenPoll) {
@@ -605,15 +605,15 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                       onClose();
                     }
                   }}
-                  className="w-full px-5 py-3 flex items-center justify-between hover:bg-emerald-500/10 transition-colors group"
+                  className="w-full px-5 py-3 flex items-center justify-between hover:bg-brand-accent/10 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light">
                       <FiBarChart2 className="h-5 w-5" />
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-sm">
+                        <span className="font-semibold text-brand-accent-hover dark:text-brand-accent-light text-sm">
                           {effectiveAdvancedPoll.type === 'REACH_ASSESSMENT' ? '🎯 ' : '📊 '}
                           {effectiveAdvancedPoll.title}
                         </span>
@@ -629,7 +629,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-2 text-brand-accent-hover dark:text-brand-accent-light">
                     <span className="text-sm font-medium group-hover:underline">Take Poll</span>
                     <FiArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </div>
@@ -656,7 +656,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                 <div
                   ref={scrollRef}
                   data-pulse-detail-scroll
-                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10"
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border"
                 >
                   <div className="p-5">
                     {loading ? (
@@ -677,9 +677,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                             side="right"
                             align="start"
                           >
-                            <Avatar className="relative h-12 w-12 ring-2 ring-emerald-500/30">
+                            <Avatar className="relative h-12 w-12 ring-2 ring-brand-accent/30">
                               <AvatarImage src={pulse.user?.image || undefined} />
-                              <AvatarFallback className="bg-emerald-600 text-white font-semibold">
+                              <AvatarFallback className="bg-brand-accent-hover text-brand-accent-foreground font-semibold">
                                 {pulse.user?.name?.[0]?.toUpperCase() || '?'}
                               </AvatarFallback>
                             </Avatar>
@@ -696,12 +696,12 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                               side="bottom"
                               align="start"
                             >
-                              <span className="font-semibold text-foreground dark:text-white">
+                              <span className="font-semibold text-foreground">
                                 {pulse.user?.name || 'Anonymous'}
                               </span>
                             </UserHoverCard>
-                            <span className="text-muted-foreground/50 dark:text-white/30">·</span>
-                            <span className="text-sm text-muted-foreground dark:text-white/50">
+                            <span className="text-muted-foreground/50">·</span>
+                            <span className="text-sm text-muted-foreground">
                               {formatDistanceToNowStrict(new Date(pulse.createdAt), { addSuffix: true })}
                             </span>
                           </div>
@@ -709,14 +709,14 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                           {/* Content - NO TRUNCATION */}
                           <div className="mt-3 space-y-2">
                             {titleText && (
-                              <p className="text-[15px] leading-relaxed text-foreground/95 dark:text-white/95 whitespace-pre-wrap break-words">
+                              <p className="text-[15px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">
                                 {titleText}
                               </p>
                             )}
                             {bodyText && (
                               <RichTextContent
                                 content={bodyText}
-                                className="text-[15px] leading-relaxed text-foreground/80 dark:text-white/80"
+                                className="text-[15px] leading-relaxed text-foreground/80"
                                 embedYouTube={true}
                                 maxYouTubeEmbeds={3}
                               />
@@ -757,14 +757,14 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                             </div>
                             
                             {/* Vibes (comments) */}
-                            <div className="flex items-center gap-2 text-muted-foreground dark:text-white/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
                               <FiMessageCircle className="h-4 w-4" />
                               <span>{messages.length}</span>
                             </div>
                             
                             {/* Reposts */}
                             {pulse.repostCount !== undefined && pulse.repostCount > 0 && (
-                              <div className="flex items-center gap-2 text-muted-foreground dark:text-white/50">
+                              <div className="flex items-center gap-2 text-muted-foreground">
                                 <FiRepeat className="h-4 w-4" />
                                 <span>{pulse.repostCount}</span>
                               </div>
@@ -773,13 +773,13 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                             {/* Views with unique on hover */}
                             {pulse.viewCount !== undefined && pulse.viewCount > 0 && (
                               <div 
-                                className="group/views relative flex items-center gap-2 text-muted-foreground dark:text-white/50 cursor-default"
+                                className="group/views relative flex items-center gap-2 text-muted-foreground cursor-default"
                                 title={pulse.uniqueViewCount ? `${pulse.uniqueViewCount} unique viewers` : undefined}
                               >
                                 <FiEye className="h-4 w-4" />
                                 <span>{pulse.viewCount.toLocaleString()}</span>
                                 {pulse.uniqueViewCount !== undefined && pulse.uniqueViewCount > 0 && (
-                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 dark:bg-zinc-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover/views:opacity-100 pointer-events-none">
+                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-muted px-2 py-1 text-xs text-foreground opacity-0 transition-opacity group-hover/views:opacity-100 pointer-events-none">
                                     {pulse.uniqueViewCount} unique
                                   </span>
                                 )}
@@ -790,7 +790,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                             <div className="ml-auto">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <button className="p-1.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                  <button className="p-1.5 rounded-full hover:bg-muted transition-colors">
                                     <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                   </button>
                                 </DropdownMenuTrigger>
@@ -837,10 +837,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                     {/* Divider */}
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-zinc-200 dark:border-white/10" />
+                        <div className="w-full border-t border-border" />
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="bg-white dark:bg-zinc-900 px-3 text-xs font-medium text-muted-foreground dark:text-white/40">
+                        <span className="bg-card px-3 text-xs font-medium text-muted-foreground">
                           {messages.length > 0 ? `${messages.length} vibes` : 'No vibes yet'}
                         </span>
                       </div>
@@ -860,9 +860,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                       }
 
                       const renderVibe = (message: Message, depth: number) => (
-                        <div key={message.id} className={depth > 0 ? 'ml-6 border-l-2 border-zinc-200 dark:border-white/10 pl-3' : ''}>
+                        <div key={message.id} className={depth > 0 ? 'ml-6 border-l-2 border-border pl-3' : ''}>
                           <div
-                            className={`group/vibe flex gap-3 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 p-3 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
+                            className={`group/vibe flex gap-3 rounded-xl bg-muted p-3 transition-colors hover:bg-muted ${
                               deletingMessageId === message.id ? 'opacity-50' : ''
                             }`}
                           >
@@ -873,9 +873,9 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                               side="right"
                               align="start"
                             >
-                              <Avatar className={`${depth > 0 ? 'h-7 w-7' : 'h-9 w-9'} shrink-0 ring-1 ring-zinc-200 dark:ring-white/10`}>
+                              <Avatar className={`${depth > 0 ? 'h-7 w-7' : 'h-9 w-9'} shrink-0 ring-1 ring-border`}>
                                 <AvatarImage src={message.sender?.image || undefined} />
-                                <AvatarFallback className="bg-zinc-500 dark:bg-zinc-600 text-sm text-white">
+                                <AvatarFallback className="bg-muted text-sm text-foreground">
                                   {message.sender?.name?.[0]?.toUpperCase() || '?'}
                                 </AvatarFallback>
                               </Avatar>
@@ -890,22 +890,22 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                     side="bottom"
                                     align="start"
                                   >
-                                    <span className="text-sm font-medium text-foreground/90 dark:text-white/90">
+                                    <span className="text-sm font-medium text-foreground/90">
                                       {message.sender?.name || 'Anonymous'}
                                     </span>
                                   </UserHoverCard>
-                                  <span className="text-xs text-muted-foreground dark:text-white/40">
+                                  <span className="text-xs text-muted-foreground">
                                     {formatDistanceToNowStrict(new Date(message.createdAt), { addSuffix: true })}
                                   </span>
                                   {message.editedAt && (
-                                    <span className="text-xs text-muted-foreground/70 dark:text-white/30">(edited)</span>
+                                    <span className="text-xs text-muted-foreground/70">(edited)</span>
                                   )}
                                 </div>
 
                                 {/* Three-dot menu — visible for ALL users */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button className="p-1 rounded opacity-0 group-hover/vibe:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all">
+                                    <button className="p-1 rounded opacity-0 group-hover/vibe:opacity-100 hover:bg-muted transition">
                                       <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                     </button>
                                   </DropdownMenuTrigger>
@@ -940,7 +940,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                           <FiEdit2 className="h-4 w-4 mr-2" />
                                           Edit
                                           {isPlatformAdmin && currentUser?.id !== message.sender?.id && (
-                                            <span className="ml-auto text-[10px] px-1 py-0.5 bg-zinc-200 dark:bg-zinc-700 rounded">Admin</span>
+                                            <span className="ml-auto text-[10px] px-1 py-0.5 bg-muted rounded">Admin</span>
                                           )}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
@@ -950,7 +950,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                           <FiTrash2 className="h-4 w-4 mr-2" />
                                           Delete
                                           {isPlatformAdmin && currentUser?.id !== message.sender?.id && (
-                                            <span className="ml-auto text-[10px] px-1 py-0.5 bg-zinc-200 dark:bg-zinc-700 rounded">Admin</span>
+                                            <span className="ml-auto text-[10px] px-1 py-0.5 bg-muted rounded">Admin</span>
                                           )}
                                         </DropdownMenuItem>
                                       </>
@@ -991,7 +991,7 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                               ) : (
                                 <RichTextContent
                                   content={message.content}
-                                  className="mt-1 text-sm leading-relaxed text-foreground/80 dark:text-white/80"
+                                  className="mt-1 text-sm leading-relaxed text-foreground/80"
                                   embedYouTube={true}
                                   maxYouTubeEmbeds={1}
                                 />
@@ -1004,8 +1004,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                   type="button"
                                   disabled={!currentUser || pulsingVibeId === message.id}
                                   onClick={() => void handleVibeHeartbeat(message.id)}
-                                  className={`flex items-center gap-1 text-xs transition-all hover:text-red-500 ${
-                                    message.hasHeartbeated ? 'text-red-500' : 'text-muted-foreground dark:text-white/40'
+                                  className={`flex items-center gap-1 text-xs transition hover:text-red-500 ${
+                                    message.hasHeartbeated ? 'text-red-500' : 'text-muted-foreground'
                                   }`}
                                 >
                                   <PulseHeart
@@ -1023,8 +1023,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                   type="button"
                                   disabled={!currentUser}
                                   onClick={() => setReplyingToId(replyingToId === message.id ? null : message.id)}
-                                  className={`flex items-center gap-1 text-xs transition-all hover:text-emerald-500 ${
-                                    replyingToId === message.id ? 'text-emerald-500' : 'text-muted-foreground dark:text-white/40'
+                                  className={`flex items-center gap-1 text-xs transition hover:text-brand-accent ${
+                                    replyingToId === message.id ? 'text-brand-accent' : 'text-muted-foreground'
                                   }`}
                                 >
                                   <FiCornerDownRight className="h-3.5 w-3.5" />
@@ -1038,8 +1038,8 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
                                   type="button"
                                   disabled={!currentUser || repulsingVibeId === message.id}
                                   onClick={() => void handleVibeRepulse(message.id)}
-                                  className={`flex items-center gap-1 text-xs transition-all hover:text-cyan-500 ${
-                                    message.hasRepulsed ? 'text-cyan-500' : 'text-muted-foreground dark:text-white/40'
+                                  className={`flex items-center gap-1 text-xs transition hover:text-cyan-500 ${
+                                    message.hasRepulsed ? 'text-cyan-500' : 'text-muted-foreground'
                                   }`}
                                 >
                                   <FiRepeat className="h-3.5 w-3.5" />
@@ -1051,13 +1051,13 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
                               {/* Inline reply input */}
                               {replyingToId === message.id && currentUser && (
-                                <div className="mt-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 p-2 border border-zinc-200 dark:border-white/10">
+                                <div className="mt-3 rounded-lg bg-muted/40 p-2 border border-border">
                                   <div className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
                                     <FiCornerDownRight className="h-3 w-3" />
-                                    <span>Replying to <strong className="text-foreground/80 dark:text-white/70">{message.sender?.name || 'Anonymous'}</strong></span>
+                                    <span>Replying to <strong className="text-foreground/80">{message.sender?.name || 'Anonymous'}</strong></span>
                                     <button
                                       onClick={() => setReplyingToId(null)}
-                                      className="ml-auto p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                      className="ml-auto p-0.5 rounded hover:bg-muted"
                                     >
                                       <FiX className="h-3 w-3" />
                                     </button>
@@ -1088,10 +1088,10 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
                           {messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-8 text-center">
-                              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                                <FiMessageCircle className="h-6 w-6 text-muted-foreground dark:text-white/30" />
+                              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                <FiMessageCircle className="h-6 w-6 text-muted-foreground" />
                               </div>
-                              <p className="text-sm text-muted-foreground dark:text-white/50">Be the first to drop a vibe</p>
+                              <p className="text-sm text-muted-foreground">Be the first to drop a vibe</p>
                             </div>
                           )}
                         </div>
@@ -1104,18 +1104,18 @@ export function PulseDetailModal({ pulseId, onClose, onTagClick, advancedPoll, o
 
                 {/* Message input */}
                 {currentUser ? (
-                  <div className="shrink-0 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+                  <div className="shrink-0 border-t border-border bg-muted/40 p-4">
                     <MessageInput
                       conversationId={pulseId!}
                       onMessageSent={handleMessageSent}
                     />
                   </div>
                 ) : (
-                  <div className="shrink-0 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
-                    <p className="text-center text-sm text-muted-foreground dark:text-white/50">
+                  <div className="shrink-0 border-t border-border bg-muted/40 p-4">
+                    <p className="text-center text-sm text-muted-foreground">
                       <Button
                         variant="link"
-                        className="h-auto p-0 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="h-auto p-0 text-brand-accent-hover dark:text-brand-accent-light hover:text-brand-accent-hover hover:dark:text-brand-accent-light"
                         onClick={() => router.push('/auth/login')}
                       >
                         Sign in

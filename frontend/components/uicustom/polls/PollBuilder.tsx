@@ -272,7 +272,7 @@ const CAPABILITY_BADGES: Record<AiModelCapability, { label: string; color: strin
   vision:         { label: "Vision",    color: "bg-blue-500/15 text-blue-400 border-blue-500/20",      tip: "Supports image inputs (screenshots, photos)" },
   tools:          { label: "Tools",     color: "bg-amber-500/15 text-amber-400 border-amber-500/20",    tip: "Function calling & tool use" },
   reasoning:      { label: "Reasoning", color: "bg-purple-500/15 text-purple-400 border-purple-500/20",  tip: "Chain-of-thought reasoning for complex tasks" },
-  fast:           { label: "Fast",      color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", tip: "Optimised for speed" },
+  fast:           { label: "Fast",      color: "bg-brand-accent/15 text-brand-accent border-brand-accent/20", tip: "Optimised for speed" },
   cheap:          { label: "Cheap",     color: "bg-lime-500/15 text-lime-400 border-lime-500/20",        tip: "Very low cost per request" },
   flagship:       { label: "Flagship",  color: "bg-violet-500/15 text-violet-400 border-violet-500/20",  tip: "Top-tier model — best quality" },
   coding:         { label: "Code",      color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",       tip: "Optimised for code generation" },
@@ -775,7 +775,7 @@ function SectionItem({
       {...(wrapperProps as any)}
       className={cn(
         "rounded-lg overflow-hidden relative",
-        depth === 0 ? "bg-zinc-900/70" : "bg-zinc-800/50 ml-4 border-l-2 border-l-primary/30",
+        depth === 0 ? "bg-surface-3/70" : "bg-muted/50 ml-4 border-l-2 border-l-primary/30",
         isDropTarget && dropMode === "into" && "ring-2 ring-dashed ring-primary/70",
         isDropTarget && dropMode === "alongside" && "ring-2 ring-dashed ring-amber-500/70",
         isSelected && !isDraggingQuestion && "ring-1 ring-primary/40 bg-primary/[0.03]"
@@ -785,21 +785,21 @@ function SectionItem({
       {isDraggingQuestion && (
         <div 
           className={cn(
-            "absolute inset-0 z-20 flex items-center justify-center transition-all duration-200 pointer-events-none",
+            "absolute inset-0 z-20 flex items-center justify-center transition duration-200 pointer-events-none",
             isDropTarget && dropMode === 'into'
               ? "bg-primary/30 border-2 border-dashed border-primary" 
               : isDropTarget && dropMode === 'alongside'
               ? "bg-amber-500/20 border-2 border-dashed border-amber-500"
-              : "bg-zinc-800/40 border-2 border-dashed border-zinc-600"
+              : "bg-muted/40 border-2 border-dashed border-border"
           )}
         >
           <div className={cn(
-            "px-3 py-1.5 rounded-full text-sm font-medium shadow-lg transition-all flex items-center gap-2",
+            "px-3 py-1.5 rounded-full text-sm font-medium shadow-lg transition flex items-center gap-2",
             isDropTarget && dropMode === 'into'
               ? "bg-primary/90 text-primary-foreground scale-110" 
               : isDropTarget && dropMode === 'alongside'
               ? "bg-amber-500/90 text-amber-950 scale-110"
-              : "bg-zinc-700/90 text-zinc-300"
+              : "bg-muted/90 text-foreground/80"
           )}>
             {isDropTarget 
               ? dropMode === 'alongside' 
@@ -814,26 +814,26 @@ function SectionItem({
         </div>
       )}
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
-        <div className="flex items-center gap-2 p-3 hover:bg-zinc-800/50 transition-colors group/section">
+        <div className="flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors group/section">
           {/* Larger drag handle area - entire left side is draggable */}
           <div
-            className="shrink-0 touch-none cursor-grab active:cursor-grabbing p-2 -m-2 rounded-lg hover:bg-zinc-700/30 transition-colors select-none"
+            className="shrink-0 touch-none cursor-grab active:cursor-grabbing p-2 -m-2 rounded-lg hover:bg-muted/30 transition-colors select-none"
             onPointerDown={(e) => {
               e.preventDefault();
               dragControls.start(e);
             }}
           >
             <div className="flex flex-col items-center gap-0.5">
-              <GripVertical className="h-5 w-5 text-zinc-600 group-hover/section:text-zinc-400 transition-colors" />
-              <span className="text-[8px] text-zinc-600 group-hover/section:text-zinc-500 uppercase tracking-wider">drag</span>
+              <GripVertical className="h-5 w-5 text-muted-foreground group-hover/section:text-muted-foreground transition-colors" />
+              <span className="text-[8px] text-muted-foreground group-hover/section:text-muted-foreground uppercase tracking-wider">drag</span>
             </div>
           </div>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-zinc-400" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-zinc-400" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
             </Button>
           </CollapsibleTrigger>
@@ -843,11 +843,11 @@ function SectionItem({
             <FolderOpen className="h-4 w-4 text-primary" />
           )}
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-zinc-200 truncate">
+            <span className="text-sm font-medium text-foreground/80 truncate">
               {section.title || "Untitled Section"}
             </span>
           </div>
-          <span className="text-xs text-zinc-500 hidden sm:block">
+          <span className="text-xs text-muted-foreground hidden sm:block">
             {sectionQuestions.length} Q{childSections.length > 0 && ` • ${childSections.length} sub`}
           </span>
           {/* Selection indicator */}
@@ -860,7 +860,7 @@ function SectionItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-zinc-500 hover:text-zinc-300"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground/80"
               onClick={() => onMove("up")}
               disabled={isFirst}
             >
@@ -869,7 +869,7 @@ function SectionItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-zinc-500 hover:text-zinc-300"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground/80"
               onClick={() => onMove("down")}
               disabled={isLast}
             >
@@ -882,7 +882,7 @@ function SectionItem({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 text-zinc-500 hover:text-amber-400"
+                    className="h-6 w-6 text-muted-foreground hover:text-amber-400"
                     onClick={(e) => {
                       e.stopPropagation();
                       onMoveToTopLevel(section.id);
@@ -899,7 +899,7 @@ function SectionItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-zinc-500 hover:text-destructive"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
               onClick={() => onRemove(false)}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -908,28 +908,28 @@ function SectionItem({
         </div>
 
         <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-3 border-t border-zinc-800/50 pt-3">
+          <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
             {/* Icon & Title Row */}
             <div className="flex items-end gap-3">
               {/* Compact Icon Picker */}
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Icon</Label>
+                <Label className="text-xs text-muted-foreground">Icon</Label>
                 <Popover onOpenChange={(open) => !open && setEmojiSearch("")}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-9 w-9 shrink-0 bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-700/50"
+                      className="h-9 w-9 shrink-0 bg-muted/50 border-border/50 hover:bg-muted/50"
                     >
                       {section.icon ? (
                         <span className="text-lg">{section.icon}</span>
                       ) : (
-                        <Smile className="h-4 w-4 text-zinc-500" />
+                        <Smile className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </PopoverTrigger>
                 <PopoverContent 
-                  className="w-72 p-2 bg-zinc-900 border-zinc-700 z-100" 
+                  className="w-72 p-2 bg-surface-3 border-border z-100" 
                   sideOffset={5}
                   onWheel={(e) => e.stopPropagation()}
                   onTouchMove={(e) => e.stopPropagation()}
@@ -940,7 +940,7 @@ function SectionItem({
                       placeholder="Search icons... (e.g. chart, money, star)"
                       value={emojiSearch}
                       onChange={(e) => setEmojiSearch(e.target.value)}
-                      className="h-8 text-xs bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600 placeholder:text-zinc-500"
+                      className="h-8 text-xs bg-muted/50 border-border/50 focus:border-border placeholder:text-muted-foreground"
                     />
                   </div>
                   <div 
@@ -954,7 +954,7 @@ function SectionItem({
                           type="button"
                           onClick={() => onUpdate({ icon: opt.emoji })}
                           className={cn(
-                            "w-7 h-7 text-lg rounded hover:bg-zinc-700 transition-colors flex items-center justify-center",
+                            "w-7 h-7 text-lg rounded hover:bg-muted transition-colors flex items-center justify-center",
                             section.icon === opt.emoji && "bg-primary/20 ring-1 ring-primary"
                           )}
                         >
@@ -962,7 +962,7 @@ function SectionItem({
                         </button>
                       ))
                     ) : (
-                      <div className="col-span-8 py-4 text-center text-xs text-zinc-500">
+                      <div className="col-span-8 py-4 text-center text-xs text-muted-foreground">
                         No icons found for &quot;{emojiSearch}&quot;
                       </div>
                     )}
@@ -972,7 +972,7 @@ function SectionItem({
                       variant="ghost"
                       size="sm"
                       type="button"
-                      className="w-full mt-2 text-xs text-zinc-500"
+                      className="w-full mt-2 text-xs text-muted-foreground"
                       onClick={() => onUpdate({ icon: "" })}
                     >
                       Clear icon
@@ -984,35 +984,35 @@ function SectionItem({
 
               {/* Title Input */}
               <div className="flex-1 space-y-1">
-                <Label className="text-xs text-zinc-400">Section Title</Label>
+                <Label className="text-xs text-muted-foreground">Section Title</Label>
                 <Input
                   value={section.title}
                   onChange={(e) => onUpdate({ title: e.target.value })}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   placeholder="Enter section title..."
-                  className="h-9 text-sm bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600"
+                  className="h-9 text-sm bg-muted/50 border-border/50 focus:border-border"
                 />
               </div>
             </div>
 
             {/* Description - Full Width */}
             <div className="space-y-1">
-              <Label className="text-xs text-zinc-400">Description</Label>
+              <Label className="text-xs text-muted-foreground">Description</Label>
               <Textarea
                 value={section.description || ""}
                 onChange={(e) => onUpdate({ description: e.target.value })}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 placeholder="Optional section description..."
-                className="min-h-[60px] text-sm bg-zinc-800/50 border-zinc-700/50 focus:border-zinc-600 resize-none"
+                className="min-h-[60px] text-sm bg-muted/50 border-border/50 focus:border-border resize-none"
               />
             </div>
 
             {/* Nested Sections */}
             {childSections.length > 0 && (
               <div className="space-y-2 pt-2">
-                <Label className="text-xs text-zinc-500">Nested Sections</Label>
+                <Label className="text-xs text-muted-foreground">Nested Sections</Label>
                 <Reorder.Group
                   axis="y"
                   values={childSections.map(s => s.id)}
@@ -1083,7 +1083,7 @@ function SectionItem({
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-zinc-500 hover:text-zinc-300"
+              className="gap-1 text-muted-foreground hover:text-foreground/80"
               onClick={onAddSubsection}
             >
               <FolderPlus className="h-3 w-3" />
@@ -1092,12 +1092,12 @@ function SectionItem({
 
             {/* Questions in this section - full editors */}
             {sectionQuestions.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-zinc-800/50 mt-2">
+              <div className="space-y-2 pt-2 border-t border-border/50 mt-2">
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-zinc-500">
+                  <Label className="text-xs text-muted-foreground">
                     Questions ({sectionQuestions.length})
                   </Label>
-                  <span className="text-[10px] text-zinc-600 flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <GripVertical className="h-2.5 w-2.5" />
                     Drag to reorder
                   </span>
@@ -1155,7 +1155,7 @@ function QuestionDragItem({
       value={question.id}
       dragListener={false}
       dragControls={dragControls}
-      className="flex items-center gap-2 text-sm bg-zinc-800/30 rounded hover:bg-zinc-800/50 transition-colors group"
+      className="flex items-center gap-2 text-sm bg-muted/30 rounded hover:bg-muted/50 transition-colors group"
       whileDrag={{
         scale: 1.03,
         boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
@@ -1165,21 +1165,21 @@ function QuestionDragItem({
     >
       {/* Larger drag handle - left side of question */}
       <div
-        className="shrink-0 touch-none cursor-grab active:cursor-grabbing py-2 pl-2 pr-1 rounded-l hover:bg-zinc-700/40 transition-colors select-none flex items-center"
+        className="shrink-0 touch-none cursor-grab active:cursor-grabbing py-2 pl-2 pr-1 rounded-l hover:bg-muted/40 transition-colors select-none flex items-center"
         onPointerDown={(e) => {
           e.preventDefault();
           dragControls.start(e);
         }}
       >
-        <GripVertical className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+        <GripVertical className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
       </div>
-      <span className="truncate flex-1 text-zinc-300 py-2">
+      <span className="truncate flex-1 text-foreground/80 py-2">
         {question.questionText || "Untitled question"}
       </span>
       <Button
         variant="ghost"
         size="sm"
-        className="h-5 px-2 mr-2 text-[10px] text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="h-5 px-2 mr-2 text-[10px] text-muted-foreground hover:text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={onRemove}
       >
         Remove
@@ -1244,7 +1244,7 @@ function TopLevelQuestionReorderItem({
       dragControls={dragControls}
       className={cn(
         "rounded-lg overflow-hidden relative transition-[margin,padding] duration-150",
-        index % 2 === 0 ? "bg-zinc-800/70 border border-zinc-700/50" : "bg-zinc-900/70 border border-zinc-800/50",
+        index % 2 === 0 ? "bg-muted/70 border border-border/50" : "bg-surface-3/70 border border-border/50",
         draggingSectionId && "opacity-50 pointer-events-none",
         insertBefore && "mt-7"
       )}
@@ -1267,45 +1267,45 @@ function TopLevelQuestionReorderItem({
     >
       {insertBefore && (
         <div className="absolute -top-5 left-0 right-0 flex items-center justify-center pointer-events-none z-20">
-          <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+          <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-surface-3 text-primary/90">Drop here</div>
         </div>
       )}
       <Collapsible open={isThisExpanded} onOpenChange={onToggleExpand}>
-        <div className="flex items-center gap-2 p-3 hover:bg-zinc-700/30 transition-colors group/bq">
+        <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors group/bq">
           <div
-            className="shrink-0 p-2 -m-2 rounded-lg hover:bg-zinc-700/30 cursor-grab active:cursor-grabbing touch-none select-none"
+            className="shrink-0 p-2 -m-2 rounded-lg hover:bg-muted/30 cursor-grab active:cursor-grabbing touch-none select-none"
             onPointerDown={(e) => dragControls.start(e)}
           >
-            <GripVertical className="h-4 w-4 text-zinc-600 group-hover/bq:text-zinc-400" />
+            <GripVertical className="h-4 w-4 text-muted-foreground group-hover/bq:text-muted-foreground" />
           </div>
           <div className="p-1.5 bg-amber-500/20 rounded shrink-0">
             <FileText className="h-3.5 w-3.5 text-amber-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200 truncate">{question.questionText || "Untitled question"}</p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-sm font-medium text-foreground/80 truncate">{question.questionText || "Untitled question"}</p>
+            <p className="text-xs text-muted-foreground">
               {question.type.replace("_", " ")} • {question.required ? "Required" : "Optional"}
             </p>
           </div>
           <span className="text-[10px] text-amber-400/70 px-1.5 py-0.5 bg-amber-500/10 rounded shrink-0">Top-level</span>
           <div className="flex items-center gap-0.5 shrink-0">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-zinc-300">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground/80">
                 {isThisExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </Button>
             </CollapsibleTrigger>
-            <Button variant="ghost" size="icon" onClick={() => removeQuestion(question.id)} className="h-7 w-7 text-zinc-500 hover:text-destructive">
+            <Button variant="ghost" size="icon" onClick={() => removeQuestion(question.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive">
               <Trash2 className="h-3 w-3" />
             </Button>
           </div>
         </div>
         <CollapsibleContent>
-          <div className="p-4 pt-0 space-y-4 border-t border-zinc-700/50">
+          <div className="p-4 pt-0 space-y-4 border-t border-border/50">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
               <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Question Type</Label>
+                <Label className="text-xs text-muted-foreground">Question Type</Label>
                 <Select value={question.type} onValueChange={(v) => updateQuestion(question.id, { type: v as QuestionType })}>
-                  <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1319,7 +1319,7 @@ function TopLevelQuestionReorderItem({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Move to Section</Label>
+                <Label className="text-xs text-muted-foreground">Move to Section</Label>
                 <Select
                   value="_toplevel"
                   onValueChange={(v) => {
@@ -1329,13 +1329,13 @@ function TopLevelQuestionReorderItem({
                     }
                   }}
                 >
-                  <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
-                    <SelectItem value="_toplevel"><span className="text-zinc-500">Keep at top-level</span></SelectItem>
+                  <SelectContent className="bg-surface-3 border-border z-100">
+                    <SelectItem value="_toplevel"><span className="text-muted-foreground">Keep at top-level</span></SelectItem>
                     {sections.length === 0 ? (
-                      <div className="px-2 py-1.5 text-xs text-zinc-500 italic">Add sections to move questions</div>
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground italic">Add sections to move questions</div>
                     ) : (
                       sections.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
@@ -1353,23 +1353,23 @@ function TopLevelQuestionReorderItem({
               <div className="flex items-end gap-4">
                 <div className="flex items-center space-x-2">
                   <Switch id={`builder-required-${question.id}`} checked={question.required} onCheckedChange={(checked) => updateQuestion(question.id, { required: checked })} />
-                  <Label htmlFor={`builder-required-${question.id}`} className="text-sm text-zinc-300">Required</Label>
+                  <Label htmlFor={`builder-required-${question.id}`} className="text-sm text-foreground/80">Required</Label>
                 </div>
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs text-zinc-400">Question Text *</Label>
+              <Label className="text-xs text-muted-foreground">Question Text *</Label>
               <Input
                 value={question.questionText}
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => updateQuestion(question.id, { questionText: e.target.value })}
                 placeholder="Enter your question..."
-                className="bg-zinc-800/50 border-zinc-700/50"
+                className="bg-muted/50 border-border/50"
               />
             </div>
             {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && (
               <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Options</Label>
+                <Label className="text-xs text-muted-foreground">Options</Label>
                 <div className="space-y-2">
                   {question.options.map((opt, optIdx) => {
                     const inputId = `${question.id}:${opt.id}`;
@@ -1379,16 +1379,16 @@ function TopLevelQuestionReorderItem({
                       <Tooltip key={opt.id}>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">{letter}</span>
+                            <span className="w-6 h-6 rounded bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">{letter}</span>
                             <Input
                               value={isMultiSelected ? syncedInputValue : opt.text}
                               onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => { if (handleInputMultiSelect(inputId, opt.text, e)) e.stopPropagation(); }}
                               onChange={(e) => { isMultiSelected ? handleSyncedInputChange(e.target.value) : updateOption(question.id, opt.id, { text: e.target.value }); }}
                               placeholder={`Option ${optIdx + 1}`}
-                              className={cn("flex-1 bg-zinc-800/50 border-zinc-700/50 h-8 text-sm", isMultiSelected && "ring-1 ring-primary/50 border-primary/40")}
+                              className={cn("flex-1 bg-muted/50 border-border/50 h-8 text-sm", isMultiSelected && "ring-1 ring-primary/50 border-primary/40")}
                             />
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400" onClick={() => removeOption(question.id, opt.id)} disabled={question.options.length <= 2}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-400" onClick={() => removeOption(question.id, opt.id)} disabled={question.options.length <= 2}>
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
@@ -1399,7 +1399,7 @@ function TopLevelQuestionReorderItem({
                       </Tooltip>
                     );
                   })}
-                  <Button variant="ghost" size="sm" onClick={() => addOption(question.id)} className="text-xs text-zinc-500 hover:text-zinc-300">
+                  <Button variant="ghost" size="sm" onClick={() => addOption(question.id)} className="text-xs text-muted-foreground hover:text-foreground/80">
                     <Plus className="h-3 w-3 mr-1" />
                     Add Option
                   </Button>
@@ -1470,7 +1470,7 @@ function SectionQuestionEditor({
       data-question-id={question.id}
       data-source-section={sectionId}
       className={cn(
-        "rounded-lg bg-zinc-800/30 overflow-hidden relative",
+        "rounded-lg bg-muted/30 overflow-hidden relative",
         isDragging && "opacity-50"
       )}
       drag
@@ -1509,10 +1509,10 @@ function SectionQuestionEditor({
     >
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
         {/* Question Header - entire card is draggable, click grip area to drag */}
-        <div className="flex items-center gap-2 p-2 hover:bg-zinc-700/30 transition-colors group/q cursor-grab active:cursor-grabbing">
+        <div className="flex items-center gap-2 p-2 hover:bg-muted/30 transition-colors group/q cursor-grab active:cursor-grabbing">
           {/* Drag indicator */}
           <div className="shrink-0 p-1">
-            <GripVertical className="h-4 w-4 text-zinc-600 group-hover/q:text-zinc-400 transition-colors" />
+            <GripVertical className="h-4 w-4 text-muted-foreground group-hover/q:text-muted-foreground transition-colors" />
           </div>
           
           {/* Question info - clickable to expand */}
@@ -1525,15 +1525,15 @@ function SectionQuestionEditor({
                 {index + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate text-zinc-200">
+                <p className="text-sm font-medium truncate text-foreground/80">
                   {question.questionText || "(Untitled question)"}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   {question.type.replace("_", " ")} {question.required && "• Required"}
                 </p>
               </div>
               <ChevronDown className={cn(
-                "h-4 w-4 text-zinc-500 transition-transform",
+                "h-4 w-4 text-muted-foreground transition-transform",
                 isExpanded && "rotate-180"
             )} />
           </div>
@@ -1541,16 +1541,16 @@ function SectionQuestionEditor({
         </div>
 
         <CollapsibleContent>
-          <div className="p-3 pt-0 space-y-3 border-t border-zinc-700/50">
+          <div className="p-3 pt-0 space-y-3 border-t border-border/50">
             {/* Question Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3">
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Question Type</Label>
+                <Label className="text-xs text-muted-foreground">Question Type</Label>
                 <Select
                   value={question.type}
                   onValueChange={(value) => onUpdate({ type: value as PollQuestion["type"] })}
                 >
-                  <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1574,27 +1574,27 @@ function SectionQuestionEditor({
                     checked={question.required}
                     onCheckedChange={(checked) => onUpdate({ required: checked })}
                   />
-                  <Label htmlFor={`required-${question.id}`} className="text-xs text-zinc-400">Required</Label>
+                  <Label htmlFor={`required-${question.id}`} className="text-xs text-muted-foreground">Required</Label>
                 </div>
               </div>
             </div>
 
             {/* Question Text */}
             <div className="space-y-1">
-              <Label className="text-xs text-zinc-400">Question Text *</Label>
+              <Label className="text-xs text-muted-foreground">Question Text *</Label>
               <Input
                 placeholder="Enter your question..."
                 value={question.questionText}
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => onUpdate({ questionText: e.target.value })}
-                className="bg-zinc-800/50 border-zinc-700/50 h-9 text-sm"
+                className="bg-muted/50 border-border/50 h-9 text-sm"
               />
             </div>
 
             {/* Options for choice questions */}
             {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE" || question.type === "RANKING") && (
               <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Options</Label>
+                <Label className="text-xs text-muted-foreground">Options</Label>
                 <div className="space-y-1">
                   {question.options?.map((option, optIndex) => {
                     const inputId = `${question.id}:${option.id}`;
@@ -1604,7 +1604,7 @@ function SectionQuestionEditor({
                       <Tooltip key={option.id}>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded bg-zinc-700 text-[10px] flex items-center justify-center text-zinc-400 shrink-0">
+                            <span className="w-5 h-5 rounded bg-muted text-[10px] flex items-center justify-center text-muted-foreground shrink-0">
                               {letter}
                             </span>
                             <Input
@@ -1624,14 +1624,14 @@ function SectionQuestionEditor({
                                 }
                               }}
                               className={cn(
-                                "flex-1 bg-zinc-800/50 border-zinc-700/50 h-8 text-sm",
+                                "flex-1 bg-muted/50 border-border/50 h-8 text-sm",
                                 isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 text-zinc-500 hover:text-destructive"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
                               onClick={() => onRemoveOption(option.id)}
                               disabled={question.options!.length <= 2}
                             >
@@ -1649,7 +1649,7 @@ function SectionQuestionEditor({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full text-zinc-400 hover:text-zinc-200 h-8 text-xs"
+                  className="w-full text-muted-foreground hover:text-foreground/80 h-8 text-xs"
                   onClick={onAddOption}
                 >
                   <Plus className="w-3 h-3 mr-1" />
@@ -1665,16 +1665,16 @@ function SectionQuestionEditor({
               {/* Single choice: dropdown */}
               {question.type === "SINGLE_CHOICE" && question.options?.length > 0 && (
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-400">Correct Answer</Label>
+                  <Label className="text-[10px] text-muted-foreground">Correct Answer</Label>
                   <Select
                     value={(question.correctAnswer as string) || "_none"}
                     onValueChange={(v) => onUpdate({ correctAnswer: v === "_none" ? null : v })}
                   >
-                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs">
+                    <SelectTrigger className="bg-muted/50 border-border/50 h-7 text-xs">
                       <SelectValue placeholder="No correct answer" />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
-                      <SelectItem value="_none"><span className="text-zinc-500">None (opinion)</span></SelectItem>
+                    <SelectContent className="bg-surface-3 border-border z-100">
+                      <SelectItem value="_none"><span className="text-muted-foreground">None (opinion)</span></SelectItem>
                       {question.options?.map((opt) => (
                         <SelectItem key={opt.id} value={opt.id}>{opt.text || "(empty)"}</SelectItem>
                       ))}
@@ -1686,13 +1686,13 @@ function SectionQuestionEditor({
               {/* Multi choice: checkboxes for multiple correct answers */}
               {question.type === "MULTI_CHOICE" && question.options?.length > 0 && (
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-400">Correct Answers (select all that apply)</Label>
-                  <div className="space-y-1 bg-zinc-800/30 rounded-md p-2">
+                  <Label className="text-[10px] text-muted-foreground">Correct Answers (select all that apply)</Label>
+                  <div className="space-y-1 bg-muted/30 rounded-md p-2">
                     {question.options?.map((opt) => {
                       const correctArr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
                       const isChecked = correctArr.includes(opt.id);
                       return (
-                        <label key={opt.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-zinc-700/30 rounded px-1 py-0.5">
+                        <label key={opt.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/30 rounded px-1 py-0.5">
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -1703,9 +1703,9 @@ function SectionQuestionEditor({
                                 : prev.filter((id) => id !== opt.id);
                               onUpdate({ correctAnswer: newArr.length > 0 ? newArr : null });
                             }}
-                            className="rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
+                            className="rounded border-border bg-muted text-violet-500 focus:ring-violet-500"
                           />
-                          <span className={isChecked ? "text-violet-300" : "text-zinc-400"}>{opt.text || "(empty)"}</span>
+                          <span className={isChecked ? "text-violet-300" : "text-muted-foreground"}>{opt.text || "(empty)"}</span>
                         </label>
                       );
                     })}
@@ -1714,34 +1714,34 @@ function SectionQuestionEditor({
               )}
 
               <div className="space-y-1">
-                <Label className="text-[10px] text-zinc-400">Write why this is the correct answer</Label>
+                <Label className="text-[10px] text-muted-foreground">Write why this is the correct answer</Label>
                 <Textarea
                   value={question.explanation || ""}
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ explanation: e.target.value || null })}
                   placeholder="Explain why this answer is correct..."
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[40px] text-xs"
+                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-zinc-400">Write an explanation for when they got it wrong (optional)</Label>
+                <Label className="text-[10px] text-muted-foreground">Write an explanation for when they got it wrong (optional)</Label>
                 <Textarea
                   value={question.wrongExplanation || ""}
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ wrongExplanation: e.target.value || null })}
                   placeholder="Explain why they got it wrong..."
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[40px] text-xs"
+                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
                 />
               </div>
               {/* Deep Explanation � second-layer clarification */}
               <div className="space-y-1">
-                <Label className="text-[10px] text-zinc-400">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
+                <Label className="text-[10px] text-muted-foreground">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
                 <Textarea
                   value={question.deepExplanation || ""}
                   onPointerDown={(e) => e.stopPropagation()}
                   onChange={(e) => onUpdate({ deepExplanation: e.target.value || null })}
                   placeholder="Provide a deeper explanation for students who need more help..."
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[40px] text-xs"
+                  className="bg-muted/50 border-border/50 min-h-[40px] text-xs"
                 />
               </div>
 
@@ -1751,7 +1751,7 @@ function SectionQuestionEditor({
                   checked={question.commitRequired !== false}
                   onCheckedChange={(v) => onUpdate({ commitRequired: v })}
                 />
-                <Label htmlFor={`commit-sec-${question.id}`} className="text-[10px] text-zinc-400">Require Lock In</Label>
+                <Label htmlFor={`commit-sec-${question.id}`} className="text-[10px] text-muted-foreground">Require Lock In</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
@@ -1759,12 +1759,12 @@ function SectionQuestionEditor({
                   checked={question.trickQuestion === true}
                   onCheckedChange={(v) => onUpdate({ trickQuestion: v })}
                 />
-                <Label htmlFor={`trick-sec-${question.id}`} className="text-[10px] text-zinc-400">Trick question</Label>
+                <Label htmlFor={`trick-sec-${question.id}`} className="text-[10px] text-muted-foreground">Trick question</Label>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2 pt-2 border-t border-zinc-700/50">
+            <div className="flex items-center gap-2 pt-2 border-t border-border/50">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1870,7 +1870,7 @@ function QuestionItem({
       {/* Placeholder shown during drag */}
       {isDragging && (
         <div 
-          className="absolute inset-0 rounded-lg border-2 border-dashed border-zinc-700/50 bg-zinc-800/20"
+          className="absolute inset-0 rounded-lg border-2 border-dashed border-border/50 bg-muted/20"
         />
       )}
 
@@ -1879,10 +1879,10 @@ function QuestionItem({
         className={cn(
           "rounded-lg overflow-hidden transition-colors",
           isDragging 
-            ? "bg-zinc-800 border border-zinc-600/50 shadow-2xl fixed pointer-events-none" 
+            ? "bg-muted border border-border/50 shadow-2xl fixed pointer-events-none" 
             : index % 2 === 0 
-              ? "bg-zinc-900/60 border border-zinc-800/50" 
-              : "bg-zinc-800/40 border border-zinc-700/30"
+              ? "bg-surface-3/60 border border-border/50" 
+              : "bg-muted/40 border border-border/30"
         )}
         style={{
           // When dragging, make it compact and fixed width
@@ -1947,7 +1947,7 @@ function QuestionItem({
             <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">
               {index + 1}
             </span>
-            <span className="text-sm font-medium text-zinc-200 truncate">
+            <span className="text-sm font-medium text-foreground/80 truncate">
               {question.questionText || "(Untitled question)"}
             </span>
             {/* Show current drop mode indicator */}
@@ -1962,13 +1962,13 @@ function QuestionItem({
           /* Full question editor - shown when not dragging */
           <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
             {/* Question Header */}
-            <div className="flex items-center gap-2 p-3 transition-colors group/question hover:bg-zinc-800/50">
+            <div className="flex items-center gap-2 p-3 transition-colors group/question hover:bg-muted/50">
               {/* Drag handle - only this initiates drag */}
               <div 
-                className="shrink-0 p-2 -m-1 rounded-lg hover:bg-zinc-700/30 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+                className="shrink-0 p-2 -m-1 rounded-lg hover:bg-muted/30 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
                 onPointerDown={(e) => dragControls.start(e)}
               >
-                <GripVertical className="h-5 w-5 text-zinc-600 group-hover/question:text-zinc-400 transition-all" />
+                <GripVertical className="h-5 w-5 text-muted-foreground group-hover/question:text-muted-foreground transition" />
               </div>
           
               {/* Question info */}
@@ -1977,10 +1977,10 @@ function QuestionItem({
                   {index + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-zinc-200">
+                  <p className="font-medium truncate text-foreground/80">
                     {question.questionText || "(Untitled question)"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     {question.type.replace("_", " ")} •{" "}
                     {question.required ? "Required" : "Optional"}
                   </p>
@@ -1993,7 +1993,7 @@ function QuestionItem({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground/80"
                   >
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                   </Button>
@@ -2001,7 +2001,7 @@ function QuestionItem({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground/80"
                   onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
                   disabled={index === 0}
                 >
@@ -2010,7 +2010,7 @@ function QuestionItem({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground/80"
                   onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
                   disabled={isLast}
                 >
@@ -2019,7 +2019,7 @@ function QuestionItem({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-500 hover:text-destructive"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
                   onClick={(e) => { e.stopPropagation(); onRemove(); }}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -2029,12 +2029,12 @@ function QuestionItem({
 
             {/* Question Body */}
             <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-4 border-t border-zinc-700/50">
+              <div className="p-4 pt-0 space-y-4 border-t border-border/50">
                 {/* Row 1: Question Type and Section - side by side */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                   {/* Question Type */}
                   <div className="space-y-2">
-                    <Label className="text-zinc-400">Question Type</Label>
+                    <Label className="text-muted-foreground">Question Type</Label>
                     <Select
                       value={question.type}
                       onValueChange={(v) =>
@@ -2056,10 +2056,10 @@ function QuestionItem({
                         })
                       }
                     >
-                      <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
+                      <SelectTrigger className="bg-muted/50 border-border/50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
+                      <SelectContent className="bg-surface-3 border-border z-100">
                         <SelectItem value="SINGLE_CHOICE">
                           <div className="flex items-center gap-2">
                             <List className="w-4 h-4" />
@@ -2102,23 +2102,23 @@ function QuestionItem({
 
                   {/* Section Assignment */}
                   <div className="space-y-2">
-                    <Label className="text-zinc-400 flex items-center gap-1">
+                    <Label className="text-muted-foreground flex items-center gap-1">
                       Section
-                      <span className="text-[10px] text-zinc-600">(drag question into section or select here)</span>
+                      <span className="text-[10px] text-muted-foreground">(drag question into section or select here)</span>
                     </Label>
                     <Select
                       value="_none"
                       onValueChange={(v) => onAssignToSection(v === "_none" ? null : v)}
                     >
-                      <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
+                      <SelectTrigger className="bg-muted/50 border-border/50">
                         <SelectValue placeholder="No section" />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
+                      <SelectContent className="bg-surface-3 border-border z-100">
                         <SelectItem value="_none">
-                          <span className="text-zinc-500">No section (top-level)</span>
+                          <span className="text-muted-foreground">No section (top-level)</span>
                         </SelectItem>
                         {sections.length === 0 ? (
-                          <div className="px-2 py-1.5 text-xs text-zinc-500 italic">
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground italic">
                             Create sections above first
                           </div>
                         ) : (
@@ -2144,7 +2144,7 @@ function QuestionItem({
                       checked={question.required}
                       onCheckedChange={(v) => onUpdate({ required: v })}
                     />
-                    <Label htmlFor={`required-${question.id}`} className="text-zinc-400">Required</Label>
+                    <Label htmlFor={`required-${question.id}`} className="text-muted-foreground">Required</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
@@ -2152,35 +2152,35 @@ function QuestionItem({
                       checked={question.allowImages}
                       onCheckedChange={(v) => onUpdate({ allowImages: v })}
                     />
-                    <Label htmlFor={`images-${question.id}`} className="text-zinc-400">Allow Images</Label>
+                    <Label htmlFor={`images-${question.id}`} className="text-muted-foreground">Allow Images</Label>
                   </div>
                 </div>
 
             {/* Question Text */}
             <div className="space-y-2">
-              <Label className="text-zinc-400">Question Text *</Label>
+              <Label className="text-muted-foreground">Question Text *</Label>
               <Input
                 value={question.questionText}
                 onChange={(e) => onUpdate({ questionText: e.target.value })}
                 placeholder="Enter your question..."
-                className="bg-zinc-800/50 border-zinc-700/50"
+                className="bg-muted/50 border-border/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-400">Description (optional)</Label>
+              <Label className="text-muted-foreground">Description (optional)</Label>
               <Input
                 value={question.description || ""}
                 onChange={(e) => onUpdate({ description: e.target.value || undefined })}
                 placeholder="Additional context..."
-                className="bg-zinc-800/50 border-zinc-700/50"
+                className="bg-muted/50 border-border/50"
               />
             </div>
 
             {/* Choice Options */}
             {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && (
               <div className="space-y-2">
-                <Label className="text-zinc-400">Options</Label>
+                <Label className="text-muted-foreground">Options</Label>
                 <div className="space-y-2">
                   {question.options.map((option, optIndex) => {
                     const inputId = `${question.id}:${option.id}`;
@@ -2190,7 +2190,7 @@ function QuestionItem({
                       <Tooltip key={option.id}>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded bg-zinc-800 text-xs flex items-center justify-center text-zinc-400 shrink-0">
+                            <span className="w-6 h-6 rounded bg-muted text-xs flex items-center justify-center text-muted-foreground shrink-0">
                               {letter}
                             </span>
                             <Input
@@ -2210,14 +2210,14 @@ function QuestionItem({
                               }}
                               placeholder={`Option ${letter}`}
                               className={cn(
-                                "flex-1 bg-zinc-800/50 border-zinc-700/50",
+                                "flex-1 bg-muted/50 border-border/50",
                                 isMultiSelected && "ring-1 ring-primary/50 border-primary/40"
                               )}
                             />
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-zinc-500 hover:text-destructive"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
                               onClick={() => onRemoveOption(option.id)}
                               disabled={question.options.length <= 2}
                             >
@@ -2235,7 +2235,7 @@ function QuestionItem({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full text-zinc-400 hover:text-zinc-200"
+                  className="w-full text-muted-foreground hover:text-foreground/80"
                   onClick={onAddOption}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -2246,10 +2246,10 @@ function QuestionItem({
 
             {/* Slider Config */}
             {question.type === "SLIDER" && question.sliderConfig && (
-              <div className="space-y-4 p-3 bg-zinc-800/30 rounded-lg">
+              <div className="space-y-4 p-3 bg-muted/30 rounded-lg">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-zinc-500">Min</Label>
+                    <Label className="text-xs text-muted-foreground">Min</Label>
                     <Input
                       type="number"
                       value={question.sliderConfig.min ?? question.sliderConfig.minValue ?? 1}
@@ -2262,11 +2262,11 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-zinc-800/50 border-zinc-700/50"
+                      className="bg-muted/50 border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-zinc-500">Max</Label>
+                    <Label className="text-xs text-muted-foreground">Max</Label>
                     <Input
                       type="number"
                       value={question.sliderConfig.max ?? question.sliderConfig.maxValue ?? 7}
@@ -2279,11 +2279,11 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-zinc-800/50 border-zinc-700/50"
+                      className="bg-muted/50 border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-zinc-500">Step</Label>
+                    <Label className="text-xs text-muted-foreground">Step</Label>
                     <Input
                       type="number"
                       value={question.sliderConfig.step}
@@ -2295,13 +2295,13 @@ function QuestionItem({
                           },
                         })
                       }
-                      className="bg-zinc-800/50 border-zinc-700/50"
+                      className="bg-muted/50 border-border/50"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-zinc-500">Min Label</Label>
+                    <Label className="text-xs text-muted-foreground">Min Label</Label>
                     <Input
                       value={question.sliderConfig.minLabel}
                       onChange={(e) =>
@@ -2313,11 +2313,11 @@ function QuestionItem({
                         })
                       }
                       placeholder="Low"
-                      className="bg-zinc-800/50 border-zinc-700/50"
+                      className="bg-muted/50 border-border/50"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-zinc-500">Max Label</Label>
+                    <Label className="text-xs text-muted-foreground">Max Label</Label>
                     <Input
                       value={question.sliderConfig.maxLabel}
                       onChange={(e) =>
@@ -2329,7 +2329,7 @@ function QuestionItem({
                         })
                       }
                       placeholder="High"
-                      className="bg-zinc-800/50 border-zinc-700/50"
+                      className="bg-muted/50 border-border/50"
                     />
                   </div>
                 </div>
@@ -2342,13 +2342,13 @@ function QuestionItem({
 
             {question.type === "SHAPE_MATCH" && (
 
-              <div className="space-y-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+              <div className="space-y-3 p-3 bg-brand-accent/5 border border-brand-accent/20 rounded-lg">
 
-                <Label className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Shape Match Setup</Label>
+                <Label className="text-xs font-semibold text-brand-accent uppercase tracking-wider">Shape Match Setup</Label>
 
                 <div className="space-y-1">
 
-                  <Label className="text-xs text-zinc-400">Preset (quick start)</Label>
+                  <Label className="text-xs text-muted-foreground">Preset (quick start)</Label>
 
                   <Select
 
@@ -2364,15 +2364,15 @@ function QuestionItem({
 
                   >
 
-                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
+                    <SelectTrigger className="bg-muted/50 border-border/50">
 
                       <SelectValue placeholder="Choose a preset or build custom" />
 
                     </SelectTrigger>
 
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
+                    <SelectContent className="bg-surface-3 border-border z-100">
 
-                      <SelectItem value="_none"><span className="text-zinc-500">Custom (Visual Builder)</span></SelectItem>
+                      <SelectItem value="_none"><span className="text-muted-foreground">Custom (Visual Builder)</span></SelectItem>
 
                       <SelectItem value="basicShapes">Basic Shapes</SelectItem>
 
@@ -2396,7 +2396,7 @@ function QuestionItem({
 
                   size="sm"
 
-                  className="w-full gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                  className="w-full gap-2 border-brand-accent/30 text-brand-accent hover:bg-brand-accent/10"
 
                   onClick={() => onUpdate({ _openVisualBuilder: true } as any)}
 
@@ -2410,7 +2410,7 @@ function QuestionItem({
 
                 {question.shapeMatchConfig && (
 
-                  <p className="text-[10px] text-emerald-400">
+                  <p className="text-[10px] text-brand-accent">
 
                     Custom: {question.shapeMatchConfig.draggableItems?.length || 0} shapes, {question.shapeMatchConfig.dropZones?.length || 0} zones
 
@@ -2427,24 +2427,24 @@ function QuestionItem({
             <div className="space-y-3 p-3 bg-violet-500/5 border border-violet-500/20 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Answer</span>
-                <span className="text-[10px] text-zinc-500">(optional — leave blank for opinion-based questions)</span>
+                <span className="text-[10px] text-muted-foreground">(optional — leave blank for opinion-based questions)</span>
               </div>
 
               {/* Correct Answer — for choice questions */}
               {(question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE") && question.options.length > 0 && (
                 <div className="space-y-1">
-                  <Label className="text-xs text-zinc-400">Correct Answer</Label>
+                  <Label className="text-xs text-muted-foreground">Correct Answer</Label>
                   {question.type === "SINGLE_CHOICE" ? (
                     <Select
                       value={(question.correctAnswer as string) || "_none"}
                       onValueChange={(v) => onUpdate({ correctAnswer: v === "_none" ? null : v })}
                     >
-                      <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
+                      <SelectTrigger className="bg-muted/50 border-border/50">
                         <SelectValue placeholder="No correct answer" />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700 z-100">
+                      <SelectContent className="bg-surface-3 border-border z-100">
                         <SelectItem value="_none">
-                          <span className="text-zinc-500">No correct answer (opinion)</span>
+                          <span className="text-muted-foreground">No correct answer (opinion)</span>
                         </SelectItem>
                         {question.options.map((opt) => (
                           <SelectItem key={opt.id} value={opt.id}>
@@ -2455,7 +2455,7 @@ function QuestionItem({
                     </Select>
                   ) : (
                     <div className="space-y-1">
-                      <p className="text-[10px] text-zinc-500">Select all correct options:</p>
+                      <p className="text-[10px] text-muted-foreground">Select all correct options:</p>
                       {question.options.map((opt) => {
                         const selected = Array.isArray(question.correctAnswer) && question.correctAnswer.includes(opt.id);
                         return (
@@ -2471,9 +2471,9 @@ function QuestionItem({
                                   onUpdate({ correctAnswer: [...current, opt.id] });
                                 }
                               }}
-                              className="rounded border-zinc-600"
+                              className="rounded border-border"
                             />
-                            <span className="text-zinc-300">{opt.text || "(empty option)"}</span>
+                            <span className="text-foreground/80">{opt.text || "(empty option)"}</span>
                           </label>
                         );
                       })}
@@ -2485,8 +2485,8 @@ function QuestionItem({
               {/* Correct Order — for ranking questions */}
               {question.type === "RANKING" && question.options.length > 0 && (
                 <div className="space-y-1">
-                  <Label className="text-xs text-zinc-400">Correct Order (drag to reorder, or leave as-is)</Label>
-                  <p className="text-[10px] text-zinc-500">
+                  <Label className="text-xs text-muted-foreground">Correct Order (drag to reorder, or leave as-is)</Label>
+                  <p className="text-[10px] text-muted-foreground">
                     The current option order (A, B, C...) is used as the correct ranking. Rearrange options above to set the correct order.
                     {question.correctAnswer 
                       ? " ✓ Correct order is set." 
@@ -2504,7 +2504,7 @@ function QuestionItem({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs text-zinc-500 hover:text-destructive ml-2"
+                      className="text-xs text-muted-foreground hover:text-destructive ml-2"
                       onClick={() => onUpdate({ correctAnswer: null })}
                     >
                       Clear
@@ -2515,32 +2515,32 @@ function QuestionItem({
 
               {/* Correct answer explanation */}
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Write why this is the correct answer</Label>
+                <Label className="text-xs text-muted-foreground">Write why this is the correct answer</Label>
                 <Textarea
                   value={question.explanation || ""}
                   onChange={(e) => onUpdate({ explanation: e.target.value || null })}
                   placeholder="Explain why this answer is correct (shown when user clicks &quot;Why?&quot;)"
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[60px] text-sm"
+                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
                 />
               </div>
               {/* Wrong answer explanation */}
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Write an explanation for when they got it wrong (optional)</Label>
+                <Label className="text-xs text-muted-foreground">Write an explanation for when they got it wrong (optional)</Label>
                 <Textarea
                   value={question.wrongExplanation || ""}
                   onChange={(e) => onUpdate({ wrongExplanation: e.target.value || null })}
                   placeholder="Explain why they got it wrong (shown when incorrect)"
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[60px] text-sm"
+                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
                 />
               </div>
               {/* Deep explanation � second-layer clarification */}
               <div className="space-y-1">
-                <Label className="text-xs text-zinc-400">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
+                <Label className="text-xs text-muted-foreground">Deep Explanation (optional � shown on &quot;Still don&apos;t understand?&quot;)</Label>
                 <Textarea
                   value={question.deepExplanation || ""}
                   onChange={(e) => onUpdate({ deepExplanation: e.target.value || null })}
                   placeholder="Provide a deeper explanation for students who need more help..."
-                  className="bg-zinc-800/50 border-zinc-700/50 min-h-[60px] text-sm"
+                  className="bg-muted/50 border-border/50 min-h-[60px] text-sm"
                 />
               </div>
 
@@ -2551,7 +2551,7 @@ function QuestionItem({
                   checked={question.commitRequired !== false}
                   onCheckedChange={(v) => onUpdate({ commitRequired: v })}
                 />
-                <Label htmlFor={`commit-${question.id}`} className="text-xs text-zinc-400">
+                <Label htmlFor={`commit-${question.id}`} className="text-xs text-muted-foreground">
                   Require &quot;Lock In&quot; before showing feedback
                 </Label>
               </div>
@@ -2561,7 +2561,7 @@ function QuestionItem({
                   checked={question.trickQuestion === true}
                   onCheckedChange={(v) => onUpdate({ trickQuestion: v })}
                 />
-                <Label htmlFor={`trick-${question.id}`} className="text-xs text-zinc-400">Trick question</Label>
+                <Label htmlFor={`trick-${question.id}`} className="text-xs text-muted-foreground">Trick question</Label>
               </div>
             </div>
           </div>
@@ -2582,7 +2582,6 @@ export function PollBuilder({
   onAiGenerateClose,
 }: PollBuilderProps) {
   const { resolvedTheme } = useTheme();
-  const isLightMode = resolvedTheme === "light";
 
   // Start empty unless initialData provided
   const emptyData = useMemo(() => generateEmptyPollData(), []);
@@ -2857,7 +2856,7 @@ export function PollBuilder({
       return {
         title: "Free tier",
         subtitle: "Powered by Groq · no key needed",
-        tone: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+        tone: "bg-brand-accent/10 text-brand-accent-light border-brand-accent/30",
       };
     }
     const remaining = Math.max(0, aiFreeLimit - aiFreeUsed);
@@ -2866,7 +2865,7 @@ export function PollBuilder({
       subtitle: `${remaining} of ${aiFreeLimit} free generations left today`,
       tone: remaining === 0
         ? "bg-red-500/10 text-red-300 border-red-500/30"
-        : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+        : "bg-brand-accent/10 text-brand-accent-light border-brand-accent/30",
     };
   }, [aiUsingSavedKey, aiKeySource, aiApiKey, aiFreeUsed, aiFreeLimit, activeProviderDef, aiGenerationMeta, providerHasSavedKey]);
   const requestProviderKey = useCallback((provider: AiProvider, model?: string) => {
@@ -4926,23 +4925,22 @@ export function PollBuilder({
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "space-y-3 poll-builder-theme-scope",
-          isLightMode && "poll-builder-theme-scope--light",
+          "space-y-3",
           className
         )}
         onClick={clearSelection}
       >
         {/* Quick Start Guide � compact inline stepper */}
-        <div className="hidden sm:flex items-center gap-4 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
+        <div className="hidden sm:flex items-center gap-4 px-3 py-2 rounded-lg bg-surface-3/40 border border-border/40">
           {[
             { n: "1", label: "Add questions" },
             { n: "2", label: "Drag to reorder" },
             { n: "3", label: "Preview" },
             { n: "4", label: "Save & pulse" },
           ].map((s, i) => (
-            <div key={s.n} className="flex items-center gap-1.5 text-xs text-zinc-500">
-              {i > 0 && <span className="text-zinc-700 mr-1">&#8250;</span>}
-              <span className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">{s.n}</span>
+            <div key={s.n} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {i > 0 && <span className="text-foreground mr-1">&#8250;</span>}
+              <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">{s.n}</span>
               <span className="hidden sm:inline whitespace-nowrap">{s.label}</span>
             </div>
           ))}
@@ -4956,14 +4954,14 @@ export function PollBuilder({
               <Tooltip delayDuration={400}>
                 <DropdownMenuTrigger asChild>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground/80">
                       <Upload className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
                 </DropdownMenuTrigger>
                 <TooltipContent>Import</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[200px]">
+              <DropdownMenuContent align="start" className="bg-surface-3 border-border min-w-[200px]">
                 <DropdownMenuItem onClick={() => setShowImportModal(true)} className="gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
                   <div className="flex flex-col">
@@ -4972,7 +4970,7 @@ export function PollBuilder({
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleImportFromFile} className="gap-2">
-                  <Upload className="w-4 h-4 text-emerald-400" />
+                  <Upload className="w-4 h-4 text-brand-accent" />
                   <div className="flex flex-col">
                     <span>Import from File</span>
                     <span className="text-xs text-muted-foreground">.json or .txt files</span>
@@ -4985,14 +4983,14 @@ export function PollBuilder({
               <Tooltip delayDuration={400}>
                 <DropdownMenuTrigger asChild>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground/80">
                       {justCopied ? <Check className="w-4 h-4 text-green-500" /> : <Download className="w-4 h-4" />}
                     </Button>
                   </TooltipTrigger>
                 </DropdownMenuTrigger>
                 <TooltipContent>{justCopied ? "Copied!" : "Export"}</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 min-w-[220px]">
+              <DropdownMenuContent align="start" className="bg-surface-3 border-border min-w-[220px]">
                 <DropdownMenuItem onClick={handleCopyJson} className="gap-2">
                   <Copy className="w-4 h-4 text-blue-400" />
                   <div className="flex flex-col">
@@ -5007,9 +5005,9 @@ export function PollBuilder({
                     <span className="text-xs text-muted-foreground">Human-readable, easy to edit</span>
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuSeparator className="bg-muted" />
                 <DropdownMenuItem onClick={handleDownloadJson} className="gap-2">
-                  <Download className="w-4 h-4 text-emerald-400" />
+                  <Download className="w-4 h-4 text-brand-accent" />
                   <div className="flex flex-col">
                     <span>Download JSON File</span>
                     <span className="text-xs text-muted-foreground">Save to disk, share, re-import</span>
@@ -5018,12 +5016,12 @@ export function PollBuilder({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-1" />
+            <span className="hidden sm:block w-px h-5 bg-muted mx-1" />
 
             {/* Undo / Redo */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canUndo ? "text-zinc-500 hover:text-zinc-200" : "text-zinc-700 cursor-not-allowed")} onClick={undo} disabled={!canUndo}>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canUndo ? "text-muted-foreground hover:text-foreground/80" : "text-foreground cursor-not-allowed")} onClick={undo} disabled={!canUndo}>
                   <Undo2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -5031,19 +5029,19 @@ export function PollBuilder({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canRedo ? "text-zinc-500 hover:text-zinc-200" : "text-zinc-700 cursor-not-allowed")} onClick={redo} disabled={!canRedo}>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", canRedo ? "text-muted-foreground hover:text-foreground/80" : "text-foreground cursor-not-allowed")} onClick={redo} disabled={!canRedo}>
                   <Redo2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
             </Tooltip>
 
-            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-1" />
+            <span className="hidden sm:block w-px h-5 bg-muted mx-1" />
 
             {/* Clear */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-red-400" onClick={() => { if (data.questions.length > 0 || data.sections.length > 0) { if (confirm("Clear the entire poll? (Ctrl+Z to undo)")) clearBuilder(); } else clearBuilder(); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-400" onClick={() => { if (data.questions.length > 0 || data.sections.length > 0) { if (confirm("Clear the entire poll? (Ctrl+Z to undo)")) clearBuilder(); } else clearBuilder(); }}>
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -5055,67 +5053,67 @@ export function PollBuilder({
           <div className="flex items-center gap-1">
             <Popover open={showPollMetaEditor} onOpenChange={setShowPollMetaEditor}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 text-zinc-500 hover:text-zinc-200 text-xs gap-1.5">
+                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground/80 text-xs gap-1.5">
                   <FileText className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Details</span>
                   {!data.title.trim() && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" side="bottom" className="w-[92vw] sm:w-[440px] bg-zinc-950 border-zinc-800 p-3 space-y-2">
+              <PopoverContent align="end" side="bottom" className="w-[92vw] sm:w-[440px] bg-surface-1 border-border p-3 space-y-2">
                 <div className="space-y-1">
-                  <p className="text-xs text-zinc-300 font-medium">Poll details</p>
-                  <p className="text-[11px] text-zinc-500">Optional to edit now — you can keep building first.</p>
+                  <p className="text-xs text-foreground/80 font-medium">Poll details</p>
+                  <p className="text-[11px] text-muted-foreground">Optional to edit now — you can keep building first.</p>
                 </div>
                 <Input
                   value={data.title}
                   onChange={(e) => setData((d) => ({ ...d, title: e.target.value }))}
                   placeholder="Poll title..."
-                  className="bg-zinc-900/40 border-zinc-800/60 focus:border-zinc-600 text-zinc-100 h-9"
+                  className="bg-surface-3/40 border-border/60 focus:border-border text-foreground h-9"
                 />
                 <Textarea
                   value={data.description}
                   onChange={(e) => setData((d) => ({ ...d, description: e.target.value }))}
                   placeholder="Add a description (optional)"
-                  className="min-h-[72px] bg-zinc-900/40 border-zinc-800/60 focus:border-zinc-600 text-zinc-300 text-sm resize-none"
+                  className="min-h-[72px] bg-surface-3/40 border-border/60 focus:border-border text-foreground/80 text-sm resize-none"
                 />
               </PopoverContent>
             </Popover>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 text-zinc-500 hover:text-zinc-200 text-xs gap-1.5">
+                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground/80 text-xs gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Examples</span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700">
+              <DropdownMenuContent align="end" className="bg-surface-3 border-border">
                 <DropdownMenuItem onClick={loadVerifyDemoTemplate} className="gap-2">
-                  <FlaskConical className="h-4 w-4 text-emerald-400" />
+                  <FlaskConical className="h-4 w-4 text-brand-accent" />
                   Verify Poll Demo
-                  <span className="text-[10px] text-zinc-500 ml-auto">Test all types</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">Test all types</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={loadREACHTemplate} className="gap-2">
                   <Sparkles className="h-4 w-4 text-purple-400" />
                   Feedback & Discovery
-                  <span className="text-[10px] text-zinc-500 ml-auto">Hybrid poll</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">Hybrid poll</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={loadFeatureExplorerTemplate} className="gap-2">
                   <FlaskConical className="h-4 w-4 text-amber-400" />
                   Feature Explorer Quiz
-                  <span className="text-[10px] text-zinc-500 ml-auto">Scored quiz</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">Scored quiz</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={loadCannaCocoTemplate} className="gap-2">
                   <FlaskConical className="h-4 w-4 text-green-400" />
                   Canna Coco Mastery
-                  <span className="text-[10px] text-zinc-500 ml-auto">22Q grow quiz</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">22Q grow quiz</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={loadTonyVeganEggsTemplate} className="gap-2">
                   <FlaskConical className="h-4 w-4 text-lime-400" />
                   Vegan + Eggs Mastery
-                  <span className="text-[10px] text-zinc-500 ml-auto">22Q performance quiz</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">22Q performance quiz</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuSeparator className="bg-muted" />
                 <DropdownMenuItem 
                   onClick={() => {
                     setData({
@@ -5147,7 +5145,7 @@ export function PollBuilder({
                 >
                   <FileText className="h-4 w-4 text-blue-400" />
                   Quick Feedback
-                  <span className="text-[10px] text-zinc-500 ml-auto">6Q feedback</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">6Q feedback</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => {
@@ -5183,16 +5181,16 @@ export function PollBuilder({
                 >
                   <LayoutGrid className="h-4 w-4 text-green-400" />
                   Product Preference
-                  <span className="text-[10px] text-zinc-500 ml-auto">8Q survey</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">8Q survey</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span className="hidden sm:block w-px h-5 bg-zinc-800 mx-0.5" />
+            <span className="hidden sm:block w-px h-5 bg-muted mx-0.5" />
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showSettings ? "text-primary" : "text-zinc-500 hover:text-zinc-200")} onClick={() => setShowSettings(!showSettings)}>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showSettings ? "text-primary" : "text-muted-foreground hover:text-foreground/80")} onClick={() => setShowSettings(!showSettings)}>
                   <Settings className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -5201,7 +5199,7 @@ export function PollBuilder({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showPreview ? "text-primary" : "text-zinc-500 hover:text-zinc-200")} onClick={() => setShowPreview(!showPreview)}>
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", showPreview ? "text-primary" : "text-muted-foreground hover:text-foreground/80")} onClick={() => setShowPreview(!showPreview)}>
                   <Eye className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -5224,20 +5222,20 @@ export function PollBuilder({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 rounded-lg bg-zinc-900/50 space-y-4">
-              <h3 className="font-medium text-zinc-200">Poll Settings</h3>
+            <div className="p-4 rounded-lg bg-surface-3/50 space-y-4">
+              <h3 className="font-medium text-foreground/80">Poll Settings</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-zinc-400">Poll Type</Label>
+                  <Label className="text-muted-foreground">Poll Type</Label>
                   <Select
                     value={data.type}
                     onValueChange={(v) => setData((d) => ({ ...d, type: v as PollType }))}
                   >
-                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50">
+                    <SelectTrigger className="bg-muted/50 border-border/50">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                    <SelectContent className="bg-surface-3 border-border">
                       <SelectItem value="SIMPLE">Simple Poll</SelectItem>
                       <SelectItem value="SURVEY">Survey</SelectItem>
                       <SelectItem value="QUIZ">Quiz</SelectItem>
@@ -5248,14 +5246,14 @@ export function PollBuilder({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-zinc-400">Expires At (optional)</Label>
+                  <Label className="text-muted-foreground">Expires At (optional)</Label>
                   <Input
                     type="datetime-local"
                     value={data.expiresAt || ""}
                     onChange={(e) =>
                       setData((d) => ({ ...d, expiresAt: e.target.value || undefined }))
                     }
-                    className="bg-zinc-800/50 border-zinc-700/50"
+                    className="bg-muted/50 border-border/50"
                   />
                 </div>
               </div>
@@ -5269,7 +5267,7 @@ export function PollBuilder({
                       setData((d) => ({ ...d, allowPartialSubmission: v }))
                     }
                   />
-                  <Label htmlFor="partial" className="text-zinc-400">Allow partial submission</Label>
+                  <Label htmlFor="partial" className="text-muted-foreground">Allow partial submission</Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -5278,7 +5276,7 @@ export function PollBuilder({
                     checked={data.showProgressBar}
                     onCheckedChange={(v) => setData((d) => ({ ...d, showProgressBar: v }))}
                   />
-                  <Label htmlFor="progress" className="text-zinc-400">Show progress bar</Label>
+                  <Label htmlFor="progress" className="text-muted-foreground">Show progress bar</Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -5289,7 +5287,7 @@ export function PollBuilder({
                       setData((d) => ({ ...d, randomizeQuestions: v }))
                     }
                   />
-                  <Label htmlFor="random" className="text-zinc-400">Randomize questions</Label>
+                  <Label htmlFor="random" className="text-muted-foreground">Randomize questions</Label>
                 </div>
               </div>
             </div>
@@ -5337,7 +5335,7 @@ export function PollBuilder({
                       data.type === "QUIZ" && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
                       data.type === "FEEDBACK" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
                       data.type === "REACH_ASSESSMENT" && "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-                      data.type === "SIMPLE" && "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300"
+                      data.type === "SIMPLE" && "bg-muted text-foreground dark:bg-surface-3/30"
                     )}>
                       {data.type === "REACH_ASSESSMENT" ? "REACH" : data.type}
                     </span>
@@ -5415,14 +5413,14 @@ export function PollBuilder({
           >
             <div className="relative rounded-xl border border-violet-500/20 bg-linear-to-b from-violet-500/5 to-transparent flex flex-col max-h-[72dvh] lg:max-h-[68dvh]">
               {/* Header — context-aware for chat vs BYOK view */}
-              <div className="flex items-center justify-between p-3 border-b border-zinc-800/50">
+              <div className="flex items-center justify-between p-3 border-b border-border/50">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-violet-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-zinc-200">AI Generate</h4>
-                    <p className="text-[11px] text-zinc-500">
+                    <h4 className="text-sm font-medium text-foreground/80">AI Generate</h4>
+                    <p className="text-[11px] text-muted-foreground">
                       {aiHasGenerated ? "Chat with AI to refine your poll" : "Describe the poll you want to create"}
                     </p>
                   </div>
@@ -5436,13 +5434,13 @@ export function PollBuilder({
                           type="button"
                           onClick={() => setAiModelDropdownOpen(true)}
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-all cursor-pointer",
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition cursor-pointer",
                             hasQuotaBypass
                               ? "bg-violet-500/10 text-violet-300 border-violet-500/25 hover:bg-violet-500/15 hover:border-violet-500/35"
-                              : "bg-zinc-800/80 text-zinc-400 border-zinc-700/40 hover:bg-zinc-700/60 hover:text-zinc-300 hover:border-zinc-600/50"
+                              : "bg-muted/80 text-muted-foreground border-border/40 hover:bg-muted/60 hover:text-foreground/80 hover:border-border/50"
                           )}
                         >
-                          {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                          {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-light animate-pulse" />}
                           {(() => {
                             const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
                             const modelDef = provDef?.models.find(m => m.value === aiModel);
@@ -5464,7 +5462,7 @@ export function PollBuilder({
                   {hasQuotaBypass && !aiShowByok && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <div className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium bg-brand-accent/10 text-brand-accent border border-brand-accent/20">
                           <Key className="w-2.5 h-2.5" />
                           {aiUsingSavedKey ? "Saved" : "Active"}
                         </div>
@@ -5484,7 +5482,7 @@ export function PollBuilder({
                           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
                           aiFreeUsed >= aiFreeLimit
                             ? "bg-red-500/15 text-red-400"
-                            : "bg-emerald-500/10 text-emerald-400"
+                            : "bg-brand-accent/10 text-brand-accent"
                         )}>
                           <Sparkles className="w-2.5 h-2.5" />
                           {aiFreeUsed}/{aiFreeLimit}
@@ -5500,7 +5498,7 @@ export function PollBuilder({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground/80"
                     onClick={() => { onAiGenerateClose?.(); setAiError(null); setAiShowByok(false); }}
                   >
                     <X className="w-4 h-4" />
@@ -5509,16 +5507,16 @@ export function PollBuilder({
               </div>
 
               {currentUser && (
-                <div className="px-3 py-1.5 border-b border-zinc-800/40 bg-zinc-950/30">
+                <div className="px-3 py-1.5 border-b border-border/40 bg-surface-1/30">
                   <div className="flex items-center justify-between gap-2">
                     <div className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", aiSourceStatus.tone)}>
                       {aiUsingSavedKey || aiKeySource === "byok" ? <Key className="w-2.5 h-2.5" /> : <Sparkles className="w-2.5 h-2.5" />}
                       {aiSourceStatus.title}
-                      <span className="text-zinc-500 font-normal">— {aiSourceStatus.subtitle}</span>
+                      <span className="text-muted-foreground font-normal">— {aiSourceStatus.subtitle}</span>
                     </div>
                     {!hasQuotaBypass && aiFreeUsed !== null && (
-                      <div className="w-16 h-1 rounded-full bg-zinc-800 overflow-hidden">
-                        <div className={cn("h-full transition-all duration-500", aiUsagePercent >= 100 ? "bg-red-500/70" : "bg-emerald-500/70")} style={{ width: `${aiUsagePercent}%` }} />
+                      <div className="w-16 h-1 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full transition duration-500", aiUsagePercent >= 100 ? "bg-red-500/70" : "bg-brand-accent/70")} style={{ width: `${aiUsagePercent}%` }} />
                       </div>
                     )}
                   </div>
@@ -5537,12 +5535,12 @@ export function PollBuilder({
                     currentUser ? "top-24" : "top-14",
                     "sm:inset-x-auto sm:right-3 sm:w-80"
                   )}>
-                    <div className="pointer-events-auto rounded-xl border border-violet-500/25 bg-zinc-900/97 shadow-2xl shadow-black/60 backdrop-blur-md p-3 space-y-2.5">
+                    <div className="pointer-events-auto rounded-xl border border-violet-500/25 bg-surface-3/97 shadow-2xl shadow-black/60 backdrop-blur-md p-3 space-y-2.5">
                       {/* Header — compact */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-base">{currentProvDef?.emoji || "🔑"}</span>
-                          <p className="text-[13px] text-zinc-100 font-medium">
+                          <p className="text-[13px] text-foreground font-medium">
                             {aiApiKey.trim() && keyValid
                               ? `${detectedProvDef?.label || currentProvDef?.label} connected`
                               : `Connect ${currentProvDef?.label || "provider"}`}
@@ -5551,7 +5549,7 @@ export function PollBuilder({
                         <button
                           type="button"
                           onClick={() => { setAiShowByok(false); if (!aiApiKey.trim()) setAiKeySource("auto"); }}
-                          className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded hover:bg-zinc-800/50"
+                          className="text-muted-foreground hover:text-foreground/80 transition-colors p-0.5 rounded hover:bg-muted/50"
                           title="Close"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -5573,13 +5571,13 @@ export function PollBuilder({
                           }}
                           type="password"
                           placeholder={`Paste your ${currentProvDef?.label || ""} API key here`}
-                          className="h-9 bg-zinc-900/80 border-zinc-700/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 pr-9"
+                          className="h-9 bg-surface-3/80 border-border/50 text-sm font-mono placeholder:font-sans focus:border-violet-500/40 pr-9"
                         />
                         {aiApiKey.trim() && (
                           <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                             {keyValid ? (
-                              <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                <Check className="w-2.5 h-2.5 text-emerald-400" />
+                              <div className="w-4 h-4 rounded-full bg-brand-accent/20 flex items-center justify-center">
+                                <Check className="w-2.5 h-2.5 text-brand-accent" />
                               </div>
                             ) : (
                               <div className="w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -5592,10 +5590,10 @@ export function PollBuilder({
 
                       {/* Detection hint */}
                       {aiApiKey.trim() && detectedProvDef && (
-                        <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+                        <p className="text-[10px] text-brand-accent/80 flex items-center gap-1">
                           <Check className="w-2.5 h-2.5" />
                           Detected {detectedProvDef.emoji} {detectedProvDef.label}
-                          {keyMismatch && <span className="text-zinc-500">(switched)</span>}
+                          {keyMismatch && <span className="text-muted-foreground">(switched)</span>}
                         </p>
                       )}
 
@@ -5610,12 +5608,12 @@ export function PollBuilder({
                           }}
                           disabled={!aiApiKey.trim()}
                           className={cn(
-                            "h-8 px-3.5 rounded-lg text-[12px] font-medium transition-all inline-flex items-center gap-1.5",
+                            "h-8 px-3.5 rounded-lg text-[12px] font-medium transition inline-flex items-center gap-1.5",
                             aiApiKey.trim() && keyValid
-                              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                              ? "bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
                               : aiApiKey.trim()
                                 ? "bg-violet-600 hover:bg-violet-500 text-white"
-                                : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                                : "bg-muted text-muted-foreground cursor-not-allowed"
                           )}
                         >
                           {aiApiKey.trim() && keyValid
@@ -5633,9 +5631,9 @@ export function PollBuilder({
                       </div>
 
                       {/* Save toggle — minimal */}
-                      <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/40">
+                      <div className="flex items-center gap-2 pt-1 border-t border-border/40">
                         <Switch id="remember-ai-key-inline" checked={aiRememberKey} onCheckedChange={setAiRememberKey} />
-                        <Label htmlFor="remember-ai-key-inline" className="text-[10px] text-zinc-500 cursor-pointer">Save to account</Label>
+                        <Label htmlFor="remember-ai-key-inline" className="text-[10px] text-muted-foreground cursor-pointer">Save to account</Label>
                       </div>
                     </div>
                   </div>
@@ -5647,7 +5645,7 @@ export function PollBuilder({
               <div ref={aiChatScrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-[160px] max-h-[42dvh] sm:max-h-[44dvh] lg:max-h-[46dvh]">
                 {/* Empty state */}
                 {aiChatMessages.length === 0 && !aiGenerating && (
-                  <div className="py-5 text-zinc-600 text-sm space-y-3">
+                  <div className="py-5 text-muted-foreground text-sm space-y-3">
                     <div className="text-center">
                       <Sparkles className="w-6 h-6 mx-auto mb-2 text-violet-500/40" />
                       <p>Tell the AI what kind of poll to create.</p>
@@ -5665,7 +5663,7 @@ export function PollBuilder({
                             }
                             setTimeout(() => aiTextareaRef.current?.focus(), 0);
                           }}
-                          className="max-w-full text-left rounded-lg border border-zinc-800/70 bg-zinc-900/40 hover:bg-zinc-800/60 hover:border-zinc-700/70 transition-colors px-2.5 py-2 text-[11px] text-zinc-300 truncate"
+                          className="max-w-full text-left rounded-lg border border-border/70 bg-surface-3/40 hover:bg-muted/60 hover:border-border/70 transition-colors px-2.5 py-2 text-[11px] text-foreground/80 truncate"
                           title={activeStarterSuggestion}
                         >
                           {activeStarterSuggestion}
@@ -5679,25 +5677,25 @@ export function PollBuilder({
                 {aiChatMessages.map((msg) => (
                   <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                     {msg.role === "user" ? (
-                      <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-violet-600/20 border border-violet-500/20 px-3 py-2 text-sm text-zinc-200">
+                      <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-violet-600/20 border border-violet-500/20 px-3 py-2 text-sm text-foreground/80">
                         {msg.content}
                       </div>
                     ) : msg.isResult ? (
                       /* AI Result Card (Review Card) */
-                      <div className="max-w-[90%] w-full rounded-xl bg-zinc-900/80 border border-emerald-500/20 p-3 space-y-2">
-                        <div className="text-sm text-emerald-300">{msg.content}</div>
+                      <div className="max-w-[90%] w-full rounded-xl bg-surface-3/80 border border-brand-accent/20 p-3 space-y-2">
+                        <div className="text-sm text-brand-accent-light">{msg.content}</div>
 
                         {/* Quiz snapshot info */}
                         {msg.quizSnapshot && (
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-                            <span className="px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="px-2 py-0.5 rounded-full bg-muted/80 border border-border/50">
                               {msg.quizSnapshot.questionCount} questions
                             </span>
-                            <span className="px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/50">
+                            <span className="px-2 py-0.5 rounded-full bg-muted/80 border border-border/50">
                               {msg.quizSnapshot.type}
                             </span>
                             {msg.quizSnapshot.trustFactor && (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                              <span className="px-2 py-0.5 rounded-full bg-brand-accent/10 border border-brand-accent/20 text-brand-accent">
                                 Trust: {msg.quizSnapshot.trustFactor}
                                 {typeof msg.quizSnapshot.trustScore === "number" ? ` (${msg.quizSnapshot.trustScore})` : ""}
                               </span>
@@ -5710,7 +5708,7 @@ export function PollBuilder({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-[11px] gap-1 border-zinc-700/60 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300"
+                            className="h-7 text-[11px] gap-1 border-border/60 bg-muted/50 hover:bg-muted/50 text-foreground/80"
                             onClick={() => setShowInteractivePreview(true)}
                           >
                             <Eye className="w-3 h-3" />
@@ -5719,7 +5717,7 @@ export function PollBuilder({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-[11px] gap-1 border-zinc-700/60 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300"
+                            className="h-7 text-[11px] gap-1 border-border/60 bg-muted/50 hover:bg-muted/50 text-foreground/80"
                             onClick={() => { onAiGenerateClose?.(); }}
                           >
                             <Wrench className="w-3 h-3" />
@@ -5727,7 +5725,7 @@ export function PollBuilder({
                           </Button>
                         </div>
 
-                        <p className="text-[10px] text-zinc-600 pt-0.5">
+                        <p className="text-[10px] text-muted-foreground pt-0.5">
                           Want changes? Tell me below &mdash; e.g. &quot;make question 3 harder&quot;
                         </p>
                       </div>
@@ -5737,7 +5735,7 @@ export function PollBuilder({
                         "max-w-[85%] rounded-xl rounded-tl-sm px-3 py-2 text-sm",
                         msg.content.startsWith("Error:")
                           ? "bg-red-500/10 border border-red-500/20 text-red-300"
-                          : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-300"
+                          : "bg-muted/60 border border-border/40 text-foreground/80"
                       )}>
                         {msg.content}
                       </div>
@@ -5747,7 +5745,7 @@ export function PollBuilder({
 
                 {/* Live progress during generation */}
                 {aiGenerating && aiProgressSteps.length > 0 && (
-                  <div className="rounded-lg border border-violet-500/20 bg-zinc-950/80 p-3 space-y-2">
+                  <div className="rounded-lg border border-violet-500/20 bg-surface-1/80 p-3 space-y-2">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
@@ -5755,24 +5753,24 @@ export function PollBuilder({
                           {aiHasGenerated ? "Refining\u2026" : "Generating\u2026"}
                         </span>
                       </div>
-                      <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
+                      <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
                         {Math.floor(aiElapsed / 60) > 0 ? `${Math.floor(aiElapsed / 60)}m ` : ""}{aiElapsed % 60}s
                       </span>
                     </div>
                     {/* Smooth progress bar — includes heartbeat sub-progress during step 2 */}
-                    <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-0.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-linear-to-r from-violet-500 to-fuchsia-500 transition-all duration-700 ease-out"
+                        className="h-full bg-linear-to-r from-violet-500 to-fuchsia-500 transition duration-700 ease-out"
                         style={{ width: `${Math.round(((aiProgressSteps.filter((s) => s.status === "done").length + (aiProgressSteps.some(s => s.step === 2 && s.status === "active") ? Math.min(aiHeartbeatLog.length / 8, 0.95) : 0)) / aiTotalSteps) * 100)}%` }}
                       />
                     </div>
                     {/* Scrollable step log with heartbeat history */}
-                    <div ref={aiProgressLogRef} className="max-h-[120px] sm:max-h-[180px] overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                    <div ref={aiProgressLogRef} className="max-h-[120px] sm:max-h-[180px] overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                       {aiProgressSteps.map((ps) => (
                         <div key={ps.step}>
                           <div className="flex items-center gap-2.5 text-[12px]">
                             {ps.status === "done" ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <Check className="w-3.5 h-3.5 text-brand-accent shrink-0" />
                             ) : ps.status === "active" ? (
                               <Loader2 className="w-3.5 h-3.5 text-violet-400 animate-spin shrink-0" />
                             ) : (
@@ -5780,31 +5778,31 @@ export function PollBuilder({
                             )}
                             <span className={cn(
                               "transition-colors flex-1",
-                              ps.status === "done" && "text-zinc-400",
-                              ps.status === "active" && "text-zinc-200 font-medium",
+                              ps.status === "done" && "text-muted-foreground",
+                              ps.status === "active" && "text-foreground/80 font-medium",
                               ps.status === "error" && "text-red-400",
                             )}>
                               {ps.label}
                             </span>
                             {/* Per-step elapsed shown while active */}
                             {ps.status === "active" && ps.startedAt && (
-                              <span className="text-[10px] text-zinc-500 font-mono tabular-nums shrink-0">
+                              <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
                                 {Math.round((Date.now() - ps.startedAt) / 1000)}s
                               </span>
                             )}
                             {ps.status === "done" && ps.startedAt && ps.completedAt && (
-                              <span className="text-[10px] text-zinc-600 font-mono tabular-nums shrink-0">
+                              <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
                                 {((ps.completedAt - ps.startedAt) / 1000).toFixed(1)}s
                               </span>
                             )}
                           </div>
                           {/* Heartbeat sub-messages under the active/done step 2 */}
                           {ps.step === 2 && aiHeartbeatLog.length > 0 && (
-                            <div className="ml-6 mt-0.5 space-y-0.5 border-l border-zinc-800/60 pl-2">
+                            <div className="ml-6 mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
                               {aiHeartbeatLog.map((msg, i) => (
-                                <div key={i} className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+                                <div key={i} className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                                   <span className="w-1 h-1 rounded-full bg-violet-500/40 shrink-0" />
-                                  <span className={i === aiHeartbeatLog.length - 1 && ps.status === "active" ? "text-zinc-400" : ""}>{msg}</span>
+                                  <span className={i === aiHeartbeatLog.length - 1 && ps.status === "active" ? "text-muted-foreground" : ""}>{msg}</span>
                                 </div>
                               ))}
                             </div>
@@ -5817,9 +5815,9 @@ export function PollBuilder({
 
                 {/* Fallback loader */}
                 {aiGenerating && aiProgressSteps.length === 0 && (
-                  <div className="rounded-lg border border-violet-500/20 bg-zinc-950/80 p-3 flex items-center gap-3">
+                  <div className="rounded-lg border border-violet-500/20 bg-surface-1/80 p-3 flex items-center gap-3">
                     <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
-                    <span className="text-xs text-zinc-400">Connecting to AI&hellip;</span>
+                    <span className="text-xs text-muted-foreground">Connecting to AI&hellip;</span>
                   </div>
                 )}
               </div>
@@ -5844,8 +5842,8 @@ export function PollBuilder({
                       <Zap className="w-3.5 h-3.5 shrink-0 text-violet-400" />
                       You&apos;ve used all {aiFreeLimit} free AI generations for today
                     </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Want unlimited? Connect your own AI key in 2 minutes — some providers have <span className="text-emerald-400 font-medium">free tiers</span>.
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Want unlimited? Connect your own AI key in 2 minutes — some providers have <span className="text-brand-accent font-medium">free tiers</span>.
                     </p>
                     <button
                       type="button"
@@ -5862,7 +5860,7 @@ export function PollBuilder({
                 {/* Prompt input — ChatGPT-style rounded container */}
                 {currentUser && !limitReachedWithoutBypass && (
                   <div className="space-y-2">
-                    <div className="rounded-2xl border border-zinc-700/40 bg-zinc-900/70 backdrop-blur-sm px-3 py-2.5 ring-1 ring-zinc-800/50 focus-within:ring-2 focus-within:ring-violet-500/30 transition-all">
+                    <div className="rounded-2xl border border-border/40 bg-surface-3/70 backdrop-blur-sm px-3 py-2.5 ring-1 ring-border/50 focus-within:ring-2 focus-within:ring-violet-500/30 transition">
                     <div className="flex items-end gap-2">
                       <div className="flex-1 min-w-0">
                         <textarea
@@ -5882,7 +5880,7 @@ export function PollBuilder({
                           placeholder={aiHasGenerated
                             ? 'Tell me what to change \u2014 e.g. "make question 3 harder"'
                             : 'Describe your poll \u2014 e.g. "10 questions about climate change"'}
-                          className="w-full resize-none bg-transparent text-sm leading-relaxed text-zinc-200 placeholder:text-zinc-500 focus:outline-none overflow-y-hidden"
+                          className="w-full resize-none bg-transparent text-sm leading-relaxed text-foreground/80 placeholder:text-muted-foreground focus:outline-none overflow-y-hidden"
                           rows={1}
                           style={{ maxHeight: "120px" }}
                           disabled={aiGenerating}
@@ -5898,11 +5896,11 @@ export function PollBuilder({
                       <button
                         type="button"
                         className={cn(
-                          "shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full transition-all",
+                          "shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full transition",
                           aiGenerating ||
                           !(aiHasGenerated ? aiRefinementInput.trim() : aiPrompt.trim()) ||
                           limitReachedWithoutBypass
-                            ? "bg-zinc-700/50 text-zinc-500 cursor-not-allowed"
+                            ? "bg-muted/50 text-muted-foreground cursor-not-allowed"
                             : "bg-violet-600 text-white hover:bg-violet-500 shadow-sm shadow-violet-500/20"
                         )}
                         disabled={
@@ -5920,20 +5918,20 @@ export function PollBuilder({
                       </button>
                     </div>
                     {/* ─── Model picker row — VS Code / ChatGPT inspired ─── */}
-                    <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-600">
+                    <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
                       <Popover open={aiModelDropdownOpen} onOpenChange={setAiModelDropdownOpen}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
                             className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-all",
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition",
                               hasQuotaBypass
                                 ? "bg-violet-500/8 hover:bg-violet-500/15 text-violet-300 hover:text-violet-200"
-                                : "hover:bg-zinc-800/60 hover:text-zinc-300",
-                              aiModelDropdownOpen && (hasQuotaBypass ? "bg-violet-500/15 text-violet-200" : "bg-zinc-800/60 text-zinc-300")
+                                : "hover:bg-muted/60 hover:text-foreground/80",
+                              aiModelDropdownOpen && (hasQuotaBypass ? "bg-violet-500/15 text-violet-200" : "bg-muted/60 text-foreground/80")
                             )}
                           >
-                            {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                            {hasQuotaBypass && <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-light" />}
                             {(() => {
                               const provDef = AI_PROVIDER_OPTIONS.find(p => p.value === aiProvider);
                               const modelDef = provDef?.models.find(m => m.value === aiModel);
@@ -5945,16 +5943,16 @@ export function PollBuilder({
                         <PopoverContent
                           align="start"
                           side="top"
-                          className="w-[340px] p-0 bg-zinc-950 border border-zinc-800/80 rounded-xl shadow-2xl overflow-hidden"
+                          className="w-[340px] p-0 bg-surface-1 border border-border/80 rounded-xl shadow-2xl overflow-hidden"
                         >
-                          <div className="max-h-[380px] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" onWheel={(e) => e.stopPropagation()}>
+                          <div className="max-h-[380px] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent" onWheel={(e) => e.stopPropagation()}>
                             {/* ── Free providers (GROQ) ── */}
                             {freeProviderDefs.map((provDef) => (
                               <div key={provDef.value}>
-                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40 sticky top-0 z-10 border-b border-zinc-800/30">
+                                <div className="px-3 py-1.5 text-[10px] text-muted-foreground flex items-center gap-1.5 bg-surface-3/40 sticky top-0 z-10 border-b border-border/30">
                                   <span>{provDef.emoji}</span>
                                   <span className="font-semibold uppercase tracking-wider">{provDef.label}</span>
-                                  <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">FREE</span>
+                                  <span className="ml-auto px-1.5 py-0 rounded text-[8px] font-bold bg-brand-accent/15 text-brand-accent border border-brand-accent/20">FREE</span>
                                 </div>
                                 {provDef.models.map((model) => {
                                   const isActive = aiProvider === provDef.value && aiModel === model.value;
@@ -5971,13 +5969,13 @@ export function PollBuilder({
                                           className={cn(
                                             "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
                                             isActive
-                                              ? "bg-violet-500/10 text-zinc-100"
-                                              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                                              ? "bg-violet-500/10 text-foreground"
+                                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/80"
                                           )}
                                         >
                                           <div className={cn(
                                             "w-1.5 h-1.5 rounded-full shrink-0 transition-colors",
-                                            isActive ? "bg-violet-400" : "bg-zinc-700 group-hover:bg-zinc-500"
+                                            isActive ? "bg-violet-400" : "bg-muted group-hover:bg-muted"
                                           )} />
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5">
@@ -5992,7 +5990,7 @@ export function PollBuilder({
                                               }).filter(Boolean).slice(0, 3)}
                                             </div>
                                             {model.description && (
-                                              <p className="text-[10px] text-zinc-600 mt-0.5">{model.description}</p>
+                                              <p className="text-[10px] text-muted-foreground mt-0.5">{model.description}</p>
                                             )}
                                           </div>
                                           {isActive && <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />}
@@ -6001,7 +5999,7 @@ export function PollBuilder({
                                       <TooltipContent side="right" className="text-xs max-w-[200px]">
                                         {model.description || model.label}
                                         {model.capabilities?.length ? (
-                                          <span className="block text-zinc-500 mt-0.5">
+                                          <span className="block text-muted-foreground mt-0.5">
                                             {model.capabilities.map(c => CAPABILITY_BADGES[c]?.label).filter(Boolean).join(" · ")}
                                           </span>
                                         ) : null}
@@ -6014,16 +6012,16 @@ export function PollBuilder({
 
                             {/* ── Loading skeleton for BYOK providers ── */}
                             {aiKeysLoading && unlockedByokProviderDefs.length === 0 && (
-                              <div className="border-t border-zinc-800/30">
-                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40">
+                              <div className="border-t border-border/30">
+                                <div className="px-3 py-1.5 text-[10px] text-muted-foreground flex items-center gap-1.5 bg-surface-3/40">
                                   <span className="font-semibold uppercase tracking-wider">Loading your keys…</span>
                                 </div>
                                 {[1, 2].map((i) => (
                                   <div key={i} className="px-3 py-2 flex items-center gap-2.5 animate-pulse">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                                     <div className="flex-1 space-y-1">
-                                      <div className="h-3 w-24 rounded bg-zinc-800" />
-                                      <div className="h-2 w-32 rounded bg-zinc-800/60" />
+                                      <div className="h-3 w-24 rounded bg-muted" />
+                                      <div className="h-2 w-32 rounded bg-muted/60" />
                                     </div>
                                   </div>
                                 ))}
@@ -6033,7 +6031,7 @@ export function PollBuilder({
                             {/* ── Unlocked BYOK providers ── */}
                             {unlockedByokProviderDefs.map((provDef) => (
                               <div key={provDef.value}>
-                                <div className="px-3 py-1.5 text-[10px] text-zinc-500 flex items-center gap-1.5 bg-zinc-900/40 sticky top-0 z-10 border-b border-zinc-800/30 border-t border-t-zinc-800/20">
+                                <div className="px-3 py-1.5 text-[10px] text-muted-foreground flex items-center gap-1.5 bg-surface-3/40 sticky top-0 z-10 border-b border-border/30 border-t border-t-zinc-800/20">
                                   <span>{provDef.emoji}</span>
                                   <span className="font-semibold uppercase tracking-wider">{provDef.label}</span>
                                   <span className="ml-auto inline-flex items-center gap-0.5 text-[8px] font-bold text-violet-400">
@@ -6057,13 +6055,13 @@ export function PollBuilder({
                                           className={cn(
                                             "w-full text-left px-3 py-2 flex items-center gap-2.5 transition-colors group",
                                             isActive
-                                              ? "bg-violet-500/10 text-zinc-100"
-                                              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                                              ? "bg-violet-500/10 text-foreground"
+                                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/80"
                                           )}
                                         >
                                           <div className={cn(
                                             "w-1.5 h-1.5 rounded-full shrink-0 transition-colors",
-                                            isActive ? "bg-violet-400" : "bg-zinc-700 group-hover:bg-zinc-500"
+                                            isActive ? "bg-violet-400" : "bg-muted group-hover:bg-muted"
                                           )} />
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5">
@@ -6077,7 +6075,7 @@ export function PollBuilder({
                                                 ) : null;
                                               })}
                                             </div>
-                                            <p className="text-[10px] text-zinc-600 mt-0.5">{model.description}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{model.description}</p>
                                           </div>
                                           {isActive && <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />}
                                         </button>
@@ -6085,7 +6083,7 @@ export function PollBuilder({
                                       <TooltipContent side="right" className="text-xs max-w-[200px]">
                                         {model.description || model.label}
                                         {model.capabilities?.length ? (
-                                          <span className="block text-zinc-500 mt-0.5">
+                                          <span className="block text-muted-foreground mt-0.5">
                                             {model.capabilities.map(c => CAPABILITY_BADGES[c]?.label).filter(Boolean).join(" · ")}
                                           </span>
                                         ) : null}
@@ -6100,15 +6098,15 @@ export function PollBuilder({
                                     <DropdownMenuTrigger asChild>
                                       <button
                                         type="button"
-                                        className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/40 flex items-center gap-2 transition-colors"
+                                        className="w-full text-left px-3 py-1.5 text-[11px] text-muted-foreground hover:text-muted-foreground hover:bg-muted/40 flex items-center gap-2 transition-colors"
                                       >
                                         <ChevronRight className="w-3 h-3" />
                                         More models
-                                        <span className="text-[9px] text-zinc-600">({provDef.models.filter(m => m.group !== "recommended").length})</span>
+                                        <span className="text-[9px] text-muted-foreground">({provDef.models.filter(m => m.group !== "recommended").length})</span>
                                       </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" side="right" className="bg-zinc-900 border-zinc-700 min-w-[260px] p-0">
-                                      <div className="px-3 py-1.5 text-[10px] text-zinc-500 font-semibold uppercase tracking-wider border-b border-zinc-800/40">
+                                    <DropdownMenuContent align="start" side="right" className="bg-surface-3 border-border min-w-[260px] p-0">
+                                      <div className="px-3 py-1.5 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider border-b border-border/40">
                                         {provDef.emoji} {provDef.label} — All models
                                       </div>
                                       {provDef.models.filter(m => m.group !== "recommended").map((model) => {
@@ -6135,7 +6133,7 @@ export function PollBuilder({
                                                   ) : null;
                                                 })}
                                               </div>
-                                              {model.description && <p className="text-[10px] text-zinc-500">{model.description}</p>}
+                                              {model.description && <p className="text-[10px] text-muted-foreground">{model.description}</p>}
                                             </div>
                                             {isActive && <Check className="w-3 h-3 text-violet-400" />}
                                           </DropdownMenuItem>
@@ -6150,8 +6148,8 @@ export function PollBuilder({
 
                           {/* ── Connect more providers ── */}
                           {hasLockedByokProviders && (
-                            <div className="border-t border-zinc-800/60 p-2 space-y-0.5">
-                              <div className="px-2 py-1 text-[9px] text-zinc-600 uppercase tracking-wider font-semibold">
+                            <div className="border-t border-border/60 p-2 space-y-0.5">
+                              <div className="px-2 py-1 text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
                                 Add a provider
                               </div>
                               {lockedByokProviderDefs.map((provDef) => (
@@ -6162,12 +6160,12 @@ export function PollBuilder({
                                     requestProviderKey(provDef.value as AiProvider);
                                     setAiModelDropdownOpen(false);
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 flex items-center gap-2 transition-colors group"
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-foreground/80 hover:bg-muted/50 flex items-center gap-2 transition-colors group"
                                 >
                                   <span className="text-sm">{provDef.emoji}</span>
                                   <span>{provDef.label}</span>
-                                  <span className="text-[9px] text-zinc-600">{provDef.tagline}</span>
-                                  <Key className="w-3 h-3 ml-auto text-zinc-700 group-hover:text-violet-400 transition-colors" />
+                                  <span className="text-[9px] text-muted-foreground">{provDef.tagline}</span>
+                                  <Key className="w-3 h-3 ml-auto text-foreground group-hover:text-violet-400 transition-colors" />
                                 </button>
                               ))}
                             </div>
@@ -6182,10 +6180,10 @@ export function PollBuilder({
                               type="button"
                               onClick={() => setAiThinking((t) => !t)}
                               className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition-all text-[10px] font-medium",
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition text-[10px] font-medium",
                                 aiThinking
                                   ? "bg-purple-500/15 text-purple-400 border border-purple-500/25 hover:bg-purple-500/25"
-                                  : "text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50"
+                                  : "text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
                               )}
                             >
                               <BrainCircuit className={cn("w-3 h-3", aiThinking && "text-purple-400")} />
@@ -6199,7 +6197,7 @@ export function PollBuilder({
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      <span className="text-zinc-600">
+                      <span className="text-muted-foreground">
                         {hasQuotaBypass
                           ? "Unlimited"
                           : aiFreeUsed === null
@@ -6281,11 +6279,11 @@ export function PollBuilder({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <h3 className="font-medium flex items-center gap-2 text-zinc-200 cursor-help">
-                <FolderOpen className="h-4 w-4 text-zinc-500" />
+              <h3 className="font-medium flex items-center gap-2 text-foreground/80 cursor-help">
+                <FolderOpen className="h-4 w-4 text-muted-foreground" />
                 <span className="hidden xs:inline">Builder</span> ({data.flow.length})
                 {data.flow.length > 0 && (
-                  <span className="text-[10px] text-zinc-600 hidden sm:flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground hidden sm:flex items-center gap-1">
                     <GripVertical className="h-2.5 w-2.5" />
                     Drag to reorder
                   </span>
@@ -6315,7 +6313,7 @@ export function PollBuilder({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "gap-1 text-zinc-400 hover:text-zinc-200",
+                    "gap-1 text-muted-foreground hover:text-foreground/80",
                     selectedElementType === 'section' && "text-primary hover:text-primary/80"
                   )}
                   onClick={(e) => e.stopPropagation()}
@@ -6325,14 +6323,14 @@ export function PollBuilder({
                   <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700">
+              <DropdownMenuContent align="end" className="bg-surface-3 border-border">
                 <DropdownMenuItem onClick={() => addQuestion("SINGLE_CHOICE")} className="gap-2">
                   <List className="h-4 w-4" /> Single Choice
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => addQuestion("MULTI_CHOICE")} className="gap-2">
                   <List className="h-4 w-4" /> Multiple Choice
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuSeparator className="bg-muted" />
                 <DropdownMenuItem onClick={() => addQuestion("SLIDER")} className="gap-2">
                   <Sliders className="h-4 w-4" /> Slider (A-G)
                 </DropdownMenuItem>
@@ -6342,7 +6340,7 @@ export function PollBuilder({
                 <DropdownMenuItem onClick={() => addQuestion("TEXT")} className="gap-2">
                   <Type className="h-4 w-4" /> Text Response
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuSeparator className="bg-muted" />
                 <DropdownMenuItem onClick={() => addQuestion("RANKING")} className="gap-2">
                   <GripVertical className="h-4 w-4" /> Ranking
                 </DropdownMenuItem>
@@ -6365,7 +6363,7 @@ export function PollBuilder({
                 addSection();
               }}
               className={cn(
-                "gap-1 text-zinc-400 hover:text-zinc-200",
+                "gap-1 text-muted-foreground hover:text-foreground/80",
                 selectedElementType === 'section' && "text-primary hover:text-primary/80"
               )}
             >
@@ -6379,12 +6377,12 @@ export function PollBuilder({
           <div
             data-gap-drop-target="0"
             className={cn(
-              "py-8 text-center border border-dashed rounded-lg transition-all duration-200",
+              "py-8 text-center border border-dashed rounded-lg transition duration-200",
               (draggingQuestionId || draggingSectionId)
                 ? dropTargetSectionId === 'gap-0'
                   ? "border-primary bg-primary/20"
                   : "border-primary/50 bg-primary/5"
-                : "border-zinc-700/50"
+                : "border-border/50"
             )}
             onMouseEnter={() => (draggingQuestionId || draggingSectionId) && setDropTargetSectionId('gap-0')}
             onMouseLeave={() => {
@@ -6419,7 +6417,7 @@ export function PollBuilder({
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 No items yet. Use the buttons above to add questions and sections.
               </p>
             )}
@@ -6431,20 +6429,20 @@ export function PollBuilder({
               <div
                 data-toplevel-drop-target
                 className={cn(
-                  "mb-3 p-3 rounded-lg border-2 border-dashed transition-all",
+                  "mb-3 p-3 rounded-lg border-2 border-dashed transition",
                   dropTargetTopLevel
                     ? "bg-amber-500/20 border-amber-500 scale-[1.02]"
-                    : "bg-zinc-800/30 border-zinc-600 hover:border-amber-500/50"
+                    : "bg-muted/30 border-border hover:border-amber-500/50"
                 )}
               >
                 <div className="flex items-center justify-center gap-2">
                   <ChevronUp className={cn(
                     "h-4 w-4",
-                    dropTargetTopLevel ? "text-amber-400" : "text-zinc-500"
+                    dropTargetTopLevel ? "text-amber-400" : "text-muted-foreground"
                   )} />
                   <span className={cn(
                     "text-sm font-medium",
-                    dropTargetTopLevel ? "text-amber-400" : "text-zinc-500"
+                    dropTargetTopLevel ? "text-amber-400" : "text-muted-foreground"
                   )}>
                     {dropTargetTopLevel ? "Release to move to top-level" : "Drop here for top-level"}
                   </span>
@@ -6506,7 +6504,7 @@ export function PollBuilder({
                     layout={otherSectionDragging ? "position" : true}
                     className={cn(
                       "cursor-grab active:cursor-grabbing relative transition-[margin,padding] duration-150",
-                      isBeingMergedOnto && "ring-2 ring-purple-500 ring-offset-2 ring-offset-zinc-900 rounded-lg",
+                      isBeingMergedOnto && "ring-2 ring-purple-500 ring-offset-2 ring-offset-background rounded-lg",
                       showInsertLane && "mt-7"
                     )}
                     whileDrag={{
@@ -6556,7 +6554,7 @@ export function PollBuilder({
                   >
                     {showInsertLane && (
                       <div className="absolute -top-5 left-0 right-0 flex items-center justify-center pointer-events-none z-20">
-                        <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+                        <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-surface-3 text-primary/90">Drop here</div>
                       </div>
                     )}
                     {/* Section drag indicator - shows when this section is being dragged */}
@@ -6669,7 +6667,7 @@ export function PollBuilder({
             })}
             {draggingFromSectionId !== null && topLevelInsertIndex === data.flow.length && !dropTargetSectionId && !dropTargetTopLevel && (
               <div className="h-7 -mt-1 flex items-end justify-center pointer-events-none">
-                <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-zinc-900 text-primary/90">Drop here</div>
+                <div className="px-2 py-0.5 text-[10px] rounded-full border border-primary/30 bg-surface-3 text-primary/90">Drop here</div>
               </div>
             )}
           </Reorder.Group>
@@ -6679,8 +6677,8 @@ export function PollBuilder({
 
       {/* Mobile sticky save bar — visible only on small screens when questions exist */}
       {data.questions.length > 0 && (
-        <div className="sm:hidden sticky bottom-0 -mx-3 px-3 py-2 bg-background/95 backdrop-blur-sm border-t border-zinc-800/50 flex items-center justify-between gap-2 z-20">
-          <span className="text-xs text-zinc-500 truncate">
+        <div className="sm:hidden sticky bottom-0 -mx-3 px-3 py-2 bg-background/95 backdrop-blur-sm border-t border-border/50 flex items-center justify-between gap-2 z-20">
+          <span className="text-xs text-muted-foreground truncate">
             {data.questions.length} question{data.questions.length !== 1 ? "s" : ""}
             {data.title ? ` · ${data.title}` : ""}
           </span>

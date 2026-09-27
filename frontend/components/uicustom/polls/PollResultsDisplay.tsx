@@ -256,7 +256,7 @@ function ChoiceChart({
                 transition={{ delay: idx * 0.1 }}
                 className={cn(
                   "transition-opacity cursor-pointer",
-                  isUserSelected(response.optionId) && "stroke-white stroke-2"
+                  isUserSelected(response.optionId) && "stroke-foreground stroke-2"
                 )}
               />
             );
@@ -332,7 +332,7 @@ function ChoiceChart({
               transition={{ duration: 0.5, delay: idx * 0.05 }}
             >
               {response.percentage > 10 && (
-                <span className="text-xs text-white font-medium">
+                <span className="text-xs text-foreground font-medium">
                   {response.percentage}%
                 </span>
               )}

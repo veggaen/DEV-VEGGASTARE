@@ -129,7 +129,7 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
               key={option.id}
               onClick={() => canVote && handleVote(option.id)}
               disabled={!canVote || voting !== null}
-              className={`w-full relative overflow-hidden rounded-lg transition-all ${
+              className={`w-full relative overflow-hidden rounded-lg transition ${
                 isSelected 
                   ? 'bg-blue-500/15 dark:bg-blue-500/20' 
                   : 'bg-muted/40 hover:bg-muted/60'

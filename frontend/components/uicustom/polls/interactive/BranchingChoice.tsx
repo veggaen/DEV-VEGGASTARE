@@ -91,11 +91,11 @@ function QuestionLevel({
               disabled={!isActive}
               className={cn(
                 "w-full flex items-center gap-3 p-4 rounded-2xl text-left",
-                "border-2 transition-all duration-200",
+                "border-2 transition duration-200",
                 isSelected
                   ? "border-primary bg-primary/10 shadow-lg"
                   : isActive
-                  ? "border-border hover:border-primary/50 bg-white/50 dark:bg-white/5"
+                  ? "border-border hover:border-primary/50 bg-surface-1/50"
                   : "border-muted bg-muted/50 opacity-50",
                 !isActive && "cursor-not-allowed"
               )}
@@ -270,7 +270,7 @@ export function BranchingChoice({
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
               idx < value.path.length
-                ? "bg-emerald-500"
+                ? "bg-brand-accent"
                 : idx === value.path.length
                 ? "bg-primary animate-pulse"
                 : "bg-muted"

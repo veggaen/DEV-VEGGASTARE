@@ -306,7 +306,7 @@ function getPollTheme(type: string) {
     case "FEEDBACK":
       return { gradient: "from-blue-500 via-cyan-500 to-teal-500", accent: "text-blue-500", accentLight: "text-blue-400", badge: "bg-blue-500/20 text-blue-400" };
     case "REACH_ASSESSMENT":
-      return { gradient: "from-emerald-500 via-cyan-500 to-blue-500", accent: "text-emerald-500", accentLight: "text-emerald-400", badge: "bg-emerald-500/20 text-emerald-400" };
+      return { gradient: "from-brand-accent via-cyan-500 to-blue-500", accent: "text-brand-accent", accentLight: "text-brand-accent", badge: "bg-brand-accent/20 text-brand-accent" };
     default:
       return { gradient: "from-amber-500 via-orange-500 to-red-500", accent: "text-amber-500", accentLight: "text-amber-400", badge: "bg-amber-500/20 text-amber-400" };
   }
@@ -938,7 +938,7 @@ export function PollTakerModal({ pollId, onClose, onComplete, previewData }: Pol
   return (
     <Dialog open={!!pollId || isPreviewMode} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-w-3xl w-[95vw] max-h-[90vh] p-0 overflow-hidden border-zinc-800/50 bg-zinc-950/95 backdrop-blur-xl"
+        className="max-w-3xl w-[95vw] max-h-[90vh] p-0 overflow-hidden border-border/50 bg-surface-1/95 backdrop-blur-xl"
         accessibleTitle={poll?.title || "Poll"}
       >
         <TooltipProvider>
@@ -1084,7 +1084,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
       className="relative flex flex-col items-center justify-center p-8 text-center min-h-full h-full"
     >
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-linear-to-b from-background via-zinc-900/50 to-background overflow-hidden">
+      <div className="absolute inset-0 bg-linear-to-b from-background via-surface-3/50 to-background overflow-hidden">
         <motion.div
           className={cn("absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 bg-linear-to-br", theme.gradient)}
           animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
@@ -1122,7 +1122,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
             animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
             transition={{ delay: 0.6, duration: 0.5 }}
           >
-            <Sparkles className="w-4 h-4 text-white" />
+            <Sparkles className="w-4 h-4 text-foreground" />
           </motion.div>
         </motion.div>
 
@@ -1176,7 +1176,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
             onClick={onStart}
             className={cn("relative group px-8 py-6 text-base font-semibold rounded-2xl text-white shadow-2xl overflow-hidden bg-linear-to-r", theme.gradient)}
           >
-            <motion.span className="absolute inset-0 bg-linear-to-r from-white/0 via-white/20 to-white/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+            <motion.span className="absolute inset-0 bg-linear-to-r from-background/0 via-background/20 to-background/0" animate={{ x: ["-200%", "200%"] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
             <span className="relative flex items-center gap-2">
               {hasProgress ? "Continue" : "Start"}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -1184,7 +1184,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
           </Button>
 
           {sections.length > 1 && (
-            <Button size="lg" variant="outline" onClick={onSelectSection} className="px-8 py-6 text-base font-semibold rounded-2xl border-zinc-700 hover:border-zinc-600">
+            <Button size="lg" variant="outline" onClick={onSelectSection} className="px-8 py-6 text-base font-semibold rounded-2xl border-border hover:border-border">
               Choose Section
             </Button>
           )}
@@ -1193,7 +1193,7 @@ function WelcomeScreen({ poll, sections, theme, answeredCount, totalQuestions, o
         {hasProgress && (
           <motion.div className="mt-6 flex flex-col items-center gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              <Check className="h-3.5 w-3.5 text-brand-accent" />
               {answeredCount} of {totalQuestions} answered ({totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0}%)
             </div>
             <Button
@@ -1223,7 +1223,7 @@ function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex flex-col h-full">
-      <div className="p-6 border-b border-zinc-800/50">
+      <div className="p-6 border-b border-border/50">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0"><ArrowLeft className="h-4 w-4" /></Button>
           <div>
@@ -1243,9 +1243,9 @@ function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
               key={section.id}
               onClick={() => onSelect(idx)}
               className={cn(
-                "w-full p-4 rounded-xl text-left transition-all",
-                "bg-zinc-900/50 hover:bg-zinc-800/70 border border-zinc-800/50 hover:border-zinc-700/50",
-                isDone && "border-emerald-500/30 bg-emerald-500/5"
+                "w-full p-4 rounded-xl text-left transition",
+                "bg-surface-3/50 hover:bg-muted/70 border border-border/50 hover:border-border/50",
+                isDone && "border-brand-accent/30 bg-brand-accent/5"
               )}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1258,16 +1258,16 @@ function SectionSelectScreen({ sections, answers, theme, onSelect, onBack }: {
                     <h3 className="font-semibold truncate">{section.title}</h3>
                     <span className="text-xs text-muted-foreground shrink-0">{answered}/{total}</span>
                   </div>
-                  <div className="mt-2 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
                     <motion.div
-                      className={cn("h-full rounded-full", isDone ? "bg-emerald-500" : `bg-linear-to-r ${theme.gradient}`)}
+                      className={cn("h-full rounded-full", isDone ? "bg-brand-accent" : `bg-linear-to-r ${theme.gradient}`)}
                       initial={{ width: 0 }}
                       animate={{ width: `${pct}%` }}
                       transition={{ delay: idx * 0.05 + 0.2, duration: 0.5 }}
                     />
                   </div>
                 </div>
-                {isDone && <Check className="h-5 w-5 text-emerald-500 shrink-0" />}
+                {isDone && <Check className="h-5 w-5 text-brand-accent shrink-0" />}
               </div>
             </motion.button>
           );
@@ -1688,7 +1688,7 @@ function QuestionScreen({
       className="flex flex-col h-full"
     >
       {/* Compact header with section + progress */}
-      <div className="px-4 pt-3 pb-2 border-b border-zinc-800/30">
+      <div className="px-4 pt-3 pb-2 border-b border-border/30">
         <div className="flex items-center justify-between gap-2 mb-2">
           {sectionCount > 1 ? (
             <button onClick={onSectionSelect} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -1701,7 +1701,7 @@ function QuestionScreen({
           )}
           <span className="text-xs text-muted-foreground">{answeredCount}/{totalQuestions}</span>
         </div>
-        <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
+        <div className="h-1 rounded-full bg-muted overflow-hidden">
           <motion.div className={cn("h-full rounded-full bg-linear-to-r", theme.gradient)} initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 0.3 }} />
         </div>
       </div>
@@ -1722,7 +1722,7 @@ function QuestionScreen({
                 <TooltipTrigger asChild>
                   <span className={cn(
                     "ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full cursor-help",
-                    trustInfo.factor === "High" && "bg-emerald-500/15 text-emerald-400",
+                    trustInfo.factor === "High" && "bg-brand-accent/15 text-brand-accent",
                     trustInfo.factor === "Medium" && "bg-amber-500/15 text-amber-400",
                     trustInfo.factor === "Low" && "bg-red-500/15 text-red-400",
                   )}>
@@ -1829,7 +1829,7 @@ function QuestionScreen({
                 placeholder="Share your thoughts..."
                 value={(answer?.value as string) ?? ""}
                 onChange={(e) => handleValueChange(e.target.value)}
-                className="min-h-[120px] bg-zinc-900/50 border-zinc-800 focus:border-zinc-600 text-base"
+                className="min-h-[120px] bg-surface-3/50 border-border focus:border-border text-base"
               />
             )}
           </div>
@@ -1842,8 +1842,8 @@ function QuestionScreen({
                 className={cn(
                   "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors",
                   showComment 
-                    ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10" 
-                    : "text-muted-foreground border-zinc-700 hover:border-zinc-500 hover:text-foreground bg-zinc-800/50"
+                    ? "text-brand-accent border-brand-accent/30 bg-brand-accent/10" 
+                    : "text-muted-foreground border-border hover:border-border hover:text-foreground bg-muted/50"
                 )}
               >
                 <MessageSquarePlus className="h-4 w-4" />
@@ -1856,7 +1856,7 @@ function QuestionScreen({
                       placeholder="Additional thoughts..."
                       value={answer?.comment ?? ""}
                       onChange={(e) => handleCommentChange(e.target.value)}
-                      className="mt-2 text-sm min-h-[60px] bg-zinc-900/50 border-zinc-800"
+                      className="mt-2 text-sm min-h-[60px] bg-surface-3/50 border-border"
                     />
                   </motion.div>
                 )}
@@ -1873,7 +1873,7 @@ function QuestionScreen({
                   "w-full py-5 text-base font-semibold rounded-xl text-white shadow-lg",
                   "bg-linear-to-r from-violet-600 via-purple-600 to-fuchsia-600",
                   "hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500",
-                  "transition-all duration-200"
+                  "transition duration-200"
                 )}
               >
                 <span className="flex items-center justify-center gap-2">
@@ -1900,7 +1900,7 @@ function QuestionScreen({
                     className={cn(
                       "flex flex-col gap-3 px-5 py-4 rounded-2xl border-2",
                       isCorrect 
-                        ? "bg-emerald-500/15 border-emerald-500/50 shadow-lg shadow-emerald-500/10" 
+                        ? "bg-brand-accent/15 border-brand-accent/50 shadow-lg shadow-brand-accent/10" 
                         : "bg-red-500/15 border-red-500/50 shadow-lg shadow-red-500/10"
                     )}
                   >
@@ -1911,11 +1911,11 @@ function QuestionScreen({
                         transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.1 }}
                         className={cn(
                           "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-                          isCorrect ? "bg-emerald-500/30" : "bg-red-500/30"
+                          isCorrect ? "bg-brand-accent/30" : "bg-red-500/30"
                         )}
                       >
                         {isCorrect ? (
-                          <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                          <CheckCircle2 className="h-6 w-6 text-brand-accent" />
                         ) : (
                           <X className="h-6 w-6 text-red-400" />
                         )}
@@ -1927,7 +1927,7 @@ function QuestionScreen({
                           transition={{ delay: 0.15 }}
                           className={cn(
                             "text-lg font-bold",
-                            isCorrect ? "text-emerald-400" : "text-red-400"
+                            isCorrect ? "text-brand-accent" : "text-red-400"
                           )}
                         >
                           {isCorrect ? "✓ Correct!" : "✗ Incorrect"}
@@ -1941,7 +1941,7 @@ function QuestionScreen({
                       transition={{ delay: 0.2 }}
                       className={cn(
                         "text-sm leading-relaxed",
-                        isCorrect ? "text-emerald-300/90" : "text-red-300/90"
+                        isCorrect ? "text-brand-accent-light/90" : "text-red-300/90"
                       )}
                     >
                       {isCorrect ? (
@@ -2018,7 +2018,7 @@ function QuestionScreen({
                       animate={{ height: "auto", opacity: 1 }}
                       className="overflow-hidden"
                     >
-                      <div className="p-3 rounded-lg bg-zinc-800/50 text-sm">
+                      <div className="p-3 rounded-lg bg-muted/50 text-sm">
                         <p className="text-xs text-muted-foreground mb-2 font-medium">
                           It should have been: {(effectiveCorrectAnswer as string[]).map(id => question.options.find(o => o.id === id)?.text ?? id).join(" → ")}
                         </p>
@@ -2030,9 +2030,9 @@ function QuestionScreen({
                                 <span className={cn(
                                   "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
                                   idx === 0 ? "bg-amber-500/20 text-amber-400" :
-                                  idx === 1 ? "bg-zinc-400/20 text-zinc-300" :
+                                  idx === 1 ? "bg-muted/20 text-foreground/80" :
                                   idx === 2 ? "bg-orange-600/20 text-orange-400" :
-                                  "bg-zinc-700/50 text-zinc-400"
+                                  "bg-muted/50 text-muted-foreground"
                                 )}>
                                   {idx + 1}
                                 </span>
@@ -2055,11 +2055,11 @@ function QuestionScreen({
                       <button
                         onClick={() => setShowExplanation(!showExplanation)}
                         className={cn(
-                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all w-full justify-center",
+                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition w-full justify-center",
                           showExplanation 
                             ? "text-violet-300 border-violet-500/50 bg-violet-500/15"
                             : isCorrect
-                              ? "text-emerald-300/80 hover:text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10"
+                              ? "text-brand-accent-light/80 hover:text-brand-accent-light border-brand-accent/30 hover:border-brand-accent/50 bg-brand-accent/5 hover:bg-brand-accent/10"
                               : "text-amber-300 hover:text-amber-200 border-amber-500/40 hover:border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/15"
                         )}
                       >
@@ -2076,7 +2076,7 @@ function QuestionScreen({
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="mt-3 p-4 rounded-xl bg-zinc-800/70 text-sm text-foreground/90 border border-zinc-700/50 leading-relaxed">
+                            <div className="mt-3 p-4 rounded-xl bg-muted/70 text-sm text-foreground/90 border border-border/50 leading-relaxed">
                               <span className="text-violet-400 font-medium">💡 Explanation: </span>
                               {explanationContent}
                             </div>
@@ -2095,7 +2095,7 @@ function QuestionScreen({
                       <button
                         onClick={() => setShowDeepExplanation(!showDeepExplanation)}
                         className={cn(
-                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all w-full justify-center",
+                          "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition w-full justify-center",
                           showDeepExplanation
                             ? "text-blue-200 border-blue-400/60 bg-blue-500/10"
                             : "text-blue-200/90 hover:text-blue-100 border-blue-400/35 hover:border-blue-400/55 bg-blue-500/5 hover:bg-blue-500/10"
@@ -2176,7 +2176,7 @@ function QuestionScreen({
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  <Check className="h-3.5 w-3.5 text-brand-accent" />
                   Response saved
                 </div>
               )}
@@ -2186,7 +2186,7 @@ function QuestionScreen({
       </div>
 
       {/* Navigation footer */}
-      <div className="px-4 py-3 border-t border-zinc-800/30 bg-zinc-900/50">
+      <div className="px-4 py-3 border-t border-border/30 bg-surface-3/50">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Button variant="ghost" size="sm" onClick={onPrev} className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-4 w-4 mr-1" />
@@ -2202,9 +2202,9 @@ function QuestionScreen({
                 <div
                   key={q.id}
                   className={cn(
-                    "h-1.5 rounded-full transition-all duration-200",
+                    "h-1.5 rounded-full transition duration-200",
                     isActive ? cn("w-6 bg-linear-to-r", theme.gradient) :
-                    isFilled ? "w-1.5 bg-emerald-500" : "w-1.5 bg-zinc-700"
+                    isFilled ? "w-1.5 bg-brand-accent" : "w-1.5 bg-muted"
                   )}
                 />
               );
@@ -2214,7 +2214,7 @@ function QuestionScreen({
           <Button
             size="sm"
             onClick={onNext}
-            className={cn("font-medium", isLast ? cn("bg-linear-to-r text-white", theme.gradient) : "bg-zinc-800 hover:bg-zinc-700 text-foreground")}
+            className={cn("font-medium", isLast ? cn("bg-linear-to-r text-white", theme.gradient) : "bg-muted hover:bg-muted text-foreground")}
           >
             {isLast ? (<>Finish <CheckCircle2 className="h-4 w-4 ml-1" /></>) : (<>Next <ChevronRight className="h-4 w-4 ml-1" /></>)}
           </Button>
@@ -2264,7 +2264,7 @@ function CompletionScreen({
             ) : (
               <div className="relative w-20 h-20 mx-auto">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-800" strokeWidth="3" />
+                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-muted-foreground" strokeWidth="3" />
                   <circle cx="18" cy="18" r="16" fill="none" className="stroke-violet-500" strokeWidth="3" strokeDasharray={`${pct} 100`} strokeLinecap="round" />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-muted-foreground">{pct}%</span>
@@ -2279,7 +2279,7 @@ function CompletionScreen({
             You&apos;ve answered {answeredCount} of {totalQuestions} questions
             {poll.allowPartial && pct < 100 && " — partial submissions are welcome!"}
           </p>
-          <p className="text-xs text-zinc-500 mb-6">
+          <p className="text-xs text-muted-foreground mb-6">
             {pct}% = completion progress{poll.type === "QUIZ" ? ", not your score" : ""}
           </p>
 
@@ -2294,12 +2294,12 @@ function CompletionScreen({
                   <button
                     key={section.id}
                     onClick={() => onSelectSection(idx)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors bg-zinc-900/50 hover:bg-zinc-800/70 border border-zinc-800/50"
+                    className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors bg-surface-3/50 hover:bg-muted/70 border border-border/50"
                   >
                     <span>{section.icon}</span>
                     <span className="flex-1 text-sm font-medium text-left truncate">{section.title}</span>
                     <span className="text-xs text-muted-foreground">{answered}/{total}</span>
-                    {secPct === 100 && <Check className="h-4 w-4 text-emerald-500" />}
+                    {secPct === 100 && <Check className="h-4 w-4 text-brand-accent" />}
                   </button>
                 );
               })}
@@ -2361,7 +2361,7 @@ function CompletionScreen({
                 )}
               </Button>
             )}
-            <Button variant="outline" size="lg" onClick={onBack} className="w-full rounded-2xl border-zinc-700">
+            <Button variant="outline" size="lg" onClick={onBack} className="w-full rounded-2xl border-border">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>
@@ -2432,7 +2432,7 @@ function ResultsScreen({
             {[...Array(12)].map((_, i) => (
               <motion.div
                 key={i}
-                className={cn("absolute w-3 h-3 rounded-full", i % 3 === 0 ? "bg-violet-500" : i % 3 === 1 ? "bg-amber-400" : "bg-emerald-400")}
+                className={cn("absolute w-3 h-3 rounded-full", i % 3 === 0 ? "bg-violet-500" : i % 3 === 1 ? "bg-amber-400" : "bg-brand-accent-light")}
                 initial={{ 
                   x: "50%", 
                   y: "30%", 
@@ -2474,7 +2474,7 @@ function ResultsScreen({
           {/* Quiz Score Card - Only shown for quizzes with scored questions */}
           {isQuiz && quizScore && quizScore.total > 0 && (
             <motion.div 
-              className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 mb-6"
+              className="bg-surface-3/70 border border-border rounded-2xl p-6 mb-6"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.35 }}
@@ -2484,15 +2484,15 @@ function ResultsScreen({
                 <div className="relative w-32 h-32">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                     <path
-                      className="stroke-zinc-800"
+                      className="stroke-muted-foreground"
                       fill="none"
                       strokeWidth="3"
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                     <path
                       className={cn(
-                        "transition-all duration-1000 ease-out",
-                        scorePct >= 80 ? "stroke-emerald-500" : scorePct >= 60 ? "stroke-amber-500" : "stroke-red-500"
+                        "transition duration-1000 ease-out",
+                        scorePct >= 80 ? "stroke-brand-accent" : scorePct >= 60 ? "stroke-amber-500" : "stroke-red-500"
                       )}
                       fill="none"
                       strokeWidth="3"
@@ -2504,7 +2504,7 @@ function ResultsScreen({
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className={cn(
                       "text-3xl font-bold",
-                      scorePct >= 80 ? "text-emerald-400" : scorePct >= 60 ? "text-amber-400" : "text-red-400"
+                      scorePct >= 80 ? "text-brand-accent" : scorePct >= 60 ? "text-amber-400" : "text-red-400"
                     )}>
                       {scorePct}%
                     </span>
@@ -2516,8 +2516,8 @@ function ResultsScreen({
               {/* Score breakdown */}
               <div className="flex items-center justify-center gap-6 text-sm">
                 <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span className="text-emerald-400 font-medium">{quizScore.correct} correct</span>
+                  <Check className="h-4 w-4 text-brand-accent" />
+                  <span className="text-brand-accent font-medium">{quizScore.correct} correct</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <X className="h-4 w-4 text-red-400" />
@@ -2527,7 +2527,7 @@ function ResultsScreen({
 
               {/* Per-section score breakdown */}
               {sections.length > 1 && quizScore.bySection.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+                <div className="mt-4 pt-4 border-t border-border space-y-2">
                   <p className="text-xs text-muted-foreground mb-2 text-left">Score by section:</p>
                   {quizScore.bySection.map((sec, idx) => {
                     const secPct = sec.total > 0 ? Math.round((sec.correct / sec.total) * 100) : 0;
@@ -2536,11 +2536,11 @@ function ResultsScreen({
                         <span>{sections[idx]?.icon || "📋"}</span>
                         <span className="flex-1 text-left text-muted-foreground truncate">{sections[idx]?.title}</span>
                         <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div 
                               className={cn(
-                                "h-full rounded-full transition-all",
-                                secPct >= 80 ? "bg-emerald-500" : secPct >= 60 ? "bg-amber-500" : "bg-red-500"
+                                "h-full rounded-full transition",
+                                secPct >= 80 ? "bg-brand-accent" : secPct >= 60 ? "bg-amber-500" : "bg-red-500"
                               )}
                               style={{ width: `${secPct}%` }}
                             />
@@ -2558,26 +2558,26 @@ function ResultsScreen({
           {/* Completion Summary card - Only shown for non-quizzes or quizzes without scoring */}
           {(!isQuiz || !quizScore || quizScore.total === 0) && (
           <motion.div 
-            className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 mb-6"
+            className="bg-surface-3/70 border border-border rounded-2xl p-6 mb-6"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-white">{pct}%</div>
+                <div className="text-3xl font-bold text-foreground">{pct}%</div>
                 <div className="text-xs text-muted-foreground">Completion</div>
               </div>
-              <div className="w-px h-12 bg-zinc-700" />
+              <div className="w-px h-12 bg-muted" />
               <div className="text-center">
-                <div className="text-3xl font-bold text-white">{answeredCount}</div>
+                <div className="text-3xl font-bold text-foreground">{answeredCount}</div>
                 <div className="text-xs text-muted-foreground">Answers</div>
               </div>
               {sections.length > 1 && (
                 <>
-                  <div className="w-px h-12 bg-zinc-700" />
+                  <div className="w-px h-12 bg-muted" />
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-white">{sections.length}</div>
+                    <div className="text-3xl font-bold text-foreground">{sections.length}</div>
                     <div className="text-xs text-muted-foreground">Sections</div>
                   </div>
                 </>
@@ -2586,7 +2586,7 @@ function ResultsScreen({
 
             {/* Section breakdown */}
             {sections.length > 1 && (
-              <div className="space-y-2 text-left border-t border-zinc-800 pt-4">
+              <div className="space-y-2 text-left border-t border-border pt-4">
                 {sections.map((section) => {
                   const answered = sectionAnsweredCount(section, answers);
                   const total = section.questions.length;
@@ -2594,10 +2594,10 @@ function ResultsScreen({
                     <div key={section.id} className="flex items-center gap-2 text-sm">
                       <span>{section.icon}</span>
                       <span className="flex-1 text-muted-foreground truncate">{section.title}</span>
-                      <span className={cn("font-medium", answered === total ? "text-emerald-400" : "text-muted-foreground")}>
+                      <span className={cn("font-medium", answered === total ? "text-brand-accent" : "text-muted-foreground")}>
                         {answered}/{total}
                       </span>
-                      {answered === total && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                      {answered === total && <Check className="h-3.5 w-3.5 text-brand-accent" />}
                     </div>
                   );
                 })}
@@ -2628,7 +2628,7 @@ function ResultsScreen({
             </Button>
             
             {!isPreview && (
-            <Button variant="outline" size="lg" className="w-full rounded-2xl border-zinc-700" onClick={() => {
+            <Button variant="outline" size="lg" className="w-full rounded-2xl border-border" onClick={() => {
               // TODO: Integrate with Pulse/sharing
               if (typeof navigator !== "undefined" && navigator.share) {
                 navigator.share({ title: poll.title, text: `I just completed "${poll.title}"!` }).catch(() => {});

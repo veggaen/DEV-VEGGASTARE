@@ -131,14 +131,14 @@ export function CompanyPaymentSettings({ companyId }: CompanyPaymentSettingsProp
         <label htmlFor={emailId} className="mb-2 block text-sm font-semibold">
           PayPal Receiving Email
         </label>
-        <p className="mb-3 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
+        <p className="mb-3 text-xs leading-5 text-muted-foreground">
           Verifies inbox ownership for payout records. Automatic PayPal seller routing requires marketplace approval.
         </p>
 
         {status?.paypalEmail && (
           <div className={`mb-3 flex flex-wrap items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
             status.paypalEmailVerified
-              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
               : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
           }`}>
             {status.paypalEmailVerified ? (

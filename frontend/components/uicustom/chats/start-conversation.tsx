@@ -85,15 +85,15 @@ function StartConversationForm() {
   
   const style = {
     baseRoot: 'flex flex-col justify-center items-start w-full px-4 py-2',
-    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded',
-    txtArea: 'p-2 w-full border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    input: 'p-2 w-full border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    inputCheckbox: 'border bg-zinc-50 hover:bg-zinc-200 dark:bg-black/70 dark:hover:bg-black/60 border-gray-200 dark:border-gray-600 text-black dark:text-white rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
-    dropzone: 'border border-dashed border-gray-400 dark:border-gray-400 rounded-md p-2 text-center',
+    baseItem: 'flex flex-col md:flex-row justify-between items-center w-full px-4 py-4 hover:bg-surface-1/30 transition-colors duration-300 rounded',
+    txtArea: 'p-2 w-full border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    input: 'p-2 w-full border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    inputCheckbox: 'border bg-muted/40 hover:bg-muted dark:hover:bg-black/60 border-border text-foreground rounded focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition transform duration-300 ease-in-out',
+    dropzone: 'border border-dashed border-border rounded-md p-2 text-center',
   };
 
   return (
-    <div className={`${style.baseRoot} hover:bg-white/20 dark:hover:bg-black/20 transition-colors duration-300 rounded`}>
+    <div className={`${style.baseRoot} hover:bg-muted/60 transition-colors duration-300 rounded`}>
       <h1 className='font-bold text-lg'>Create a new Conversation</h1>
       <div className={`flex flex-col justify-between items-center w-full p-4 gap-2`}>
         <input
@@ -125,7 +125,7 @@ function StartConversationForm() {
       </div>
       {title.length > 0 && participants.length > 0 && participants.length < 2 &&(
         <div className={`flex flex-col justify-center items-center w-full p-4 gap-2`}>
-          <div className='text-center md:w-[540px] hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded p-4'>
+          <div className='text-center md:w-[540px] hover:bg-surface-1/30 transition-colors duration-300 rounded p-4'>
             <h1 className='font-bold text-lg capitalize'>{title}</h1>
             <div className='p-2'>
               <ul className={`${style.baseRoot} gap-2`}>
@@ -143,7 +143,7 @@ function StartConversationForm() {
       )}
       {title.length > 0 && participants.length > 1 && (
         <div className={`flex flex-col justify-center items-center w-full p-4 gap-2`}>
-          <div className='text-center md:w-[540px] hover:bg-white/30 dark:hover:bg-black/30 transition-colors duration-300 rounded p-4'>
+          <div className='text-center md:w-[540px] hover:bg-surface-1/30 transition-colors duration-300 rounded p-4'>
             <h1 className='font-bold text-lg capitalize'>{title}</h1>
             <div className='p-2'>
               <ul className={`${style.baseRoot} gap-2`}>

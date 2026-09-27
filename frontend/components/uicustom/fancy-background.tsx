@@ -102,7 +102,7 @@ export function FancyGradient({
 
   const gradientStyles = {
     default:
-      "bg-linear-to-b from-background via-background/70 to-sky-950/10 dark:from-black/15 dark:via-transparent dark:to-black/5",
+      "bg-linear-to-b from-background via-background/70 to-brand-accent/10 dark:from-background/15 dark:via-transparent dark:to-background/5",
     subtle:
       "bg-linear-to-b from-transparent via-background/30 to-background/50",
     vibrant:

@@ -34,7 +34,7 @@ type DownloadItem = {
 };
 
 const statusColor: Record<string, string> = {
-  COMPLETED: 'text-emerald-600 dark:text-emerald-400',
+  COMPLETED: 'text-brand-accent-hover dark:text-brand-accent-light',
   CONFIRMING: 'text-blue-600 dark:text-blue-400',
   PENDING: 'text-amber-600 dark:text-amber-400',
   FAILED: 'text-red-600 dark:text-red-400',
@@ -148,15 +148,15 @@ const OrderConfirmationPage = () => {
 
   return (
     <section className="mx-auto w-full max-w-3xl p-4 lg:p-8">
-      <section className="auth-card-enter mb-6 border-y border-emerald-500/40 py-6">
+      <section className="auth-card-enter mb-6 border-y border-brand-accent/40 py-6">
         <div className="flex items-center gap-3">
           {/* Confirmation moment — animated check, readable in both themes */}
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-emerald-600 dark:text-emerald-400">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-accent/15 ring-1 ring-brand-accent/30">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-brand-accent-hover dark:text-brand-accent-light">
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">{orderStatusLabel(orderDetails)}</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-accent-hover dark:text-brand-accent-light">{orderStatusLabel(orderDetails)}</p>
         </div>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{orderDetails.status === 'COMPLETED' ? 'Your order details' : 'Review your order'}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -172,7 +172,7 @@ const OrderConfirmationPage = () => {
         </div>
       )}
 
-      <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-white/[0.02]">
+      <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-muted/40">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Order status</h2>
         <div className="grid grid-cols-2 gap-y-3 text-sm">
           <span className="text-muted-foreground">Status:</span>
@@ -203,10 +203,10 @@ const OrderConfirmationPage = () => {
       </section>
 
       {orderDetails.status === 'COMPLETED' && downloads.length > 0 && (
-        <section className="mb-4 border border-emerald-500/30 bg-emerald-500/[0.03] p-6">
+        <section className="mb-4 border border-brand-accent/30 bg-brand-accent/[0.03] p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Digital delivery</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-brand-accent-hover dark:text-brand-accent-light">Digital delivery</p>
               <h2 className="mt-1 text-lg font-semibold text-foreground">Your downloads are ready</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Download access is also saved in My downloads and your receipt email.
@@ -214,7 +214,7 @@ const OrderConfirmationPage = () => {
             </div>
             <Link
               href="/my-downloads"
-              className="text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+              className="text-sm font-medium text-brand-accent-hover dark:text-brand-accent-light transition-colors hover:text-brand-accent dark:hover:text-brand-accent-light"
             >
               Open all downloads
             </Link>
@@ -251,7 +251,7 @@ const OrderConfirmationPage = () => {
       )}
 
       {orderDetails.shippingAddress && (
-        <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-white/[0.02]">
+        <section className="mb-4 border border-border bg-surface-1 p-6 dark:bg-muted/40">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Delivery information</h2>
           <div className="grid grid-cols-2 gap-y-3 text-sm">
             {orderDetails.shippingName && (
@@ -283,7 +283,7 @@ const OrderConfirmationPage = () => {
             {orderDetails.estimatedDelivery && (
               <>
                 <span className="text-muted-foreground">Estimated delivery:</span>
-                <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="font-medium text-brand-accent-hover dark:text-brand-accent-light">
                   {new Date(orderDetails.estimatedDelivery).toLocaleDateString('nb-NO', {
                     weekday: 'short',
                     day: 'numeric',
@@ -295,7 +295,7 @@ const OrderConfirmationPage = () => {
           </div>
 
           {orderDetails.trackingNumber && (
-            <div className="mt-4 border-t border-border pt-4 dark:border-white/10">
+            <div className="mt-4 border-t border-border pt-4">
               <h3 className="mb-2 text-sm font-semibold text-foreground">Tracking</h3>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">Tracking number:</span>
@@ -306,7 +306,7 @@ const OrderConfirmationPage = () => {
                   href={orderDetails.trackingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+                  className="mt-3 inline-flex border border-brand-accent px-4 py-2 text-sm font-medium text-brand-accent-light transition-colors hover:bg-brand-accent hover:text-foreground"
                 >
                   Track package with Bring
                 </a>

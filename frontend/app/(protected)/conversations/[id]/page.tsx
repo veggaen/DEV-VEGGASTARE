@@ -300,11 +300,11 @@ function ConversationThread() {
               side="bottom"
               align="start"
             >
-              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-black/3 dark:hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-muted/40 transition-colors">
                 <div className="relative shrink-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={otherParticipant.image || undefined} />
-                    <AvatarFallback className="bg-linear-to-br from-sky-500 to-cyan-500 text-white text-sm">
+                    <AvatarFallback className="bg-linear-to-br from-brand-accent to-cyan-500 text-white text-sm">
                       {otherParticipant.name?.[0] || '?'}
                     </AvatarFallback>
                   </Avatar>
@@ -320,7 +320,7 @@ function ConversationThread() {
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-sky-500/15 to-cyan-500/15 text-sky-600 dark:text-sky-300">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand-accent/15 to-cyan-500/15 text-brand-accent-hover dark:text-brand-accent-light">
               {conversation.type === 'GROUP' ? <FiUsers className="h-4.5 w-4.5" /> : <FiMessageCircle className="h-4.5 w-4.5" />}
             </div>
             <div className="flex-1 min-w-0 leading-tight">
@@ -344,8 +344,8 @@ function ConversationThread() {
           className={cn(
             'grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             sidebarOpen
-              ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10',
+              ? 'text-brand-accent bg-brand-accent/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
           )}
         >
           <FiUsers className="h-4.5 w-4.5" />
@@ -357,7 +357,7 @@ function ConversationThread() {
               variant="ghost"
               size="icon"
               aria-label="Conversation options"
-              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
             >
               <FiMoreVertical className="h-5 w-5" />
             </Button>
@@ -415,7 +415,7 @@ function ConversationThread() {
 
       {/* Poll (if exists) */}
       {hasPoll && conversationId && (
-        <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
+        <div className="px-4 py-3 border-b border-border">
           <PollDisplay conversationId={conversationId} />
         </div>
       )}
@@ -424,7 +424,7 @@ function ConversationThread() {
       <div className="flex-1 flex flex-row-reverse min-h-0">
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* Messages — subtle surface so the thread reads as a distinct canvas */}
-          <div className="min-h-0 flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
+          <div className="min-h-0 flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-background/2">
             <MessageList
               messages={messages}
               users={users}
@@ -462,7 +462,7 @@ function ConversationThread() {
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="right" accessibleTitle="Members & voice" accessibleDescription="Conversation members and experimental voice tools."
             onCloseAutoFocus={event => { event.preventDefault(); membersButtonRef.current?.focus(); }}
-            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col border-border bg-background p-0 pt-14 pb-[env(safe-area-inset-bottom)] dark:bg-background">
+            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col border-border bg-background p-0 pt-14 pb-[env(safe-area-inset-bottom)]">
               <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-16">
                 <ChatSidebar
                   roomId={conversationId!}

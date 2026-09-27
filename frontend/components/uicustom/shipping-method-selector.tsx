@@ -341,14 +341,14 @@ export function ShippingMethodSelector({
   /* ── Digital-only: skip shipping ── */
   if (allDigital) {
     return (
-      <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-500/20">
+      <div className="mt-4 p-4 bg-brand-accent/10 rounded-lg border border-brand-accent">
         <div className="flex items-center gap-2">
           <span className="text-lg">📥</span>
-          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          <p className="text-sm font-medium text-brand-accent-hover dark:text-brand-accent-light">
             Digital levering — ingen frakt nødvendig
           </p>
         </div>
-        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+        <p className="text-xs text-brand-accent-hover dark:text-brand-accent-light mt-1">
           Du vil motta nedlastingslenker etter betaling.
         </p>
       </div>
@@ -361,7 +361,7 @@ export function ShippingMethodSelector({
       <button
         type="button"
         onClick={onAddressNeeded}
-        className="mt-4 w-full p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border dark:border-white/10 text-left transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+        className="mt-4 w-full p-4 bg-muted/30 dark:bg-muted/40 rounded-lg border border-border text-left transition-colors hover:border-brand-accent/50 hover:bg-brand-accent/5 focus:outline-none focus:ring-2 focus:ring-brand-accent/30"
       >
         <p className="text-sm font-medium text-foreground">
           Enter delivery address
@@ -381,9 +381,9 @@ export function ShippingMethodSelector({
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center gap-2 p-4 bg-muted/30 dark:bg-white/[0.02] rounded-lg border border-border dark:border-white/10">
+        <div className="flex items-center gap-2 p-4 bg-muted/30 dark:bg-muted/40 rounded-lg border border-border">
           <motion.div
-            className="h-4 w-4 rounded-full border-2 border-emerald-500 border-t-transparent"
+            className="h-4 w-4 rounded-full border-2 border-brand-accent border-t-transparent"
             animate={{ rotate: 360 }}
             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
           />
@@ -414,10 +414,10 @@ export function ShippingMethodSelector({
                 key={opt.serviceCode}
                 type="button"
                 onClick={() => handleSelect(opt)}
-                className={`w-full text-left p-4 rounded-lg border transition-all ${
+                className={`w-full text-left p-4 rounded-lg border transition ${
                   isSelected
-                    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-500/50 ring-1 ring-emerald-500/30"
-                    : "bg-muted/20 dark:bg-white/[0.02] border-border dark:border-white/10 hover:border-emerald-500/50"
+                    ? "bg-brand-accent/10 border-brand-accent ring-1 ring-brand-accent/30"
+                    : "bg-muted/20 dark:bg-muted/40 border-border hover:border-brand-accent/50"
                 }`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -428,12 +428,12 @@ export function ShippingMethodSelector({
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
                         isSelected
-                          ? "border-emerald-500 bg-emerald-500"
+                          ? "border-brand-accent bg-brand-accent"
                           : "border-muted-foreground/40"
                       }`}
                     >
                       {isSelected && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 16 16">
+                        <svg className="w-3 h-3 text-foreground" fill="currentColor" viewBox="0 0 16 16">
                           <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
                         </svg>
                       )}
@@ -451,7 +451,7 @@ export function ShippingMethodSelector({
                         </p>
                       )}
                       {opt.estimatedDelivery && (
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        <p className="text-xs text-brand-accent-hover dark:text-brand-accent-light mt-0.5">
                           Estimert levering: {formatDeliveryDate(opt.estimatedDelivery)}
                         </p>
                       )}
@@ -493,9 +493,9 @@ export function ShippingMethodSelector({
             </h4>
 
             {pickupLoading && (
-              <div className="flex items-center gap-2 p-3 bg-muted/20 dark:bg-white/[0.02] rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-muted/20 dark:bg-muted/40 rounded-lg">
                 <motion.div
-                  className="h-3 w-3 rounded-full border-2 border-emerald-500 border-t-transparent"
+                  className="h-3 w-3 rounded-full border-2 border-brand-accent border-t-transparent"
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                 />
@@ -512,10 +512,10 @@ export function ShippingMethodSelector({
                       key={pp.id}
                       type="button"
                       onClick={() => handlePickupSelect(pp)}
-                      className={`w-full text-left p-3 rounded-lg border transition-all text-sm ${
+                      className={`w-full text-left p-3 rounded-lg border transition text-sm ${
                         isPickupSelected
-                          ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-400 dark:border-emerald-500/40"
-                          : "bg-muted/10 dark:bg-white/[0.01] border-border/50 dark:border-white/5 hover:border-emerald-500/30"
+                          ? "bg-brand-accent/50 border-brand-accent"
+                          : "bg-muted/10 dark:bg-muted/40 border-border/50 hover:border-brand-accent/30"
                       }`}
                     >
                       <div className="flex justify-between items-start">

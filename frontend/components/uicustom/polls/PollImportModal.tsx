@@ -828,7 +828,7 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950 border-zinc-800">
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col bg-surface-1 border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileUp className="w-5 h-5" />
@@ -946,7 +946,7 @@ Range: 1-10
                   key={template.id}
                   onClick={() => handleTemplateSelect(template.id)}
                   className={cn(
-                    "p-4 rounded-xl border cursor-pointer transition-all",
+                    "p-4 rounded-xl border cursor-pointer transition",
                     selectedTemplate === template.id
                       ? "border-primary bg-primary/5"
                       : "hover:border-primary/50 hover:bg-muted/50"

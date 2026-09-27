@@ -321,7 +321,7 @@ export function CategoryTagInput({
                   e.stopPropagation();
                   removeTag(idx);
                 }}
-                className="ml-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="ml-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <X className="h-3 w-3" />
               </button>

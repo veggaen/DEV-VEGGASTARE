@@ -8,6 +8,7 @@ import { NotificationItem } from '@/components/uicustom/notifications/notificati
 import { useNotifications } from '@/hooks/use-notifications';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export default function NotificationsPage() {
   const user = useCurrentUser();
@@ -24,16 +25,17 @@ export default function NotificationsPage() {
   const loading = !user || inbox.isLoading;
   return <section aria-labelledby="notifications-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 id="notifications-title" className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><FiBell className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />Notifications</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{loading ? 'Your order and account updates' : `${inbox.unreadCount} unread in your inbox`}</p>
-        </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+      <PageHeader
+        eyebrow="Inbox"
+        titleId="notifications-title"
+        title={<span className="flex items-center gap-2"><FiBell className="h-6 w-6 shrink-0 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden />Notifications</span>}
+        description={loading ? 'Your order and account updates' : `${inbox.unreadCount} unread in your inbox`}
+        actions={<>
           <Button variant="outline" className="h-11 flex-1 gap-2 sm:flex-none" disabled={inbox.isRefreshing || loading} onClick={() => void inbox.refresh()}><FiRefreshCw aria-hidden />{inbox.isRefreshing ? 'Refreshing…' : 'Refresh'}</Button>
           <Button variant="outline" asChild className="h-11 flex-1 gap-2 sm:flex-none"><Link href="/settings?section=notifications"><FiSettings aria-hidden />Settings</Link></Button>
-        </div>
-      </div>
+        </>}
+        className="mb-6"
+      />
       {readOnly && <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">Demo notifications are read-only. Sign in to your own account to mark updates as read or archive them.</p>}
       <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-muted/50 p-1" role="group" aria-label="Notification filters">
         {(['all', 'unread', 'archived'] as const).map(value => <Button key={value} variant={tab === value ? 'secondary' : 'ghost'} className="h-11 min-w-0 px-2 capitalize" aria-pressed={tab === value} onClick={() => selectTab(value)}>{value === 'all' ? 'Inbox' : value}</Button>)}

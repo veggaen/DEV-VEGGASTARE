@@ -78,20 +78,20 @@ export function NotificationSettings({
     <div className={cn("space-y-6", className)}>
       {/* Delivery Channels */}
       <section>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">
           Notification Channels
         </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                <FiBell className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted">
+                <FiBell className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   In-app notifications
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Show notifications in the app
                 </p>
               </div>
@@ -104,14 +104,14 @@ export function NotificationSettings({
           
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                <FiSmartphone className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted">
+                <FiSmartphone className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Push notifications
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Receive notifications on your device
                 </p>
               </div>
@@ -124,14 +124,14 @@ export function NotificationSettings({
           
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                <FiMail className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted">
+                <FiMail className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Email digest
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Daily summary of missed notifications
                 </p>
               </div>
@@ -146,20 +146,20 @@ export function NotificationSettings({
       
       {/* Smart Features */}
       <section>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">
           Smart Features
         </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-accent/15">
                 <span className="text-base">💓</span>
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Condense notifications
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Group similar notifications together
                 </p>
               </div>
@@ -176,10 +176,10 @@ export function NotificationSettings({
                 <span className="text-base">👀</span>
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Show previews
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Show message content in notifications
                 </p>
               </div>
@@ -196,10 +196,10 @@ export function NotificationSettings({
                 <span className="text-base">✍️</span>
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Typing indicators
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Show when someone is about to react
                 </p>
               </div>
@@ -214,20 +214,20 @@ export function NotificationSettings({
       
       {/* Quiet Hours */}
       <section>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">
           Quiet Hours
         </h3>
-        <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <div className="p-4 rounded-xl bg-surface-1 border border-border">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 dark:bg-rose-900/30">
                 <FiMoon className="h-4 w-4 text-rose-600 dark:text-rose-400" />
               </div>
               <div>
-                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <Label className="text-sm font-medium text-foreground">
                   Enable quiet hours
                 </Label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Pause notifications during set times
                 </p>
               </div>
@@ -243,22 +243,22 @@ export function NotificationSettings({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-3 pt-3 border-t border-zinc-200 dark:border-zinc-700"
+              className="flex items-center gap-3 pt-3 border-t border-border"
             >
-              <FiClock className="h-4 w-4 text-zinc-400" />
+              <FiClock className="h-4 w-4 text-muted-foreground" />
               <div className="flex items-center gap-2">
                 <input
                   type="time"
                   value={settings.quietHoursStart}
                   onChange={(e) => onSettingsChange({ quietHoursStart: e.target.value })}
-                  className="px-2 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-zinc-100"
+                  className="px-2 py-1 rounded-md bg-card border border-border text-sm text-foreground"
                 />
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">to</span>
+                <span className="text-sm text-muted-foreground">to</span>
                 <input
                   type="time"
                   value={settings.quietHoursEnd}
                   onChange={(e) => onSettingsChange({ quietHoursEnd: e.target.value })}
-                  className="px-2 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-zinc-100"
+                  className="px-2 py-1 rounded-md bg-card border border-border text-sm text-foreground"
                 />
               </div>
             </motion.div>
@@ -268,14 +268,14 @@ export function NotificationSettings({
       
       {/* Notification Types by Category */}
       <section>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">
           Notification Types
         </h3>
         <div className="space-y-2">
           {Object.entries(notificationCategories).map(([categoryKey, category]) => (
             <div 
               key={categoryKey}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+              className="rounded-xl border border-border overflow-hidden"
             >
               {/* Category header */}
               <button
@@ -283,15 +283,15 @@ export function NotificationSettings({
                 onClick={() => setExpandedCategory(
                   expandedCategory === categoryKey ? null : categoryKey
                 )}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{getCategoryEmoji(category.icon)}</span>
                   <div className="text-left">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="text-sm font-medium text-foreground">
                       {category.label}
                     </span>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-muted-foreground">
                       {category.description}
                     </p>
                   </div>
@@ -300,7 +300,7 @@ export function NotificationSettings({
                   animate={{ rotate: expandedCategory === categoryKey ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <FiChevronDown className="h-4 w-4 text-zinc-400" />
+                  <FiChevronDown className="h-4 w-4 text-muted-foreground" />
                 </motion.div>
               </button>
               
@@ -312,7 +312,7 @@ export function NotificationSettings({
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="border-t border-zinc-200 dark:border-zinc-800"
+                    className="border-t border-border"
                   >
                     <div className="p-2">
                       {category.types.map((typeKey) => {
@@ -323,7 +323,7 @@ export function NotificationSettings({
                         return (
                           <div 
                             key={typeKey}
-                            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors"
                           >
                             <div className="flex items-center gap-3">
                               <span 
@@ -333,10 +333,10 @@ export function NotificationSettings({
                                 {type.emoji}
                               </span>
                               <div>
-                                <span className="text-sm text-zinc-900 dark:text-zinc-100">
+                                <span className="text-sm text-foreground">
                                   {type.title}
                                 </span>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                <p className="text-xs text-muted-foreground">
                                   {getNotificationTypeDescription(type)}
                                 </p>
                               </div>
@@ -360,32 +360,32 @@ export function NotificationSettings({
       {/* Muted Users/Conversations */}
       {mutes.length > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+          <h3 className="text-sm font-semibold text-foreground mb-4">
             Muted
           </h3>
           <div className="space-y-2">
             {mutes.map((mute) => (
               <div 
                 key={mute.id}
-                className="flex items-center justify-between px-4 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface-1 border border-border"
               >
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-700 opacity-50">
+                    <Avatar className="h-9 w-9 border border-border opacity-50">
                       <AvatarImage src="/users/avatar.webp" />
-                      <AvatarFallback className="bg-zinc-200 dark:bg-zinc-700">
-                        <FaUser className="h-3.5 w-3.5 text-zinc-400" />
+                      <AvatarFallback className="bg-muted">
+                        <FaUser className="h-3.5 w-3.5 text-muted-foreground" />
                       </AvatarFallback>
                     </Avatar>
                     <span className="absolute inset-0 flex items-center justify-center">
-                      <FiVolumeX className="h-4 w-4 text-zinc-500" />
+                      <FiVolumeX className="h-4 w-4 text-muted-foreground" />
                     </span>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="text-sm font-medium text-foreground">
                       {mute.targetName || "Unknown"}
                     </span>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-muted-foreground">
                       {mute.muteType === "USER" && "User muted"}
                       {mute.muteType === "CONVERSATION" && "Conversation muted"}
                       {mute.muteType === "COMPANY" && "Company muted"}
@@ -396,7 +396,7 @@ export function NotificationSettings({
                 <button
                   type="button"
                   onClick={() => onRemoveMute(mute.id)}
-                  className="p-2 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                  className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                   title="Unmute"
                 >
                   <FiTrash2 className="h-4 w-4" />
@@ -426,8 +426,8 @@ export function NotificationSettingsCompact({
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FiBell className="h-4 w-4 text-zinc-500" />
-          <Label className="text-sm text-zinc-700 dark:text-zinc-300">
+          <FiBell className="h-4 w-4 text-muted-foreground" />
+          <Label className="text-sm text-foreground/85">
             Push notifications
           </Label>
         </div>
@@ -439,8 +439,8 @@ export function NotificationSettingsCompact({
       
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FiMail className="h-4 w-4 text-zinc-500" />
-          <Label className="text-sm text-zinc-700 dark:text-zinc-300">
+          <FiMail className="h-4 w-4 text-muted-foreground" />
+          <Label className="text-sm text-foreground/85">
             Email notifications
           </Label>
         </div>
@@ -453,7 +453,7 @@ export function NotificationSettingsCompact({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm">💓</span>
-          <Label className="text-sm text-zinc-700 dark:text-zinc-300">
+          <Label className="text-sm text-foreground/85">
             Condense heartbeats
           </Label>
         </div>
@@ -465,8 +465,8 @@ export function NotificationSettingsCompact({
       
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FiMoon className="h-4 w-4 text-zinc-500" />
-          <Label className="text-sm text-zinc-700 dark:text-zinc-300">
+          <FiMoon className="h-4 w-4 text-muted-foreground" />
+          <Label className="text-sm text-foreground/85">
             Quiet hours
           </Label>
         </div>

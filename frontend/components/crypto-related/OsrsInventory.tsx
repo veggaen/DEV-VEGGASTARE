@@ -919,8 +919,8 @@ export function OsrsInventory({
       <div
         className={`flex flex-col items-center justify-center py-12 text-center ${className}`}
       >
-        <FiPackage className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mb-3" />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <FiPackage className="h-12 w-12 text-muted-foreground/70 mb-3" />
+        <p className="text-sm text-muted-foreground">
           Connect a wallet to view your inventory
         </p>
       </div>
@@ -929,16 +929,16 @@ export function OsrsInventory({
 
   return (
     <div
-      className={`flex flex-col bg-zinc-950/80 rounded-xl border border-zinc-800 overflow-hidden ${className}`}
+      className={`flex flex-col bg-surface-1/80 rounded-xl border border-border overflow-hidden ${className}`}
       ref={inventoryRef}
     >
       {/* ── Header: Chain Selector + Actions ───────────────── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface-3/60">
         {/* Chain Selector */}
         <div className="flex items-center gap-2">
           <div className="relative">
             <select
-              className="appearance-none bg-zinc-800 border border-zinc-700 rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-zinc-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="appearance-none bg-muted border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent transition"
               value={chainId}
               onChange={(e) =>
                 switchChain({ chainId: Number(e.target.value) })
@@ -951,7 +951,7 @@ export function OsrsInventory({
                 </option>
               ))}
             </select>
-            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500 pointer-events-none" />
+            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
           </div>
           {switchStatus === "pending" && (
             <motion.div
@@ -971,14 +971,14 @@ export function OsrsInventory({
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg pl-7 pr-2 py-1 text-xs text-zinc-300 placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500/50 focus:w-36 transition-all"
+              className="w-24 bg-muted border border-border rounded-lg pl-7 pr-2 py-1 text-xs text-foreground/80 placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-accent/50 focus:w-36 transition"
             />
-            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           </div>
           <button
             type="button"
             onClick={handleMerge}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-emerald-400"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Merge all split stacks"
           >
             <FiLayers className="h-3.5 w-3.5" />
@@ -991,7 +991,7 @@ export function OsrsInventory({
               setGridState([]);
               refetch();
             }}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-emerald-400"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Refresh balances (consolidates split stacks)"
           >
             <FiRefreshCw
@@ -1002,15 +1002,15 @@ export function OsrsInventory({
       </div>
 
       {/* ── Tab Switcher: Tokens / NFTs ─────────────────────── */}
-      <div className="border-b border-zinc-800 bg-zinc-900/40">
+      <div className="border-b border-border bg-surface-3/40">
         <div className="flex items-center gap-0">
           <button
             type="button"
             onClick={() => setActiveTab("tokens")}
             className={`flex-1 text-center py-1.5 text-[10px] font-semibold transition-colors ${
               activeTab === "tokens"
-                ? "text-emerald-400 border-b-2 border-emerald-500"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "text-brand-accent border-b-2 border-brand-accent"
+                : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
             Tokens ({inventorySlots.length})
@@ -1021,7 +1021,7 @@ export function OsrsInventory({
             className={`flex-1 text-center py-1.5 text-[10px] font-semibold transition-colors ${
               activeTab === "nfts"
                 ? "text-purple-400 border-b-2 border-purple-500"
-                : "text-zinc-500 hover:text-zinc-300"
+                : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
             NFTs ({nfts.length})
@@ -1042,11 +1042,11 @@ export function OsrsInventory({
                 onClick={() => setTokenFilter(key)}
                 className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-semibold transition-colors ${
                   tokenFilter === key
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                    : "text-zinc-500 hover:text-zinc-300 border border-transparent hover:border-zinc-700"
+                    ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/30"
+                    : "text-muted-foreground hover:text-foreground/80 border border-transparent hover:border-border"
                 }`}
               >
-                {label} {count > 0 && <span className="text-zinc-600 ml-0.5">{count}</span>}
+                {label} {count > 0 && <span className="text-muted-foreground ml-0.5">{count}</span>}
               </button>
             ))}
           </div>
@@ -1068,7 +1068,7 @@ export function OsrsInventory({
                 ease: "linear",
               }}
             >
-              <FiRefreshCw className="h-6 w-6 text-zinc-500" />
+              <FiRefreshCw className="h-6 w-6 text-muted-foreground" />
             </motion.div>
           </div>
         ) : (
@@ -1144,14 +1144,14 @@ export function OsrsInventory({
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
                 >
-                  <FiRefreshCw className="h-6 w-6 text-zinc-500" />
+                  <FiRefreshCw className="h-6 w-6 text-muted-foreground" />
                 </motion.div>
               </div>
             ) : nfts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FiPackage className="h-8 w-8 text-zinc-600 mb-2" />
-                <p className="text-xs text-zinc-500">No NFTs found on this chain</p>
-                <p className="text-[10px] text-zinc-600 mt-1">ERC-721 and ERC-1155 tokens will appear here</p>
+                <FiPackage className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">No NFTs found on this chain</p>
+                <p className="text-[10px] text-muted-foreground mt-1">ERC-721 and ERC-1155 tokens will appear here</p>
               </div>
             ) : (
               <div
@@ -1165,7 +1165,7 @@ export function OsrsInventory({
                 {Array.from({ length: Math.max(0, COLS - (nfts.length % COLS)) % COLS }).map((_, i) => (
                   <div
                     key={`nft-empty-${i}`}
-                    className="aspect-square rounded-lg bg-zinc-900/60 border border-zinc-800/60"
+                    className="aspect-square rounded-lg bg-surface-3/60 border border-border/60"
                     style={{ boxShadow: "inset 0 1px 3px rgba(0,0,0,0.4), inset 0 -1px 1px rgba(255,255,255,0.03)" }}
                   />
                 ))}
@@ -1189,9 +1189,9 @@ export function OsrsInventory({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="overflow-hidden border-t border-zinc-800/60"
+              className="overflow-hidden border-t border-border/60"
             >
-              <div className="px-3 py-2.5 bg-zinc-900/80 space-y-2">
+              <div className="px-3 py-2.5 bg-surface-3/80 space-y-2">
                 {/* Header row: icon + name + close */}
                 <div className="flex items-center gap-2.5">
                   <TokenIcon
@@ -1200,38 +1200,38 @@ export function OsrsInventory({
                     symbol={detailSlot.token.symbol}
                     logo={detailSlot.token.logo}
                     size={28}
-                    className="ring-1 ring-zinc-700/60 shadow-lg"
+                    className="ring-1 ring-border/60 shadow-lg"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-zinc-100">{detailSlot.token.symbol}</span>
+                      <span className="text-sm font-semibold text-foreground">{detailSlot.token.symbol}</span>
                       {isNativeToken && (
-                        <span className="text-[8px] font-medium uppercase tracking-wider text-sky-400 bg-sky-400/10 px-1.5 py-px rounded">Native</span>
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-brand-accent bg-brand-accent/10 px-1.5 py-px rounded">Native</span>
                       )}
                       {!isNativeToken && STABLECOINS.has(detailSlot.token.symbol.toUpperCase()) && (
-                        <span className="text-[8px] font-medium uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-px rounded">Stable</span>
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-brand-accent bg-brand-accent/10 px-1.5 py-px rounded">Stable</span>
                       )}
                     </div>
-                    <span className="text-[11px] text-zinc-500 block truncate">
+                    <span className="text-[11px] text-muted-foreground block truncate">
                       {isNativeToken ? `Native · ${activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}` : `${detailSlot.token.address.slice(0, 10)}…${detailSlot.token.address.slice(-6)}`}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setDetailSlotId(null)}
-                    className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+                    className="text-muted-foreground hover:text-foreground/80 transition-colors p-1"
                   >
                     <FiChevronDown className="h-4 w-4 rotate-180" />
                   </button>
                 </div>
 
                 {/* Balance info */}
-                <div className="bg-zinc-950/60 rounded-md px-2.5 py-1.5 flex items-baseline justify-between">
+                <div className="bg-surface-1/60 rounded-md px-2.5 py-1.5 flex items-baseline justify-between">
                   <div>
-                    <span className="text-xs text-zinc-400">Balance</span>
-                    <div className="text-sm font-bold text-zinc-100">
+                    <span className="text-xs text-muted-foreground">Balance</span>
+                    <div className="text-sm font-bold text-foreground">
                       {formatFullBalance(BigInt(detailSlot.rawAmount), detailSlot.token.decimals)}
-                      <span className="text-zinc-500 font-normal ml-1 text-xs">{detailSlot.token.symbol}</span>
+                      <span className="text-muted-foreground font-normal ml-1 text-xs">{detailSlot.token.symbol}</span>
                     </div>
                   </div>
                   {/* Chain badge */}
@@ -1240,7 +1240,7 @@ export function OsrsInventory({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={CHAIN_LOGOS[detailSlot.token.chainId]} alt="" className="w-4 h-4 rounded-full" draggable={false} />
                     )}
-                    <span className="text-[10px] text-zinc-500">{activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}</span>
+                    <span className="text-[10px] text-muted-foreground">{activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}</span>
                   </div>
                 </div>
 
@@ -1251,7 +1251,7 @@ export function OsrsInventory({
                       href={explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
                     >
                       <FiExternalLink className="h-3 w-3" />
                       Explorer
@@ -1264,7 +1264,7 @@ export function OsrsInventory({
                         navigator.clipboard.writeText(detailSlot.token.address);
                         toast.success("Contract address copied");
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
                     >
                       <FiCopy className="h-3 w-3" />
                       Copy Address
@@ -1276,7 +1276,7 @@ export function OsrsInventory({
                       // Open context menu actions for split
                       if (detailSlot) handleSplit(detailSlot.id);
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
                   >
                     <FiScissors className="h-3 w-3" />
                     Split
@@ -1286,7 +1286,7 @@ export function OsrsInventory({
                     onClick={() => {
                       toast.info("Send coming soon");
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/60 hover:bg-muted/60 hover:text-foreground/80 transition-colors"
                   >
                     <FiSend className="h-3 w-3" />
                     Send
@@ -1299,8 +1299,8 @@ export function OsrsInventory({
       </AnimatePresence>
 
       {/* ── Status Bar — chain + active wallet ──────────── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-zinc-800 bg-zinc-900/60">
-        <span className="text-[10px] text-zinc-500">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-border bg-surface-3/60">
+        <span className="text-[10px] text-muted-foreground">
           {activeTab === "tokens"
             ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
             : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}{" "}
@@ -1313,7 +1313,7 @@ export function OsrsInventory({
               navigator.clipboard.writeText(effectiveAddress);
               toast.success("Address copied");
             }}
-            className="flex items-center gap-1 text-[10px] font-mono text-emerald-500/80 hover:text-emerald-400 truncate max-w-36 transition-colors"
+            className="flex items-center gap-1 text-[10px] font-mono text-brand-accent/80 hover:text-brand-accent truncate max-w-36 transition-colors"
             title={effectiveAddress}
           >
             <FiTarget className="h-2.5 w-2.5 shrink-0" />
@@ -1388,7 +1388,7 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative aspect-square rounded-lg select-none transition-all duration-100 cursor-pointer border-2 border-zinc-700/80 bg-zinc-900/80 hover:border-purple-500/60 hover:bg-purple-500/5"
+      className="relative aspect-square rounded-lg select-none transition duration-100 cursor-pointer border-2 border-border/80 bg-surface-3/80 hover:border-purple-500/60 hover:bg-purple-500/5"
     >
       {/* NFT Image */}
       <div className="absolute inset-0 flex items-center justify-center p-1">
@@ -1402,7 +1402,7 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="w-full h-full rounded-md bg-linear-to-br from-purple-900/40 to-zinc-800 flex items-center justify-center">
+          <div className="w-full h-full rounded-md bg-linear-to-br from-purple-900/40 to-surface-3 flex items-center justify-center">
             <span className="text-[10px] font-bold text-purple-300">NFT</span>
           </div>
         )}
@@ -1441,20 +1441,20 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="absolute inset-0 z-20 rounded-lg backdrop-blur-md bg-zinc-950/85 flex flex-col items-center justify-center px-1.5 py-1 text-center overflow-hidden"
+            className="absolute inset-0 z-20 rounded-lg backdrop-blur-md bg-surface-1/85 flex flex-col items-center justify-center px-1.5 py-1 text-center overflow-hidden"
           >
             <span className="text-[10px] font-bold text-purple-300 leading-tight truncate max-w-full">
               {nft.name ?? `#${nft.tokenId}`}
             </span>
             {nft.collectionName && (
-              <span className="text-[8px] text-zinc-400 leading-tight truncate max-w-full mt-0.5">
+              <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-0.5">
                 {nft.collectionName}
               </span>
             )}
-            <span className="text-[8px] text-zinc-500 leading-tight truncate max-w-full mt-0.5">
+            <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-0.5">
               {nft.contractAddress.slice(0, 6)}…{nft.contractAddress.slice(-4)}
             </span>
-            <span className="text-[7px] text-zinc-600 mt-0.5">
+            <span className="text-[7px] text-muted-foreground mt-0.5">
               Token #{nft.tokenId.length > 8 ? `${nft.tokenId.slice(0, 6)}…` : nft.tokenId}
             </span>
           </motion.div>
@@ -1522,15 +1522,15 @@ function OsrsSlot({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`
-        relative aspect-square select-none transition-all duration-150
+        relative aspect-square select-none transition duration-150
         ${isDragOver && !isDragging
-          ? "ring-2 ring-emerald-400/70 bg-emerald-500/10 border border-emerald-500/40 scale-[1.03] rounded-md"
+          ? "ring-2 ring-brand-accent/70 bg-brand-accent/10 border border-brand-accent/40 scale-[1.03] rounded-md"
           : isEmpty
-          ? `bg-zinc-900/40 border border-zinc-800/40 rounded-md ${onClick ? "cursor-pointer hover:border-emerald-700/30 hover:bg-emerald-500/5" : ""}`
+          ? `bg-surface-3/40 border border-border/40 rounded-md ${onClick ? "cursor-pointer hover:border-brand-accent/30 hover:bg-brand-accent/5" : ""}`
           : `cursor-grab active:cursor-grabbing border
              ${isSelected
-               ? "border-emerald-500/80 bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.25)] rounded-md"
-               : "border-zinc-700/50 bg-zinc-900/70 hover:border-zinc-500/70 hover:bg-zinc-800/60 rounded-md"
+               ? "border-brand-accent/80 bg-brand-accent/10 shadow-[0_0_8px_rgba(16,185,129,0.25)] rounded-md"
+               : "border-border/50 bg-surface-3/70 hover:border-border/70 hover:bg-muted/60 rounded-md"
              }
              ${tradeMode ? "ring-1 ring-amber-500/15" : ""}
              ${isDragging ? "opacity-30 scale-95" : ""}`}
@@ -1577,7 +1577,7 @@ function OsrsSlot({
           {/* Symbol label — bottom center */}
           <div className="absolute bottom-0 inset-x-0 text-center z-10 pointer-events-none">
             <span
-              className="text-[7px] sm:text-[8px] font-semibold text-zinc-400/90 leading-none uppercase tracking-wider"
+              className="text-[7px] sm:text-[8px] font-semibold text-muted-foreground/90 leading-none uppercase tracking-wider"
               style={{
                 textShadow: "0 1px 3px rgba(0,0,0,0.9)",
               }}
@@ -1590,7 +1590,7 @@ function OsrsSlot({
           {CHAIN_LOGOS[slot.token.chainId] && (
             <div className={`absolute top-0.5 right-0.5 z-10 pointer-events-none transition-opacity duration-150 ${isHovered ? "opacity-100" : "opacity-40"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={CHAIN_LOGOS[slot.token.chainId]} alt="" className="w-3 h-3 rounded-full ring-1 ring-black/40" draggable={false} />
+              <img src={CHAIN_LOGOS[slot.token.chainId]} alt="" className="w-3 h-3 rounded-full ring-1 ring-foreground/20" draggable={false} />
             </div>
           )}
 
@@ -1602,7 +1602,7 @@ function OsrsSlot({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12 }}
-                className="absolute inset-0 z-20 rounded-md backdrop-blur-sm bg-zinc-950/80 flex flex-col items-center justify-center px-1 py-0.5 overflow-hidden"
+                className="absolute inset-0 z-20 rounded-md backdrop-blur-sm bg-surface-1/80 flex flex-col items-center justify-center px-1 py-0.5 overflow-hidden"
               >
                 {/* Token icon at top (smaller) */}
                 <TokenIcon
@@ -1614,15 +1614,15 @@ function OsrsSlot({
                   className="mb-0.5 opacity-90"
                 />
                 {/* Symbol */}
-                <span className="text-[10px] font-bold text-zinc-100 leading-tight truncate max-w-full">
+                <span className="text-[10px] font-bold text-foreground leading-tight truncate max-w-full">
                   {slot.token.symbol}
                 </span>
                 {/* Full balance */}
-                <span className="text-[9px] text-emerald-400 font-semibold leading-tight truncate max-w-full">
+                <span className="text-[9px] text-brand-accent font-semibold leading-tight truncate max-w-full">
                   {formatFullBalance(BigInt(slot.rawAmount), slot.token.decimals)}
                 </span>
                 {/* Address or "Native" */}
-                <span className="text-[8px] text-zinc-500 leading-tight truncate max-w-full mt-px">
+                <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-px">
                   {slot.token.address === "0x0000000000000000000000000000000000000000"
                     ? "Native"
                     : `${slot.token.address.slice(0, 6)}…${slot.token.address.slice(-4)}`}
@@ -1696,10 +1696,10 @@ function OsrsContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden min-w-48">
+      <div className="bg-surface-3 border border-border rounded-xl shadow-2xl overflow-hidden min-w-48">
         {/* Header */}
         {slot && (
-          <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-950 flex items-center gap-2">
+          <div className="px-3 py-2 border-b border-border bg-surface-1 flex items-center gap-2">
             <TokenIcon
               address={slot.token.address}
               chainId={slot.token.chainId}
@@ -1707,10 +1707,10 @@ function OsrsContextMenu({
               logo={slot.token.logo}
               size={16}
             />
-            <span className="text-xs font-semibold text-zinc-300">
+            <span className="text-xs font-semibold text-foreground/80">
               {slot.token.symbol}
             </span>
-            <span className="text-[10px] text-zinc-500 ml-auto">
+            <span className="text-[10px] text-muted-foreground ml-auto">
               {slot.amount}
             </span>
           </div>
@@ -1718,9 +1718,9 @@ function OsrsContextMenu({
 
         {/* Inline Quick-Split Input */}
         {slot && (
-          <div className="px-2 py-1.5 border-b border-zinc-800 bg-zinc-950/50">
+          <div className="px-2 py-1.5 border-b border-border bg-surface-1/50">
             <div className="relative">
-              <FiScissors className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+              <FiScissors className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <input
                 ref={inputRef}
                 type="number"
@@ -1739,7 +1739,7 @@ function OsrsContextMenu({
                   if (e.key === "Escape") onClose();
                 }}
                 autoFocus
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                className="w-full bg-muted border border-border rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-foreground/80 placeholder:text-muted-foreground focus:ring-1 focus:ring-brand-accent/50 focus:border-brand-accent/50 transition"
               />
             </div>
             {/* Quick split percentages */}
@@ -1756,7 +1756,7 @@ function OsrsContextMenu({
                     );
                     onQuickSplit(formatted);
                   }}
-                  className="flex-1 py-0.5 rounded text-[9px] font-medium border border-zinc-700/60 text-zinc-500 hover:bg-emerald-900/20 hover:text-emerald-400 hover:border-emerald-600/40 transition-colors"
+                  className="flex-1 py-0.5 rounded text-[9px] font-medium border border-border/60 text-muted-foreground hover:bg-brand-accent/20 hover:text-brand-accent hover:border-brand-accent/40 transition-colors"
                 >
                   {pct}%
                 </button>
@@ -1771,7 +1771,7 @@ function OsrsContextMenu({
             key={item.label}
             type="button"
             onClick={item.action}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:bg-emerald-900/30 hover:text-emerald-400 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground/80 hover:bg-brand-accent/30 hover:text-brand-accent transition-colors"
           >
             <item.icon className="h-3.5 w-3.5" />
             {item.label}
@@ -1792,7 +1792,7 @@ function OsrsContextMenu({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:bg-emerald-900/30 hover:text-emerald-400 transition-colors border-t border-zinc-800"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground/80 hover:bg-brand-accent/30 hover:text-brand-accent transition-colors border-t border-border"
               >
                 <FiExternalLink className="h-3.5 w-3.5" />
                 View on Explorer
@@ -1841,15 +1841,15 @@ function OsrsSplitDialog({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-zinc-900 rounded-2xl border border-zinc-700 shadow-2xl p-5 w-80"
+        className="bg-surface-3 rounded-2xl border border-border shadow-2xl p-5 w-80"
       >
         <div className="flex items-center gap-2 mb-1">
-          <FiScissors className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-semibold text-zinc-200">
+          <FiScissors className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-sm font-semibold text-foreground/80">
             Split {slot.token.symbol}
           </h3>
         </div>
-        <p className="text-[10px] text-zinc-500 mb-3">
+        <p className="text-[10px] text-muted-foreground mb-3">
           Stack: {slot.amount} {slot.token.symbol} &middot; Split attaches to
           your cursor
         </p>
@@ -1864,10 +1864,10 @@ function OsrsSplitDialog({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             autoFocus
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:ring-2 focus:ring-emerald-500/50 transition-all pr-14"
+            className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground/80 focus:ring-2 focus:ring-brand-accent/50 transition pr-14"
             onKeyDown={(e) => e.key === "Enter" && onConfirm()}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-zinc-500">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground">
             {slot.token.symbol}
           </span>
         </div>
@@ -1885,7 +1885,7 @@ function OsrsSplitDialog({
                   ),
                 );
               }}
-              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-zinc-700 text-zinc-400 hover:bg-emerald-900/20 hover:text-emerald-400 hover:border-emerald-700/50 transition-colors"
+              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-border text-muted-foreground hover:bg-brand-accent/20 hover:text-brand-accent hover:border-brand-accent/50 transition-colors"
             >
               {pct}%
             </button>
@@ -1896,14 +1896,14 @@ function OsrsSplitDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 text-xs py-2 rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors"
+            className="flex-1 text-xs py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 text-xs py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 transition-all font-semibold flex items-center justify-center gap-1.5"
+            className="flex-1 text-xs py-2 rounded-xl bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 transition font-semibold flex items-center justify-center gap-1.5"
           >
             <FiScissors className="h-3 w-3" />
             Split &amp; Grab
@@ -1939,7 +1939,7 @@ function OsrsFloatingGhost({
       style={{ left: x - 28, top: y - 28 }}
     >
       <motion.div
-        className="absolute inset-0 rounded-xl border-2 border-emerald-500"
+        className="absolute inset-0 rounded-xl border-2 border-brand-accent"
         animate={{
           boxShadow: [
             "0 0 0 0 rgba(16,185,129,0.4)",
@@ -1948,7 +1948,7 @@ function OsrsFloatingGhost({
         }}
         transition={{ duration: 1.2, repeat: Infinity }}
       />
-      <div className="relative w-14 h-14 rounded-xl border-2 border-emerald-500 bg-emerald-500/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/30">
+      <div className="relative w-14 h-14 rounded-xl border-2 border-brand-accent bg-brand-accent/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-brand-accent/30">
         <div className="w-5 h-5 flex items-center justify-center">
           <TokenIcon
             address={item.token.address}
@@ -1958,14 +1958,14 @@ function OsrsFloatingGhost({
             size={20}
           />
         </div>
-        <span className="text-[8px] font-bold text-emerald-400 mt-0.5">
+        <span className="text-[8px] font-bold text-brand-accent mt-0.5">
           {item.amount}
         </span>
-        <span className="text-[7px] text-emerald-500/80">
+        <span className="text-[7px] text-brand-accent/80">
           {item.token.symbol}
         </span>
         <motion.div
-          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-emerald-500 font-medium whitespace-nowrap"
+          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-brand-accent font-medium whitespace-nowrap"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
@@ -1986,14 +1986,14 @@ function getStackColor(display: string): string {
   const stripped = display.replace(/[^0-9.KMBkmb]/g, "");
   const upper = stripped.toUpperCase();
 
-  if (upper.includes("B") || upper.includes("G")) return "text-emerald-400";
+  if (upper.includes("B") || upper.includes("G")) return "text-brand-accent";
   if (upper.includes("M")) {
     const num = parseFloat(upper.replace("M", ""));
-    return num >= 10 ? "text-emerald-400" : "text-white";
+    return num >= 10 ? "text-brand-accent" : "text-foreground";
   }
   if (upper.includes("K")) {
     const num = parseFloat(upper.replace("K", ""));
-    return num >= 100 ? "text-amber-300" : "text-white";
+    return num >= 100 ? "text-amber-300" : "text-foreground";
   }
   return "text-amber-100";
 }

@@ -350,10 +350,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <div
         {...getRootProps()}
         className={cn(
-          'group/composer relative rounded-[22px] border bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md',
-          'border-zinc-200/80 dark:border-white/10',
+          'group/composer relative rounded-[22px] border bg-surface-1/90 backdrop-blur-md',
+          'border-border/80',
           'shadow-sm transition-[border-color,box-shadow] duration-200',
-          'focus-within:border-sky-400/60 dark:focus-within:border-emerald-400/40',
+          'focus-within:border-brand-accent/60',
           'focus-within:shadow-[0_0_0_4px_rgba(56,189,248,0.10)] dark:focus-within:shadow-[0_0_0_4px_rgba(52,211,153,0.10)]',
           isTooLong && 'border-red-400/70 dark:border-red-500/50 focus-within:border-red-400/70',
         )}
@@ -370,11 +370,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 width={96}
                 height={96}
                 unoptimized
-                className="h-24 w-24 rounded-xl object-cover border border-black/10 dark:border-white/10"
+                className="h-24 w-24 rounded-xl object-cover border border-border"
               />
               <button
                 type="button"
-                className="absolute -top-2 -right-2 grid place-items-center h-6 w-6 rounded-full bg-zinc-900/90 text-white hover:bg-red-600 shadow-md transition-colors"
+                className="absolute -top-2 -right-2 grid place-items-center h-6 w-6 rounded-full bg-surface-3/90 text-white hover:bg-red-600 shadow-md transition-colors"
                 onClick={handleRemoveImage}
                 aria-label="Remove image"
               >
@@ -392,14 +392,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              className="absolute bottom-[calc(100%+8px)] left-2 z-20 flex flex-wrap gap-1 rounded-2xl border border-zinc-200/80 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/95"
+              className="absolute bottom-[calc(100%+8px)] left-2 z-20 flex flex-wrap gap-1 rounded-2xl border border-border/80 bg-surface-1/95 p-2 shadow-lg backdrop-blur-md dark:border-border dark:bg-surface-3/95"
             >
               {QUICK_EMOJI.map((e) => (
                 <button
                   key={e}
                   type="button"
                   onClick={() => insertEmoji(e)}
-                  className="rounded-lg px-1.5 py-1 text-lg transition-transform hover:scale-125 hover:bg-zinc-100 dark:hover:bg-white/10"
+                  className="rounded-lg px-1.5 py-1 text-lg transition-transform hover:scale-125 hover:bg-muted"
                   aria-label={`Insert ${e}`}
                 >
                   {e}
@@ -418,8 +418,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           placeholder="Write a message…"
           className={cn(
             'w-full max-h-[min(180px,25dvh)] resize-none overflow-y-auto bg-transparent px-4 pt-3.5 pb-1 text-base leading-relaxed',
-            'text-zinc-900 dark:text-white',
-            'placeholder:text-zinc-400 dark:placeholder:text-white/40 focus:outline-none',
+            'text-foreground',
+            'placeholder:text-muted-foreground focus:outline-none',
           )}
           disabled={isSending}
           rows={1}
@@ -452,15 +452,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                   'mb-1 flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs',
                   dictationError
                     ? 'border-red-500/20 bg-red-500/8 text-red-600 dark:text-red-300'
-                    : 'border-emerald-500/20 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+                    : 'border-brand-accent/20 bg-brand-accent/8 text-brand-accent-hover dark:text-brand-accent-light',
                 )}
               >
                 {dictationError ? (
                   <FiAlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 ) : (
-                  <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500/15">
+                  <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-accent/15">
                     <FiMic className="h-3.5 w-3.5" />
-                    <span className="absolute inset-0 rounded-full bg-emerald-400/25 animate-ping" />
+                    <span className="absolute inset-0 rounded-full bg-brand-accent/25 animate-ping" />
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">
@@ -480,21 +480,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               className="overflow-hidden px-3"
             >
-              <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/8 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
+              <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-accent/20 bg-brand-accent/8 px-3 py-2 text-xs text-brand-accent-hover dark:text-brand-accent-light">
                 <span className="min-w-0 flex-1">
                   Did we mishear <span className="font-semibold">“{pendingCorrection.from}”</span> as <span className="font-semibold">“{pendingCorrection.to}”</span>?
                 </span>
                 <button
                   type="button"
                   onClick={savePendingCorrection}
-                  className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium transition-colors hover:bg-sky-500/25"
+                  className="rounded-full bg-brand-accent/15 px-2.5 py-1 font-medium transition-colors hover:bg-brand-accent/25"
                 >
                   Save
                 </button>
                 <button
                   type="button"
                   onClick={() => setPendingCorrection(null)}
-                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/8"
+                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-muted/50"
                 >
                   Dismiss
                 </button>
@@ -546,10 +546,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               title={listening ? 'Release to stop dictation' : 'Hold to dictate message'}
               className={cn(
                 'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+                'hover:bg-muted active:scale-95 disabled:opacity-40',
                 listening
-                  ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-                  : 'text-zinc-500 dark:text-white/55',
+                  ? 'text-brand-accent bg-brand-accent/10'
+                  : 'text-muted-foreground',
               )}
             >
               {listening ? (
@@ -574,7 +574,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 exit={{ opacity: 0, scale: 0.8, width: 0 }}
                 onClick={handlePolish}
                 disabled={polishing || isSending}
-                className="shrink-0 inline-flex items-center gap-1 h-9 rounded-full px-3 text-xs font-medium text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10 hover:bg-sky-500/20 dark:hover:bg-emerald-400/20 transition-colors whitespace-nowrap overflow-hidden"
+                className="shrink-0 inline-flex items-center gap-1 h-9 rounded-full px-3 text-xs font-medium text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10 hover:bg-brand-accent/20 transition-colors whitespace-nowrap overflow-hidden"
                 title="Clean up dictated text"
               >
                 {polishing ? (
@@ -638,8 +638,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             className={cn(
               'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               canSend && !isTooLong && !isSending
-                ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400 shadow-md shadow-sky-500/25 dark:shadow-emerald-500/25'
-                : 'bg-zinc-200 text-zinc-400 dark:bg-white/10 dark:text-white/30 cursor-not-allowed',
+                ? 'bg-brand-accent text-brand-accent-foreground dark:text-foreground hover:bg-brand-accent-hover shadow-md shadow-brand-accent/25'
+                : 'bg-muted text-muted-foreground dark:bg-muted/40 cursor-not-allowed',
             )}
             aria-label={isEditing ? 'Save message' : 'Send message'}
             title={isEditing ? 'Save' : 'Send'}
@@ -672,10 +672,10 @@ const IconButton: React.FC<{
     title={label}
     className={cn(
       'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-      'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+      'hover:bg-muted active:scale-95 disabled:opacity-40',
       active
-        ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-        : 'text-zinc-500 dark:text-white/55',
+        ? 'text-brand-accent bg-brand-accent/10'
+        : 'text-muted-foreground',
     )}
   >
     {children}

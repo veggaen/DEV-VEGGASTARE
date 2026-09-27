@@ -34,9 +34,9 @@ export function NotificationPreview({
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={cn(
         "relative overflow-hidden rounded-xl",
-        "bg-white dark:bg-zinc-900",
-        "border border-zinc-200 dark:border-zinc-800",
-        "shadow-lg shadow-zinc-900/5 dark:shadow-black/20",
+        "bg-card",
+        "border border-border",
+        "shadow-lg shadow-black/5 dark:shadow-black/20",
         "p-4",
         className
       )}
@@ -62,9 +62,9 @@ export function NotificationPreview({
       <div className="relative flex gap-3">
         {/* Actor avatar with status */}
         <div className="relative shrink-0">
-          <Avatar className="h-10 w-10 border border-zinc-200 dark:border-zinc-700">
+          <Avatar className="h-10 w-10 border border-border">
             <AvatarImage src={actor.image || "/users/avatar.webp"} alt={actor.name} />
-            <AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
+            <AvatarFallback className="bg-muted text-foreground/80">
               <FaUser className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
@@ -78,11 +78,11 @@ export function NotificationPreview({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100">
+            <span className="font-medium text-sm text-foreground">
               {actor.name}
             </span>
             {actor.username && (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs text-muted-foreground">
                 @{actor.username}
               </span>
             )}
@@ -98,7 +98,7 @@ export function NotificationPreview({
                 >
                   {config.emoji}
                 </span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-muted-foreground">
                   {type === "HEARTBEAT" && "Heartbeat rising..."}
                   {type === "REPLY" && "Reply incoming..."}
                   {type === "DM" && "Message incoming..."}
@@ -107,7 +107,7 @@ export function NotificationPreview({
                 <TypingDots color={config.color} />
               </div>
             ) : preview ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
+              <p className="text-sm text-foreground/80 line-clamp-2">
                 {preview}
               </p>
             ) : (
@@ -216,9 +216,9 @@ export function NotificationToast({
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className={cn(
         "relative cursor-pointer overflow-hidden rounded-2xl",
-        "bg-white dark:bg-zinc-900",
-        "border border-zinc-200 dark:border-zinc-800",
-        "shadow-xl shadow-zinc-900/10 dark:shadow-black/30",
+        "bg-card",
+        "border border-border",
+        "shadow-xl shadow-black/10 dark:shadow-black/30",
         "max-w-sm w-full"
       )}
       onClick={onClick}
@@ -252,9 +252,9 @@ export function NotificationToast({
       <div className="relative p-4 flex gap-3">
         {/* Avatar */}
         <div className="relative shrink-0">
-          <Avatar className="h-10 w-10 border border-zinc-200 dark:border-zinc-700">
+          <Avatar className="h-10 w-10 border border-border">
             <AvatarImage src={actor.image || "/users/avatar.webp"} alt={actor.name} />
-            <AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
+            <AvatarFallback className="bg-muted text-foreground/80">
               <FaUser className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
@@ -262,7 +262,7 @@ export function NotificationToast({
             className={cn(
               "absolute -bottom-1 -right-1 flex items-center justify-center",
               "w-5 h-5 rounded-full text-[10px]",
-              "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
+              "bg-card border border-border"
             )}
           >
             <motion.span
@@ -276,11 +276,11 @@ export function NotificationToast({
         
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-medium text-foreground">
             {message}
           </p>
           {preview && (
-            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
+            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
               &ldquo;{preview}&rdquo;
             </p>
           )}
@@ -293,7 +293,7 @@ export function NotificationToast({
             e.stopPropagation();
             onClose?.();
           }}
-          className="shrink-0 p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          className="shrink-0 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground/80"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />

@@ -10,3 +10,4 @@ export { AppHeader } from "./app-header";
 export { Atmosphere, type AtmosphereVariant } from "./atmosphere";
 export { ThemeToggle, runThemeCrossfade } from "./theme-toggle";
 export { MobileDock } from "./mobile-dock";
+export { PageHeader, PageShell } from "./page-header";

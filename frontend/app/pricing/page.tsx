@@ -7,6 +7,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PricingTiers from "@/components/uicustom/pricing/PricingTiers";
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -43,20 +44,14 @@ export default function PricingPage() {
     <div className="min-w-0">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header className="mx-auto max-w-2xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
-            <span aria-hidden className="h-2 w-2 rounded-full bg-brand-accent" />
-            <span>Pricing</span>
-          </div>
-          <h1 className="mt-4 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-            Pay for value, never for keys.
-          </h1>
-          <p className="mt-4 text-pretty text-base text-muted-foreground">
-            Explore the demo without a card. Choose a one-time credit pack for available
-            premium models, or connect a personal key billed by your provider.
-            Clear costs and daily safety limits — no recurring subscription.
-          </p>
-        </header>
+        <PageHeader
+          align="center"
+          size="lg"
+          eyebrow="Pricing"
+          title="Pay for value, never for keys."
+          description="Explore the demo without a card. Choose a one-time credit pack for available premium models, or connect a personal key billed by your provider. Clear costs and daily safety limits — no recurring subscription."
+          className="border-b-0 pb-0"
+        />
 
         {/* ── Tiers ──────────────────────────────────────────────────────── */}
         <section className="mt-12">

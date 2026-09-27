@@ -327,7 +327,7 @@ export function ShippingEstimateCard({
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-500">
+                      <p className="text-sm font-semibold text-brand-accent">
                         {formatPrice(product.price, product.currency)}
                       </p>
                     </div>
@@ -347,7 +347,7 @@ export function ShippingEstimateCard({
             <div className="pt-3 border-t border-border/50 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Gift className="h-4 w-4 text-emerald-500" />
+                  <Gift className="h-4 w-4 text-brand-accent" />
                   <span className="text-sm font-medium">Free Shipping Offer</span>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
@@ -367,7 +367,7 @@ export function ShippingEstimateCard({
                     onChange={handleFreeShippingToggle}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition peer-checked:bg-brand-accent"></div>
                 </label>
               </div>
               

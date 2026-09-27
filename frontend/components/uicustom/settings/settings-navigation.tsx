@@ -30,9 +30,9 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
     <button key={section.id} type="button" disabled={!clientReady} aria-current={active === section.id ? 'page' : undefined}
       onClick={() => { onSelect(section.id); setOpen(false); }}
       className={`flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active === section.id
-        ? 'border-emerald-500/50 bg-emerald-500/10 text-foreground'
+        ? 'border-brand-accent/50 bg-brand-accent/10 text-foreground'
         : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-      <section.icon aria-hidden="true" className={`size-5 shrink-0 ${active === section.id ? 'text-emerald-500' : ''}`} />
+      <section.icon aria-hidden="true" className={`size-5 shrink-0 ${active === section.id ? 'text-brand-accent' : ''}`} />
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{section.label}</span>
         <span className="block text-xs text-muted-foreground">{section.description}</span>
@@ -53,7 +53,7 @@ export function SettingsNavigation<T extends string>({ sections, active, onSelec
         <SheetTrigger asChild>
           <button ref={trigger} type="button" disabled={!clientReady} aria-label={`Settings sections: ${selected.label}`}
             className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <selected.icon aria-hidden="true" className="size-5 shrink-0 text-emerald-500" />
+            <selected.icon aria-hidden="true" className="size-5 shrink-0 text-brand-accent" />
             <span className="min-w-0 flex-1 text-sm font-medium">{selected.label}</span>
             <span className="text-xs text-muted-foreground">Change</span>
             <FiMenu aria-hidden="true" className="size-5 shrink-0" />

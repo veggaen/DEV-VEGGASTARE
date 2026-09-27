@@ -134,17 +134,17 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
             right: dropdownPosition.right,
             zIndex: 9999,
           }}
-          className="w-[360px] max-w-[calc(100%-32px)] max-h-[calc(100dvh-88px)] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700/60 dark:bg-zinc-900"
+          className="w-[360px] max-w-[calc(100%-32px)] max-h-[calc(100dvh-88px)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card shadow-xl dark:border-border/60 dark:bg-surface-3"
         >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 dark:border-border">
               <div className="flex items-center gap-2">
-                <FiShoppingBag className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                <FiShoppingBag className="h-4 w-4 text-brand-accent" />
+                <span className="text-sm font-semibold text-foreground">
                   Your Basket
                 </span>
                 {totalItems > 0 && (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                  <span className="rounded-full bg-brand-accent/10 px-2 py-0.5 text-xs font-medium text-brand-accent-hover dark:text-brand-accent-light dark:bg-brand-accent/20 dark:text-brand-accent">
                     {totalItems} item{totalItems !== 1 ? "s" : ""}
                   </span>
                 )}
@@ -153,7 +153,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                 ref={closeRef}
                 aria-label="Close basket"
                 onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
-                className="min-h-11 min-w-11 rounded-md text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-11 min-w-11 rounded-md text-xs text-muted-foreground hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring"
               >
                 ESC
               </button>
@@ -167,28 +167,28 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
             {/* Content */}
             {!userId ? (
               <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-                <FiShoppingCart className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Log in to see your basket</p>
+                <FiShoppingCart className="h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm text-muted-foreground">Log in to see your basket</p>
                 <Link
                   href="/auth/login"
                   onClick={() => setOpen(false)}
-                  className="text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                  className="text-sm font-medium text-brand-accent-hover dark:text-brand-accent-light hover:text-brand-accent-hover dark:hover:text-brand-accent-light"
                 >
                   Sign in →
                 </Link>
               </div>
             ) : loading ? (
               <div role="status" aria-label="Loading basket" className="flex items-center justify-center py-8">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-accent border-t-transparent" />
               </div>
             ) : items.length === 0 && needsRefresh ? null : items.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-                <FiPackage className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Your basket is empty</p>
+                <FiPackage className="h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm text-muted-foreground">Your basket is empty</p>
                 <Link
                   href="/products"
                   onClick={() => setOpen(false)}
-                  className="text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                  className="text-sm font-medium text-brand-accent-hover dark:text-brand-accent-light hover:text-brand-accent-hover dark:hover:text-brand-accent-light"
                 >
                   Browse products →
                 </Link>
@@ -197,7 +197,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
               <>
                 {/* Items list */}
                 <div className="max-h-[min(420px,50dvh)] overflow-y-auto overscroll-contain">
-                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <div className="divide-y divide-border/60">
                     <AnimatePresence mode="popLayout">
                       {items.map((item) => (
                         <motion.div
@@ -213,7 +213,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                           <Link
                             href={`/products/${item.product.id}`}
                             onClick={() => setOpen(false)}
-                            className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-emerald-500/40 focus-visible:ring-2 focus-visible:ring-ring"
+                            className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-brand-accent/40 focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             {item.product.image?.[0] ? (
                               <Image
@@ -225,7 +225,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center">
-                                <FiPackage className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />
+                                <FiPackage className="h-5 w-5 text-muted-foreground/60" />
                               </div>
                             )}
                           </Link>
@@ -235,12 +235,12 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                             <Link
                               href={`/products/${item.product.id}`}
                               onClick={() => setOpen(false)}
-                              className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:text-emerald-600 dark:hover:text-emerald-400 line-clamp-1 transition-colors"
+                              className="text-sm font-medium text-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light line-clamp-1 transition-colors"
                             >
                               {item.product.title}
                             </Link>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                              <span className="text-sm font-semibold text-foreground">
                                 <PriceAmount
                                   amount={pricing.quote?.lines.find(line => line.productId === item.product.id)?.amountMinor != null
                                     ? pricing.quote.lines.find(line => line.productId === item.product.id)!.amountMinor / 100 : item.product.price * item.quantity}
@@ -250,7 +250,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                                 />
                               </span>
                               {item.quantity > 1 && (
-                                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                <span className="text-xs text-muted-foreground/80">
                                   <PriceAmount
                                     amount={item.product.price}
                                     currency={item.product.priceCurrency ?? "USD"}
@@ -263,12 +263,12 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
 
                           {/* Quantity controls */}
                           <div className="col-span-2 flex items-center justify-between gap-2">
-                            {item.creditAmount === undefined ? <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            {item.creditAmount === undefined ? <div className="flex items-center gap-1 rounded-lg border border-border">
                               <button
                                 aria-label={`Decrease quantity for ${item.product.title}`}
                                 onClick={() => { clearDraft(item.id); void mutate(item.id, 'decrement'); }}
                                 disabled={pending.has(item.id) || refreshing || needsRefresh || item.quantity <= 1}
-                                className="flex size-11 items-center justify-center rounded-l-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
+                                className="flex size-11 items-center justify-center rounded-l-md text-muted-foreground hover:bg-muted disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 <FiMinus className="h-3 w-3" />
                               </button>
@@ -277,7 +277,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                                 aria-label={`Increase quantity for ${item.product.title}`}
                                 onClick={() => { clearDraft(item.id); void mutate(item.id, 'increment'); }}
                                 disabled={pending.has(item.id) || refreshing || needsRefresh || item.quantity >= 1000}
-                                className="flex size-11 items-center justify-center rounded-r-md text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
+                                className="flex size-11 items-center justify-center rounded-r-md text-muted-foreground hover:bg-muted disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 <FiPlus className="h-3 w-3" />
                               </button>
@@ -286,7 +286,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                               aria-label={`Remove ${item.product.title} from basket`}
                               onClick={() => { clearDraft(item.id); void mutate(item.id, 'remove'); }}
                               disabled={pending.has(item.id) || refreshing || needsRefresh}
-                              className="flex size-11 items-center justify-center rounded-md text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 focus-visible:ring-2 focus-visible:ring-ring"
+                              className="flex size-11 items-center justify-center rounded-md text-xs text-muted-foreground hover:text-red-500 dark:hover:text-red-400 focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <FiTrash2 className="h-3 w-3" />
                             </button>
@@ -301,11 +301,11 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                 </div>
 
                 {/* Footer with totals & actions */}
-                <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800 space-y-3">
+                <div className="border-t border-border/60 px-4 py-3 dark:border-border space-y-3">
                   {/* Total */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">Subtotal</span>
-                    <span className="min-w-0 text-right text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    <span className="text-sm text-muted-foreground">Subtotal</span>
+                    <span className="min-w-0 text-right text-base font-bold text-foreground">
                       {supported ? pricing.quote ? <PriceAmount amount={pricing.quote.totalMinor / 100} currency={pricing.quote.currency} displayFiat={pricing.quote.currency} context="settlement" /> : '—'
                         : <PriceTotal entries={items.map(item => ({ amount: item.product.price * item.quantity, currency: item.product.priceCurrency ?? 'USD' }))} />}
                     </span>
@@ -326,7 +326,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                     </Button>
                     <Button
                       size="sm"
-                      className="min-h-11 flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                      className="min-h-11 flex-1 bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground text-xs"
                       disabled={!canCheckout}
                       onClick={() => { setOpen(false); router.push("/checkout"); }}
                     >
@@ -336,7 +336,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
                   </div>
 
                   {/* Subtle info */}
-                  <p className="text-center text-[10px] text-zinc-400 dark:text-zinc-500">
+                  <p className="text-center text-[10px] text-muted-foreground/80">
                     {pricing.error ? 'Open the full cart to review and refresh the price.' : !supported ? 'Review item quantities in the full cart before checkout.' : 'Your selected fiat currency is used at checkout.'}
                   </p>
                 </div>
@@ -354,7 +354,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
         ref={triggerRef}
         disabled={!mounted}
         onClick={() => { setActivated(true); setOpen(prev => !prev); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         aria-label={cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? "s" : ""} in basket` : "Basket"}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -366,7 +366,7 @@ export function MiniCartDropdown({ userId, cartCount }: MiniCartDropdownProps) {
             initial={reducedMotion ? false : { scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: reducedMotion ? 0 : 0.18 }}
-            className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white"
+            className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-accent px-1 text-[10px] font-bold text-brand-accent-foreground"
           >
             {cartCount > 99 ? "99+" : cartCount}
           </motion.span>

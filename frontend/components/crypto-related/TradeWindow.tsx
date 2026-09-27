@@ -87,7 +87,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
   const dashOffset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-2 border border-border">
       {/* Countdown ring */}
       <svg width="24" height="24" viewBox="0 0 24 24" className="shrink-0">
         <circle
@@ -95,7 +95,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-zinc-200 dark:text-zinc-700"
+          className="text-foreground/80"
         />
         <circle
           cx="12" cy="12" r="10"
@@ -107,7 +107,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
           strokeLinecap="round"
           className={`transition-colors ${
             progress > 30
-              ? "text-emerald-500"
+              ? "text-brand-accent"
               : progress > 10
               ? "text-amber-500"
               : "text-red-500"
@@ -118,10 +118,10 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
       </svg>
       {/* Code */}
       <div className="flex flex-col">
-        <span className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 leading-none">
+        <span className="text-[8px] uppercase tracking-widest text-muted-foreground/80 leading-none">
           Session
         </span>
-        <span className="text-[11px] font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-[0.2em] leading-tight">
+        <span className="text-[11px] font-mono font-bold text-foreground/85 tracking-[0.2em] leading-tight">
           {code}
         </span>
       </div>
@@ -159,7 +159,7 @@ function TradeExpiry({ expiresAt }: { expiresAt?: string }) {
   if (!expiresAt) return null;
 
   return (
-    <div className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80">
       <FiClock className="h-3 w-3" />
       <span className="font-mono">{remaining}</span>
     </div>
@@ -342,30 +342,30 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col h-full bg-white dark:bg-zinc-950 relative overflow-hidden"
+      className="flex flex-col h-full bg-card relative overflow-hidden"
     >
       {/* Ambient glow — shifts color per phase */}
       <div className="absolute inset-0 pointer-events-none">
         <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ${
-          phase === "confirm" ? "bg-amber-400" : phase === "complete" ? "bg-emerald-400" : "bg-blue-400"
+          phase === "confirm" ? "bg-amber-400" : phase === "complete" ? "bg-brand-accent-light" : "bg-blue-400"
         }`} />
       </div>
 
       {/* ── Header ── */}
-      <div className="relative flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm">
+      <div className="relative flex items-center justify-between px-4 py-3 border-b border-border bg-surface-1/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <motion.button
             type="button"
             onClick={onClose}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+            className="p-1 rounded-lg hover:bg-surface-2 transition-colors"
           >
-            <FiChevronLeft className="h-4 w-4 text-zinc-500" />
+            <FiChevronLeft className="h-4 w-4 text-muted-foreground" />
           </motion.button>
           <div className="flex items-center gap-1.5">
-            <FiRepeat className="h-4 w-4 text-emerald-500" />
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <FiRepeat className="h-4 w-4 text-brand-accent" />
+            <span className="text-sm font-semibold text-foreground/90">
               Trade
             </span>
           </div>
@@ -403,14 +403,14 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
 
               {/* Animated divider */}
               <div className="flex items-center gap-2 px-4 py-1.5">
-                <div className="flex-1 h-px bg-linear-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
+                <div className="flex-1 h-px bg-linear-to-r from-transparent via-muted to-transparent" />
                 <motion.div
                   animate={{ rotate: phase === "confirm" ? 360 : 0 }}
                   transition={{ duration: 2, repeat: phase === "confirm" ? Infinity : 0, ease: "linear" }}
                 >
-                  <FiRepeat className="h-3 w-3 text-zinc-400 shrink-0" />
+                  <FiRepeat className="h-3 w-3 text-muted-foreground shrink-0" />
                 </motion.div>
-                <div className="flex-1 h-px bg-linear-to-r from-transparent via-zinc-300 dark:via-zinc-700 to-transparent" />
+                <div className="flex-1 h-px bg-linear-to-r from-transparent via-muted to-transparent" />
               </div>
 
               {/* My side */}
@@ -428,8 +428,8 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
 
       {/* ── Security footer (ZKP indicator) ── */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-4 py-1.5 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/30">
-          <div className="flex items-center justify-center gap-1.5 text-[9px] text-zinc-400 dark:text-zinc-500">
+        <div className="px-4 py-1.5 border-t border-border/60 bg-muted/40">
+          <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground/80">
             <FiLock className="h-2.5 w-2.5" />
             <span>End-to-end verified &middot; Zero-knowledge proof ready</span>
           </div>
@@ -438,7 +438,7 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
 
       {/* ── Action Bar ── */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2 bg-white dark:bg-zinc-950">
+        <div className="px-4 py-3 border-t border-border space-y-2 bg-card">
           {phase === "offer" && (
             <div className="flex gap-2">
               <motion.button
@@ -446,7 +446,7 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
                 onClick={handleCancel}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 hover:border-red-300 dark:hover:border-red-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 hover:border-red-300 dark:hover:border-red-700 transition-colors"
               >
                 <FiX className="h-3.5 w-3.5" />
                 Decline
@@ -457,10 +457,10 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
                 disabled={myReady || myItems.length === 0}
                 whileHover={!myReady && myItems.length > 0 ? { scale: 1.02 } : {}}
                 whileTap={!myReady && myItems.length > 0 ? { scale: 0.98 } : {}}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                   myReady
-                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700"
-                    : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none"
+                    ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light border border-brand-accent"
+                    : "bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 disabled:opacity-40 disabled:shadow-none"
                 }`}
               >
                 {myReady ? (
@@ -503,7 +503,7 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
                   onClick={handleCancel}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                 >
                   Cancel
                 </motion.button>
@@ -513,7 +513,7 @@ export function TradeWindow({ partner, tradeId, onClose, onComplete }: TradeWind
                   disabled={confirmed}
                   whileHover={!confirmed ? { scale: 1.02 } : {}}
                   whileTap={!confirmed ? { scale: 0.98 } : {}}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 disabled:opacity-40 shadow-lg shadow-emerald-500/25 disabled:shadow-none transition-all"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-accent-hover text-brand-accent-foreground text-xs font-semibold hover:bg-brand-accent disabled:opacity-40 shadow-lg shadow-brand-accent/25 disabled:shadow-none transition"
                 >
                   {confirmed ? (
                     <span className="flex items-center justify-center gap-1.5">
@@ -565,13 +565,13 @@ function TradePanel({
       {/* User header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Avatar className="h-6 w-6 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-950 ring-zinc-200 dark:ring-zinc-700">
+          <Avatar className="h-6 w-6 ring-2 ring-offset-1 ring-offset-background ring-border">
             <AvatarImage src={image ?? undefined} />
             <AvatarFallback className="text-[10px]">
               {label[0]?.toUpperCase() ?? "?"}
             </AvatarFallback>
           </Avatar>
-          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+          <span className="text-xs font-medium text-foreground/85">
             {label}
           </span>
         </div>
@@ -581,7 +581,7 @@ function TradePanel({
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5 }}
-              className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full"
+              className="flex items-center gap-1 text-[10px] text-brand-accent-hover dark:text-brand-accent-light font-medium bg-brand-accent/10 px-2 py-0.5 rounded-full"
             >
               <FiCheckCircle className="h-3 w-3" /> Ready
             </motion.span>
@@ -593,7 +593,7 @@ function TradePanel({
       <div className="grid grid-cols-4 gap-1.5 min-h-20">
         {items.length === 0 ? (
           <motion.div
-            className="col-span-4 flex flex-col items-center justify-center py-6 text-zinc-400 dark:text-zinc-600 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg"
+            className="col-span-4 flex flex-col items-center justify-center py-6 text-muted-foreground/70 border-2 border-dashed border-border rounded-lg"
             animate={{ borderColor: isRemote ? undefined : ["rgba(16,185,129,0.15)", "rgba(16,185,129,0.35)", "rgba(16,185,129,0.15)"] }}
             transition={{ duration: 2, repeat: isRemote ? 0 : Infinity }}
           >
@@ -625,8 +625,8 @@ function TradePanel({
               }}
               className={`relative aspect-square rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-colors ${
                 isRemote
-                  ? "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
-                  : "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/50"
+                  ? "border-border bg-surface-1"
+                  : "border-brand-accent bg-brand-accent/50"
               }`}
               onClick={() => !isRemote && onRemoveItem?.(item.id)}
               title={isRemote ? `${item.amount} ${item.token.symbol}` : "Click to remove"}
@@ -641,10 +641,10 @@ function TradePanel({
                   size={20}
                 />
               </div>
-              <span className="text-[8px] font-bold text-zinc-700 dark:text-zinc-300 mt-0.5 truncate max-w-full">
+              <span className="text-[8px] font-bold text-foreground/85 mt-0.5 truncate max-w-full">
                 {item.amount}
               </span>
-              <span className="text-[7px] text-zinc-400 truncate max-w-full">
+              <span className="text-[7px] text-muted-foreground truncate max-w-full">
                 {item.token.symbol}
               </span>
             </motion.div>
@@ -669,7 +669,7 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const currentIndex = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="px-4 py-2 bg-zinc-50/50 dark:bg-zinc-900/30">
+    <div className="px-4 py-2 bg-muted/40">
       <div className="flex items-center gap-1">
         {phases.map((p, i) => (
           <React.Fragment key={p.key}>
@@ -685,19 +685,19 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
             >
               <span className={`transition-colors ${
                 phase === p.key
-                  ? "text-emerald-600 dark:text-emerald-400"
+                  ? "text-brand-accent-hover dark:text-brand-accent-light"
                   : currentIndex > i
-                  ? "text-emerald-400/60"
-                  : "text-zinc-400"
+                  ? "text-brand-accent/60"
+                  : "text-muted-foreground"
               }`}>
                 {p.icon}
               </span>
               <span className={`text-[9px] font-medium transition-colors ${
                 phase === p.key
-                  ? "text-emerald-700 dark:text-emerald-400"
+                  ? "text-brand-accent-hover dark:text-brand-accent-light"
                   : currentIndex > i
-                  ? "text-emerald-500/60"
-                  : "text-zinc-400"
+                  ? "text-brand-accent/60"
+                  : "text-muted-foreground"
               }`}>
                 {p.label}
               </span>
@@ -738,17 +738,17 @@ function TradeComplete({ partner }: { partner: TradePartner }) {
         transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
       >
         <motion.div
-          className="absolute inset-0 rounded-full bg-emerald-400/20"
+          className="absolute inset-0 rounded-full bg-brand-accent/20"
           animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
         />
-        <div className="relative h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+        <div className="relative h-20 w-20 rounded-full bg-brand-accent/15 flex items-center justify-center">
           <motion.div
             initial={{ scale: 0, rotate: -90 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.3 }}
           >
-            <FiCheckCircle className="h-10 w-10 text-emerald-500" />
+            <FiCheckCircle className="h-10 w-10 text-brand-accent" />
           </motion.div>
         </div>
       </motion.div>
@@ -757,7 +757,7 @@ function TradeComplete({ partner }: { partner: TradePartner }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-1"
+        className="text-lg font-bold text-foreground/90 mb-1"
       >
         Trade Complete!
       </motion.h3>
@@ -765,7 +765,7 @@ function TradeComplete({ partner }: { partner: TradePartner }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="text-sm text-zinc-500 dark:text-zinc-400"
+        className="text-sm text-muted-foreground"
       >
         You traded with {partner.name ?? "a trader"}. Check your wallet for tokens.
       </motion.p>
@@ -774,7 +774,7 @@ function TradeComplete({ partner }: { partner: TradePartner }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
-        className="mt-4 flex items-center gap-1.5 text-[10px] text-zinc-400"
+        className="mt-4 flex items-center gap-1.5 text-[10px] text-muted-foreground"
       >
         <FiShield className="h-3 w-3" />
         Cryptographically verified
@@ -802,10 +802,10 @@ function TradeCancelled() {
       >
         <FiX className="h-8 w-8 text-red-400" />
       </motion.div>
-      <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-1">
+      <h3 className="text-lg font-bold text-foreground/90 mb-1">
         Trade Cancelled
       </h3>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-sm text-muted-foreground">
         No items were exchanged. All assets remain in their original wallets.
       </p>
     </motion.div>

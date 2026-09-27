@@ -6,12 +6,12 @@ import * as React from 'react';
 import { useDropzone, type DropzoneOptions } from 'react-dropzone';
 import { twMerge } from 'tailwind-merge';
 const variants = {
-  base: 'relative rounded-md flex justify-center items-center flex-col cursor-pointer min-h-[150px] min-w-[200px] border border-dashed border-gray-400 dark:border-gray-300 transition-colors duration-200 ease-in-out',
+  base: 'relative rounded-md flex justify-center items-center flex-col cursor-pointer min-h-[150px] min-w-[200px] border border-dashed border-border transition-colors duration-200 ease-in-out',
   image:
-    'border-0 p-0 min-h-0 min-w-0 relative shadow-md bg-zinc-200 dark:bg-zinc-900 rounded-md',
+    'border-0 p-0 min-h-0 min-w-0 relative shadow-md bg-muted rounded-md',
   active: 'border-2',
   disabled:
-    'bg-gray-200/30 border-gray-300 cursor-default pointer-events-none dark:bg-gray-700',
+    'bg-muted/30 border-border cursor-default pointer-events-none dark:bg-muted',
   accept: 'border border-blue-500 bg-blue-500/10',
   reject: 'border border-red-700 bg-red-700/10',
 };
@@ -134,9 +134,9 @@ const SingleImageDropzone = React.forwardRef<HTMLInputElement, InputProps>(
             />
           ) : (
             // Upload Icon
-            <div className="flex flex-col items-center justify-center text-xs text-gray-400">
+            <div className="flex flex-col items-center justify-center text-xs text-muted-foreground">
               <FaFileUpload className="mb-2 h-7 w-7" />
-              <div className="text-gray-400">drag & drop to upload</div>
+              <div className="text-muted-foreground">drag & drop to upload</div>
               <div className="mt-3">
                 <Button disabled={disabled}>select</Button>
               </div>
@@ -151,9 +151,9 @@ const SingleImageDropzone = React.forwardRef<HTMLInputElement, InputProps>(
                 void onChange?.(undefined);
               }} */
             >
-              <div className="flex h-5 w-5 items-center justify-center rounded-md border border-solid border-gray-500 bg-white transition-all duration-300 hover:h-6 hover:w-6 dark:border-gray-400 dark:bg-black">
+              <div className="flex h-5 w-5 items-center justify-center rounded-md border border-solid border-border bg-card transition duration-300 hover:h-6 hover:w-6 dark:bg-background">
                 <RxCrossCircled
-                  className="text-gray-500 dark:text-gray-400"
+                  className="text-muted-foreground"
                   width={16}
                   height={16}
                 />
@@ -178,7 +178,7 @@ const Button = React.forwardRef<
         // base
         'focus-visible:ring-ring inline-flex cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
         // color
-        'border border-gray-400 text-gray-400 shadow hover:bg-gray-100 hover:text-gray-500 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700',
+        'border border-border text-muted-foreground shadow hover:bg-muted hover:text-muted-foreground dark:text-foreground',
         // size
         'h-6 rounded-md px-2 text-xs',
         className,

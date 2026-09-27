@@ -138,7 +138,7 @@ export function QuestionCommentButton({
   const getButtonStyles = () => {
     if (variant === "minimal") {
       return cn(
-        "rounded-full transition-all",
+        "rounded-full transition",
         hasComment
           ? "text-primary bg-primary/10 hover:bg-primary/20"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -147,16 +147,16 @@ export function QuestionCommentButton({
 
     if (variant === "prominent") {
       return cn(
-        "rounded-full transition-all shadow-md",
+        "rounded-full transition shadow-md",
         hasComment
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
-          : "bg-linear-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90"
+          : "bg-linear-to-r from-brand-accent to-cyan-500 text-white hover:opacity-90"
       );
     }
 
     // Default
     return cn(
-      "rounded-full border-2 transition-all",
+      "rounded-full border-2 transition",
       hasComment
         ? "border-primary bg-primary/10 text-primary hover:bg-primary/20"
         : "border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5"

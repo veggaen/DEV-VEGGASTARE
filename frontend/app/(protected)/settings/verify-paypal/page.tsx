@@ -34,7 +34,7 @@ export default function VerifyPaypalPage() {
   });
   return <section className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 sm:py-12">
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-8">
-      {review?.success ? <FiCheckCircle aria-hidden="true" className="size-8 text-emerald-500" /> : <FiMail aria-hidden="true" className="size-8 text-muted-foreground" />}
+      {review?.success ? <FiCheckCircle aria-hidden="true" className="size-8 text-brand-accent" /> : <FiMail aria-hidden="true" className="size-8 text-muted-foreground" />}
       <h1 className="text-balance text-2xl font-semibold">{review?.success ? 'Receiving email verified' : 'Verify receiving email'}</h1>
       {!valid ? <p role="alert" className="text-sm text-destructive">Invalid link. Request a new one in payment settings.</p>
         : review?.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p>

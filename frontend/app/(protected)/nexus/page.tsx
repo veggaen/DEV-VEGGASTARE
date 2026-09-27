@@ -109,10 +109,10 @@ export default function NexusPage() {
 
   const colorClasses: Record<string, string> = {
     indigo: 'text-indigo-500 group-hover:bg-indigo-500/10',
-    slate: 'text-zinc-500 group-hover:bg-zinc-500/10',
+    slate: 'text-muted-foreground group-hover:bg-muted/10',
     pink: 'text-pink-500 group-hover:bg-pink-500/10',
     blue: 'text-blue-500 group-hover:bg-blue-500/10',
-    emerald: 'text-emerald-500 group-hover:bg-emerald-500/10',
+    emerald: 'text-brand-accent group-hover:bg-brand-accent/10',
     amber: 'text-amber-500 group-hover:bg-amber-500/10',
     cyan: 'text-cyan-500 group-hover:bg-cyan-500/10',
   };
@@ -131,7 +131,7 @@ export default function NexusPage() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-linear-to-b from-black/5 via-transparent to-black/5 dark:from-black/15 dark:to-black/5" />
+        <div className="absolute inset-0 bg-linear-to-b from-background/5 via-transparent to-background/5 dark:from-background/15" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
@@ -172,7 +172,7 @@ export default function NexusPage() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card/30 p-4 transition-all hover:bg-card/60 hover:border-border"
+                      className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card/30 p-4 transition hover:bg-card/60 hover:border-border"
                     >
                       <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${colorClasses[item.color]}`}>
                         <item.icon className="h-5 w-5" />

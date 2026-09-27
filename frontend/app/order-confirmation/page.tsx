@@ -85,7 +85,7 @@ const OrderConfirmationPage = () => {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
-              className="border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+              className="border border-brand-accent px-4 py-2 text-sm font-semibold text-brand-accent-light transition-colors hover:bg-brand-accent hover:text-foreground"
               href="/my-orders"
             >
               Open My orders
@@ -113,7 +113,7 @@ const OrderConfirmationPage = () => {
           <Link
             href={`/order-confirmation/${order.id}`}
             key={order.id}
-            className="group block py-5 transition-colors hover:bg-white/[0.03]"
+            className="group block py-5 transition-colors hover:bg-muted/40"
           >
             <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
               <div>

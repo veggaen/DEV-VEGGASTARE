@@ -250,7 +250,7 @@ function PostJobForm() {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-white/60">Loading...</div>
+        <div className="animate-pulse text-foreground/60">Loading...</div>
       </div>
     );
   }
@@ -259,7 +259,7 @@ function PostJobForm() {
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-linear-to-b from-black/15 via-transparent to-black/5" />
+        <div className="absolute inset-0 bg-linear-to-b from-background/15 via-transparent to-background/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.1, 0.18, 0.1] }}
@@ -291,26 +291,26 @@ function PostJobForm() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
             <Link 
               href="/jobs" 
-              className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-4"
+              className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-4"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Job Board
             </Link>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-semibold text-foreground/70">
               <motion.span
-                className="h-2 w-2 rounded-full bg-emerald-400"
+                className="h-2 w-2 rounded-full bg-brand-accent-light"
                 aria-hidden
                 animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
               />
               <span>New Request</span>
             </div>
-            <h1 className="text-balance text-3xl font-semibold text-zinc-900 dark:text-white sm:text-4xl">
+            <h1 className="text-balance text-3xl font-semibold text-foreground sm:text-4xl">
               Post a Request
             </h1>
-            <p className="max-w-2xl text-pretty text-sm text-zinc-600 dark:text-white/70 sm:text-base">
+            <p className="max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
               Describe what you&apos;re looking for and companies will reach out with offers.
               Add images and details to help them understand your needs.
             </p>
@@ -321,7 +321,7 @@ function PostJobForm() {
             {/* Title Section */}
             <section className="space-y-4">
               <label className="block">
-                <span className="text-sm font-medium text-zinc-700 dark:text-white/90 mb-2 block">Request Title</span>
+                <span className="text-sm font-medium text-foreground mb-2 block">Request Title</span>
                 <input
                   type="text"
                   name="title"
@@ -329,7 +329,7 @@ function PostJobForm() {
                   value={formData.title}
                   onChange={(e) => handleChange(e, undefined, 'title')}
                   required
-                  className="h-12 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 focus:bg-black/[0.07] dark:focus:bg-white/[0.07]"
+                  className="h-12 w-full rounded-xl border border-border bg-muted/40 px-4 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 focus:bg-muted/40"
                 />
               </label>
             </section>
@@ -337,8 +337,8 @@ function PostJobForm() {
             {/* Description Sections */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700 dark:text-white/90">Images & Descriptions</span>
-                <span className="text-xs text-zinc-400 dark:text-white/40">{formData.descriptions.length} item{formData.descriptions.length > 1 ? 's' : ''}</span>
+                <span className="text-sm font-medium text-foreground">Images & Descriptions</span>
+                <span className="text-xs text-muted-foreground">{formData.descriptions.length} item{formData.descriptions.length > 1 ? 's' : ''}</span>
               </div>
               
               <div className="space-y-4">
@@ -361,7 +361,7 @@ function PostJobForm() {
               <button
                 type="button"
                 onClick={() => handleAddFields('descriptions')}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/[0.02] py-3 text-sm text-white/60 transition-colors hover:border-white/30 hover:bg-white/[0.04] hover:text-white/80"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 py-3 text-sm text-foreground/60 transition-colors hover:border-foreground/20 hover:bg-muted/40 hover:text-foreground/80"
               >
                 <FiPlus className="h-4 w-4" />
                 Add another image & description
@@ -372,7 +372,7 @@ function PostJobForm() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.04]"
+              className="flex w-full items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground/70 transition-colors hover:bg-muted/40"
             >
               <span className="font-medium">Optional Details</span>
               {showOptional ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
@@ -383,11 +383,11 @@ function PostJobForm() {
               <motion.div
                 initial={reduceMotion ? undefined : { opacity: 0, height: 0 }}
                 animate={reduceMotion ? undefined : { opacity: 1, height: 'auto' }}
-                className="space-y-6 rounded-xl border border-white/10 bg-white/[0.02] p-5"
+                className="space-y-6 rounded-xl border border-border bg-muted/40 p-5"
               >
                 {/* Links */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <FiLink className="h-4 w-4" />
                     Reference Links
                   </label>
@@ -398,12 +398,12 @@ function PostJobForm() {
                         placeholder="https://example.com/reference"
                         value={link}
                         onChange={(e) => handleChange(e, index, 'links')}
-                        className="h-10 flex-1 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="h-10 flex-1 rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveFields(index, 'links')}
-                        className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 text-zinc-400 dark:text-white/40 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                        className="rounded-xl border border-border bg-muted/40 px-3 text-muted-foreground transition-colors hover:bg-red-500/20 hover:text-red-400"
                       >
                         <FiTrash2 className="h-4 w-4" />
                       </button>
@@ -412,7 +412,7 @@ function PostJobForm() {
                   <button
                     type="button"
                     onClick={() => handleAddFields('links')}
-                    className="text-sm text-emerald-500 dark:text-emerald-400/80 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    className="text-sm text-brand-accent hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                   >
                     + Add another link
                   </button>
@@ -420,7 +420,7 @@ function PostJobForm() {
 
                 {/* Documents */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <FiFileText className="h-4 w-4" />
                     Documents
                   </label>
@@ -429,14 +429,14 @@ function PostJobForm() {
                     name="docs"
                     onChange={(e) => handleChange(e, undefined, 'docs')}
                     multiple
-                    className="w-full text-sm text-zinc-500 dark:text-white/60 file:mr-4 file:rounded-xl file:border-0 file:bg-black/10 dark:file:bg-white/10 file:px-4 file:py-2 file:text-sm file:text-zinc-700 dark:file:text-white/80 hover:file:bg-black/20 dark:hover:file:bg-white/20"
+                    className="w-full text-sm text-muted-foreground file:mr-4 file:rounded-xl file:border-0 file:bg-muted file:px-4 file:py-2 file:text-sm file:text-foreground hover:file:bg-muted"
                   />
                   {formData.docs.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {formData.docs.map((doc, index) => (
-                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-1.5 text-xs text-zinc-500 dark:text-white/60">
+                        <span key={index} className="inline-flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
                           {doc.name}
-                          <button type="button" onClick={() => handleRemoveFields(index, 'docs')} className="text-zinc-400 dark:text-white/40 hover:text-red-400">
+                          <button type="button" onClick={() => handleRemoveFields(index, 'docs')} className="text-muted-foreground hover:text-red-400">
                             <FiXCircle className="h-3 w-3" />
                           </button>
                         </span>
@@ -447,7 +447,7 @@ function PostJobForm() {
 
                 {/* Delivery */}
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <FiTruck className="h-4 w-4" />
                     Delivery Method
                   </label>
@@ -457,13 +457,13 @@ function PostJobForm() {
                     placeholder="e.g., Pickup, Shipping, Digital delivery"
                     value={formData.delivery}
                     onChange={(e) => handleChange(e, undefined, 'delivery')}
-                    className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                    className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                   />
                 </div>
 
                 {/* Additional Notes */}
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <FiMessageSquare className="h-4 w-4" />
                     Additional Notes
                   </label>
@@ -473,21 +473,21 @@ function PostJobForm() {
                     value={formData.additionalNotes}
                     onChange={(e) => handleChange(e, undefined, 'additionalNotes')}
                     rows={3}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
+                    className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 resize-none"
                   />
                 </div>
 
                 {/* Company Selection */}
-                <div className="space-y-3 pt-2 border-t border-black/10 dark:border-white/10">
+                <div className="space-y-3 pt-2 border-t border-border">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       name="sendToAll"
                       checked={formData.sendToAll}
                       onChange={(e) => handleChange(e, undefined, 'sendToAll')}
-                      className="h-4 w-4 rounded border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                      className="h-4 w-4 rounded border-border bg-surface-1 text-brand-accent focus:ring-brand-accent/50"
                     />
-                    <span className="text-sm text-zinc-700 dark:text-white/80">Send to all companies</span>
+                    <span className="text-sm text-foreground">Send to all companies</span>
                   </label>
 
                   {!formData.sendToAll && (
@@ -497,16 +497,16 @@ function PostJobForm() {
                         placeholder="Search companies..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                       />
                       <select
                         multiple
                         onChange={handleCompanySelect}
-                        className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                        className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                         size={Math.min(filteredCompanies.length, 5)}
                       >
                         {filteredCompanies.map(company => (
-                          <option key={company.id} value={company.id} className="bg-white dark:bg-zinc-900 py-1">
+                          <option key={company.id} value={company.id} className="bg-card py-1">
                             {company.name}
                           </option>
                         ))}
@@ -517,12 +517,12 @@ function PostJobForm() {
 
                 {/* Admin-only fields */}
                 {user?.role === 'ADMIN' && (
-                  <div className="space-y-4 pt-4 border-t border-black/10 dark:border-white/10">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-white/40">Admin Options</span>
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Admin Options</span>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-white/80">
+                        <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                           <FiDollarSign className="h-4 w-4" />
                           Price
                         </label>
@@ -531,17 +531,17 @@ function PostJobForm() {
                           name="price"
                           value={formData.price}
                           onChange={(e) => handleChange(e, undefined, 'price')}
-                          className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                          className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-700 dark:text-white/80">Payment Method</label>
+                        <label className="text-sm font-medium text-foreground">Payment Method</label>
                         <input
                           type="text"
                           name="paymentMethod"
                           value={formData.paymentMethod}
                           onChange={(e) => handleChange(e, undefined, 'paymentMethod')}
-                          className="h-10 w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50"
+                          className="h-10 w-full rounded-xl border border-border bg-muted/40 px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50"
                         />
                       </div>
                     </div>
@@ -552,9 +552,9 @@ function PostJobForm() {
                         name="negotiable"
                         checked={formData.negotiable}
                         onChange={(e) => handleChange(e, undefined, 'negotiable')}
-                        className="h-4 w-4 rounded border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                        className="h-4 w-4 rounded border-border bg-surface-1 text-brand-accent focus:ring-brand-accent/50"
                       />
-                      <span className="text-sm text-zinc-700 dark:text-white/80">Price is negotiable</span>
+                      <span className="text-sm text-foreground">Price is negotiable</span>
                     </label>
                   </div>
                 )}
@@ -565,7 +565,7 @@ function PostJobForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 text-base font-semibold text-white transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent px-8 text-base font-semibold text-brand-accent-foreground transition hover:bg-brand-accent-light disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -619,7 +619,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
   });
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.03]">
+    <div className="rounded-xl border border-border bg-muted/40 p-4 transition-colors hover:bg-muted/40">
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* Image Dropzone */}
         <div className="w-full lg:w-1/3">
@@ -627,15 +627,15 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             {...getRootProps()}
             className={`relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${
               isDragActive 
-                ? 'border-emerald-400 bg-emerald-500/10' 
-                : 'border-white/20 bg-white/[0.02] hover:border-white/30 hover:bg-white/[0.04]'
+                ? 'border-brand-accent bg-brand-accent/10' 
+                : 'border-border bg-muted/40 hover:border-foreground/20 hover:bg-muted/40'
             }`}
           >
             <input {...getInputProps()} />
             {imagePreviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-4 text-center">
-                <FaFileUpload className="mb-2 h-8 w-8 text-white/30" />
-                <p className="text-sm text-white/50">
+                <FaFileUpload className="mb-2 h-8 w-8 text-foreground/30" />
+                <p className="text-sm text-foreground/50">
                   {isDragActive ? 'Drop image here' : 'Drag & drop or click'}
                 </p>
               </div>
@@ -652,7 +652,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleRemoveImage(index, imgIndex); }}
-                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white/80 transition-colors hover:bg-red-500"
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-foreground/80 transition-colors hover:bg-red-500"
                     >
                       <FiXCircle className="h-3 w-3" />
                     </button>
@@ -677,7 +677,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             onChange={(e) => handleChange(e, index, 'descriptions')}
             required
             rows={6}
-            className="flex-1 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-white/30 outline-none transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.07] focus:border-emerald-500/50 resize-none"
+            className="flex-1 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-muted/40 focus:border-brand-accent/50 resize-none"
           />
           {canRemove && (
             <button

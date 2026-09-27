@@ -530,13 +530,9 @@ html:not(.dark) [data-card]:hover {
    IMPORTANT: only targets the bare Tailwind `border` utility when no explicit
    color utility (border-sky-*, border-emerald-*, etc.) is applied.  This avoids
    clobbering accent-coloured sliding indicators. */
-html:not(.dark) .border:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
-  border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
-  border-color: rgba(0, 0, 0, 0.15) !important;
-}
+/* (2026-09-27) The bare-`.border` !important rescue that lived here is gone:
+   `* { @apply border-border }` in @layer base already gives every border the
+   theme token, and the light `--border` value is tuned to be visible. */
 
 /* ─── Light mode: rescue the "fading" page-dividing borders ─────────────────────
  * App-wide, dividers use `border-{zinc,gray,neutral,slate}-100` (≈#f4f4f5) paired
@@ -550,18 +546,9 @@ html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald
  * `divide-*` paints the border on the second-and-later children (Tailwind's
  * `> :not([hidden]) ~ :not([hidden])`), so it's targeted separately.
  * ───────────────────────────────────────────────────────────────────────────── */
-html:not(.dark) [class*="border-zinc-100"],
-html:not(.dark) [class*="border-gray-100"],
-html:not(.dark) [class*="border-neutral-100"],
-html:not(.dark) [class*="border-slate-100"] {
-  border-color: rgba(0, 0, 0, 0.09) !important;
-}
-html:not(.dark) [class*="divide-zinc-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-neutral-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgba(0, 0, 0, 0.09) !important;
-}
+/* (2026-09-27) The zinc/gray-100 divider rescue that lived here is gone: no
+   palette border classes remain in app/ or components/, dividers use
+   `border-border/60` and the token is visible in both themes. */
 
 /* Light mode: Enhance rounded panels with subtle shadow */
 html:not(.dark) .rounded-xl,
@@ -574,15 +561,6 @@ html:not(.dark) .bg-surface-1\/30,
 html:not(.dark) .bg-surface-1\/50 {
   background-color: rgba(255, 255, 255, 0.95) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-/* Light mode: Stronger accent for selected/active states */
-html:not(.dark) .bg-emerald-500\/10 {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-}
-
-html:not(.dark) .bg-emerald-500\/20 {
-  background-color: rgba(16, 185, 129, 0.2) !important;
 }
 
 /* Light mode: Make icon backgrounds more visible */
@@ -655,101 +633,8 @@ html.dark [data-theme-tinted] {
   fill: black !important; /* Override the default fill color */
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Poll Builder light-mode compatibility layer
- * Scope only to poll builder so we do not affect the rest of the app.
- * This lets the legacy dark-zinc utility usage read cleanly in light mode.
- * ────────────────────────────────────────────────────────────────────────── */
-
-.poll-builder-theme-scope--light [class*="bg-zinc-"] {
-  background-color: hsl(var(--card)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="border-zinc-"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="text-zinc-200"],
-.poll-builder-theme-scope--light [class*="text-zinc-300"],
-.poll-builder-theme-scope--light [class*="text-zinc-400"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="text-zinc-500"],
-.poll-builder-theme-scope--light [class*="text-zinc-600"],
-.poll-builder-theme-scope--light [class*="text-zinc-700"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="hover:bg-zinc-"]:hover {
-  background-color: hsl(var(--accent)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="hover:text-zinc-"]:hover {
-  color: hsl(var(--foreground)) !important;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Product detail (/products/[...id]) light-mode compatibility layer
- *
- * That page was authored as an immersive DARK glass showcase: the root forces
- * `text-white` and the custom cards use white-hairline borders, `bg-white/[0.0x]`
- * frosted panels, and `bg-black/4x` surfaces. With no `dark:` pairing it rendered
- * white-on-near-white in light mode (unreadable). Rather than rewrite ~47 inline
- * classes, we remap just those dark-glass families to themed light equivalents —
- * but ONLY under `html:not(.dark) [data-product-detail]`, so dark mode is
- * untouched by construction. Mirrors the poll-builder layer above.
- *
- * Accent colours (emerald/sky/amber/red) and already-themed tokens
- * (text-muted-foreground, the Button components) are intentionally NOT touched.
- * ────────────────────────────────────────────────────────────────────────── */
-html:not(.dark) [data-product-detail] {
-  color: hsl(var(--foreground));
-}
-/* The page shell itself is `bg-black` (no opacity slash) with an emerald grid
-   overlay. In light mode give it the app background and dial the grid right back
-   so it reads as a faint texture, not a dark scrim. */
-html:not(.dark) [data-product-detail].bg-black,
-html:not(.dark) [data-product-detail] > .bg-black {
-  background-color: hsl(var(--background)) !important;
-}
-html:not(.dark) [data-product-detail] [class*="bg-[linear-gradient"] {
-  opacity: 0.4 !important;
-}
-/* White body/heading text → foreground ink */
-html:not(.dark) [data-product-detail] [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-}
-/* Muted zinc text → muted foreground */
-html:not(.dark) [data-product-detail] [class*="text-zinc-200"],
-html:not(.dark) [data-product-detail] [class*="text-zinc-300"],
-html:not(.dark) [data-product-detail] [class*="text-zinc-400"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-/* White-hairline borders → subtle ink border */
-html:not(.dark) [data-product-detail] [class*="border-white/"] {
-  border-color: rgba(0, 0, 0, 0.10) !important;
-}
-/* Frosted white-glass panels (bg-white/[0.0x]) → clean raised white surface */
-html:not(.dark) [data-product-detail] [class*="bg-white/"] {
-  background-color: hsl(var(--surface-1)) !important;
-}
-/* Dark scrim panels (bg-black/4x, bg-black/55) → soft light panel.
-   The gallery's inner bg-black/55 holds product imagery, so use a neutral light
-   so transparent PNGs still read. */
-html:not(.dark) [data-product-detail] [class*="bg-black/"] {
-  background-color: hsl(var(--surface-2)) !important;
-}
-/* The detail panel's heavy black drop-shadows are tuned for glow-on-black; soften
-   them so they read as gentle elevation on the light canvas instead of muddy blobs. */
-html:not(.dark) [data-product-detail] [class*="shadow-["] {
-  --tw-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-}
-/* Pale emerald text (text-emerald-200/...) is low-contrast on white — deepen it. */
-html:not(.dark) [data-product-detail] [class*="text-emerald-200"] {
-  color: #047857 !important; /* emerald-700 */
-}
+/* The poll-builder and product-detail light-mode compat layers that lived here
+   were deleted on 2026-09-27: both surfaces now use semantic tokens directly. */
 
 /* ─── AI Chat + Landing Page Visual Effects ─────────────────────────────────── */
 
@@ -915,6 +800,16 @@ html.dark .chat-send-btn:not(:disabled):hover {
 }
 
 /* Auth card entrance — slightly slower/calmer than the chat panel */
+/* Inner-page header entrance (PageHeader): a calm 12px rise + fade, once. */
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-rise { animation: pageRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-rise { animation: none; }
+}
+
 .auth-card-enter {
   animation: slide-up-fade 0.4s var(--ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }

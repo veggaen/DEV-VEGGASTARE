@@ -100,7 +100,7 @@ export function HoverFollowGrid({
         {style !== null && (
           <div
             aria-hidden
-            className={`absolute pointer-events-none z-10 ${radiusClass} border border-sky-500/50 dark:border-emerald-400/40 shadow-[0_0_24px_-4px_rgba(56,189,248,0.35)] dark:shadow-[0_0_24px_-4px_rgba(52,211,153,0.30)]`}
+            className={`absolute pointer-events-none z-10 ${radiusClass} border border-brand-accent/50 shadow-[0_0_24px_-4px_rgba(56,189,248,0.35)] dark:shadow-[0_0_24px_-4px_rgba(52,211,153,0.30)]`}
             style={{
               left: style.left,
               top: style.top,

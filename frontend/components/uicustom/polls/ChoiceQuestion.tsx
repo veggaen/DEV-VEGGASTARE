@@ -119,7 +119,7 @@ export function ChoiceQuestion({
   // Variant styles
   const getOptionStyles = (isActive: boolean, index: number) => {
     const baseStyles =
-      "relative flex items-center gap-3 transition-all duration-200 cursor-pointer outline-none";
+      "relative flex items-center gap-3 transition duration-200 cursor-pointer outline-none";
 
     if (variant === "card") {
       return cn(

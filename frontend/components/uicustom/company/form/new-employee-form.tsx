@@ -61,6 +61,6 @@ export function MyNewEmployeeForm({ companyId, handleNewEmployee, allowedRoles =
     <label className="space-y-2 text-sm font-medium"><span>Job title (optional)</span><input name="teamJobTitle" autoComplete="off" maxLength={80} value={jobTitle} onChange={event => setJobTitle(event.target.value)} disabled={pending || blocked} className={field} /></label>
     <div className="flex flex-wrap items-center gap-3 md:col-span-2"><Button type="submit" className="min-h-11" disabled={pending || blocked}>{pending ? 'Adding…' : 'Add employee'}</Button>{selected && <p className="min-w-0 break-words text-sm text-muted-foreground">Selected: {selected.name}</p>}</div>
     {error && <p role="alert" className="text-sm text-destructive md:col-span-2">{error}</p>}
-    {success && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300 md:col-span-2">{success}</p>}
+    {success && <p role="status" className="text-sm text-brand-accent-hover dark:text-brand-accent-light md:col-span-2">{success}</p>}
   </form>;
 }

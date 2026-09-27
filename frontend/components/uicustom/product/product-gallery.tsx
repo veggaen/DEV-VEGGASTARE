@@ -21,15 +21,15 @@ export default function ProductGallery({ images, title, credits }: {
 
   if (credits !== undefined) return <figure aria-label="Selected credit amount" className="overflow-hidden rounded-xl border border-border bg-card p-3">
     <AspectRatio ratio={3 / 2}>
-      <div className="flex h-full min-w-0 flex-col justify-between rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-5 sm:p-8">
-        <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+      <div className="flex h-full min-w-0 flex-col justify-between rounded-lg border border-brand-accent/25 bg-brand-accent/10 p-5 sm:p-8">
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-widest text-brand-accent-hover dark:text-brand-accent-light">
           <span>Veggat AI</span><Sparkles aria-hidden className="size-6 shrink-0" />
         </div>
         <div>
           <p data-credit-preview className="text-[clamp(2.75rem,10vw,5.5rem)] font-semibold leading-none tracking-tight tabular-nums">{new Intl.NumberFormat('en-US').format(credits)}</p>
-          <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 sm:text-lg">Prepaid usage credits</p>
+          <p className="mt-2 text-sm font-medium text-brand-accent-hover dark:text-brand-accent-light sm:text-lg">Prepaid usage credits</p>
         </div>
-        <p className="border-t border-emerald-500/20 pt-3 text-xs leading-5 text-muted-foreground">One-time purchase. No automatic top-ups.</p>
+        <p className="border-t border-brand-accent/20 pt-3 text-xs leading-5 text-muted-foreground">One-time purchase. No automatic top-ups.</p>
       </div>
     </AspectRatio>
   </figure>;
@@ -64,7 +64,7 @@ export default function ProductGallery({ images, title, credits }: {
         {images.map((src, index) => <button key={`${src}-${index}`} type="button" aria-label={`View product image ${index + 1}`}
           aria-pressed={selected === index} onClick={() => api?.scrollTo(index)}
           className={cn('relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 bg-card p-1 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-            selected === index ? 'border-emerald-500' : 'border-border hover:border-muted-foreground')}>
+            selected === index ? 'border-brand-accent' : 'border-border hover:border-muted-foreground')}>
           <Image src={src} alt="" fill sizes="80px" className="object-contain p-1" />
         </button>)}
       </div>

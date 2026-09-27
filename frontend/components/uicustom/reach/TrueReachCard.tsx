@@ -128,7 +128,7 @@ export default function TrueReachCard({ data, className = "" }: { data: TrueReac
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <motion.div
-            className="h-full rounded-full bg-linear-to-r from-brand-accent to-emerald-400"
+            className="h-full rounded-full bg-linear-to-r from-brand-accent to-brand-accent-hover"
             initial={reduce ? false : { width: 0 }}
             whileInView={{ width: `${trustPct}%` }}
             viewport={{ once: true }}

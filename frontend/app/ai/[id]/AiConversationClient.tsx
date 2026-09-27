@@ -525,7 +525,7 @@ export default function AiConversationClient({
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-emerald-500/40 border-t-emerald-400 animate-spin" />
+          <div className="h-8 w-8 rounded-full border-2 border-brand-accent/40 border-t-brand-accent animate-spin" />
           <p className="text-sm text-muted-foreground">Loading conversation…</p>
         </div>
       </div>
@@ -539,7 +539,7 @@ export default function AiConversationClient({
           <div className="text-4xl mb-4">✦</div>
           <p className="text-lg font-semibold mb-2">Oops</p>
           <p className="text-muted-foreground text-sm mb-6">{error}</p>
-          <Link href="/ai" className="px-4 py-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 transition-colors">
+          <Link href="/ai" className="px-4 py-2 rounded-xl bg-brand-accent text-foreground text-sm font-semibold hover:bg-brand-accent-light transition-colors">
             Back to AI Chat
           </Link>
         </div>
@@ -601,7 +601,7 @@ export default function AiConversationClient({
             {sessionId && isLoggedIn && !demo && (
               <button
                 onClick={handleShare}
-                className="grid place-items-center h-11 w-11 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                className="grid place-items-center h-11 w-11 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                 title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
                 aria-label="Share"
               >
@@ -617,8 +617,8 @@ export default function AiConversationClient({
               className={cn(
                 "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 showSettings
-                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+                  ? "text-brand-accent bg-brand-accent/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
               title="Settings"
               aria-label="Settings"
@@ -635,8 +635,8 @@ export default function AiConversationClient({
               className={cn(
                 "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 sidebarOpen
-                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+                  ? "text-brand-accent bg-brand-accent/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
               title="Participants"
               aria-label="Participants"
@@ -773,7 +773,7 @@ export default function AiConversationClient({
                 />
                 {/* Admin actions footer */}
                 {!demo && (isCreator || isAdmin) && (
-                  <div className="sticky bottom-0 inset-x-0 px-3 py-3 border-t border-black/5 dark:border-white/8 space-y-1 bg-background/80 backdrop-blur-xl">
+                  <div className="sticky bottom-0 inset-x-0 px-3 py-3 border-t border-border/60 space-y-1 bg-background/80 backdrop-blur-xl">
                     {isCreator && (
                       <button
                         onClick={handleDelete}
@@ -791,7 +791,7 @@ export default function AiConversationClient({
                           <button
                             onClick={() => handleModerate("unsuspend")}
                             disabled={moderating}
-                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
+                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10 disabled:opacity-50 transition-colors"
                           >
                             Unsuspend conversation
                           </button>
@@ -807,7 +807,7 @@ export default function AiConversationClient({
                         <button
                           onClick={() => handleModerate("flag")}
                           disabled={moderating}
-                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted/40 disabled:opacity-50 transition-colors"
                         >
                           Flag for review
                         </button>
@@ -848,9 +848,9 @@ function ParticipantCard({
 }) {
   const isAi = p.type === "AI_BYOK" || p.type === "AI_PLATFORM";
   return (
-    <div className="px-3 py-3 rounded-xl bg-white/4 border border-black/5 dark:border-white/8">
+    <div className="px-3 py-3 rounded-xl bg-muted/40 border border-border/60">
       <div className="flex items-center gap-2 mb-1">
-        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-muted-foreground"}`}>
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-brand-accent/20 text-brand-accent" : "bg-muted/40 text-muted-foreground"}`}>
           {isAi ? "✦" : (p.displayName?.[0] ?? "?")}
         </div>
         <div className="min-w-0 flex-1">
@@ -863,11 +863,11 @@ function ParticipantCard({
 
       {/* BYOK AI owner controls */}
       {isOwner && isAi && p.type === "AI_BYOK" && (
-        <div className="mt-2 pt-2 border-t border-black/5 dark:border-white/8 space-y-2">
+        <div className="mt-2 pt-2 border-t border-border/60 space-y-2">
           <button
             onClick={() => onTrigger(p.id)}
             disabled={isStreaming}
-            className="w-full text-xs py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition-colors"
+            className="w-full text-xs py-1.5 rounded-lg bg-brand-accent/15 border border-brand-accent/20 text-brand-accent hover:bg-brand-accent/25 disabled:opacity-50 transition-colors"
           >
             {isStreaming ? "Responding…" : `Prompt ${p.displayName ?? "AI"} to respond`}
           </button>
@@ -942,13 +942,13 @@ function ConvSettings({
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTitle(); (e.target as HTMLInputElement).blur(); } }}
           disabled={saving}
           maxLength={120}
-          className="w-full rounded-xl bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/10 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-500/50 transition-colors"
+          className="w-full rounded-xl bg-muted/40 border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent/50 transition-colors"
           placeholder="Conversation name"
         />
       </div>
 
       {/* Visibility — honest about what "public" means */}
-      <div className="rounded-xl border border-black/8 dark:border-white/10 p-3 space-y-3">
+      <div className="rounded-xl border border-border p-3 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium">{conv.isPublic ? "Anyone with the link" : "Private"}</p>
@@ -964,16 +964,16 @@ function ConvSettings({
             role="switch"
             aria-checked={conv.isPublic}
             aria-label="Make conversation public"
-            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${conv.isPublic ? "bg-emerald-500" : "bg-black/15 dark:bg-white/15"}`}
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${conv.isPublic ? "bg-brand-accent" : "bg-muted"}`}
           >
-            <span className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow transition-transform ${conv.isPublic ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
+            <span className={`inline-block h-4.5 w-4.5 rounded-full bg-card shadow transition-transform ${conv.isPublic ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
           </button>
         </div>
 
         {conv.isPublic && (
           <button
             onClick={copyLink}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-medium transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light px-3 py-2 text-xs font-medium transition-colors"
           >
             {copied ? "✓ Link copied" : "Copy share link"}
           </button>
@@ -1008,7 +1008,7 @@ function ConvMessageBubble({
       className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="mt-1 h-6 w-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400 shrink-0">
+        <div className="mt-1 h-6 w-6 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
           ✦
         </div>
       )}
@@ -1043,7 +1043,7 @@ function StreamingBubble({ msg, reduceMotion }: { msg: StreamingMsg; reduceMotio
       transition={{ duration: reduceMotion ? 0 : 0.15 }}
       className="flex gap-3 justify-start"
     >
-      <div className="mt-1 h-6 w-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400 shrink-0">
+      <div className="mt-1 h-6 w-6 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
         ✦
       </div>
       <div className="min-w-0 flex-1 space-y-1">

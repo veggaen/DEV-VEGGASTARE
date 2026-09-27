@@ -62,6 +62,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
@@ -530,7 +531,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-muted-foreground dark:text-white/60">Loading...</div>
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -547,10 +548,12 @@ export default function SettingsPage() {
       <div className="relative mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div>
           {/* Header */}
-          <header className="mb-6">
-            <h1 className="text-3xl font-semibold text-foreground dark:text-white sm:text-4xl mb-2">Settings</h1>
-            <p className="text-muted-foreground dark:text-white/60 text-sm">Manage your account settings and preferences</p>
-          </header>
+          <PageHeader
+            eyebrow="Account"
+            title="Settings"
+            description="Manage your account settings and preferences."
+            className="mb-6"
+          />
 
           <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
             <SettingsNavigation sections={sections} active={activeSection} onSelect={handleSectionChange} />
@@ -559,10 +562,10 @@ export default function SettingsPage() {
             <div data-settings-content className={`min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6 ${activeSection === 'account' || activeSection === 'security' ? 'w-full max-w-[38rem]' : ''}`}>
               {activeSection === 'profile' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
+                  <div className="flex items-center justify-between border-b border-border pb-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-foreground dark:text-white">Profile</h2>
-                      <p className="text-sm text-muted-foreground dark:text-white/50">Customize your avatar, banner, and bio</p>
+                      <h2 className="text-xl font-semibold text-foreground">Profile</h2>
+                      <p className="text-sm text-muted-foreground">Customize your avatar, banner, and bio</p>
                     </div>
                     {/* Save/Discard buttons - only show when there are changes */}
                     {hasUnsavedChanges && (
@@ -572,7 +575,7 @@ export default function SettingsPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleDiscardChanges}
-                          className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
                         >
                           <FiX className="h-4 w-4 mr-1" />
                           Discard
@@ -582,7 +585,7 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={handleSaveProfile}
                           disabled={isSavingProfile}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                          className="bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
                         >
                           {isSavingProfile ? (
                             <span className="animate-spin mr-2">⏳</span>
@@ -605,29 +608,29 @@ export default function SettingsPage() {
 
                   {/* Banner Upload - with drag & drop and paste */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Banner Image</label>
+                    <label className="text-sm font-medium text-foreground/80">Banner Image</label>
                     
                     {/* Show comparison if there's a pending change */}
                     {'banner' in pendingChanges && originalData.banner !== pendingChanges.banner && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40">
                         <div className="flex-1">
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-zinc-200/60 dark:bg-white/5">
+                          <div className="text-xs text-muted-foreground mb-1">Current</div>
+                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-muted/60">
                             {originalData.banner ? (
                               <Image src={originalData.banner} alt="Current banner" fill className="object-cover opacity-60" />
                             ) : (
-                              <div className="flex items-center justify-center h-full text-muted-foreground/70 dark:text-white/20 text-xs">No banner</div>
+                              <div className="flex items-center justify-center h-full text-muted-foreground/70 text-xs">No banner</div>
                             )}
                           </div>
                         </div>
-                        <FiArrowRight className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <FiArrowRight className="h-5 w-5 text-brand-accent shrink-0" />
                         <div className="flex-1">
-                          <div className="text-xs text-emerald-400 mb-1">New</div>
-                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-emerald-500/10 border border-emerald-500/30">
+                          <div className="text-xs text-brand-accent mb-1">New</div>
+                          <div className="relative h-16 w-full rounded-lg overflow-hidden bg-brand-accent/10 border border-brand-accent/30">
                             {pendingChanges.banner ? (
                               <Image src={pendingChanges.banner} alt="New banner" fill className="object-cover" />
                             ) : (
-                              <div className="flex items-center justify-center h-full text-muted-foreground/70 dark:text-white/20 text-xs">No banner</div>
+                              <div className="flex items-center justify-center h-full text-muted-foreground/70 text-xs">No banner</div>
                             )}
                           </div>
                         </div>
@@ -641,12 +644,12 @@ export default function SettingsPage() {
                       onDrop={(e) => handleDrop(e, 'banner')}
                       onPaste={(e) => handlePaste(e, 'banner')}
                       tabIndex={0}
-                      className={`relative h-32 w-full rounded-xl overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                      className={`relative h-32 w-full rounded-xl overflow-hidden border-2 border-dashed transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-accent/50 ${
                         isDraggingBanner 
-                          ? 'border-emerald-400 bg-emerald-500/10' 
+                          ? 'border-brand-accent bg-brand-accent/10' 
                           : prefs.hoverEffects === 'colorful'
-                            ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-linear-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-white/40'
-                            : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
+                            ? 'border-border/70 bg-muted/40 hover:border-border dark:bg-linear-to-br dark:from-indigo-500/20 dark:to-purple-600/20 dark:hover:border-foreground/20'
+                            : 'border-border/70 bg-muted/40 hover:border-border dark:hover:border-foreground/20'
                       }`}
                       onClick={() => bannerInputRef.current?.click()}
                     >
@@ -659,13 +662,13 @@ export default function SettingsPage() {
                         />
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                          <FiImage className="h-8 w-8 text-muted-foreground/60 dark:text-white/30" />
-                          <span className="text-xs text-muted-foreground dark:text-white/40">Click, paste (Ctrl+V), or drag & drop</span>
+                          <FiImage className="h-8 w-8 text-muted-foreground/60" />
+                          <span className="text-xs text-muted-foreground">Click, paste (Ctrl+V), or drag & drop</span>
                         </div>
                       )}
                       {isDraggingBanner && (
-                        <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
-                          <div className="text-emerald-400 font-medium">Drop image here</div>
+                        <div className="absolute inset-0 bg-brand-accent/20 flex items-center justify-center">
+                          <div className="text-brand-accent font-medium">Drop image here</div>
                         </div>
                       )}
                       {isUploadingBanner && (
@@ -679,7 +682,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-border text-foreground hover:bg-zinc-100 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
+                            className="border-border text-foreground hover:bg-muted dark:border-foreground/20 dark:hover:bg-muted/60"
                           >
                             <FiUpload className="h-4 w-4 mr-2" />
                             Change Banner
@@ -694,7 +697,7 @@ export default function SettingsPage() {
                       onChange={handleBannerInputChange}
                       className="hidden"
                     />
-                    <p className="text-xs text-muted-foreground dark:text-white/40">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop — you can drag to reframe before saving!</p>
+                    <p className="text-xs text-muted-foreground">Recommended: 1500x500px, JPG/PNG/GIF/WebP, max 5MB. Paste from clipboard or drag & drop — you can drag to reframe before saving!</p>
 
                     {/* Drag-to-frame dialog for banner & avatar (portal-rendered) */}
                     <ImagePositionAdjuster
@@ -715,29 +718,29 @@ export default function SettingsPage() {
 
                   {/* Avatar Upload - with drag & drop and paste */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Profile Picture</label>
+                    <label className="text-sm font-medium text-foreground/80">Profile Picture</label>
                     
                     {/* Show comparison if there's a pending change */}
                     {'image' in pendingChanges && originalData.image !== pendingChanges.image && (
-                      <div className="flex items-center gap-4 p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10">
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40">
                         <div className="text-center">
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
-                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-zinc-200/60 dark:bg-white/5 mx-auto">
+                          <div className="text-xs text-muted-foreground mb-1">Current</div>
+                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-muted/60 mx-auto">
                             {originalData.image ? (
                               <Image src={originalData.image} alt="Current avatar" fill className="object-cover opacity-60" />
                             ) : (
-                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60 dark:text-white/20" /></div>
+                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60" /></div>
                             )}
                           </div>
                         </div>
-                        <FiArrowRight className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <FiArrowRight className="h-5 w-5 text-brand-accent shrink-0" />
                         <div className="text-center">
-                          <div className="text-xs text-emerald-400 mb-1">New</div>
-                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-emerald-500/10 border-2 border-emerald-500/30 mx-auto">
+                          <div className="text-xs text-brand-accent mb-1">New</div>
+                          <div className="relative h-16 w-16 rounded-full overflow-hidden bg-brand-accent/10 border-2 border-brand-accent/30 mx-auto">
                             {pendingChanges.image ? (
                               <Image src={pendingChanges.image} alt="New avatar" fill className="object-cover" />
                             ) : (
-                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60 dark:text-white/20" /></div>
+                              <div className="flex items-center justify-center h-full"><FiUser className="h-6 w-6 text-muted-foreground/60" /></div>
                             )}
                           </div>
                         </div>
@@ -752,12 +755,12 @@ export default function SettingsPage() {
                         onDrop={(e) => handleDrop(e, 'avatar')}
                         onPaste={(e) => handlePaste(e, 'avatar')}
                         tabIndex={0}
-                        className={`relative h-24 w-24 rounded-full overflow-hidden border-2 border-dashed transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                        className={`relative h-24 w-24 rounded-full overflow-hidden border-2 border-dashed transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-accent/50 ${
                           isDraggingAvatar 
-                            ? 'border-emerald-400 bg-emerald-500/10' 
+                            ? 'border-brand-accent bg-brand-accent/10' 
                             : prefs.hoverEffects === 'colorful'
-                              ? 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-linear-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-white/40'
-                              : 'border-zinc-300/70 bg-zinc-50/80 hover:border-zinc-400 dark:border-white/20 dark:bg-white/5 dark:hover:border-white/40'
+                              ? 'border-border/70 bg-muted/40 hover:border-border dark:bg-linear-to-br dark:from-indigo-500/30 dark:to-purple-600/30 dark:hover:border-foreground/20'
+                              : 'border-border/70 bg-muted/40 hover:border-border dark:hover:border-foreground/20'
                         }`}
                         onClick={() => avatarInputRef.current?.click()}
                       >
@@ -770,12 +773,12 @@ export default function SettingsPage() {
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <FiUser className="h-10 w-10 text-muted-foreground/60 dark:text-white/40" />
+                            <FiUser className="h-10 w-10 text-muted-foreground/60" />
                           </div>
                         )}
                         {isDraggingAvatar && (
-                          <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
-                            <FiUpload className="h-6 w-6 text-emerald-400" />
+                          <div className="absolute inset-0 bg-brand-accent/20 flex items-center justify-center">
+                            <FiUpload className="h-6 w-6 text-brand-accent" />
                           </div>
                         )}
                         {isUploadingAvatar && (
@@ -796,11 +799,11 @@ export default function SettingsPage() {
                           size="sm"
                           onClick={() => avatarInputRef.current?.click()}
                           disabled={isUploadingAvatar}
-                          className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                          className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
                         >
                           {isUploadingAvatar ? 'Uploading...' : 'Choose Image'}
                         </Button>
-                        <p className="text-xs text-muted-foreground dark:text-white/40 mt-2">Click, paste (Ctrl+V), or drag & drop</p>
+                        <p className="text-xs text-muted-foreground mt-2">Click, paste (Ctrl+V), or drag & drop</p>
                       </div>
                     </div>
                     <input
@@ -814,18 +817,18 @@ export default function SettingsPage() {
 
                   {/* Bio */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-foreground/80 dark:text-white/80">Bio</label>
+                    <label className="text-sm font-medium text-foreground/80">Bio</label>
                     
                     {/* Show comparison if bio changed */}
                     {'bio' in pendingChanges && originalData.bio !== pendingChanges.bio && (
-                      <div className="p-3 rounded-lg bg-white/70 border border-border dark:bg-white/5 dark:border-white/10 space-y-2">
+                      <div className="p-3 rounded-lg bg-surface-1/70 border border-border dark:bg-muted/40 space-y-2">
                         <div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mb-1">Current</div>
-                          <div className="text-sm text-muted-foreground dark:text-white/60 line-through">{originalData.bio || '(no bio)'}</div>
+                          <div className="text-xs text-muted-foreground mb-1">Current</div>
+                          <div className="text-sm text-muted-foreground line-through">{originalData.bio || '(no bio)'}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-emerald-400 mb-1">New</div>
-                          <div className="text-sm text-foreground dark:text-white">{pendingChanges.bio || '(no bio)'}</div>
+                          <div className="text-xs text-brand-accent mb-1">New</div>
+                          <div className="text-sm text-foreground">{pendingChanges.bio || '(no bio)'}</div>
                         </div>
                       </div>
                     )}
@@ -834,28 +837,28 @@ export default function SettingsPage() {
                       value={'bio' in pendingChanges ? (pendingChanges.bio || '') : (originalData.bio || '')}
                       onChange={(e) => setPendingChanges(prev => ({ ...prev, bio: e.target.value }))}
                       placeholder="Tell others about yourself..."
-                      className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-emerald-500/50 min-h-[100px] resize-none dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
+                      className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-brand-accent/50 min-h-[100px] resize-none dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
                       maxLength={500}
                     />
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground dark:text-white/40">
+                      <p className="text-xs text-muted-foreground">
                         {('bio' in pendingChanges ? pendingChanges.bio?.length : originalData.bio?.length) || 0}/500 characters
                       </p>
                     </div>
                   </div>
 
                   {/* Reach Stats Radar Chart with Calculation Breakdown */}
-                  <div className="pt-4 border-t border-border dark:border-white/10 space-y-4">
+                  <div className="pt-4 border-t border-border space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground dark:text-white flex items-center gap-2">
-                        <FiTrendingUp className="h-5 w-5 text-emerald-400" />
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                        <FiTrendingUp className="h-5 w-5 text-brand-accent" />
                         Your Reach Analytics
                       </h3>
-                      <p className="text-sm text-muted-foreground dark:text-white/50">Real engagement metrics - not vanity follower counts</p>
+                      <p className="text-sm text-muted-foreground">Real engagement metrics - not vanity follower counts</p>
                     </div>
                     
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+                      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
                         <div className="max-w-[240px] mx-auto">
                           <Radar data={reachChartData} options={reachChartOptions} />
                         </div>
@@ -863,17 +866,17 @@ export default function SettingsPage() {
                       
                       <div className="space-y-3">
                         {/* Total Views */}
-                        <div className="rounded-xl bg-linear-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 p-3">
+                        <div className="rounded-xl bg-linear-to-r from-brand-accent/10 to-brand-accent/5 border border-brand-accent/20 p-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <FiEye className="h-4 w-4 text-emerald-400" />
-                              <span className="text-sm text-muted-foreground dark:text-white/70">Total Views</span>
+                              <FiEye className="h-4 w-4 text-brand-accent" />
+                              <span className="text-sm text-muted-foreground dark:text-foreground/70">Total Views</span>
                             </div>
-                            <div className="text-lg font-bold text-emerald-400">
+                            <div className="text-lg font-bold text-brand-accent">
                               {(reach?.totalViews || 0).toLocaleString()}
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Chart: {Math.min((reach?.totalViews || 0) / 10, 100).toFixed(0)}% (1000 views = 100%)
                           </div>
                         </div>
@@ -883,13 +886,13 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiUsers className="h-4 w-4 text-blue-400" />
-                              <span className="text-sm text-muted-foreground dark:text-white/70">Unique Viewers</span>
+                              <span className="text-sm text-muted-foreground dark:text-foreground/70">Unique Viewers</span>
                             </div>
                             <div className="text-lg font-bold text-blue-400">
                               {(reach?.uniqueViewers || 0).toLocaleString()}
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Chart: {Math.min((reach?.uniqueViewers || 0) / 5, 100).toFixed(0)}% (500 unique = 100%)
                           </div>
                         </div>
@@ -899,35 +902,35 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <FiActivity className="h-4 w-4 text-purple-400" />
-                              <span className="text-sm text-muted-foreground dark:text-white/70">Engagement Rate</span>
+                              <span className="text-sm text-muted-foreground dark:text-foreground/70">Engagement Rate</span>
                             </div>
                             <div className="text-lg font-bold text-purple-400">
                               {(reach?.engagementRate || 0).toFixed(1)}%
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Formula: (replies ÷ unique viewers) × 100 = ({reach?.totalReplies || 0} ÷ {Math.max(reach?.uniqueViewers || 0, 1)}) × 100
                           </div>
                         </div>
                         
                         {/* Post Count */}
-                        <div className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10">
+                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground dark:text-white/70">Posts</span>
-                            <span className="font-bold text-foreground dark:text-white">{reach?.postCount || 0}</span>
+                            <span className="text-sm text-muted-foreground dark:text-foreground/70">Posts</span>
+                            <span className="font-bold text-foreground">{reach?.postCount || 0}</span>
                           </div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Chart: {Math.min((reach?.postCount || 0) * 10, 100)}% (10 posts = 100%)
                           </div>
                         </div>
                         
                         {/* Followers */}
-                        <div className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10">
+                        <div className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground dark:text-white/70">Followers</span>
-                            <span className="font-bold text-foreground dark:text-white">{reach?.followerCount || 0}</span>
+                            <span className="text-sm text-muted-foreground dark:text-foreground/70">Followers</span>
+                            <span className="font-bold text-foreground">{reach?.followerCount || 0}</span>
                           </div>
-                          <div className="text-xs text-muted-foreground dark:text-white/40 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Chart: {Math.min(reach?.followerCount || 0, 100)}% (100 followers = 100%)
                           </div>
                         </div>
@@ -936,7 +939,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Profile Link */}
-                  <div className="pt-4 border-t border-border dark:border-white/10">
+                  <div className="pt-4 border-t border-border">
                     <Link
                       href={`/profile/${user.id}`}
                       className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
@@ -951,16 +954,16 @@ export default function SettingsPage() {
 
               {activeSection === 'account' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-border dark:border-white/10 pb-4">
+                  <div className="flex items-center justify-between border-b border-border pb-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-foreground dark:text-white">Account Settings</h2>
-                      <p className="text-sm text-muted-foreground dark:text-white/50">Update your personal information</p>
+                      <h2 className="text-xl font-semibold text-foreground">Account Settings</h2>
+                      <p className="text-sm text-muted-foreground">Update your personal information</p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleStartEdit}
-                      className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                      className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
                     >
                       {isEditing ? <FiX className="h-4 w-4 mr-2" /> : <FiEdit2 className="h-4 w-4 mr-2" />}
                       {isEditing ? 'Cancel' : 'Edit'}
@@ -974,13 +977,13 @@ export default function SettingsPage() {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground/80 dark:text-white/80">Display Name</FormLabel>
+                            <FormLabel className="text-foreground/80">Display Name</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
                                 disabled={isPending || !isEditing}
                                 placeholder={user?.name || 'Enter your name'}
-                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormMessage />
@@ -993,7 +996,7 @@ export default function SettingsPage() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground/80 dark:text-white/80">Email Address</FormLabel>
+                            <FormLabel className="text-foreground/80">Email Address</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -1002,10 +1005,10 @@ export default function SettingsPage() {
                                 autoComplete="email"
                                 spellCheck={false}
                                 placeholder={user?.email || 'Enter your email'}
-                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
-                            <FormDescription className="text-muted-foreground dark:text-white/40">
+                            <FormDescription className="text-muted-foreground">
                               Your sign-in email. Verified email changes are not yet available here.
                             </FormDescription>
                             <FormMessage />
@@ -1019,14 +1022,14 @@ export default function SettingsPage() {
                           name="identityNameSource"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground/80 dark:text-white/80">Name Source</FormLabel>
+                              <FormLabel className="text-foreground/80">Name Source</FormLabel>
                               <Select
                                 disabled={isPending || !isEditing}
                                 onValueChange={field.onChange}
                                 value={field.value ?? 'AUTO'}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
                                     <SelectValue placeholder="Choose name source" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -1038,7 +1041,7 @@ export default function SettingsPage() {
                                   <SelectItem value="DISCORD">Discord</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <FormDescription className="text-muted-foreground dark:text-white/40">
+                              <FormDescription className="text-muted-foreground">
                                 Controls which linked identity name is used by default.
                               </FormDescription>
                               <FormMessage />
@@ -1051,14 +1054,14 @@ export default function SettingsPage() {
                           name="identityImageSource"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground/80 dark:text-white/80">Avatar Source</FormLabel>
+                              <FormLabel className="text-foreground/80">Avatar Source</FormLabel>
                               <Select
                                 disabled={isPending || !isEditing}
                                 onValueChange={field.onChange}
                                 value={field.value ?? 'AUTO'}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                  <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
                                     <SelectValue placeholder="Choose avatar source" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -1070,7 +1073,7 @@ export default function SettingsPage() {
                                   <SelectItem value="DISCORD">Discord</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <FormDescription className="text-muted-foreground dark:text-white/40">
+                              <FormDescription className="text-muted-foreground">
                                 Controls which linked identity avatar is shown by default.
                               </FormDescription>
                               <FormMessage />
@@ -1084,14 +1087,14 @@ export default function SettingsPage() {
                         name="emailDisplayMode"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground/80 dark:text-white/80">Email Visibility</FormLabel>
+                            <FormLabel className="text-foreground/80">Email Visibility</FormLabel>
                             <Select
                               disabled={isPending || !isEditing}
                               onValueChange={field.onChange}
                               value={field.value ?? 'PRIMARY'}
                             >
                               <FormControl>
-                                <SelectTrigger className="bg-white/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-white/5 dark:border-white/10 dark:text-white">
+                                <SelectTrigger className="bg-surface-1/70 border-border text-foreground focus:border-blue-500/50 disabled:opacity-50 dark:bg-muted/40">
                                   <SelectValue placeholder="Choose email visibility" />
                                 </SelectTrigger>
                               </FormControl>
@@ -1100,7 +1103,7 @@ export default function SettingsPage() {
                                 <SelectItem value="HIDE">Hide email publicly</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormDescription className="text-muted-foreground dark:text-white/40">
+                            <FormDescription className="text-muted-foreground">
                               Controls public email visibility for your profile and linked identity surfaces.
                             </FormDescription>
                             <FormMessage />
@@ -1109,7 +1112,7 @@ export default function SettingsPage() {
                       />
 
                       {/* Profile Link */}
-                      <div className="pt-4 border-t border-border dark:border-white/10">
+                      <div className="pt-4 border-t border-border">
                         <Link
                           href={`/profile/${user.id}`}
                           className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
@@ -1133,7 +1136,7 @@ export default function SettingsPage() {
                             type="button"
                             variant="outline"
                             onClick={handleCancelEdit}
-                            className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                            className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
                           >
                             Cancel
                           </Button>
@@ -1149,9 +1152,9 @@ export default function SettingsPage() {
 
               {activeSection === 'security' && (
                 <div className="space-y-6">
-                  <div className="border-b border-border dark:border-white/10 pb-4">
-                    <h2 className="text-xl font-semibold text-foreground dark:text-white">Security</h2>
-                    <p className="text-sm text-muted-foreground dark:text-white/50">Manage your password and authentication</p>
+                  <div className="border-b border-border pb-4">
+                    <h2 className="text-xl font-semibold text-foreground">Security</h2>
+                    <p className="text-sm text-muted-foreground">Manage your password and authentication</p>
                   </div>
 
                   <Form {...form}>
@@ -1161,7 +1164,7 @@ export default function SettingsPage() {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground/80 dark:text-white/80">Current Password</FormLabel>
+                            <FormLabel className="text-foreground/80">Current Password</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -1169,7 +1172,7 @@ export default function SettingsPage() {
                                 autoComplete="current-password"
                                 disabled={isPending}
                                 placeholder="Enter current password"
-                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1182,7 +1185,7 @@ export default function SettingsPage() {
                         name="newPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground/80 dark:text-white/80">New Password</FormLabel>
+                            <FormLabel className="text-foreground/80">New Password</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -1190,10 +1193,10 @@ export default function SettingsPage() {
                                 autoComplete="new-password"
                                 disabled={isPending}
                                 placeholder="Enter new password"
-                                className="bg-white/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder-white/30"
+                                className="bg-surface-1/70 border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 dark:bg-muted/40 dark:placeholder:text-muted-foreground/70"
                               />
                             </FormControl>
-                            <FormDescription className="text-muted-foreground dark:text-white/40">
+                            <FormDescription className="text-muted-foreground">
                               Must be at least 8 characters
                             </FormDescription>
                             <FormMessage />
@@ -1201,15 +1204,15 @@ export default function SettingsPage() {
                         )}
                       />
 
-                      <div className="pt-4 border-t border-border dark:border-white/10">
+                      <div className="pt-4 border-t border-border">
                         <FormField
                           control={form.control}
                           name="isTwoFactorEnabled"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+                            <FormItem className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-foreground/80 dark:text-white/80">Two-Factor Authentication</FormLabel>
-                                <FormDescription className="text-muted-foreground dark:text-white/40">
+                                <FormLabel className="text-foreground/80">Two-Factor Authentication</FormLabel>
+                                <FormDescription className="text-muted-foreground">
                                   Email code for password sign-in. Security changes require confirmation.
                                 </FormDescription>
                               </div>
@@ -1416,20 +1419,20 @@ function AiKeysSettings() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">AI Keys</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">Bring your own API key. Keys are encrypted, scoped to your account, and can be removed anytime.</p>
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">AI Keys</h2>
+        <p className="text-sm text-muted-foreground">Bring your own API key. Keys are encrypted, scoped to your account, and can be removed anytime.</p>
       </div>
 
-      <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-4">
+      <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label className="text-foreground/80 dark:text-white/80">Provider</Label>
+            <Label className="text-foreground/80">Provider</Label>
             <Select value={provider} onValueChange={(v) => setProvider(v as 'OPENAI' | 'OPENROUTER' | 'ANTHROPIC')}>
-              <SelectTrigger className="bg-white/70 border-border dark:bg-white/5 dark:border-white/10">
+              <SelectTrigger className="bg-surface-1/70 border-border dark:bg-muted/40">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="dark:bg-zinc-950 dark:border-zinc-800">
+              <SelectContent className="dark:bg-surface-1 dark:border-border">
                 <SelectItem value="OPENAI">OpenAI</SelectItem>
                 <SelectItem value="OPENROUTER">OpenRouter</SelectItem>
                 <SelectItem value="ANTHROPIC">Claude (Anthropic)</SelectItem>
@@ -1438,55 +1441,55 @@ function AiKeysSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-foreground/80 dark:text-white/80">API Key</Label>
+            <Label className="text-foreground/80">API Key</Label>
             <Input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Paste your API key"
-              className="bg-white/70 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
+              className="bg-surface-1/70 border-border text-foreground dark:bg-muted/40"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl bg-zinc-100/70 border border-zinc-200 p-3 dark:bg-white/5 dark:border-white/10">
+        <div className="flex items-center justify-between rounded-xl bg-muted/70 border border-border p-3 dark:bg-muted/40">
           <div>
-            <div className="font-medium text-foreground dark:text-white/90">Set as default provider</div>
-            <div className="text-sm text-muted-foreground dark:text-white/40">This key/provider will be used when you choose saved-key generation.</div>
+            <div className="font-medium text-foreground">Set as default provider</div>
+            <div className="text-sm text-muted-foreground">This key/provider will be used when you choose saved-key generation.</div>
           </div>
           <Switch checked={setAsDefault} onCheckedChange={setSetAsDefault} />
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground">
             {isSaving ? 'Saving...' : 'Save API Key'}
           </Button>
-          <p className="text-xs text-muted-foreground dark:text-white/40">
+          <p className="text-xs text-muted-foreground">
             Your full key is never shown again after save.
           </p>
         </div>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Saved Keys</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Saved Keys</h3>
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground dark:text-white/50">Loading...</div>
+          <div className="text-sm text-muted-foreground">Loading...</div>
         ) : keys.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-300 p-4 text-sm text-muted-foreground dark:border-white/15 dark:text-white/50">
+          <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
             No saved AI keys yet.
           </div>
         ) : (
           keys.map((entry) => (
-            <div key={entry.provider} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+            <div key={entry.provider} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
               <div>
-                <div className="font-medium text-foreground dark:text-white/90 flex items-center gap-2">
+                <div className="font-medium text-foreground flex items-center gap-2">
                   {providerLabels[entry.provider]}
                   {entry.isDefault && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">DEFAULT</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light">DEFAULT</span>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground dark:text-white/40">
+                <div className="text-sm text-muted-foreground">
                   {entry.maskedKey} · Updated {new Date(entry.updatedAt).toLocaleString()}
                 </div>
               </div>
@@ -1496,7 +1499,7 @@ function AiKeysSettings() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleSetDefault(entry.provider)}
-                    className="border-border text-foreground/80 hover:bg-zinc-100 dark:border-white/20 dark:text-white/80 dark:hover:bg-white/10"
+                    className="border-border text-foreground/80 hover:bg-muted dark:hover:bg-muted/40"
                   >
                     Set default
                   </Button>
@@ -1573,9 +1576,9 @@ function PrivacySettings() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="border-b border-border dark:border-white/10 pb-4">
-          <h2 className="text-xl font-semibold text-foreground dark:text-white">Privacy</h2>
-          <p className="text-sm text-muted-foreground dark:text-white/50">Loading settings...</p>
+        <div className="border-b border-border pb-4">
+          <h2 className="text-xl font-semibold text-foreground">Privacy</h2>
+          <p className="text-sm text-muted-foreground">Loading settings...</p>
         </div>
       </div>
     );
@@ -1583,19 +1586,19 @@ function PrivacySettings() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Privacy</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">Control who can see your information and activity</p>
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Privacy</h2>
+        <p className="text-sm text-muted-foreground">Control who can see your information and activity</p>
       </div>
 
       {/* Heartbeat Privacy Settings */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Heartbeat Settings</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Heartbeat Settings</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Show Heartbeats Given</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Let others see what content you&apos;ve heartbeated</div>
+              <div className="font-medium text-foreground">Show Heartbeats Given</div>
+              <div className="text-sm text-muted-foreground">Let others see what content you&apos;ve heartbeated</div>
             </div>
             <Switch 
               checked={settings.showPulsesGiven} 
@@ -1604,10 +1607,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Show Heartbeats Received</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Display heartbeat counts on your content</div>
+              <div className="font-medium text-foreground">Show Heartbeats Received</div>
+              <div className="text-sm text-muted-foreground">Display heartbeat counts on your content</div>
             </div>
             <Switch 
               checked={settings.showPulsesReceived} 
@@ -1616,10 +1619,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Show Negative Heartbeats</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Display negative heartbeat counts publicly (hidden by default)</div>
+              <div className="font-medium text-foreground">Show Negative Heartbeats</div>
+              <div className="text-sm text-muted-foreground">Display negative heartbeat counts publicly (hidden by default)</div>
             </div>
             <Switch 
               checked={settings.showNegativePulses} 
@@ -1628,10 +1631,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Show Repulses</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Let others see your repulse activity</div>
+              <div className="font-medium text-foreground">Show Repulses</div>
+              <div className="text-sm text-muted-foreground">Let others see your repulse activity</div>
             </div>
             <Switch 
               checked={settings.showRepulses} 
@@ -1640,10 +1643,10 @@ function PrivacySettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Allow Negative Heartbeats</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Let others give negative heartbeats to your content</div>
+              <div className="font-medium text-foreground">Allow Negative Heartbeats</div>
+              <div className="text-sm text-muted-foreground">Let others give negative heartbeats to your content</div>
             </div>
             <Switch 
               checked={settings.allowNegativePulses} 
@@ -1656,17 +1659,17 @@ function PrivacySettings() {
 
       {/* General Privacy Settings */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">General</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">General</h3>
         <div className="space-y-3">
           {[
             { id: 'profile', label: 'Public Profile', description: 'Allow others to view your profile' },
             { id: 'activity', label: 'Show Activity Status', description: "Let others see when you're online" },
             { id: 'analytics', label: 'Usage Analytics', description: 'Help us improve by sharing anonymous usage data' },
           ].map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
               <div>
-                <div className="font-medium text-foreground dark:text-white/90">{item.label}</div>
-                <div className="text-sm text-muted-foreground dark:text-white/40">{item.description}</div>
+                <div className="font-medium text-foreground">{item.label}</div>
+                <div className="text-sm text-muted-foreground">{item.description}</div>
               </div>
               <Switch defaultChecked={item.id === 'profile'} />
             </div>
@@ -1676,17 +1679,17 @@ function PrivacySettings() {
 
       {/* GDPR — Data Export */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Dine data (GDPR)</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Dine data (GDPR)</h3>
         <DataExportCard />
       </div>
 
       {/* GDPR — Account Deletion */}
-      <div className="pt-4 border-t border-border dark:border-white/10">
+      <div className="pt-4 border-t border-border">
         <AccountDeletionCard />
       </div>
 
       {/* My Reports */}
-      <div className="pt-4 border-t border-border dark:border-white/10 space-y-2">
+      <div className="pt-4 border-t border-border space-y-2">
         <MyReportsCard />
       </div>
     </div>
@@ -1724,14 +1727,14 @@ function DataExportCard() {
   };
 
   return (
-    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-3">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
           <FiDownload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div className="flex-1">
-          <div className="font-medium text-foreground dark:text-white/90">Last ned dine data</div>
-          <div className="text-sm text-muted-foreground dark:text-white/40">
+          <div className="font-medium text-foreground">Last ned dine data</div>
+          <div className="text-sm text-muted-foreground">
             Eksporter all personlig informasjon vi har om deg som JSON-fil (GDPR Art. 15/20).
           </div>
         </div>
@@ -1819,9 +1822,9 @@ function AccountDeletionCard() {
           </div>
           <div className="flex-1">
             <div className="font-medium text-red-600 dark:text-red-400">Slettingsforespørsel registrert</div>
-            <div className="text-sm text-muted-foreground dark:text-white/40">
+            <div className="text-sm text-muted-foreground">
               Forespørselen er satt til gjennomgang fra{' '}
-              <strong className="text-foreground dark:text-white/80">{scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
+              <strong className="text-foreground">{scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
               Du kan avbryte så lenge den venter på behandling.
             </div>
           </div>
@@ -1840,14 +1843,14 @@ function AccountDeletionCard() {
   }
 
   return (
-    <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10 space-y-3">
+    <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40 space-y-3">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg bg-red-500/10 dark:bg-red-500/20">
           <FiTrash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
         </div>
         <div className="flex-1">
-          <div className="font-medium text-foreground dark:text-white/90">Slett konto</div>
-          <div className="text-sm text-muted-foreground dark:text-white/40">
+          <div className="font-medium text-foreground">Slett konto</div>
+          <div className="text-sm text-muted-foreground">
             Be om sletting av kontoen. Vi gjennomgår forespørselen og hvilke opplysninger som må beholdes. Ingen data slettes når du sender forespørselen.
           </div>
         </div>
@@ -1911,8 +1914,8 @@ function MyReportsCard() {
   const statusLabels: Record<string, { label: string; class: string }> = {
     PENDING: { label: 'Venter', class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
     IN_REVIEW: { label: 'Under vurdering', class: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-    RESOLVED: { label: 'Behandlet', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-    DISMISSED: { label: 'Avvist', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' },
+    RESOLVED: { label: 'Behandlet', class: 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light' },
+    DISMISSED: { label: 'Avvist', class: 'bg-muted/10 text-muted-foreground' },
   };
 
   const reasonLabels: Record<string, string> = {
@@ -1933,15 +1936,15 @@ function MyReportsCard() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Mine rapporter</h3>
+      <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Mine rapporter</h3>
       
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Laster...</p>
       ) : reports.length === 0 ? (
-        <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
           <div className="flex items-center gap-3">
             <FiFlag className="h-5 w-5 text-muted-foreground" />
-            <div className="text-sm text-muted-foreground dark:text-white/40">
+            <div className="text-sm text-muted-foreground">
               Du har ikke rapportert noe innhold ennå.
             </div>
           </div>
@@ -1951,14 +1954,14 @@ function MyReportsCard() {
           {reports.map((report) => {
             const status = statusLabels[report.status] || statusLabels.PENDING;
             return (
-              <div key={report.id} className="rounded-xl bg-white/70 border border-border p-3 dark:bg-white/5 dark:border-white/10 flex items-center justify-between gap-3">
+              <div key={report.id} className="rounded-xl bg-surface-1/70 border border-border p-3 dark:bg-muted/40 flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-foreground dark:text-white/90">{reasonLabels[report.reason] || report.reason}</span>
-                    <span className="text-muted-foreground dark:text-white/40">·</span>
-                    <span className="text-muted-foreground dark:text-white/40 capitalize">{report.contentType.toLowerCase()}</span>
+                    <span className="font-medium text-foreground">{reasonLabels[report.reason] || report.reason}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground capitalize">{report.contentType.toLowerCase()}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground dark:text-white/30 mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5">
                     {new Date(report.createdAt).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
@@ -1981,14 +1984,14 @@ function AppearanceSettings() {
   
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Appearance</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">Customize the look and feel of your experience</p>
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Appearance</h2>
+        <p className="text-sm text-muted-foreground">Customize the look and feel of your experience</p>
       </div>
 
       {/* Theme */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Theme</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Theme</h3>
         <div className="grid grid-cols-3 gap-3">
           {[
             { id: 'light', label: 'Light', description: 'Bright & clean', icon: '☀️' },
@@ -1998,15 +2001,15 @@ function AppearanceSettings() {
             <button
               key={themeOption.id}
               onClick={() => setTheme(themeOption.id)}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
+              className={`p-4 rounded-xl border-2 text-left transition ${
                 theme === themeOption.id
-                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
-                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+                  ? 'border-brand-accent bg-brand-accent/20 ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20'
+                  : 'border-border hover:border-border bg-surface-1 shadow-sm'
               }`}
             >
               <div className="text-2xl mb-2">{themeOption.icon}</div>
-              <div className="font-medium text-foreground dark:text-white/90">{themeOption.label}</div>
-              <div className="text-xs text-muted-foreground dark:text-white/40">{themeOption.description}</div>
+              <div className="font-medium text-foreground">{themeOption.label}</div>
+              <div className="text-xs text-muted-foreground">{themeOption.description}</div>
             </button>
           ))}
         </div>
@@ -2014,7 +2017,7 @@ function AppearanceSettings() {
 
       {/* Style Preset */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Style Preset</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Style Preset</h3>
         <div className="grid grid-cols-3 gap-3">
           {[
             { id: 'minimal', label: 'Minimal', description: 'Clean & simple', icon: '○' },
@@ -2040,15 +2043,15 @@ function AppearanceSettings() {
                   hoverEffects: 'simple' as const,
                 } : {}),
               })}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
+              className={`p-4 rounded-xl border-2 text-left transition ${
                 prefs.stylePreset === preset.id
-                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
-                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+                  ? 'border-brand-accent bg-brand-accent/20 ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20'
+                  : 'border-border hover:border-border bg-surface-1 shadow-sm'
               }`}
             >
               <div className="text-2xl mb-2">{preset.icon}</div>
-              <div className="font-medium text-foreground dark:text-white/90">{preset.label}</div>
-              <div className="text-xs text-muted-foreground dark:text-white/40">{preset.description}</div>
+              <div className="font-medium text-foreground">{preset.label}</div>
+              <div className="text-xs text-muted-foreground">{preset.description}</div>
             </button>
           ))}
         </div>
@@ -2056,12 +2059,12 @@ function AppearanceSettings() {
 
       {/* Visual Effects */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Visual Effects</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Visual Effects</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Gradient Backgrounds</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Colorful gradient backgrounds on pages and cards</div>
+              <div className="font-medium text-foreground">Gradient Backgrounds</div>
+              <div className="text-sm text-muted-foreground">Colorful gradient backgrounds on pages and cards</div>
             </div>
             <Switch 
               checked={prefs.enableGradientBackgrounds} 
@@ -2069,10 +2072,10 @@ function AppearanceSettings() {
             />
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Floating Spheres</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Animated gradient orbs in the background</div>
+              <div className="font-medium text-foreground">Floating Spheres</div>
+              <div className="text-sm text-muted-foreground">Animated gradient orbs in the background</div>
             </div>
             <Switch 
               checked={prefs.enableGradientSpheres} 
@@ -2084,10 +2087,10 @@ function AppearanceSettings() {
 
       {/* Animations */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Animations</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Animations</h3>
         <div className="space-y-3">
-          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
-            <div className="font-medium text-foreground dark:text-white/90 mb-3">Page Transitions</div>
+          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+            <div className="font-medium text-foreground mb-3">Page Transitions</div>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'none', label: 'None' },
@@ -2097,10 +2100,10 @@ function AppearanceSettings() {
                 <button
                   key={option.id}
                   onClick={() => setPrefs({ pageAnimations: option.id as 'none' | 'subtle' | 'full' })}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition ${
                     prefs.pageAnimations === option.id
-                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
-                      : 'bg-zinc-100 text-foreground hover:bg-zinc-200 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20'
+                      ? 'bg-brand-accent text-brand-accent-foreground shadow-md shadow-brand-accent/30'
+                      : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-muted/60'
                   }`}
                 >
                   {option.label}
@@ -2109,10 +2112,10 @@ function AppearanceSettings() {
             </div>
           </div>
           
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Colorful Hover Effects</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Fancy color transitions on hover (instead of simple highlights)</div>
+              <div className="font-medium text-foreground">Colorful Hover Effects</div>
+              <div className="text-sm text-muted-foreground">Fancy color transitions on hover (instead of simple highlights)</div>
             </div>
             <Switch 
               checked={prefs.hoverEffects === 'colorful'} 
@@ -2124,10 +2127,10 @@ function AppearanceSettings() {
 
       {/* Chat */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Chat</h3>
-        <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
-          <div className="font-medium text-foreground dark:text-white/90 mb-1">AI chat layout</div>
-          <div className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Chat</h3>
+        <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
+          <div className="font-medium text-foreground mb-1">AI chat layout</div>
+          <div className="text-sm text-muted-foreground mb-3">
             How the conversation list sits next to the chat on the AI page.
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -2138,14 +2141,14 @@ function AppearanceSettings() {
               <button
                 key={option.id}
                 onClick={() => setPrefs({ aiChatLayout: option.id as 'persistent' | 'overlay' })}
-                className={`flex flex-col items-start gap-0.5 py-2.5 px-3 rounded-lg text-left transition-all ${
+                className={`flex flex-col items-start gap-0.5 py-2.5 px-3 rounded-lg text-left transition ${
                   prefs.aiChatLayout === option.id
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
-                    : 'bg-zinc-100 text-foreground hover:bg-zinc-200 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20'
+                    ? 'bg-brand-accent text-brand-accent-foreground shadow-md shadow-brand-accent/30'
+                    : 'bg-muted text-foreground hover:bg-muted dark:hover:bg-muted/60'
                 }`}
               >
                 <span className="text-sm font-medium">{option.label}</span>
-                <span className={`text-[11px] ${prefs.aiChatLayout === option.id ? 'text-white/80' : 'text-muted-foreground dark:text-white/40'}`}>
+                <span className={`text-[11px] ${prefs.aiChatLayout === option.id ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                   {option.desc}
                 </span>
               </button>
@@ -2156,19 +2159,19 @@ function AppearanceSettings() {
 
       {/* Advanced */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Advanced</h3>
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Advanced</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Enable advanced wallet controls and crypto features</div>
+              <div className="font-medium text-foreground">Web3 Mode</div>
+              <div className="text-sm text-muted-foreground">Enable advanced wallet controls and crypto features</div>
             </div>
             <Web3ModeControl />
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Experimental Effects</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">Enable bleeding-edge visual features (may be unstable)</div>
+              <div className="font-medium text-foreground">Experimental Effects</div>
+              <div className="text-sm text-muted-foreground">Enable bleeding-edge visual features (may be unstable)</div>
             </div>
             <Switch 
               checked={prefs.enableExperimentalEffects} 
@@ -2179,15 +2182,15 @@ function AppearanceSettings() {
       </div>
 
       {/* Reset */}
-      <div className="pt-4 border-t border-border dark:border-white/10 flex gap-3">
+      <div className="pt-4 border-t border-border flex gap-3">
         <Button 
           variant="outline" 
           onClick={resetPrefs}
-          className="border-zinc-300 dark:border-white/20"
+          className="border-border"
         >
           Reset to Defaults
         </Button>
-        <p className="text-xs text-muted-foreground dark:text-white/40 self-center">
+        <p className="text-xs text-muted-foreground self-center">
           Resets all appearance settings to minimal/clean defaults
         </p>
       </div>
@@ -2207,9 +2210,9 @@ function Web3WalletSettings() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Web3 & Wallet</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Web3 & Wallet</h2>
+        <p className="text-sm text-muted-foreground">
           Experimental wallet connections and verified payout addresses. Not required for shopping.
         </p>
       </div>
@@ -2246,10 +2249,10 @@ function Web3WalletSettings() {
       {demo && <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
         Demo preview: you can inspect wallet connection options. Saving a wallet link, changing payout settings and on-chain transactions are disabled. No signature is requested here.
       </p>}
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10">
+      <div className="flex items-center justify-between gap-4 rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40">
         <div className="min-w-0">
-          <div className="font-medium text-foreground dark:text-white/90">Web3 Mode</div>
-          <div className="text-sm text-muted-foreground dark:text-white/40">
+          <div className="font-medium text-foreground">Web3 Mode</div>
+          <div className="text-sm text-muted-foreground">
             Wallet sign-in and experimental tools. Saved payout addresses are separate.
           </div>
         </div>
@@ -2260,15 +2263,15 @@ function Web3WalletSettings() {
       {(web3Enabled || demo) && (
         <div className="space-y-4">
           {/* Connect Wallet */}
-          <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+          <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Connect Wallet</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">
+              <div className="font-medium text-foreground">Connect Wallet</div>
+              <div className="text-sm text-muted-foreground">
                 Choose browser extension for MetaMask/Coinbase/Rabby, or AppKit for WalletConnect and social wallets
               </div>
             </div>
             <WalletConnectChooser authenticateDirect={false}>
-              <Button type="button" className="min-h-11 h-auto w-full whitespace-normal justify-center bg-emerald-600 px-3 py-3 text-white hover:bg-emerald-500">
+              <Button type="button" className="min-h-11 h-auto w-full whitespace-normal justify-center bg-brand-accent-hover px-3 py-3 text-brand-accent-foreground hover:bg-brand-accent">
                 Choose wallet connection method
               </Button>
             </WalletConnectChooser>
@@ -2276,10 +2279,10 @@ function Web3WalletSettings() {
           </div>
 
           {/* Verify & Link */}
-          {!demo && <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Verify & Link Wallet</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">
+              <div className="font-medium text-foreground">Verify & Link Wallet</div>
+              <div className="text-sm text-muted-foreground">
                 Sign a message to prove ownership and link this wallet to your account
               </div>
             </div>
@@ -2290,10 +2293,10 @@ function Web3WalletSettings() {
           </div>}
 
           {/* Linked Wallets */}
-          {!demo && <div className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm dark:bg-white/5 dark:border-white/10 space-y-3">
+          {!demo && <div className="rounded-xl bg-card border border-border p-4 shadow-sm dark:bg-muted/40 space-y-3">
             <div>
-              <div className="font-medium text-foreground dark:text-white/90">Verified Wallet Links</div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">
+              <div className="font-medium text-foreground">Verified Wallet Links</div>
+              <div className="text-sm text-muted-foreground">
                 Manage saved payout addresses. Removing a link is separate from disconnecting the current wallet session.
               </div>
             </div>
@@ -2304,17 +2307,17 @@ function Web3WalletSettings() {
           </div>}
 
           {/* Auth Level Info */}
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+          <div className="rounded-xl border border-brand-accent bg-brand-accent/50 p-4 dark:border-brand-accent/20 dark:bg-brand-accent/5">
             <div className="flex items-center gap-2 mb-2">
-              <FiShield className="h-4 w-4 text-emerald-500" />
-              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              <FiShield className="h-4 w-4 text-brand-accent" />
+              <span className="text-sm font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                 Boost Your Trust Level
               </span>
             </div>
-            <p className="text-sm text-emerald-600 dark:text-emerald-300/80">
+            <p className="text-sm text-brand-accent-hover dark:text-brand-accent-light">
               Linking wallets increases your verification tier and Reach multiplier.
               Check your current level in the{' '}
-              <Link href="/settings?section=verification" className="font-medium underline underline-offset-2 hover:text-emerald-500">
+              <Link href="/settings?section=verification" className="font-medium underline underline-offset-2 hover:text-brand-accent">
                 Verification tab
               </Link>.
             </p>
@@ -2325,8 +2328,8 @@ function Web3WalletSettings() {
       {web3State.data === undefined && !demo && <div role="status" className="min-h-40 rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">{web3State.isError ? 'Wallet settings unavailable. Retry above.' : 'Loading wallet settings…'}</div>}
       {web3State.data === false && !demo && (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <FiLock className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <FiLock className="h-8 w-8 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">
             Enable Web3 Mode above to connect and manage wallets
           </p>
         </div>
@@ -2356,19 +2359,19 @@ function WalletSessionDisconnectButton() {
 
   if (!isConnected) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-200 px-3 py-2 text-xs text-muted-foreground dark:border-white/10 dark:text-white/40">
+      <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
         No live wallet session. Verified wallets below can still stay linked for seller payouts.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-accent/20 bg-brand-accent/10 px-3 py-2">
       <div>
-        <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+        <div className="text-xs font-semibold text-brand-accent-hover dark:text-brand-accent-light">
           Current wallet session
         </div>
-        <div className="text-xs text-emerald-700/80 dark:text-emerald-200/75">
+        <div className="text-xs text-brand-accent-hover/80">
           {shortAddress} is connected in this browser. Disconnecting does not unlink it from your account.
         </div>
       </div>
@@ -2377,7 +2380,7 @@ function WalletSessionDisconnectButton() {
         size="sm"
         disabled={busy}
         onClick={disconnectSession}
-        className="min-h-11 border-emerald-500/30 bg-black/5 text-emerald-800 hover:bg-emerald-500/15 dark:bg-white/5 dark:text-emerald-100"
+        className="min-h-11 border-brand-accent/30 bg-muted/40 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/15"
       >
         {busy ? "Disconnecting..." : "Disconnect session"}
       </Button>
@@ -2486,9 +2489,9 @@ function NotificationSettingsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Notifications</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Notifications</h2>
+        <p className="text-sm text-muted-foreground">
           Customize your pulse, heartbeat, and vibe notifications
         </p>
       </div>
@@ -2510,15 +2513,15 @@ function CurrencySettings() {
   
   return (
     <div className="space-y-6">
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Currency</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">Choose how prices are displayed across the platform</p>
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Currency</h2>
+        <p className="text-sm text-muted-foreground">Choose how prices are displayed across the platform</p>
       </div>
 
       {/* Fiat Currency */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Display Currency</h3>
-        <p className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Display Currency</h3>
+        <p className="text-sm text-muted-foreground mb-3">
           Primary currency for displaying prices
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -2526,15 +2529,15 @@ function CurrencySettings() {
             <button
               key={curr.code}
               onClick={() => setCurrency(curr.code)}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
+              className={`p-4 rounded-xl border-2 text-left transition ${
                 currency === curr.code
-                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
-                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+                  ? 'border-brand-accent bg-brand-accent/20 ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20'
+                  : 'border-border hover:border-border bg-surface-1 shadow-sm'
               }`}
             >
               <div className="text-2xl mb-2">{curr.symbol}</div>
-              <div className="font-medium text-foreground dark:text-white/90">{curr.code}</div>
-              <div className="text-xs text-muted-foreground dark:text-white/40">{curr.name}</div>
+              <div className="font-medium text-foreground">{curr.code}</div>
+              <div className="text-xs text-muted-foreground">{curr.name}</div>
             </button>
           ))}
         </div>
@@ -2542,8 +2545,8 @@ function CurrencySettings() {
 
       {/* Crypto Currency */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">Crypto Currency</h3>
-        <p className="text-sm text-muted-foreground dark:text-white/40 mb-3">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">Crypto Currency</h3>
+        <p className="text-sm text-muted-foreground mb-3">
           Secondary currency for crypto price display
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -2551,31 +2554,31 @@ function CurrencySettings() {
             <button
               key={curr.code}
               onClick={() => setCryptoCurrency(curr.code)}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
+              className={`p-4 rounded-xl border-2 text-left transition ${
                 cryptoCurrency === curr.code
-                  ? 'border-emerald-500 bg-emerald-500/20 dark:bg-emerald-500/10 ring-2 ring-emerald-500/40 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/20'
-                  : 'border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 bg-white dark:bg-white/5 shadow-sm'
+                  ? 'border-brand-accent bg-brand-accent/20 ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20'
+                  : 'border-border hover:border-border bg-surface-1 shadow-sm'
               }`}
             >
               <div className="text-2xl mb-2">{curr.symbol}</div>
-              <div className="font-medium text-foreground dark:text-white/90">{curr.code}</div>
-              <div className="text-xs text-muted-foreground dark:text-white/40">{curr.name}</div>
+              <div className="font-medium text-foreground">{curr.code}</div>
+              <div className="text-xs text-muted-foreground">{curr.name}</div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Quick Preview */}
-      <div className="pt-4 border-t border-border dark:border-white/10">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider mb-3">Preview</h3>
-        <div className="rounded-xl bg-white/70 border border-border p-4 dark:bg-white/5 dark:border-white/10">
+      <div className="pt-4 border-t border-border">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider mb-3">Preview</h3>
+        <div className="rounded-xl bg-surface-1/70 border border-border p-4 dark:bg-muted/40">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground dark:text-white/60">Example price:</span>
+            <span className="text-muted-foreground">Example price:</span>
             <div className="text-right">
-              <div className="font-bold text-foreground dark:text-white">
+              <div className="font-bold text-foreground">
                 {FIAT_CURRENCIES.find(c => c.code === currency)?.symbol}99.99
               </div>
-              <div className="text-sm text-muted-foreground dark:text-white/40">
+              <div className="text-sm text-muted-foreground">
                 ≈ {CRYPTO_CURRENCIES.find(c => c.code === cryptoCurrency)?.symbol}0.025
               </div>
             </div>
@@ -2699,7 +2702,7 @@ function AddressesSettings() {
   }
 
   const renderAddressForm = () => (
-    <div className="space-y-4 p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5">
+    <div className="space-y-4 p-4 border border-border rounded-lg bg-surface-1/50">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
           <Label className="text-sm text-muted-foreground mb-1 block">Type</Label>
@@ -2788,7 +2791,7 @@ function AddressesSettings() {
       {addresses.map((addr) => (
         <div
           key={addr.id}
-          className="flex items-start justify-between p-4 border border-border dark:border-white/10 rounded-lg bg-white/50 dark:bg-white/5"
+          className="flex items-start justify-between p-4 border border-border rounded-lg bg-surface-1/50"
         >
           {editId === addr.id ? (
             <div className="w-full">

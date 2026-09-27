@@ -126,7 +126,7 @@ export default function AdminRuntimePage() {
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <FiLoader className="h-7 w-7 animate-spin text-emerald-500" />
+        <FiLoader className="h-7 w-7 animate-spin text-brand-accent" />
       </div>
     );
   }
@@ -146,11 +146,11 @@ export default function AdminRuntimePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Runtime Controls</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Runtime Controls</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Released checkout status, legacy provider settings, and Bring shipping behavior.
           </p>
         </div>
@@ -165,17 +165,17 @@ export default function AdminRuntimePage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-sm text-zinc-600 dark:text-zinc-300">
-          <div className="font-medium text-zinc-900 dark:text-zinc-100">Reviewer checkout</div>
+        <div className="rounded-xl border border-border bg-card p-4 text-sm text-foreground/80">
+          <div className="font-medium text-foreground">Reviewer checkout</div>
           <p className="mt-1">{capabilities ? `${capabilities.reviewerCheckout.environment} · ${capabilities.reviewerCheckout.methods.map(method => method.displayName).join(', ') || 'PayPal unavailable'}` : 'Availability not verified.'}</p>
           <p className="mt-1">{capabilities?.reviewerCheckout.products.map(product => product.title).join(' and ')} only. Demo checkout does not charge.</p>
-          <div className="mt-4 font-medium text-zinc-900 dark:text-zinc-100">Legacy marketplace checkout</div>
-          <div className="mt-1 text-zinc-500 dark:text-zinc-400">
+          <div className="mt-4 font-medium text-foreground">Legacy marketplace checkout</div>
+          <div className="mt-1 text-muted-foreground">
             {capabilities?.legacyCheckoutPaused ? 'Paused — no payment methods are released for other listings.' : availableMethods.join(', ') || 'No methods currently detected.'}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <RuntimeToggleRow
             title="Legacy payment provider switch"
             description="Inactive while legacy checkout is paused. This is not a stop switch for reviewer PayPal checkout."
@@ -193,23 +193,23 @@ export default function AdminRuntimePage() {
           />
         </div>
 
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-sm text-zinc-600 dark:text-zinc-300">
+        <div className="rounded-xl border border-border bg-card p-4 text-sm text-foreground/80">
           <div><span className="font-medium">Changed by:</span> {runtime.updatedBy ?? 'system default'}</div>
           <div><span className="font-medium">Changed at:</span> {new Date(runtime.updatedAt).getTime() === 0 ? 'Not changed yet — system defaults' : new Date(runtime.updatedAt).toLocaleString()}</div>
-          <div className="mt-2 text-zinc-500 dark:text-zinc-400">
+          <div className="mt-2 text-muted-foreground">
             API endpoint: <span className="font-medium">/api/admin/runtime-config</span>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Recent PayPal webhook events</h2>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-3">Recent PayPal webhook events</h2>
           {webhookEvents.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">No recent PayPal payment updates found.</p>
+            <p className="text-sm text-muted-foreground">No recent PayPal payment updates found.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+                  <tr className="text-left text-muted-foreground border-b border-border">
                     <th className="py-2 pr-4 font-medium">Time</th>
                     <th className="py-2 pr-4 font-medium">Event</th>
                     <th className="py-2 pr-4 font-medium">Delivery</th>
@@ -218,14 +218,14 @@ export default function AdminRuntimePage() {
                 </thead>
                 <tbody>
                   {webhookEvents.map((event) => (
-                    <tr key={event.id} className="border-b border-zinc-100 dark:border-zinc-800/60">
-                      <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-300">{new Date(event.createdAt).toLocaleString()}</td>
-                      <td className="py-2 pr-4 text-zinc-700 dark:text-zinc-200">{event.eventType ?? 'UNKNOWN_EVENT'}</td>
-                      <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-300">
+                    <tr key={event.id} className="border-b border-border/60">
+                      <td className="py-2 pr-4 text-foreground/80">{new Date(event.createdAt).toLocaleString()}</td>
+                      <td className="py-2 pr-4 text-foreground/85">{event.eventType ?? 'UNKNOWN_EVENT'}</td>
+                      <td className="py-2 pr-4 text-foreground/80">
                         {event.deliveryId ?? 'no-delivery-id'}
                         {event.orderId ? ` • order:${event.orderId.slice(0, 12)}…` : ''}
                       </td>
-                      <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-300">
+                      <td className="py-2 pr-4 text-foreground/80">
                         {event.signatureVerified ? 'verified' : 'unverified'}
                         {event.paymentStatus ? ` • payment:${event.paymentStatus}` : ''}
                         {event.orderStatus ? ` • order:${event.orderStatus}` : ''}
@@ -241,7 +241,7 @@ export default function AdminRuntimePage() {
         </div>
 
         {!isOwner && (
-          <div className="rounded-xl border border-zinc-300/40 bg-zinc-500/10 p-3 text-sm text-zinc-700 dark:text-zinc-300">
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 text-sm text-foreground/85">
             You can view runtime status as ADMIN, but only OWNER can flip live switches.
           </div>
         )}
@@ -253,7 +253,7 @@ export default function AdminRuntimePage() {
         )}
 
         {success && (
-          <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+          <div className="rounded-xl border border-brand-accent/40 bg-brand-accent/10 p-3 text-sm text-brand-accent-hover dark:text-brand-accent-light flex items-center gap-2">
             <FiCheckCircle />
             {success}
           </div>
@@ -277,10 +277,10 @@ function RuntimeToggleRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+    <div className="flex items-center justify-between gap-4 border border-border rounded-xl p-4">
       <div className="min-w-0">
-        <div className="font-medium text-zinc-900 dark:text-zinc-100">{title}</div>
-        <div className="text-sm text-zinc-500 dark:text-zinc-400">{description}</div>
+        <div className="font-medium text-foreground">{title}</div>
+        <div className="text-sm text-muted-foreground">{description}</div>
       </div>
 
       <button
@@ -289,10 +289,10 @@ function RuntimeToggleRow({
         disabled={disabled}
         aria-label={title}
         aria-pressed={enabled}
-        className="inline-flex min-h-11 shrink-0 items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm disabled:opacity-50"
+        className="inline-flex min-h-11 shrink-0 items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card text-sm disabled:opacity-50"
         title={enabled ? 'Currently ON (live)' : 'Currently OFF (test/sandbox)'}
       >
-        {enabled ? <FiToggleRight className="h-5 w-5 text-emerald-500" /> : <FiToggleLeft className="h-5 w-5 text-zinc-400" />}
+        {enabled ? <FiToggleRight className="h-5 w-5 text-brand-accent" /> : <FiToggleLeft className="h-5 w-5 text-muted-foreground" />}
         {enabled ? 'Live ON' : 'Live OFF'}
       </button>
     </div>

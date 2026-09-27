@@ -527,7 +527,7 @@ export const MyCompanyCreateForm = () => {
                     <FormLabel className="flex items-center gap-2">
                       Organization Number
                       <span title="Paste with or without spaces. We sanitize to 9 digits automatically.">
-                        <Info className="h-3.5 w-3.5 text-zinc-400" />
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
                       </span>
                     </FormLabel>
                     <FormControl>
@@ -555,13 +555,13 @@ export const MyCompanyCreateForm = () => {
                         />
 
                         {showOrgSuggestions && orgSuggestions.length > 0 && normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
-                          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-border bg-card shadow-lg dark:bg-surface-3">
                             <ul className="max-h-56 overflow-auto py-1">
                               {orgSuggestions.map((suggestion) => (
                                 <li key={`${suggestion.orgNumber}-${suggestion.legalName}`}>
                                   <button
                                     type="button"
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => {
                                       field.onChange(suggestion.orgNumber);
@@ -578,8 +578,8 @@ export const MyCompanyCreateForm = () => {
                                       }
                                     }}
                                   >
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">{suggestion.legalName || 'Registered organization'}</div>
-                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                    <div className="font-medium text-foreground">{suggestion.legalName || 'Registered organization'}</div>
+                                    <div className="text-xs text-muted-foreground">
                                       {formatNorwegianOrgNumber(suggestion.orgNumber)}
                                       {suggestion.orgFormLabel ? ` • ${suggestion.orgFormLabel}` : ''}
                                     </div>
@@ -618,21 +618,21 @@ export const MyCompanyCreateForm = () => {
                     </FormDescription>
 
                     {normalizeNorwegianOrgNumber(field.value).length >= 3 && normalizeNorwegianOrgNumber(field.value).length < 9 && (
-                      <div className="rounded-md border border-sky-300/50 bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-800 dark:text-sky-300 inline-flex items-start gap-1.5">
+                      <div className="rounded-md border border-brand-accent/50 bg-brand-accent/10 px-3 py-2 text-xs text-brand-accent-hover dark:text-brand-accent-light inline-flex items-start gap-1.5">
                         <Info className="h-3.5 w-3.5 mt-0.5" />
                         Keep typing all 9 digits to fetch official Brønnøysund company details and autofill fields.
                       </div>
                     )}
 
                     {orgLookupState === 'loading' && (
-                      <div className="text-xs text-zinc-500 inline-flex items-center gap-1.5">
+                      <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         Looking up organization in Brønnøysund…
                       </div>
                     )}
 
                     {orgLookupState === 'found' && orgLookupData?.found && (
-                      <div className="rounded-md border border-emerald-300/50 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                      <div className="rounded-md border border-brand-accent/50 bg-brand-accent/10 px-3 py-2 text-xs text-brand-accent-hover dark:text-brand-accent-light space-y-1">
                         <div className="inline-flex items-center gap-1.5 font-medium">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Match found: {orgLookupData.legalName || 'Registered organization'}
@@ -723,13 +723,13 @@ export const MyCompanyCreateForm = () => {
                     group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
                     ${logoPreview.length > 0
                       ? 'border-transparent bg-transparent p-0'
-                      : 'border-zinc-200/80 dark:border-zinc-800/50 hover:border-emerald-400 dark:hover:border-emerald-500/60 bg-zinc-50 dark:bg-zinc-900/60 p-4'
+                      : 'border-border/80 hover:border-brand-accent bg-muted/40 p-4'
                     }
                   `}
                 >
                   {logoPreview.length < 1 ? (
                     <AspectRatio ratio={1}>
-                      <div className="flex flex-col items-center justify-center size-full text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-500 transition-colors">
+                      <div className="flex flex-col items-center justify-center size-full text-muted-foreground/80 group-hover:text-brand-accent transition-colors">
                         <Upload className="size-8 mb-2" />
                         <span className="text-sm font-medium">Upload logo</span>
                         <span className="text-xs mt-1 hidden sm:block">Drag & drop or click</span>
@@ -749,7 +749,7 @@ export const MyCompanyCreateForm = () => {
                       <button
                         type="button"
                         onClick={(e) => removeImageLogo(e, 0)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-white/80 hover:text-white transition-all duration-200 hover:scale-110"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-foreground/80 hover:text-white transition duration-200 hover:scale-110"
                       >
                         <X className="size-4" />
                       </button>
@@ -776,13 +776,13 @@ export const MyCompanyCreateForm = () => {
                     group relative cursor-pointer rounded-xl border-2 border-dashed transition-colors
                     ${bannerPreview.length > 0
                       ? 'border-transparent bg-transparent p-0'
-                      : 'border-zinc-200/80 dark:border-zinc-800/50 hover:border-emerald-400 dark:hover:border-emerald-500/60 bg-zinc-50 dark:bg-zinc-900/60 p-4'
+                      : 'border-border/80 hover:border-brand-accent bg-muted/40 p-4'
                     }
                   `}
                 >
                   {bannerPreview.length < 1 ? (
                     <AspectRatio ratio={3 / 1}>
-                      <div className="flex flex-col items-center justify-center size-full text-zinc-400 dark:text-zinc-500 group-hover:text-emerald-500 transition-colors">
+                      <div className="flex flex-col items-center justify-center size-full text-muted-foreground/80 group-hover:text-brand-accent transition-colors">
                         <Upload className="size-8 mb-2" />
                         <span className="text-sm font-medium">Upload banner</span>
                         <span className="text-xs mt-1 hidden sm:block">Drag & drop or click</span>
@@ -804,7 +804,7 @@ export const MyCompanyCreateForm = () => {
                           <button
                             type="button"
                             onClick={(e) => removeImageBanner(e, index)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-white/80 hover:text-white transition-all duration-200 hover:scale-110"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 hover:bg-red-600 text-foreground/80 hover:text-white transition duration-200 hover:scale-110"
                           >
                             <X className="size-4" />
                           </button>
@@ -860,7 +860,7 @@ export const MyCompanyCreateForm = () => {
                         return (
                           <div
                             key={employee.userId}
-                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/70 dark:border-zinc-800/50 transition-colors duration-150 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-muted/40 border border-border/70 transition-colors duration-150 hover:bg-muted"
                           >
                             <span className="text-sm font-medium truncate sm:flex-1">
                               {employee.email}
@@ -887,7 +887,7 @@ export const MyCompanyCreateForm = () => {
                                 size="icon"
                                 disabled={employee.userId === user?.id}
                                 onClick={(e) => removeEmployee(e, employee.userId)}
-                                className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-500 dark:hover:text-red-400"
                               >
                                 <Trash2 className="size-4" />
                               </Button>
@@ -927,15 +927,15 @@ export const MyCompanyCreateForm = () => {
           </CardHeader>
 
           {isShippingEnabled && (
-            <CardContent className="space-y-4 border-t border-zinc-100 dark:border-zinc-800/40 pt-6">
+            <CardContent className="space-y-4 border-t border-border/60 pt-6">
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="relative rounded-xl border border-zinc-200/70 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/40 p-4 sm:p-5 space-y-4"
+                  className="relative rounded-xl border border-border/70 bg-muted/40 p-4 sm:p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                      <MapPin className="size-4 text-zinc-400" />
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground/85">
+                      <MapPin className="size-4 text-muted-foreground" />
                       Warehouse {index + 1}
                     </div>
                     <Button
@@ -943,7 +943,7 @@ export const MyCompanyCreateForm = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => remove(index)}
-                      className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400 -mr-2"
+                      className="text-muted-foreground hover:text-red-500 dark:hover:text-red-400 -mr-2"
                     >
                       <Trash2 className="size-4 mr-1" />
                       Remove

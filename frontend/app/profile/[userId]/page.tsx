@@ -634,7 +634,7 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={cancelBannerPreview}
                   disabled={isUploadingBanner}
-                  className="h-11 border-white/20 bg-black/70 text-white hover:bg-black/80 rounded-lg"
+                  className="h-11 border-border bg-black/70 text-white hover:bg-black/80 rounded-lg"
                 >
                   <FiX className="h-4 w-4 mr-2" />
                   Cancel
@@ -645,7 +645,7 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={confirmBannerUpload}
                   disabled={isUploadingBanner || storageState.loading}
-                  className="h-11 border-emerald-400/30 bg-emerald-700 text-white hover:bg-emerald-600 rounded-lg"
+                  className="h-11 border-brand-accent/30 bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent-hover rounded-lg"
                 >
                   {isUploadingBanner ? (
                     <>
@@ -666,7 +666,7 @@ export default function ProfilePage() {
                 size="sm"
                 onClick={() => bannerInputRef.current?.click()}
                 disabled={isUploadingBanner}
-                className="h-11 border-white/20 bg-black/70 text-white hover:bg-black/80 rounded-lg"
+                className="h-11 border-border bg-black/70 text-white hover:bg-black/80 rounded-lg"
               >
                 <FiCamera className="h-4 w-4 mr-2" />
                 Edit Banner
@@ -693,7 +693,7 @@ export default function ProfilePage() {
               {/* Show preview if available, otherwise current image */}
               <AvatarImage src={avatarPreview?.url || profile.image || undefined} alt={`${profile.name || 'User'} profile picture`} className="object-cover" />
               <AvatarFallback
-                className="text-3xl sm:text-4xl text-white font-medium"
+                className="text-3xl sm:text-4xl text-foreground font-medium"
                 style={{
                   background: bannerColors
                     ? `linear-gradient(135deg, ${bannerColors.primary}, ${bannerColors.secondary})`
@@ -728,7 +728,7 @@ export default function ProfilePage() {
                 disabled={isUploadingAvatar || storageState.loading}
                 title="Save new profile picture"
                 aria-label="Save profile picture"
-                className="absolute -bottom-2 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-emerald-700 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-emerald-600"
+                className="absolute -bottom-2 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-brand-accent-hover text-brand-accent-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-brand-accent-hover"
               >
                 {isUploadingAvatar ? (
                   <Spinner className="h-4 w-4" />
@@ -845,7 +845,7 @@ export default function ProfilePage() {
                           toast.error(err instanceof Error ? err.message : 'Trade request failed');
                         }
                       }}
-                      className="h-11 w-11 rounded-lg border-emerald-500/30 bg-emerald-500/5 p-0 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400"
+                      className="h-11 w-11 rounded-lg border-brand-accent/30 bg-brand-accent/5 p-0 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/15 dark:text-brand-accent"
                       title={`Trade with ${profile.name || 'this user'}`}
                     >
                       <ArrowLeftRight className="h-4 w-4" />
@@ -1156,7 +1156,7 @@ export default function ProfilePage() {
                         {/* Pinned indicator */}
                         {post.pinnedToProfile && (
                           <div 
-                            className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] font-medium shadow-sm"
+                            className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full text-foreground text-[10px] font-medium shadow-sm"
                             style={{ backgroundColor: bannerColors?.primary || '#3b82f6' }}
                           >
                             <Pin className="h-3 w-3" />
@@ -1211,7 +1211,7 @@ export default function ProfilePage() {
                         {/* Stats row - like /pulse feed */}
                         <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-border/30">
                           {/* Heartbeats */}
-                          <span className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
+                          <span className="flex items-center gap-1.5 hover:text-brand-accent transition-colors">
                             <PulseHeart size={16} filled={(post.positivePulseCount || 0) > 0} />
                             <span className="tabular-nums">{post.positivePulseCount || 0}</span>
                           </span>
@@ -1385,7 +1385,7 @@ export default function ProfilePage() {
                     </p>
                     {canEditProfile && (
                         <Button asChild
-                          className="mt-4 inline-flex min-h-11 items-center rounded-xl px-4 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="mt-4 inline-flex min-h-11 items-center rounded-xl px-4 py-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           style={{ backgroundColor: bannerColors?.primaryContrast || '#10b981' }}
                         >
                           <Link href="/pulse">Create a pulse</Link>
@@ -1652,7 +1652,7 @@ export default function ProfilePage() {
                           </div>
 
                           {/* Progress bar */}
-                          <div className="mt-3 h-1.5 rounded-full bg-muted/30 dark:bg-white/5 overflow-hidden">
+                          <div className="mt-3 h-1.5 rounded-full bg-muted/30 dark:bg-muted/40 overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
                               style={{ backgroundColor: pillar.color, transformOrigin: 'left' }}

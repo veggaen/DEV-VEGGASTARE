@@ -409,7 +409,7 @@ function ProductDetails({ product }: { product: Product }) {
           <motion.div
             className="flex flex-wrap items-center justify-between gap-3"
           >
-            <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300">
+            <div className="inline-flex items-center gap-2 text-foreground/80">
               <CiStar className="h-5 w-5 text-yellow-500" />
               <span className="text-sm">No reviews yet</span>
             </div>
@@ -449,7 +449,7 @@ function ProductDetails({ product }: { product: Product }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-2 border-emerald-300/25 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-400/10"
+                    className="gap-2 border-brand-accent/25 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10"
                     disabled={isUpdatingVisibility}
                     onClick={() => handleSetVisibility("PUBLIC")}
                   >
@@ -461,7 +461,7 @@ function ProductDetails({ product }: { product: Product }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-2 border-zinc-500/40 text-muted-foreground hover:bg-white/10"
+                    className="gap-2 border-border/40 text-muted-foreground hover:bg-muted/40"
                     disabled={isUpdatingVisibility}
                     onClick={() => handleSetVisibility("HIDDEN")}
                   >
@@ -600,9 +600,9 @@ function ProductDetails({ product }: { product: Product }) {
           <div
             className={cn(
               "border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]",
-              currentVisibility === "PUBLIC" && "border-emerald-300/35 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300",
+              currentVisibility === "PUBLIC" && "border-brand-accent/35 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light",
               currentVisibility === "HIDDEN" && "border-amber-300/35 bg-amber-400/10 text-amber-200",
-              currentVisibility === "ARCHIVED" && "border-zinc-500/45 bg-zinc-500/10 text-muted-foreground"
+              currentVisibility === "ARCHIVED" && "border-border/45 bg-muted/10 text-muted-foreground"
             )}
           >
             {visibilityLabel}
@@ -626,15 +626,15 @@ function ProductDetails({ product }: { product: Product }) {
 
           {/* Quick stats — text on background, divided by hairlines (no boxes) */}
           {!isDigitalProduct && <div className="mt-5 hidden grid-cols-3 gap-3 lg:grid">
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
               <div className="text-sm font-semibold text-foreground">{availabilityLabel}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">Availability</div>
             </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
               <div className="text-sm font-semibold text-foreground">{product.condition}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">Condition</div>
             </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm  motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-center shadow-sm motion-safe:transition-transform motion-safe:duration-200 [@media(hover:hover)]:motion-safe:hover:-translate-y-0.5">
               <div className="text-sm font-semibold text-foreground">{isDigitalProduct ? deliveryDestination : product.shipFromPostalId || "Not set"}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">{isDigitalProduct ? "Delivery" : "Ships from"}</div>
             </div>
@@ -643,14 +643,14 @@ function ProductDetails({ product }: { product: Product }) {
 
         {/* Details */}
         <motion.div
-          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm  sm:p-6"
+          className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6"
         >
           {/* category + title */}
           <motion.div
           >
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-700 dark:text-emerald-300">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-brand-accent-hover dark:text-brand-accent-light">
                   {productKindLabel}
                 </span>
                 <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
@@ -660,7 +660,7 @@ function ProductDetails({ product }: { product: Product }) {
               <h1 className="mt-4 max-w-2xl break-words text-balance text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
                 {product.title}
               </h1>
-              <div className="mt-5 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
+              <div className="mt-5 text-2xl font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                 <span data-product-price className="tabular-nums">{displayPrice}</span>
               </div>
             </div>
@@ -684,7 +684,7 @@ function ProductDetails({ product }: { product: Product }) {
                 {[...new Set(product.acceptedTokens.map((t: any) => t.family as string))].map((family) => (
                   <span
                     key={family}
-                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-medium text-emerald-800 dark:text-emerald-200"
+                    className="inline-flex items-center gap-1 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3 py-1 font-medium text-brand-accent-hover dark:text-brand-accent-light"
                   >
                     <WalletCards className="h-3.5 w-3.5" />
                     {family === "EVM" ? "EVM mainnet" : "Solana mainnet"}
@@ -694,7 +694,7 @@ function ProductDetails({ product }: { product: Product }) {
             )}
 
             {/* Provider availability is checked at checkout. */}
-            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 font-medium text-sky-800 dark:text-sky-200">
+            <span className="inline-flex items-center gap-1 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3 py-1 font-medium text-brand-accent-hover dark:text-brand-accent-light">
               <CreditCard className="h-3.5 w-3.5" />
               PayPal · check at checkout ({acceptedFiatCurrencies.join(", ")})
             </span>
@@ -715,7 +715,7 @@ function ProductDetails({ product }: { product: Product }) {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border p-4">
               <div className="flex items-center gap-3">
-                <CiDeliveryTruck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <CiDeliveryTruck className="h-5 w-5 text-brand-accent-hover dark:text-brand-accent-light" />
                 <div>
                   <div className="text-sm font-semibold text-foreground">Shipping estimate</div>
                   <div className="text-xs text-muted-foreground">
@@ -735,7 +735,7 @@ function ProductDetails({ product }: { product: Product }) {
                     setUserCity(null);
                     setShowManualInput(false);
                   }}
-                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-xs text-muted-foreground hover:text-foreground dark:hover:text-foreground/80"
                 >
                   Change
                 </Button>
@@ -756,8 +756,8 @@ function ProductDetails({ product }: { product: Product }) {
                         disabled={isLocLoading}
                         className={cn(
                           "flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3",
-                          "bg-emerald-600 font-medium text-foreground",
-                          "transition-colors duration-200 hover:bg-emerald-500",
+                          "bg-brand-accent-hover font-medium text-foreground",
+                          "transition-colors duration-200 hover:bg-brand-accent",
                           isLocLoading && "cursor-wait opacity-70"
                         )}
                         whileHover={!reduceMotion && !isLocLoading ? { scale: 1.005 } : {}}
@@ -781,7 +781,7 @@ function ProductDetails({ product }: { product: Product }) {
                         <button
                           type="button"
                           onClick={() => setShowManualInput(true)}
-                          className="w-full text-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 py-2"
+                          className="w-full text-center text-xs text-muted-foreground hover:text-foreground/85 py-2"
                         >
                           Or enter postal code manually
                         </button>
@@ -824,7 +824,7 @@ function ProductDetails({ product }: { product: Product }) {
                           <button
                             type="button"
                             onClick={() => setShowManualInput(false)}
-                            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="text-xs text-muted-foreground hover:text-foreground/80"
                           >
                             ← Back to auto-detect
                           </button>
@@ -841,14 +841,14 @@ function ProductDetails({ product }: { product: Product }) {
                   ) : (
                     /* Location detected - show confirmation */
                     <div className="flex items-center gap-3 py-2">
-                      <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                        <CiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <div className="h-10 w-10 rounded-full bg-brand-accent/10 flex items-center justify-center shrink-0">
+                        <CiMapPin className="h-5 w-5 text-brand-accent-hover dark:text-brand-accent-light" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-foreground">
+                        <div className="text-sm font-medium text-foreground">
                           {userPostalCode} {userCity}
                         </div>
-                        <div className="text-xs text-emerald-600 dark:text-emerald-400">
+                        <div className="text-xs text-brand-accent-hover dark:text-brand-accent-light">
                           ✓ Location confirmed
                         </div>
                       </div>
@@ -856,7 +856,7 @@ function ProductDetails({ product }: { product: Product }) {
                   )}
                 </>
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                <p className="text-sm text-muted-foreground text-center py-2">
                   Shipping not available for this product
                 </p>
               )}
@@ -870,9 +870,9 @@ function ProductDetails({ product }: { product: Product }) {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className="border-t border-gray-100 dark:border-border"
+                  className="border-t border-border/60 dark:border-border"
                 >
-                  <div className="p-4 bg-white dark:bg-transparent">
+                  <div className="p-4 bg-card dark:bg-transparent">
                     <BringShippingDetails
                       fromPostalCode={closestWarehouse?.postalCode || product.shipFromPostalId}
                       toPostalCode={userPostalCode}
@@ -894,13 +894,13 @@ function ProductDetails({ product }: { product: Product }) {
             className="mt-2 overflow-hidden rounded-xl border border-border bg-card"
           >
             <div className="flex items-center gap-3 border-b border-border p-4">
-              <GoPackage className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+              <GoPackage className="h-5 w-5 text-brand-accent-hover dark:text-brand-accent-light" />
               <div>
                 <div className="text-sm font-semibold text-foreground">{isCreditPack ? "AI credit delivery" : "Digital delivery"}</div>
                 <div className="text-xs text-muted-foreground">{isCreditPack ? "Credits appear in your AI balance after verified payment." : "Private files appear in My downloads after verified payment."}</div>
               </div>
             </div>
-            <div className="grid gap-px bg-white/10 sm:grid-cols-2">
+            <div className="grid gap-px bg-muted/40 sm:grid-cols-2">
               <div className="bg-card p-4">
                 <div className="text-xs font-medium text-muted-foreground">Access</div>
                 <div className="mt-1.5 text-sm text-foreground">{isCreditPack ? `${selectedCredits} usage credits` : "Account-protected downloads"}</div>
@@ -974,7 +974,7 @@ function ProductDetails({ product }: { product: Product }) {
           className="border-t border-border pt-6"
           initial={false}
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300">Highlights</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-accent-hover dark:text-brand-accent-light">Highlights</p>
           <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">What stands out</h2>
 
           {/* Group features by category key */}
@@ -996,7 +996,7 @@ function ProductDetails({ product }: { product: Product }) {
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {items.map((feature, idx) => (
                     <li key={idx} className="flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-4">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent-light" />
                       <span className="min-w-0 break-words text-sm leading-relaxed text-muted-foreground">
                         {feature.text}
                       </span>
@@ -1014,7 +1014,7 @@ function ProductDetails({ product }: { product: Product }) {
         className="border-t border-border pt-6"
         initial={false}
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300">Specifications</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-accent-hover dark:text-brand-accent-light">Specifications</p>
         <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Technical facts</h2>
         <dl className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(product.specifications || []).map((spec, idx) => (
@@ -1114,8 +1114,8 @@ export default function ProductClient({ productId }: { productId: string }) {
   if (error === "not-found")
     return renderShell(
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Product Not Found</h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-2xl font-semibold text-foreground">Product Not Found</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             This product may have been removed or the link is invalid.
           </p>
           <Link
@@ -1130,8 +1130,8 @@ export default function ProductClient({ productId }: { productId: string }) {
   if (error)
     return renderShell(
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-2xl font-semibold text-foreground">Something went wrong</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             We couldn&apos;t load this product. Please try again.
           </p>
           <button

@@ -32,54 +32,54 @@ export const MyNavbarProtected = () => {
 
   return (
     <div>
-      <nav className="hidden lg:flex text-zinc-900 dark:text-white justify-center items-center w-full mx-auto py-2">
-        <div className="flex flex-wrap justify-center items-center gap-3 text-black dark:text-white">
-          <div className={`flex flex-wrap justify-center items-center gap-3 text-black dark:text-white ${user && user.role === 'ADMIN' ? '' : 'hidden'}`}>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/server' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+      <nav className="hidden lg:flex text-foreground justify-center items-center w-full mx-auto py-2">
+        <div className="flex flex-wrap justify-center items-center gap-3 text-foreground">
+          <div className={`flex flex-wrap justify-center items-center gap-3 text-foreground ${user && user.role === 'ADMIN' ? '' : 'hidden'}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/server' ? 'bg-muted' : ''}`}>
             <Link href='/server' className='flex flex-col items-center'>
               <AiOutlineCloudServer className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Server</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/client' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/client' ? 'bg-muted' : ''}`}>
             <Link href='/client' className='flex flex-col items-center'>
               <AiOutlineUser className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Client</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/admin' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/admin' ? 'bg-muted' : ''}`}>
             <Link href='/admin' className='flex flex-col items-center'>
               <AiOutlineUser className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Admin</span>
             </Link>
           </Button>
           </div>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus' ? 'bg-muted' : ''}`}>
             <Link href='/nexus' className='flex flex-col items-center'>
               <AiOutlineSetting className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Settings</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies' ? 'bg-muted' : ''}`}>
             <Link href='/companies' className='flex flex-col items-center'>
               <MdBusiness className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Company</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies/create' ? 'bg-black/20 dark:bg-zinc-700' : ''}`} >
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/companies/create' ? 'bg-muted' : ''}`} >
             <Link href='/companies/create' className='flex flex-col items-center'>
               <MdBusiness className="text-2xl hidden group-hover:flex" />
               <MdAddCircleOutline className="text-2xl group-hover:hidden" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Create</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-box' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-box' ? 'bg-muted' : ''}`}>
             <Link href='/nexus/company/job-box' className='flex flex-col items-center'>
               <CiInboxIn className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Job Box</span>
             </Link>
           </Button>
-          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-ask' ? 'bg-black/20 dark:bg-zinc-700' : ''}`}>
+          <Button asChild variant="vegaThemeBtn" className={`group w-[72px] h-[64px] flex flex-col items-center justify-center ${pathname === '/nexus/company/job-ask' ? 'bg-muted' : ''}`}>
             <Link href='/nexus/company/job-ask' className='flex flex-col items-center'>
               <SiGooglebigquery className="text-2xl" />
               <span className="text-xxs mt-1 group-hover:font-semibold">Job Ask</span>

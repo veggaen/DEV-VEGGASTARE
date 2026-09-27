@@ -57,7 +57,7 @@ export function ThemedSelect({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-xl bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/10 px-3 py-2 text-sm text-foreground outline-none hover:bg-black/6 dark:hover:bg-white/8 focus:border-emerald-500/50 transition-colors"
+        className="w-full flex items-center justify-between gap-2 rounded-xl bg-muted/40 border border-border px-3 py-2 text-sm text-foreground outline-none hover:bg-muted/40 focus:border-brand-accent/50 transition-colors"
       >
         <span className={cn("truncate", !current && "text-muted-foreground")}>
           {current?.label ?? placeholder}
@@ -74,7 +74,7 @@ export function ThemedSelect({
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
             style={{ transformOrigin: "top" }}
-            className="absolute z-30 mt-1.5 w-full max-h-56 overflow-y-auto rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#15181e]/97 backdrop-blur-md shadow-xl p-1"
+            className="absolute z-30 mt-1.5 w-full max-h-56 overflow-y-auto rounded-xl border border-border bg-surface-1/95 dark:bg-[#15181e]/97 backdrop-blur-md shadow-xl p-1"
           >
             {options.map((o) => {
               const selected = o.value === value;
@@ -86,8 +86,8 @@ export function ThemedSelect({
                     className={cn(
                       "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-sm text-left transition-colors",
                       selected
-                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                        : "hover:bg-black/5 dark:hover:bg-white/8 text-foreground",
+                        ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light"
+                        : "hover:bg-muted/50 text-foreground",
                     )}
                   >
                     <span className="truncate">{o.label}</span>

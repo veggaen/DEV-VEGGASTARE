@@ -191,7 +191,7 @@ export function VisualSlider({
                     key={idx}
                     className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center text-2xl",
-                      "transition-all duration-200",
+                      "transition duration-200",
                       isExact
                         ? "bg-primary text-primary-foreground scale-125"
                         : isSelected
@@ -264,8 +264,8 @@ export function VisualSlider({
                 <div
                   key={idx}
                   className={cn(
-                    "w-2 h-2 rounded-full transition-all",
-                    isActive ? "bg-white" : "bg-muted-foreground/30"
+                    "w-2 h-2 rounded-full transition",
+                    isActive ? "bg-card" : "bg-muted-foreground/30"
                   )}
                 />
               );
@@ -276,7 +276,7 @@ export function VisualSlider({
           <motion.div
             className={cn(
               "absolute top-1/2 w-8 h-8 rounded-full pointer-events-none",
-              "bg-white shadow-xl border-4",
+              "bg-card shadow-xl border-4",
               "flex items-center justify-center",
               isDragging ? "cursor-grabbing" : "cursor-grab"
             )}

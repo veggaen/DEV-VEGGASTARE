@@ -66,7 +66,7 @@ export default function SellerOrdersDashboard() {
     {error && <div role="alert" className="space-y-3 rounded-xl border border-destructive/40 bg-destructive/5 p-5"><p className="font-medium">Sales unavailable</p><p className="text-sm">{error}</p>{data && <p className="text-sm text-muted-foreground">{current ? 'Previously loaded orders remain below and may be out of date.' : 'Previous filter counts remain visible. Orders for the selected filter are unavailable.'}</p>}<div className="flex flex-wrap gap-3"><button type="button" className={control} disabled={loading} onClick={() => setRevision(value => value + 1)}>Try again</button><Link className={control} href="/auth/login?callbackUrl=%2Fmy-sales">Sign in</Link></div></div>}
     {!data && loading && <SalesOrdersSkeleton />}
     {data && <>
-      {data.readOnly && <aside aria-label="Demo sales" className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm leading-6">Demo workspace: real buyers’ sales and payment details are private. Explore your own unpaid purchases in <Link href="/my-orders" className="underline underline-offset-4 focus-visible:outline">My orders</Link>.</aside>}
+      {data.readOnly && <aside aria-label="Demo sales" className="rounded-xl border border-brand-accent/30 bg-brand-accent/5 p-4 text-sm leading-6">Demo workspace: real buyers’ sales and payment details are private. Explore your own unpaid purchases in <Link href="/my-orders" className="underline underline-offset-4 focus-visible:outline">My orders</Link>.</aside>}
       <dl className="grid gap-3 sm:grid-cols-3">
         <Metric title="Orders across all statuses"><span>{data.counts.ALL.toLocaleString()}</span></Metric>
         <Metric title="Displayed items value">{current ? <PriceTotal context="history" entries={data.orders.map(order => ({ amount: order.sellerTotal, currency: order.currency }))} /> : <span aria-label="Not available yet">—</span>}</Metric>
@@ -84,7 +84,7 @@ export default function SellerOrdersDashboard() {
 }
 
 function Metric({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="min-w-0 rounded-xl border border-border border-border bg-card p-4 sm:p-5"><dt className="text-sm text-muted-foreground">{title}</dt><dd className="mt-2 break-words text-xl font-semibold tabular-nums sm:mt-3 sm:text-2xl">{children}</dd></div>;
+  return <div className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5"><dt className="text-sm text-muted-foreground">{title}</dt><dd className="mt-2 break-words text-xl font-semibold tabular-nums sm:mt-3 sm:text-2xl">{children}</dd></div>;
 }
 
 function OrderCard({ order, expanded, onToggle }: { order: SellerOrderRow; expanded: boolean; onToggle: () => void }) {
@@ -92,12 +92,12 @@ function OrderCard({ order, expanded, onToggle }: { order: SellerOrderRow; expan
   const trackingUrl = safeShippingLink(order.tracking?.url ?? null);
   const labelUrl = safeShippingLink(order.tracking?.labelUrl ?? null);
   const shortId = order.id.slice(-8).toUpperCase();
-  return <article className="min-w-0 rounded-xl border border-border border-border bg-card">
+  return <article className="min-w-0 rounded-xl border border-border bg-card">
     <h2><button type="button" aria-expanded={expanded} aria-controls={`sale-${order.id}`} aria-label={`Order ${shortId} details`} onClick={onToggle} className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-xl p-4 text-left transition-colors duration-150 hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:p-5">
       <span className="grid min-w-0 gap-3 sm:grid-cols-2 sm:items-center"><span className="min-w-0"><span className="block text-sm font-semibold">#{shortId}</span><time dateTime={order.createdAt} className="mt-1 block text-xs font-normal text-muted-foreground">{date(order.createdAt)}</time></span><span className="w-fit rounded-md border border-border px-2 py-1 text-xs font-normal">{SALE_LABELS[order.fulfilmentStatus]}</span><span className="text-base font-semibold sm:col-span-2"><PriceAmount context="history" amount={order.sellerTotal} currency={order.currency} /></span></span>
       <ChevronDown aria-hidden="true" className={`mt-1 size-5 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`} />
     </button></h2>
-    {expanded && <div id={`sale-${order.id}`} className="space-y-6 border-t border-border border-border p-4 sm:p-5">
+    {expanded && <div id={`sale-${order.id}`} className="space-y-6 border-t border-border p-4 sm:p-5">
       <div className="grid min-w-0 gap-6 lg:grid-cols-2"><section className="min-w-0"><h3 className="text-sm font-semibold">Customer</h3><p className="mt-2 break-words text-sm">{order.customer.name || 'Customer'}</p>{order.customer.email && <p className="mt-1 break-all text-sm text-muted-foreground">{order.customer.email}</p>}</section><section className="min-w-0"><h3 className="text-sm font-semibold">Payment status</h3><p className="mt-2 text-sm">{order.environment === 'DEMO' ? 'Demo — no payment' : payment ? readable(payment.state ?? payment.status) : order.sharedOrder ? 'Whole-order payment hidden' : 'No verified payment recorded'}</p><p className="mt-1 text-sm text-muted-foreground">{payment ? readable(payment.method) : `Order: ${readable(order.status)}`}{order.environment ? ` · ${order.environment}` : ''}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">Fulfilment does not prove payment. A request approval does not issue a refund.</p></section></div>
       <p className="text-sm text-muted-foreground">Recorded items value: <span className="font-medium tabular-nums text-foreground">{orderMoney(order.sellerTotal, order.currency)}</span>. This is not a payout balance.</p>
       {order.sharedOrder && <p className="rounded-lg bg-muted/40 p-3 text-sm leading-6">Only your displayed items are included. Whole-order payment and tracking details are hidden when other or additional lines are present.</p>}

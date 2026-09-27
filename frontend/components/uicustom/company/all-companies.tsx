@@ -67,11 +67,11 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
             className="object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
+          <div className="h-full w-full bg-linear-to-r from-indigo-500/30 via-brand-accent/20 to-brand-accent/30 dark:from-indigo-500/20 dark:via-brand-accent/10 dark:to-brand-accent/20" />
         )}
         {/* Logo overlay */}
         <div className="absolute -bottom-6 left-3">
-          <div className="relative h-12 w-12 overflow-hidden rounded-lg border-2 border-white dark:border-zinc-900 bg-white dark:bg-zinc-900">
+          <div className="relative h-12 w-12 overflow-hidden rounded-lg border-2 border-background bg-card">
             <Image
               src={company.logo?.[0] || "/users/avatar.webp"}
               alt={`${company.name} logo`}
@@ -85,22 +85,22 @@ const CompanyCard = ({ company }: { company: PublicCompany }) => {
 
       <div className="flex flex-1 flex-col px-4 pb-4 pt-8">
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+          <h3 className="text-base font-semibold text-foreground truncate">
             {company.name}
           </h3>
           {company.orgType && (
             <div className="mt-1">
-              <span className="inline-flex items-center rounded-full border border-black/10 bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
+              <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
                 {company.orgType}
               </span>
             </div>
           )}
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
+          <p className="mt-2 text-sm text-foreground/80 line-clamp-2">
             {truncateDescription(company.description)}
           </p>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
           <span>{foundedLabel}</span>
         </div>
@@ -125,12 +125,12 @@ const CompanySection = ({
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-4">
-        <Icon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">({companies.length})</span>
+        <Icon className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <span className="text-sm text-muted-foreground">({companies.length})</span>
       </div>
       {companies.length === 0 && emptyMessage ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{emptyMessage}</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {companies.map((company) => (
@@ -184,8 +184,8 @@ const AllCompanies = () => {
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">Companies</h1>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Companies</h1>
+            <p className="mt-1 text-sm text-foreground/80">
               Discover independent businesses and browse their products.
             </p>
           </div>
@@ -205,10 +205,10 @@ const AllCompanies = () => {
         {hasNoCompanyRelation && (
           <div className="mb-6 rounded-xl border border-border bg-muted/30 p-4 sm:p-6">
             <FiHome aria-hidden="true" className="h-6 w-6 text-muted-foreground mb-3" />
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               Start Your Business Journey
             </h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6 max-w-md mx-auto">
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
               You don&apos;t own or work at any company yet. Create your own company to start selling products, or explore companies below to find opportunities.
             </p>
             <Link

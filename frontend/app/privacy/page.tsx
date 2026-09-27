@@ -25,7 +25,7 @@ const BUSINESS = {
 /* -------------------------------------------------------------------------- */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-card/50 dark:bg-black/30 p-6 backdrop-blur-xl">
+    <section className="rounded-2xl border border-border bg-card/50 dark:bg-muted p-6 backdrop-blur-xl">
       <h2 className="text-xl font-semibold text-foreground">{title}</h2>
       <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
@@ -70,12 +70,9 @@ export default function PrivacyPage() {
           className="space-y-8"
         >
           {/* ──────────── Header ──────────── */}
-          <header className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
-              <span className="h-2 w-2 rounded-full bg-sky-400" aria-hidden />
-              <span>Personvernerklæring</span>
-            </div>
-            <h1 className="text-balance text-3xl font-bold text-foreground sm:text-4xl">
+          <header className="page-rise space-y-3 border-b border-border/70 pb-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-accent-hover dark:text-brand-accent-light">Personvernerklæring</p>
+            <h1 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Personvern og informasjonskapsler
             </h1>
             <p className="max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
@@ -98,12 +95,12 @@ export default function PrivacyPage() {
               <p>Adresse: {BUSINESS.address}</p>
               <p>
                 E-post:{" "}
-                <a href={`mailto:${BUSINESS.email}`} className="text-sky-500 hover:underline">{BUSINESS.email}</a>
+                <a href={`mailto:${BUSINESS.email}`} className="text-brand-accent hover:underline">{BUSINESS.email}</a>
               </p>
               <p>Telefon: {BUSINESS.phone}</p>
               <p>
                 Personvernansvarlig:{" "}
-                <a href={`mailto:${BUSINESS.dpa}`} className="text-sky-500 hover:underline">{BUSINESS.dpa}</a>
+                <a href={`mailto:${BUSINESS.dpa}`} className="text-brand-accent hover:underline">{BUSINESS.dpa}</a>
               </p>
             </div>
           </Section>
@@ -136,10 +133,10 @@ export default function PrivacyPage() {
           <Section title="3. Rettslig grunnlag for behandlingen">
             <p>Vi behandler personopplysninger basert på følgende rettslige grunnlag (GDPR Art. 6):</p>
             <ul className="space-y-2 pl-4">
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" /><span><strong className="text-foreground">Avtale (Art. 6(1)(b)):</strong> Nødvendig for å levere tjenestene du har bestilt — brukerregistrering, ordrebehandling, levering, kundekommunikasjon.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" /><span><strong className="text-foreground">Samtykke (Art. 6(1)(a)):</strong> Valgfrie informasjonskapsler (analytiske, markedsføring), nyhetsbrev, wallet-kobling.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" /><span><strong className="text-foreground">Berettiget interesse (Art. 6(1)(f)):</strong> Sikkerhet (inntrengingsdeteksjon, hastighetsbegrensning), svindelforebygging, systemovervåking, True Reach™-beregning.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" /><span><strong className="text-foreground">Rettslig forpliktelse (Art. 6(1)(c)):</strong> Bokføring og skattelovgivning, forbrukerrettigheter.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Avtale (Art. 6(1)(b)):</strong> Nødvendig for å levere tjenestene du har bestilt — brukerregistrering, ordrebehandling, levering, kundekommunikasjon.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Samtykke (Art. 6(1)(a)):</strong> Valgfrie informasjonskapsler (analytiske, markedsføring), nyhetsbrev, wallet-kobling.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Berettiget interesse (Art. 6(1)(f)):</strong> Sikkerhet (inntrengingsdeteksjon, hastighetsbegrensning), svindelforebygging, systemovervåking, True Reach™-beregning.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rettslig forpliktelse (Art. 6(1)(c)):</strong> Bokføring og skattelovgivning, forbrukerrettigheter.</span></li>
             </ul>
           </Section>
 
@@ -158,7 +155,7 @@ export default function PrivacyPage() {
                 "Forbedre tjenesten gjennom anonymisert analyse (kun med samtykke)",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500/60 shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent/60 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -233,17 +230,17 @@ export default function PrivacyPage() {
           <Section title="7. Dine rettigheter">
             <p>Du har følgende rettigheter i henhold til GDPR:</p>
             <ul className="space-y-2 pl-4">
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til innsyn (Art. 15):</strong> Du kan be om en kopi av alle personopplysninger vi har om deg. Bruk «Eksporter mine data» i innstillingene.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til retting (Art. 16):</strong> Du kan rette feil i din profil via innstillingene.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til sletting (Art. 17):</strong> Du kan be om at vi sletter kontoen din og tilhørende data. Bruk «Slett min konto» i innstillingene.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til dataportabilitet (Art. 20):</strong> Du kan laste ned dine data i maskinlesbart format (JSON).</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til å begrense behandlingen (Art. 18):</strong> Du kan be om at vi midlertidig stopper bruken av dine opplysninger.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til å protestere (Art. 21):</strong> Du kan protestere mot behandling basert på berettiget interesse.</span></li>
-              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" /><span><strong className="text-foreground">Rett til å trekke samtykke (Art. 7(3)):</strong> Du kan når som helst trekke tilbake samtykke til valgfrie cookies eller andre samtykkebaserte behandlinger.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til innsyn (Art. 15):</strong> Du kan be om en kopi av alle personopplysninger vi har om deg. Bruk «Eksporter mine data» i innstillingene.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til retting (Art. 16):</strong> Du kan rette feil i din profil via innstillingene.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til sletting (Art. 17):</strong> Du kan be om at vi sletter kontoen din og tilhørende data. Bruk «Slett min konto» i innstillingene.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til dataportabilitet (Art. 20):</strong> Du kan laste ned dine data i maskinlesbart format (JSON).</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til å begrense behandlingen (Art. 18):</strong> Du kan be om at vi midlertidig stopper bruken av dine opplysninger.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til å protestere (Art. 21):</strong> Du kan protestere mot behandling basert på berettiget interesse.</span></li>
+              <li className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0" /><span><strong className="text-foreground">Rett til å trekke samtykke (Art. 7(3)):</strong> Du kan når som helst trekke tilbake samtykke til valgfrie cookies eller andre samtykkebaserte behandlinger.</span></li>
             </ul>
             <p className="mt-2">
               For å utøve dine rettigheter, kontakt oss på{" "}
-              <a href={`mailto:${BUSINESS.dpa}`} className="text-sky-500 hover:underline">{BUSINESS.dpa}</a>.
+              <a href={`mailto:${BUSINESS.dpa}`} className="text-brand-accent hover:underline">{BUSINESS.dpa}</a>.
               Vi svarer innen 30 dager.
             </p>
           </Section>
@@ -314,7 +311,7 @@ export default function PrivacyPage() {
               <button
                 type="button"
                 onClick={openCookieSettings}
-                className="rounded-xl bg-primary/10 dark:bg-white/10 px-4 py-2 text-sm font-semibold text-primary dark:text-white/90 transition-colors hover:bg-primary/15 dark:hover:bg-white/15"
+                className="rounded-xl bg-primary/10 dark:bg-muted/40 px-4 py-2 text-sm font-semibold text-primary dark:text-foreground/90 transition-colors hover:bg-primary/15 dark:hover:bg-muted/60"
               >
                 Cookie-innstillinger
               </button>
@@ -350,14 +347,14 @@ export default function PrivacyPage() {
                 "Regelmessige sikkerhetsoppdateringer av avhengigheter",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500/60 shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-brand-accent/60 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
             <p className="mt-2">
               Finner du en sårbarhet? Meld den ansvarlig til{" "}
-              <a href={`mailto:${BUSINESS.email}`} className="text-sky-500 hover:underline">{BUSINESS.email}</a>.
+              <a href={`mailto:${BUSINESS.email}`} className="text-brand-accent hover:underline">{BUSINESS.email}</a>.
             </p>
           </Section>
 
@@ -373,14 +370,14 @@ export default function PrivacyPage() {
               <p>0105 Oslo</p>
               <p>
                 Nettside:{" "}
-                <a href="https://www.datatilsynet.no" target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:underline">
+                <a href="https://www.datatilsynet.no" target="_blank" rel="noopener noreferrer" className="text-brand-accent hover:underline">
                   datatilsynet.no
                 </a>
               </p>
             </div>
             <p className="mt-3">
               Vi oppfordrer deg til å kontakte oss først på{" "}
-              <a href={`mailto:${BUSINESS.dpa}`} className="text-sky-500 hover:underline">{BUSINESS.dpa}</a>{" "}
+              <a href={`mailto:${BUSINESS.dpa}`} className="text-brand-accent hover:underline">{BUSINESS.dpa}</a>{" "}
               slik at vi kan forsøke å løse saken direkte.
             </p>
           </Section>

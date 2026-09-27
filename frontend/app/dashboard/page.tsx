@@ -8,6 +8,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "@/components/ui/navigation-link";
 import { dbPrisma } from "@/lib/db";
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 import {
   FiPackage,
   FiShoppingBag,
@@ -87,25 +88,25 @@ const QUICK_LINKS = [
 
 /* ── Accent color utilities (minimal — no heavy rings/borders) ─── */
 const accentText: Record<string, string> = {
-  sky: "text-sky-500",
-  emerald: "text-emerald-500",
+  sky: "text-brand-accent",
+  emerald: "text-brand-accent",
   violet: "text-violet-500",
   amber: "text-amber-500",
   blue: "text-blue-500",
   pink: "text-pink-500",
   rose: "text-rose-500",
-  zinc: "text-zinc-400",
+  zinc: "text-muted-foreground",
 };
 
 const accentBg: Record<string, string> = {
-  sky: "bg-sky-500/8",
-  emerald: "bg-emerald-500/8",
+  sky: "bg-brand-accent/8",
+  emerald: "bg-brand-accent/8",
   violet: "bg-violet-500/8",
   amber: "bg-amber-500/8",
   blue: "bg-blue-500/8",
   pink: "bg-pink-500/8",
   rose: "bg-rose-500/8",
-  zinc: "bg-zinc-500/8",
+  zinc: "bg-muted/8",
 };
 
 export default async function DashboardPage() {
@@ -136,15 +137,12 @@ export default async function DashboardPage() {
   return (
     <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* ── Welcome ──────────────────────────────────────── */}
-      <section className="mb-12">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Here&apos;s an overview of your account and quick links to everything
-          you need.
-        </p>
-      </section>
+      <PageHeader
+        eyebrow="Dashboard"
+        title={<>Welcome back, {firstName}</>}
+        description="Here's an overview of your account and quick links to everything you need."
+        className="mb-10"
+      />
 
       {/* ── Stat Highlights — flat, no bordered boxes ───── */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 mb-14">
@@ -181,8 +179,8 @@ export default async function DashboardPage() {
         </h2>
         <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_LINKS.map((link) => {
-            const txt = accentText[link.accent] ?? "text-zinc-400";
-            const bg = accentBg[link.accent] ?? "bg-zinc-500/8";
+            const txt = accentText[link.accent] ?? "text-muted-foreground";
+            const bg = accentBg[link.accent] ?? "bg-muted/8";
             return (
               <Link
                 key={link.href}
@@ -226,7 +224,7 @@ function StatCard({
   value: string;
   accent: string;
 }) {
-  const txt = accentText[accent] ?? "text-zinc-400";
+  const txt = accentText[accent] ?? "text-muted-foreground";
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-2">

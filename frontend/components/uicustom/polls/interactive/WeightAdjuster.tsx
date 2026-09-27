@@ -124,7 +124,7 @@ function WeightSlider({
 
         {/* Thumb - purely visual */}
         <motion.div
-          className="absolute top-1/2 w-6 h-6 rounded-full bg-white shadow-lg border-2 pointer-events-none"
+          className="absolute top-1/2 w-6 h-6 rounded-full bg-card shadow-lg border-2 pointer-events-none"
           style={{
             left: `calc(${Math.min(100, percentage)}% - 12px)`,
             borderColor: item.color,
@@ -241,7 +241,7 @@ export function WeightAdjuster({
           return (
             <motion.div
               key={item.id}
-              className="h-full flex items-center justify-center text-xs font-bold text-white overflow-hidden"
+              className="h-full flex items-center justify-center text-xs font-bold text-foreground overflow-hidden"
               style={{ backgroundColor: item.color }}
               initial={{ width: 0 }}
               animate={{ width: `${weight}%` }}

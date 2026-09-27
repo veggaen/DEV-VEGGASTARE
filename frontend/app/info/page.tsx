@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowUpRight, ShieldCheck, PackageOpen, MessageSquare } from 'lucide-react';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export const metadata: Metadata = {
   title: 'About & Contact',
@@ -24,16 +25,17 @@ const architecture = [
 
 export default function InfoPage() {
   return <div className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-12 lg:px-8">
-    <header className="max-w-3xl space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">About Veggat</p>
-      <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">Digital products. Clear ownership.</h1>
-      <p className="text-pretty text-base leading-relaxed text-muted-foreground">Veggat is a trust-first marketplace for digital products. Explore a complete buying journey, receive private downloads and try AI with clear usage costs.</p>
-      <div className="flex flex-wrap gap-3">
+    <PageHeader
+      eyebrow="About Veggat"
+      size="lg"
+      title="Digital products. Clear ownership."
+      description="Veggat is a trust-first marketplace for digital products. Explore a complete buying journey, receive private downloads and try AI with clear usage costs."
+      actions={<>
         <Link href="/products" className={linkStyle + ' border-brand-accent bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover'}>Browse products</Link>
         <Link href="/" className={linkStyle}>Open the free demo</Link>
         <Link href="#contact" className={linkStyle}>Contact the builder</Link>
-      </div>
-    </header>
+      </>}
+    />
 
     <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
       <div className="min-w-0 space-y-6">

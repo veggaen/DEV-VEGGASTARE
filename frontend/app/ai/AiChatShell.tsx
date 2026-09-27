@@ -216,7 +216,7 @@ function AiChatRail({
           className="group w-full min-h-11 flex items-center justify-center gap-2 rounded-xl bg-muted text-foreground text-sm font-medium px-4 py-2.5 hover:bg-muted/70 disabled:opacity-50 transition-colors"
         >
           {creating
-            ? <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent motion-safe:animate-spin" />
+            ? <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-transparent motion-safe:animate-spin" />
             : <FiPlus aria-hidden="true" className="h-4 w-4" />}
           {creating ? 'Creating…' : 'New chat'}
         </button>
@@ -233,7 +233,7 @@ function AiChatRail({
             placeholder="Search chats…"
             aria-label="Search conversations"
             name="conversation-search" type="search" autoComplete="off" maxLength={200} disabled={!isLoggedIn}
-            className="w-full rounded-lg bg-muted/40 border border-border h-11 pl-9 pr-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 transition-colors"
+            className="w-full rounded-lg bg-muted/40 border border-border h-11 pl-9 pr-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors"
           />
         </div>
       </div>
@@ -308,7 +308,7 @@ export function RailRow({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-black/5 dark:bg-white/8">
+      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted/50">
         <input
           ref={inputRef}
           value={draft}
@@ -317,7 +317,7 @@ export function RailRow({
           aria-label="Conversation title" name="conversation-title" autoComplete="off" maxLength={200} disabled={saving}
           className="flex-1 min-w-0 h-11 rounded bg-transparent text-base focus-visible:outline focus-visible:outline-2"
         />
-        <button onClick={() => void commit()} disabled={saving || !draft.trim()} aria-label="Save conversation name" className="shrink-0 grid place-items-center h-11 w-11 rounded text-emerald-500 hover:bg-emerald-500/15 focus-visible:outline disabled:opacity-50">
+        <button onClick={() => void commit()} disabled={saving || !draft.trim()} aria-label="Save conversation name" className="shrink-0 grid place-items-center h-11 w-11 rounded text-brand-accent hover:bg-brand-accent/15 focus-visible:outline disabled:opacity-50">
           <FiCheck className="h-3.5 w-3.5" />
         </button>
         <button disabled={saving} onClick={() => { setDraft(s.title); setEditing(false); }} aria-label="Cancel renaming" className="shrink-0 grid place-items-center h-11 w-11 rounded text-muted-foreground hover:bg-muted focus-visible:outline">
@@ -343,10 +343,10 @@ export function RailRow({
       className={cn(
         "group/row relative flex items-center gap-2 rounded-lg pl-3 pr-1 py-1.5 transition-colors",
         onDragStart && "cursor-grab active:cursor-grabbing",
-        active ? "bg-emerald-500/12 text-foreground" : "hover:bg-black/5 dark:hover:bg-white/8",
+        active ? "bg-brand-accent/12 text-foreground" : "hover:bg-muted/50",
       )}
     >
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-emerald-500" />}
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />}
       <Link href={`/ai/${s.id}`} draggable={false} aria-current={active ? 'page' : undefined} title={s.title || 'Untitled'}
         aria-keyshortcuts={onMove ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
         onKeyDown={event => { if (onMove && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) { event.preventDefault(); onMove(event.key === 'ArrowUp' ? -1 : 1); } }}

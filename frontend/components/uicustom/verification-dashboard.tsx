@@ -177,7 +177,7 @@ function PhoneVerificationFlow({
             aria-label="Country calling code"
             autoComplete="tel-country-code"
             onChange={(e) => setCountryCode(e.target.value)}
-            className="w-24 rounded-lg border border-border bg-white/70 px-2 py-2 text-sm dark:bg-white/5 dark:border-white/10"
+            className="w-24 rounded-lg border border-border bg-surface-1/70 px-2 py-2 text-sm dark:bg-muted/40"
           >
             <option value="+47">🇳🇴 +47</option>
             <option value="+46">🇸🇪 +46</option>
@@ -194,7 +194,7 @@ function PhoneVerificationFlow({
             inputMode="tel"
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
             placeholder="Phone number"
-            className="flex-1 bg-white/70 border-border dark:bg-white/5 dark:border-white/10"
+            className="flex-1 bg-surface-1/70 border-border dark:bg-muted/40"
             maxLength={15}
           />
         </div>
@@ -202,7 +202,7 @@ function PhoneVerificationFlow({
           size="sm"
           onClick={handleSend}
           disabled={isPending || cooldown > 0}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
+          className="w-full bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
         >
           {isPending ? 'Sending...' : cooldown > 0 ? `Retry in ${cooldown}s` : 'Send Code'}
         </Button>
@@ -219,10 +219,10 @@ function PhoneVerificationFlow({
         inputMode="numeric"
         onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
         placeholder="6-digit code"
-        className="text-center text-lg tracking-widest bg-white/70 border-border dark:bg-white/5 dark:border-white/10"
+        className="text-center text-lg tracking-widest bg-surface-1/70 border-border dark:bg-muted/40"
         maxLength={6}
       />
-      <p className="text-xs text-muted-foreground dark:text-white/40">
+      <p className="text-xs text-muted-foreground">
         {attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} remaining
       </p>
       <div className="flex gap-2">
@@ -238,7 +238,7 @@ function PhoneVerificationFlow({
           size="sm"
           onClick={handleVerify}
           disabled={isPending || code.length !== 6}
-          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+          className="flex-1 bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
         >
           {isPending ? 'Verifying...' : 'Verify'}
         </Button>
@@ -440,15 +440,15 @@ export function VerificationDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-white/5 rounded-xl" />
-        <div className="h-48 bg-white/5 rounded-xl" />
+        <div className="h-32 bg-muted/40 rounded-xl" />
+        <div className="h-48 bg-muted/40 rounded-xl" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="text-center py-12 text-muted-foreground dark:text-white/40">
+      <div className="text-center py-12 text-muted-foreground">
         <p>Unable to load verification data.</p>
         <Button variant="outline" size="sm" onClick={fetchVerification} className="mt-4">
           Retry
@@ -476,12 +476,12 @@ export function VerificationDashboard() {
         </section>
       )}
       {/* Header */}
-      <div className="border-b border-border pb-6 dark:border-white/10">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white flex items-center gap-2">
-          <FiShield className="text-emerald-500" />
+      <div className="border-b border-border pb-6">
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <FiShield className="text-brand-accent" />
           Verification & Trust
         </h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Increase your verification level to boost your Reach multiplier and unlock more features
         </p>
       </div>
@@ -520,7 +520,7 @@ export function VerificationDashboard() {
                   {data.multiplier}x
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground dark:text-white/50 mt-0.5">
+              <p className="text-sm text-muted-foreground mt-0.5">
                 {tierInfo.description}
               </p>
             </div>
@@ -542,14 +542,14 @@ export function VerificationDashboard() {
         {/* Score progress bar */}
         <div className="mt-5">
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-muted-foreground dark:text-white/40">
+            <span className="text-muted-foreground">
               Verification Score
             </span>
             <span className="font-mono font-bold" style={{ color: tierInfo.color }}>
               {data.score}/100
             </span>
           </div>
-          <div className="w-full h-2.5 bg-white/10 dark:bg-white/5 rounded-full overflow-hidden">
+          <div className="w-full h-2.5 bg-muted/40 rounded-full overflow-hidden">
             <motion.div
               initial={false}
               animate={{ scaleX: Math.max(0, Math.min(1, data.score / 100)) }}
@@ -575,7 +575,7 @@ export function VerificationDashboard() {
                 ).toFixed(2)}x`}
               >
                 <div
-                  className={`h-1.5 rounded-full transition-all ${
+                  className={`h-1.5 rounded-full transition ${
                     isCurrent ? 'ring-2 ring-offset-1' : ''
                   }`}
                   style={{
@@ -594,7 +594,7 @@ export function VerificationDashboard() {
             );
           })}
         </div>
-        <div className="flex justify-between text-[10px] text-muted-foreground dark:text-white/30 mt-1">
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
           <span>0.1x</span>
           <span>1.2x</span>
         </div>
@@ -602,7 +602,7 @@ export function VerificationDashboard() {
 
       {/* Verification Checklist */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground dark:text-white/80 mb-3">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
           Verification Checklist — {completedSteps}/{totalSteps} complete
         </h3>
 
@@ -619,20 +619,20 @@ export function VerificationDashboard() {
               <div
                 className={`flex flex-wrap items-center gap-3 p-3 rounded-xl border transition-colors ${
                   isComplete
-                    ? 'bg-emerald-500/5 border-emerald-500/20'
+                    ? 'bg-brand-accent/5 border-brand-accent/20'
                     : isPending
-                      ? 'bg-yellow-500/5 border-yellow-500/30 dark:bg-yellow-500/5 dark:border-yellow-500/25'
-                      : 'bg-white/50 border-border hover:border-blue-500/30 dark:bg-white/2 dark:border-white/10 dark:hover:border-white/20'
+                      ? 'bg-yellow-500/5 border-yellow-500/30 dark:border-yellow-500/25'
+                      : 'bg-surface-1/50 border-border hover:border-blue-500/30 dark:bg-muted/40 dark:hover:border-border'
                 }`}
               >
                 {/* Status icon */}
                 <div className="shrink-0">
                   {isComplete ? (
-                    <FiCheckCircle className="w-5 h-5 text-emerald-500" />
+                    <FiCheckCircle className="w-5 h-5 text-brand-accent" />
                   ) : isPending ? (
                     <FiMail className="w-5 h-5 text-yellow-500" />
                   ) : (
-                    <FiCircle className="w-5 h-5 text-muted-foreground/40 dark:text-white/20" />
+                    <FiCircle className="w-5 h-5 text-muted-foreground/40" />
                   )}
                 </div>
 
@@ -643,14 +643,14 @@ export function VerificationDashboard() {
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${
                     isComplete
-                      ? 'text-emerald-600 dark:text-emerald-400 line-through'
+                      ? 'text-brand-accent-hover dark:text-brand-accent-light line-through'
                       : isPending
                         ? 'text-yellow-600 dark:text-yellow-400'
-                        : 'text-foreground dark:text-white/90'
+                        : 'text-foreground'
                   }`}>
                     {item.label}
                   </p>
-                  <p className="text-xs text-muted-foreground dark:text-white/60">
+                  <p className="text-xs text-muted-foreground">
                     {isPending
                       ? providerState === 'pending' ? 'Email confirmation required' : 'Connected · not yet verified'
                       : isComplete && (item.action === 'google' || item.action === 'github' || item.action === 'discord')
@@ -662,10 +662,10 @@ export function VerificationDashboard() {
                 {/* Points badge */}
                 <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
                   isComplete
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                     : isPending
                       ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                      : 'bg-white/80 text-muted-foreground dark:bg-white/5 dark:text-white/40'
+                      : 'bg-surface-1/80 text-muted-foreground dark:bg-muted/40'
                 }`}>
                   +{item.points}
                 </span>
@@ -737,7 +737,7 @@ export function VerificationDashboard() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden px-3 pb-3"
                   >
-                    <div className="ml-11 border-l-2 border-emerald-500/20 pl-4">
+                    <div className="ml-11 border-l-2 border-brand-accent/20 pl-4">
                       <PhoneVerificationFlow
                         onVerified={() => {
                           setExpandedAction(null);
@@ -755,8 +755,8 @@ export function VerificationDashboard() {
 
       {/* Linked Accounts Overview */}
       {data.linkedProviders.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-white/50 dark:border-white/10 dark:bg-white/2">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-white/40 mb-3">
+        <div className="p-4 rounded-xl border border-border bg-surface-1/50 dark:bg-muted/40">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Linked Accounts
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -770,7 +770,7 @@ export function VerificationDashboard() {
                   key={p}
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
                     verified
-                      ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400'
+                      ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                       : 'bg-muted text-foreground'
                   }`}
                   aria-label={`${label}: ${status}`}
@@ -791,7 +791,7 @@ export function VerificationDashboard() {
       {/* Reach Impact Explainer */}
       <details className="p-4 rounded-xl border border-border bg-muted/20">
         <summary className="cursor-pointer text-sm font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring">About your Reach score</summary>
-        <div className="text-xs text-muted-foreground dark:text-white/50 space-y-1.5">
+        <div className="text-xs text-muted-foreground space-y-1.5">
           <p>
             Your verification tier directly multiplies your <strong>Reach score</strong>. 
             Higher tiers mean your views, engagements, and poll votes carry more weight.

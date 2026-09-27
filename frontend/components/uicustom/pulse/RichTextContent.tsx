@@ -167,7 +167,7 @@ function YouTubeEmbedCard({ videoId, originalUrl }: { videoId: string; originalU
     >
       <div className="relative rounded-xl overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-shadow">
         {/* Thumbnail */}
-        <div className="relative aspect-video bg-black">
+        <div className="relative aspect-video bg-background">
           <Image
             src={thumbnailUrl}
             alt="YouTube video thumbnail"
@@ -177,7 +177,7 @@ function YouTubeEmbedCard({ videoId, originalUrl }: { videoId: string; originalU
           />
           
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-background/60 via-transparent to-transparent" />
           
           {/* Play button */}
           <button
@@ -201,7 +201,7 @@ function YouTubeEmbedCard({ videoId, originalUrl }: { videoId: string; originalU
         </div>
         
         {/* Click to play text */}
-        <div className="absolute bottom-3 right-3 text-xs text-white/80 group-hover:text-white transition-colors pointer-events-none">
+        <div className="absolute bottom-3 right-3 text-xs text-foreground/80 group-hover:text-foreground transition-colors pointer-events-none">
           Click to play
         </div>
       </div>

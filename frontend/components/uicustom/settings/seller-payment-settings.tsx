@@ -47,7 +47,7 @@ function DemoSellerPayments() {
     <div className="space-y-2 rounded-xl border border-dashed border-border p-4">
       <h3 className="font-medium">Verified payout wallet</h3>
       <p className="text-sm text-muted-foreground">Ownership is verified by a signed challenge, never by entering a seed phrase.</p>
-      <Link href="/settings?section=wallet" className="inline-flex min-h-11 items-center text-sm text-emerald-500 underline underline-offset-4">View wallet connection options</Link>
+      <Link href="/settings?section=wallet" className="inline-flex min-h-11 items-center text-sm text-brand-accent underline underline-offset-4">View wallet connection options</Link>
     </div>
   </section>;
 }
@@ -130,19 +130,19 @@ function EditableSellerPayments() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-border dark:border-white/10 pb-4">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white">Seller Payments</h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50">
+      <div className="border-b border-border pb-4">
+        <h2 className="text-xl font-semibold text-foreground">Seller Payments</h2>
+        <p className="text-sm text-muted-foreground">
           Configure how you receive payments when selling products
         </p>
       </div>
 
       {/* ─── PayPal Section ────────────────────────────────────────────────── */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground dark:text-white/70 uppercase tracking-wider">
+        <h3 className="text-sm font-medium text-muted-foreground dark:text-foreground/70 uppercase tracking-wider">
           PayPal Receiving Email
         </h3>
-        <p className="text-sm text-muted-foreground dark:text-white/40">
+        <p className="text-sm text-muted-foreground">
           Verify the email for your seller records. Automatic PayPal seller payouts require marketplace onboarding.
         </p>
 
@@ -150,7 +150,7 @@ function EditableSellerPayments() {
         {status?.paypalEmail && (
           <div className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
             status.paypalEmailVerified
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              ? 'border-brand-accent/30 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
               : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
           }`}>
             {status.paypalEmailVerified ? (

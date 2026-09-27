@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BUSINESS_INFO, SALES_TERMS_SECTIONS, SALES_TERMS_LINKS, WITHDRAWAL_FORM } from '@/lib/legal/sales-terms';
 import { SALES_TERMS_DATE, SALES_TERMS_VERSION, SALES_TERMS_DOWNLOAD } from '@/lib/legal/sales-terms-version';
+import { PageHeader } from '@/components/uicustom/chrome/page-header';
 
 export const metadata: Metadata = { title: 'Salgsvilkår', description: 'Salgsvilkår, angrerett og kontaktinformasjon for kjøp på Veggat.', alternates: { canonical: '/terms' } };
 const linkStyle = 'rounded-sm underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4';
@@ -19,13 +20,13 @@ function LinkedText({ text }: { text: string }) {
 
 export default function TermsPage() {
   return <article lang="nb" aria-labelledby="terms-heading" className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-    <header className="max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Juridisk</p>
-      <h1 id="terms-heading" className="mt-3 text-balance text-3xl font-semibold sm:text-4xl">Salgsvilkår</h1>
-      <p className="mt-3 text-sm text-muted-foreground">Oppdatert {SALES_TERMS_DATE} · Versjon {SALES_TERMS_VERSION}</p>
-      <p className="mt-4 max-w-prose leading-relaxed text-muted-foreground">Les vilkårene før du bestiller. Du kan lagre en tekstkopi med alle vilkårene og et valgfritt angreskjema. Nedlasting sender ingen melding og utsteder ingen tilbakebetaling.</p>
-      <a href={SALES_TERMS_DOWNLOAD} download className="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Last ned vilkår og angreskjema (.txt)</a>
-    </header>
+    <PageHeader
+      eyebrow="Juridisk"
+      titleId="terms-heading"
+      title="Salgsvilkår"
+      description={<>Les vilkårene før du bestiller. Du kan lagre en tekstkopi med alle vilkårene og et valgfritt angreskjema. Nedlasting sender ingen melding og utsteder ingen tilbakebetaling.<span className="mt-2 block text-xs text-muted-foreground/80">Oppdatert {SALES_TERMS_DATE} · Versjon {SALES_TERMS_VERSION}</span></>}
+      actions={<a href={SALES_TERMS_DOWNLOAD} download className="inline-flex min-h-12 items-center justify-center rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Last ned vilkår og angreskjema (.txt)</a>}
+    />
     <div className="mt-10 grid min-w-0 gap-10 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
       <nav aria-label="Innhold i salgsvilkårene" className="min-w-0 self-start rounded-xl border border-border bg-card p-4">
         <h2 className="px-2 text-sm font-semibold">Innhold</h2>

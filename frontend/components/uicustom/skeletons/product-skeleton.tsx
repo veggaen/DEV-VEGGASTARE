@@ -17,7 +17,7 @@ export default function ProductSkeleton({ credits = false }: { credits?: boolean
         <div className="min-w-0">
           <div className="rounded-xl border border-border bg-card p-3 motion-safe:animate-pulse">
             <AspectRatio ratio={3 / 2}>
-              <div className="w-full h-full bg-linear-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 rounded-xl" />
+              <div className="w-full h-full bg-linear-to-br from-muted to-muted dark:to-surface-3 rounded-xl" />
             </AspectRatio>
           </div>
           <div className="mt-3 flex h-16 gap-2" aria-hidden>
@@ -68,7 +68,7 @@ export default function ProductSkeleton({ credits = false }: { credits?: boolean
       </section>
 
       {/* Specifications skeleton */}
-      <section aria-hidden className="mt-8 rounded-2xl bg-zinc-100/60 dark:bg-gray-800/50 border border-border p-6 motion-safe:animate-pulse">
+      <section aria-hidden className="mt-8 rounded-2xl bg-muted/60 border border-border p-6 motion-safe:animate-pulse">
         <div className="h-6 w-36 bg-muted rounded mb-4" />
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (

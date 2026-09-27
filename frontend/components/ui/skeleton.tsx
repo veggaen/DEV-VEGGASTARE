@@ -147,7 +147,7 @@ function FeedPostSkeleton({ className, style }: { className?: string; style?: Re
     <div
       style={style}
       className={cn(
-        "rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 p-4 sm:p-5",
+        "rounded-2xl border border-border/50 bg-card/70 dark:bg-surface-3/70 p-4 sm:p-5",
         className
       )}
     >

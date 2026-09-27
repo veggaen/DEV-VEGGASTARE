@@ -320,7 +320,7 @@ export function AdvancedPollDisplay({
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div 
-              className="h-full bg-primary transition-all duration-300"
+              className="h-full bg-primary transition duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -338,7 +338,7 @@ export function AdvancedPollDisplay({
               key={q.id}
               onClick={() => setCurrentIndex(i)}
               className={cn(
-                "w-3 h-3 rounded-full transition-all",
+                "w-3 h-3 rounded-full transition",
                 isCurrent
                   ? "bg-primary scale-125"
                   : isAnswered

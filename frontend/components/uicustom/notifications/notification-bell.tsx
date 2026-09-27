@@ -9,7 +9,7 @@ export function NotificationBell({ count = 0, hasUnread = false, hasTradeRequest
   return <button type="button" aria-label={`Notifications${count > 0 ? ` (${count} unread)` : ''}`}
     className={cn('relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', isOpen && 'bg-muted text-foreground', className)} {...props}>
     <FiBell className="h-[18px] w-[18px]" aria-hidden />
-    {(hasUnread || count > 0) && <span aria-hidden className={cn('absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white', hasTradeRequest ? 'bg-purple-700' : 'bg-emerald-700')}>{count > 99 ? '99+' : count || ''}</span>}
+    {(hasUnread || count > 0) && <span aria-hidden className={cn('absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-brand-accent-foreground', hasTradeRequest ? 'bg-purple-700' : 'bg-brand-accent-hover')}>{count > 99 ? '99+' : count || ''}</span>}
   </button>;
 }
 export function NotificationBellMini(props: NotificationBellProps) { return <NotificationBell {...props} />; }

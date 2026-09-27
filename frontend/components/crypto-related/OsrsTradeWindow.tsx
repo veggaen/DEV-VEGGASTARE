@@ -194,7 +194,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
   const dashOffset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-3 border border-border">
       <svg
         width="24"
         height="24"
@@ -208,7 +208,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-zinc-700"
+          className="text-foreground"
         />
         <circle
           cx="12"
@@ -222,7 +222,7 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
           strokeLinecap="round"
           className={`transition-colors ${
             progress > 30
-              ? "text-emerald-500"
+              ? "text-brand-accent"
               : progress > 10
                 ? "text-amber-500"
                 : "text-red-500"
@@ -231,10 +231,10 @@ function TradeSessionToken({ tradeId }: { tradeId?: string }) {
         />
       </svg>
       <div className="flex flex-col">
-        <span className="text-[8px] uppercase tracking-widest text-zinc-500 leading-none">
+        <span className="text-[8px] uppercase tracking-widest text-muted-foreground leading-none">
           Session
         </span>
-        <span className="text-[11px] font-mono font-bold text-zinc-300 tracking-[0.2em] leading-tight">
+        <span className="text-[11px] font-mono font-bold text-foreground/80 tracking-[0.2em] leading-tight">
           {code}
         </span>
       </div>
@@ -272,7 +272,7 @@ function TradeExpiry({ expiresAt }: { expiresAt?: string }) {
   if (!expiresAt) return null;
 
   return (
-    <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
       <FiClock className="h-3 w-3" />
       <span className="font-mono">{remaining}</span>
     </div>
@@ -304,7 +304,7 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const ci = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="flex items-center gap-1 px-4 py-2 bg-zinc-900/30">
+    <div className="flex items-center gap-1 px-4 py-2 bg-surface-3/30">
       {phases.map((p, i) => (
         <React.Fragment key={p.key}>
           <motion.div
@@ -321,10 +321,10 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
             <span
               className={
                 phase === p.key
-                  ? "text-emerald-400"
+                  ? "text-brand-accent"
                   : ci > i
-                    ? "text-emerald-400/60"
-                    : "text-zinc-500"
+                    ? "text-brand-accent/60"
+                    : "text-muted-foreground"
               }
             >
               {p.icon}
@@ -332,10 +332,10 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
             <span
               className={`text-[9px] font-medium ${
                 phase === p.key
-                  ? "text-emerald-400"
+                  ? "text-brand-accent"
                   : ci > i
-                    ? "text-emerald-500/60"
-                    : "text-zinc-500"
+                    ? "text-brand-accent/60"
+                    : "text-muted-foreground"
               }`}
             >
               {p.label}
@@ -397,8 +397,8 @@ function WalletSelector({
 
   if (addresses.length === 0) {
     return (
-      <div className="flex items-center justify-center py-2 px-2.5 rounded-lg border border-dashed border-zinc-700/60 bg-zinc-900/30">
-        <span className="text-[10px] text-zinc-500 italic">No other wallets connected</span>
+      <div className="flex items-center justify-center py-2 px-2.5 rounded-lg border border-dashed border-border/60 bg-surface-3/30">
+        <span className="text-[10px] text-muted-foreground italic">No other wallets connected</span>
       </div>
     );
   }
@@ -406,7 +406,7 @@ function WalletSelector({
   return (
     <div className="relative">
       <select
-        className="appearance-none w-full bg-zinc-800/80 border border-zinc-700 rounded-lg pl-3 pr-7 py-1.5 text-xs font-mono text-zinc-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/60 transition-all hover:bg-zinc-800 hover:border-zinc-600"
+        className="appearance-none w-full bg-muted/80 border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-mono text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent/60 transition hover:bg-muted hover:border-border"
         value={selectedAddress ?? ""}
         onChange={(e) => onSelect(e.target.value)}
       >
@@ -419,7 +419,7 @@ function WalletSelector({
           </option>
         ))}
       </select>
-      <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-400 pointer-events-none" />
+      <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
     </div>
   );
 }
@@ -533,12 +533,12 @@ function OfferGrid({
 
   return (
     <div
-      className={`relative grid gap-1 p-1.5 rounded-lg transition-all duration-200 ${
+      className={`relative grid gap-1 p-1.5 rounded-lg transition duration-200 ${
         isLocked
-          ? "bg-zinc-900/60 border-2 border-zinc-700/40 opacity-80"
+          ? "bg-surface-3/60 border-2 border-border/40 opacity-80"
           : isDragOver
-            ? "bg-emerald-500/10 border-2 border-dashed border-emerald-500/50 shadow-[inset_0_0_20px_rgba(16,185,129,0.08)]"
-            : "bg-zinc-900/40 border-2 border-dashed border-zinc-800/80"
+            ? "bg-brand-accent/10 border-2 border-dashed border-brand-accent/50 shadow-[inset_0_0_20px_rgba(16,185,129,0.08)]"
+            : "bg-surface-3/40 border-2 border-dashed border-border/80"
       }`}
       style={{
         gridTemplateColumns: `repeat(${OFFER_COLS}, 1fr)`,
@@ -577,16 +577,16 @@ function OfferGrid({
 
       {/* Lock overlay */}
       {isLocked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl bg-zinc-900/20">
-          <FiLock className="h-4 w-4 text-zinc-500 opacity-40" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl bg-surface-3/20">
+          <FiLock className="h-4 w-4 text-muted-foreground opacity-40" />
         </div>
       )}
 
       {/* Empty state text overlay */}
       {items.length === 0 && !isLocked && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <FiPackage className="h-5 w-5 text-zinc-600 mb-1" />
-          <span className="text-[10px] text-zinc-600">
+          <FiPackage className="h-5 w-5 text-muted-foreground mb-1" />
+          <span className="text-[10px] text-muted-foreground">
             {isRemote ? "Waiting for items..." : "Drag items here"}
           </span>
         </div>
@@ -618,15 +618,15 @@ function TradeActionPanel({
 }) {
   if (phase === "offer") {
     return (
-      <div className="w-full rounded-lg border border-zinc-800 bg-zinc-950/70 p-2 space-y-1.5">
-        <div className="flex items-center justify-center gap-2 text-[9px] text-zinc-500">
-          <span className={`flex items-center gap-1 ${myReady ? "text-emerald-400" : "text-zinc-500"}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${myReady ? "bg-emerald-400" : "bg-zinc-600"}`} />
+      <div className="w-full rounded-lg border border-border bg-surface-1/70 p-2 space-y-1.5">
+        <div className="flex items-center justify-center gap-2 text-[9px] text-muted-foreground">
+          <span className={`flex items-center gap-1 ${myReady ? "text-brand-accent" : "text-muted-foreground"}`}>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${myReady ? "bg-brand-accent-light" : "bg-muted"}`} />
             You {myReady ? "ready" : "editing"}
           </span>
-          <span className="text-zinc-700">&middot;</span>
-          <span className={`flex items-center gap-1 ${theirReady ? "text-emerald-400" : "text-zinc-500"}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${theirReady ? "bg-emerald-400" : "bg-zinc-600"}`} />
+          <span className="text-foreground">&middot;</span>
+          <span className={`flex items-center gap-1 ${theirReady ? "text-brand-accent" : "text-muted-foreground"}`}>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${theirReady ? "bg-brand-accent-light" : "bg-muted"}`} />
             Partner {theirReady ? "ready" : "editing"}
           </span>
         </div>
@@ -636,7 +636,7 @@ function TradeActionPanel({
             onClick={onCancel}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center justify-center gap-1 py-2 rounded-lg border border-zinc-700 text-[11px] font-medium text-zinc-400 hover:bg-red-900/10 hover:text-red-400 hover:border-red-700/50 transition-colors"
+            className="flex items-center justify-center gap-1 py-2 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-red-900/10 hover:text-red-400 hover:border-red-700/50 transition-colors"
           >
             <FiX className="h-3 w-3" />
             Decline
@@ -647,10 +647,10 @@ function TradeActionPanel({
             disabled={myReady || myItemsCount === 0}
             whileHover={!myReady && myItemsCount > 0 ? { scale: 1.02 } : {}}
             whileTap={!myReady && myItemsCount > 0 ? { scale: 0.98 } : {}}
-            className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition ${
               myReady
-                ? "bg-emerald-900/30 text-emerald-400 border border-emerald-700"
-                : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none"
+                ? "bg-brand-accent/30 text-brand-accent border border-brand-accent"
+                : "bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 disabled:opacity-40 disabled:shadow-none"
             }`}
           >
             {myReady ? (
@@ -677,7 +677,7 @@ function TradeActionPanel({
 
   if (phase === "confirm") {
     return (
-      <div className="w-full rounded-lg border border-amber-800/40 bg-zinc-950/70 p-2 space-y-1.5">
+      <div className="w-full rounded-lg border border-amber-800/40 bg-surface-1/70 p-2 space-y-1.5">
         <motion.div
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -694,7 +694,7 @@ function TradeActionPanel({
             onClick={onCancel}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="py-2 rounded-lg border border-zinc-700 text-[11px] font-medium text-zinc-400 hover:bg-red-900/10 transition-colors"
+            className="py-2 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-red-900/10 transition-colors"
           >
             Cancel
           </motion.button>
@@ -704,7 +704,7 @@ function TradeActionPanel({
             disabled={confirmed || executing}
             whileHover={!confirmed && !executing ? { scale: 1.02 } : {}}
             whileTap={!confirmed && !executing ? { scale: 0.98 } : {}}
-            className="py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-500 disabled:opacity-40 shadow-lg shadow-emerald-500/25 disabled:shadow-none transition-all"
+            className="py-2 rounded-lg bg-brand-accent-hover text-brand-accent-foreground text-[11px] font-semibold hover:bg-brand-accent disabled:opacity-40 shadow-lg shadow-brand-accent/25 disabled:shadow-none transition"
           >
             {executing ? (
               <span className="flex items-center justify-center gap-1.5">
@@ -779,16 +779,16 @@ function OfferSlot({
       onDragEnd={onDragEnd}
       onClick={onRemove}
       className={`
-        relative aspect-square rounded-lg select-none transition-all duration-150
+        relative aspect-square rounded-lg select-none transition duration-150
         ${isDragSource ? "opacity-40 scale-90" : ""}
         ${isDragOver
-          ? "ring-2 ring-emerald-400/60 bg-emerald-500/15 border-2 border-emerald-500/50"
+          ? "ring-2 ring-brand-accent/60 bg-brand-accent/15 border-2 border-brand-accent/50"
           : isEmpty
-            ? "bg-zinc-900/50 border border-zinc-800/50"
+            ? "bg-surface-3/50 border border-border/50"
             : `border-2 ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} flex flex-col items-center justify-center p-0.5
                ${isRemote
-                 ? "border-zinc-700/80 bg-zinc-900/80"
-                 : "border-emerald-700/50 bg-emerald-950/30"
+                 ? "border-border/80 bg-surface-3/80"
+                 : "border-brand-accent/50 bg-brand-accent/30"
                }
                ${!isLocked && !isRemote ? "hover:scale-105 hover:border-red-500 hover:shadow-[0_4px_16px_rgba(239,68,68,0.2)]" : ""}
                ${!isLocked && isRemote && !isEmpty ? "hover:scale-[1.03]" : ""}`}
@@ -835,14 +835,14 @@ function OfferSlot({
 
             {/* Stack count */}
             <span
-              className="text-[8px] font-bold text-zinc-300 mt-0.5 truncate max-w-full"
+              className="text-[8px] font-bold text-foreground/80 mt-0.5 truncate max-w-full"
               style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
             >
               {slot.amount}
             </span>
 
             {/* Symbol */}
-            <span className="text-[6px] text-zinc-500 truncate max-w-full">
+            <span className="text-[6px] text-muted-foreground truncate max-w-full">
               {slot.token.symbol}
             </span>
 
@@ -1384,7 +1384,7 @@ export function OsrsTradeWindow({
       animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col bg-zinc-950 relative overflow-hidden rounded-xl border border-zinc-800 max-h-[calc(100vh-10rem)]"
+      className="flex flex-col bg-surface-1 relative overflow-hidden rounded-xl border border-border max-h-[calc(100vh-10rem)]"
     >
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none">
@@ -1393,7 +1393,7 @@ export function OsrsTradeWindow({
             phase === "confirm"
               ? "bg-amber-400"
               : phase === "complete"
-                ? "bg-emerald-400"
+                ? "bg-brand-accent-light"
                 : selfTrade
                   ? "bg-purple-400"
                   : "bg-blue-400"
@@ -1402,25 +1402,25 @@ export function OsrsTradeWindow({
       </div>
 
       {/* ── Header ───────────────────────────────────────── */}
-      <div className="relative flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
+      <div className="relative flex items-center justify-between px-4 py-3 border-b border-border bg-surface-1/80 backdrop-blur-sm">
         <div className="flex items-center gap-2 min-w-0">
           <motion.button
             type="button"
             onClick={onClose}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="p-1 rounded-lg hover:bg-zinc-900 transition-colors shrink-0"
+            className="p-1 rounded-lg hover:bg-surface-3 transition-colors shrink-0"
           >
-            <FiChevronLeft className="h-4 w-4 text-zinc-500" />
+            <FiChevronLeft className="h-4 w-4 text-muted-foreground" />
           </motion.button>
           <div className="flex items-center gap-1.5 min-w-0">
             {selfTrade ? (
               <ArrowLeftRight className="h-4 w-4 text-purple-400 shrink-0" />
             ) : (
-              <FiRepeat className="h-4 w-4 text-emerald-500 shrink-0" />
+              <FiRepeat className="h-4 w-4 text-brand-accent shrink-0" />
             )}
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-sm font-semibold text-zinc-200">
+              <span className="text-sm font-semibold text-foreground/80">
                 {selfTrade ? "Self-Trade" : "Trade"}
               </span>
               {isRenaming && displayPartner.walletAddress ? (
@@ -1455,15 +1455,15 @@ export function OsrsTradeWindow({
                     }}
                     placeholder="Enter nickname…"
                     autoFocus
-                    className="w-28 bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[10px] text-zinc-200 focus:ring-1 focus:ring-emerald-500/50"
+                    className="w-28 bg-muted border border-border rounded px-1.5 py-0.5 text-[10px] text-foreground/80 focus:ring-1 focus:ring-brand-accent/50"
                   />
                 </div>
               ) : (
-                <span className="text-[10px] text-zinc-500 truncate flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
                   {displayPartner.name}
                   {displayPartner.walletAddress && (
                     <>
-                      <span className="font-mono text-zinc-600">
+                      <span className="font-mono text-muted-foreground">
                         ({displayPartner.walletAddress.slice(0, 6)}…{displayPartner.walletAddress.slice(-4)})
                       </span>
                       <button
@@ -1475,7 +1475,7 @@ export function OsrsTradeWindow({
                           );
                           setIsRenaming(true);
                         }}
-                        className="p-0.5 rounded hover:bg-zinc-700/60 text-zinc-600 hover:text-zinc-400 transition"
+                        className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground hover:text-muted-foreground transition"
                         title="Rename this address"
                       >
                         <FiEdit2 className="h-2.5 w-2.5" />
@@ -1496,10 +1496,10 @@ export function OsrsTradeWindow({
 
       {/* ── Self-trade Wallet Selectors ──────────────────── */}
       {selfTrade && phase === "offer" && (
-        <div className="px-3 py-2.5 border-b border-zinc-800 bg-zinc-900/20">
+        <div className="px-3 py-2.5 border-b border-border bg-surface-3/20">
           <div className="flex items-center gap-1.5 mb-2">
             <ArrowLeftRight className="h-3.5 w-3.5 text-purple-400" />
-            <span className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
               Transfer Between Wallets
             </span>
           </div>
@@ -1509,8 +1509,8 @@ export function OsrsTradeWindow({
               selectedAddress={selfSourceAddr}
               onSelect={setSelfSourceAddr}
             />
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700">
-              <FiArrowRight className="h-3 w-3 text-zinc-400" />
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border">
+              <FiArrowRight className="h-3 w-3 text-muted-foreground" />
             </div>
             <WalletSelector
               label="To wallet..."
@@ -1524,22 +1524,22 @@ export function OsrsTradeWindow({
 
       {/* ── P2P Participant Banner (mirrors self-trade layout) ── */}
       {!selfTrade && phase === "offer" && (
-        <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900/20">
+        <div className="px-3 py-2 border-b border-border bg-surface-3/20">
           <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
             {/* You */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-800/50 border border-zinc-700/60">
-              <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-zinc-950 ring-emerald-700 shrink-0">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/60">
+              <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-brand-accent shrink-0">
                 <AvatarImage src={currentUser?.image ?? undefined} />
-                <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
                   {(currentUser?.name ?? "Y")[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-medium text-zinc-200 leading-tight truncate">
+                <span className="text-[11px] font-medium text-foreground/80 leading-tight truncate">
                   {currentUser?.name ?? "You"}
                 </span>
                 {address && (
-                  <span className="text-zinc-600 text-[8px] font-mono leading-tight">
+                  <span className="text-muted-foreground text-[8px] font-mono leading-tight">
                     {address.slice(0, 6)}…{address.slice(-4)}
                   </span>
                 )}
@@ -1547,24 +1547,24 @@ export function OsrsTradeWindow({
             </div>
 
             {/* Arrow */}
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700">
-              <ArrowLeftRight className="h-3 w-3 text-emerald-400" />
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border">
+              <ArrowLeftRight className="h-3 w-3 text-brand-accent" />
             </div>
 
             {/* Partner */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-800/50 border border-zinc-700/60">
-              <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-zinc-950 ring-zinc-600 shrink-0">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/60">
+              <Avatar className="h-6 w-6 ring-1 ring-offset-1 ring-offset-background ring-border shrink-0">
                 <AvatarImage src={displayPartner.image ?? undefined} />
-                <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-400">
+                <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
                   {(displayPartner.name ?? "?")[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-medium text-zinc-200 leading-tight truncate">
+                <span className="text-[11px] font-medium text-foreground/80 leading-tight truncate">
                   {displayPartner.name ?? "Partner"}
                 </span>
                 {displayPartner.walletAddress && (
-                  <span className="text-zinc-600 text-[8px] font-mono leading-tight">
+                  <span className="text-muted-foreground text-[8px] font-mono leading-tight">
                     {displayPartner.walletAddress.slice(0, 6)}…{displayPartner.walletAddress.slice(-4)}
                   </span>
                 )}
@@ -1597,9 +1597,9 @@ export function OsrsTradeWindow({
               {/* Two offer grids — always side-by-side */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Your side (left — source) */}
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-2">
+                <div className="rounded-lg border border-border bg-surface-1/40 p-2">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       {selfTrade ? "Source" : "Your offer"}
                     </span>
                     <AnimatePresence>
@@ -1608,7 +1608,7 @@ export function OsrsTradeWindow({
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-0.5 text-[9px] text-emerald-400 font-medium bg-emerald-900/20 px-1.5 py-0.5 rounded-full"
+                          className="flex items-center gap-0.5 text-[9px] text-brand-accent font-medium bg-brand-accent/20 px-1.5 py-0.5 rounded-full"
                         >
                           <FiCheckCircle className="h-2.5 w-2.5" /> Ready
                         </motion.span>
@@ -1626,7 +1626,7 @@ export function OsrsTradeWindow({
                     onDrop={handleOfferDrop}
                   />
                   {phase === "offer" && (
-                    <p className="text-[8px] text-zinc-600 mt-1 flex items-center gap-0.5">
+                    <p className="text-[8px] text-muted-foreground mt-1 flex items-center gap-0.5">
                       <FiArrowRight className="h-2 w-2" />
                       Drag from inventory
                     </p>
@@ -1634,9 +1634,9 @@ export function OsrsTradeWindow({
                 </div>
 
                 {/* Their side (right — destination) */}
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-2">
+                <div className="rounded-lg border border-border bg-surface-1/40 p-2">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       {selfTrade ? "Destination" : displayPartner.name ?? "Partner"}
                     </span>
                     <AnimatePresence>
@@ -1645,7 +1645,7 @@ export function OsrsTradeWindow({
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-0.5 text-[9px] text-emerald-400 font-medium bg-emerald-900/20 px-1.5 py-0.5 rounded-full"
+                          className="flex items-center gap-0.5 text-[9px] text-brand-accent font-medium bg-brand-accent/20 px-1.5 py-0.5 rounded-full"
                         >
                           <FiCheckCircle className="h-2.5 w-2.5" /> Ready
                         </motion.span>
@@ -1663,7 +1663,7 @@ export function OsrsTradeWindow({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="rounded-lg border border-amber-800/40 bg-zinc-950/70 p-2 space-y-1.5 overflow-hidden"
+                    className="rounded-lg border border-amber-800/40 bg-surface-1/70 p-2 space-y-1.5 overflow-hidden"
                   >
                     <div className="flex items-center gap-2 text-[10px] text-amber-400 font-semibold uppercase tracking-widest">
                       <FiShield className="h-3 w-3" />
@@ -1673,15 +1673,15 @@ export function OsrsTradeWindow({
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
                       {/* You give */}
                       <div className="space-y-1">
-                        <span className="text-zinc-500 font-medium">You give:</span>
+                        <span className="text-muted-foreground font-medium">You give:</span>
                         {myItems.length === 0 ? (
-                          <span className="text-zinc-600 italic">Nothing</span>
+                          <span className="text-muted-foreground italic">Nothing</span>
                         ) : (
                           myItems.map((item) => (
                             <div key={item.id} className="flex items-center gap-1.5 text-red-400">
                               <span className="font-mono">−</span>
                               <span className="font-semibold">{item.amount}</span>
-                              <span className="text-zinc-400">{item.token.symbol}</span>
+                              <span className="text-muted-foreground">{item.token.symbol}</span>
                             </div>
                           ))
                         )}
@@ -1689,15 +1689,15 @@ export function OsrsTradeWindow({
 
                       {/* You receive */}
                       <div className="space-y-1">
-                        <span className="text-zinc-500 font-medium">You receive:</span>
+                        <span className="text-muted-foreground font-medium">You receive:</span>
                         {theirItems.length === 0 ? (
-                          <span className="text-zinc-600 italic">Nothing</span>
+                          <span className="text-muted-foreground italic">Nothing</span>
                         ) : (
                           theirItems.map((item) => (
-                            <div key={item.id} className="flex items-center gap-1.5 text-emerald-400">
+                            <div key={item.id} className="flex items-center gap-1.5 text-brand-accent">
                               <span className="font-mono">+</span>
                               <span className="font-semibold">{item.amount}</span>
-                              <span className="text-zinc-400">{item.token.symbol}</span>
+                              <span className="text-muted-foreground">{item.token.symbol}</span>
                             </div>
                           ))
                         )}
@@ -1705,9 +1705,9 @@ export function OsrsTradeWindow({
                     </div>
 
                     {/* Trade Hash */}
-                    <div className="flex items-center justify-between pt-1.5 border-t border-zinc-800/50">
-                      <span className="text-[9px] text-zinc-600">Trade hash</span>
-                      <span className="text-[9px] font-mono text-zinc-500">{tradeHash}</span>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+                      <span className="text-[9px] text-muted-foreground">Trade hash</span>
+                      <span className="text-[9px] font-mono text-muted-foreground">{tradeHash}</span>
                     </div>
                   </motion.div>
                 )}
@@ -1732,8 +1732,8 @@ export function OsrsTradeWindow({
 
       {/* ── Security Footer ──────────────────────────────── */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-3 py-1 border-t border-zinc-900 bg-zinc-900/30">
-          <div className="flex items-center justify-center gap-1.5 text-[9px] text-zinc-600">
+        <div className="px-3 py-1 border-t border-border bg-surface-3/30">
+          <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground">
             <FiLock className="h-2.5 w-2.5" />
             <span>
               End-to-end verified &middot; Hash: {tradeHash}
@@ -1779,11 +1779,11 @@ function TradeComplete({
         }}
       >
         <motion.div
-          className="absolute inset-0 rounded-full bg-emerald-400/20"
+          className="absolute inset-0 rounded-full bg-brand-accent/20"
           animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
         />
-        <div className="relative h-14 w-14 rounded-full bg-emerald-900/30 flex items-center justify-center">
+        <div className="relative h-14 w-14 rounded-full bg-brand-accent/30 flex items-center justify-center">
           <motion.div
             initial={{ scale: 0, rotate: -90 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -1794,7 +1794,7 @@ function TradeComplete({
               delay: 0.3,
             }}
           >
-            <FiCheckCircle className="h-7 w-7 text-emerald-500" />
+            <FiCheckCircle className="h-7 w-7 text-brand-accent" />
           </motion.div>
         </div>
       </motion.div>
@@ -1803,7 +1803,7 @@ function TradeComplete({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="text-base font-bold text-zinc-200 mb-1"
+        className="text-base font-bold text-foreground/80 mb-1"
       >
         {selfTrade ? "Transfer Complete!" : "Trade Complete!"}
       </motion.h3>
@@ -1811,7 +1811,7 @@ function TradeComplete({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="text-xs text-zinc-400 mb-3"
+        className="text-xs text-muted-foreground mb-3"
       >
         {selfTrade
           ? "Tokens have been transferred between your wallets."
@@ -1826,14 +1826,14 @@ function TradeComplete({
           transition={{ delay: 0.6 }}
           className="w-full max-w-xs space-y-2 text-left"
         >
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 space-y-2">
+          <div className="rounded-lg border border-border bg-surface-1/60 p-3 space-y-2">
             {/* Addresses */}
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
-              <span className="font-mono text-zinc-300" title={receipt.sourceAddress}>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <span className="font-mono text-foreground/80" title={receipt.sourceAddress}>
                 {receipt.sourceAddress.slice(0, 6)}…{receipt.sourceAddress.slice(-4)}
               </span>
-              <FiArrowRight className="h-3 w-3 text-emerald-500 shrink-0" />
-              <span className="font-mono text-zinc-300" title={receipt.destAddress}>
+              <FiArrowRight className="h-3 w-3 text-brand-accent shrink-0" />
+              <span className="font-mono text-foreground/80" title={receipt.destAddress}>
                 {receipt.destAddress.slice(0, 6)}…{receipt.destAddress.slice(-4)}
               </span>
             </div>
@@ -1843,26 +1843,26 @@ function TradeComplete({
               <div className="space-y-0.5">
                 {receipt.items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
-                    <span className="text-zinc-400">{item.symbol}</span>
-                    <span className="font-mono text-zinc-200">{item.amount}</span>
+                    <span className="text-muted-foreground">{item.symbol}</span>
+                    <span className="font-mono text-foreground/80">{item.amount}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Chain + Gas */}
-            <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1 border-t border-zinc-800">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border">
               <span>{receipt.chainName}</span>
               {receipt.gasUsed && <span>Gas: {receipt.gasUsed}</span>}
             </div>
 
             {/* Tx hashes */}
             {receipt.txHashes.length > 0 && (
-              <div className="space-y-0.5 pt-1 border-t border-zinc-800">
+              <div className="space-y-0.5 pt-1 border-t border-border">
                 {receipt.txHashes.map((hash, i) => (
                   <div key={i} className="flex items-center gap-1 text-[9px]">
-                    <span className="text-zinc-500">Tx {i + 1}:</span>
-                    <span className="font-mono text-zinc-400 truncate" title={hash}>
+                    <span className="text-muted-foreground">Tx {i + 1}:</span>
+                    <span className="font-mono text-muted-foreground truncate" title={hash}>
                       {hash.slice(0, 10)}…{hash.slice(-8)}
                     </span>
                   </div>
@@ -1871,7 +1871,7 @@ function TradeComplete({
             )}
 
             {/* Timestamp */}
-            <div className="text-[9px] text-zinc-600 text-right">
+            <div className="text-[9px] text-muted-foreground text-right">
               {new Date(receipt.timestamp).toLocaleTimeString()}
             </div>
           </div>
@@ -1882,7 +1882,7 @@ function TradeComplete({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
-        className="mt-4 flex items-center gap-1.5 text-[10px] text-zinc-500"
+        className="mt-4 flex items-center gap-1.5 text-[10px] text-muted-foreground"
       >
         <FiShield className="h-3 w-3" />
         {receipt?.txHashes.length ? "On-chain verified" : "Cryptographically verified"}
@@ -1910,10 +1910,10 @@ function TradeCancelled() {
       >
         <FiX className="h-6 w-6 text-red-400" />
       </motion.div>
-      <h3 className="text-base font-bold text-zinc-200 mb-1">
+      <h3 className="text-base font-bold text-foreground/80 mb-1">
         Trade Cancelled
       </h3>
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-muted-foreground">
         No items were exchanged. All assets remain in their original wallets.
       </p>
     </motion.div>

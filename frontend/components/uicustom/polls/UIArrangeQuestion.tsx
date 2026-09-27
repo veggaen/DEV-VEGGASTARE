@@ -139,16 +139,16 @@ function DraggableBox({
       className={cn(
         "absolute rounded-lg flex flex-col items-center justify-center gap-1",
         "cursor-grab active:cursor-grabbing select-none",
-        "border-2 border-white/20 shadow-lg",
+        "border-2 border-border shadow-lg",
         colorClass,
         disabled && "opacity-60 cursor-not-allowed"
       )}
     >
       {box.icon && <span className="text-xl">{box.icon}</span>}
-      <span className="text-xs font-medium text-white text-center px-1 truncate w-full">
+      <span className="text-xs font-medium text-foreground text-center px-1 truncate w-full">
         {box.label}
       </span>
-      <Move className="w-3 h-3 text-white/60 absolute bottom-1 right-1" />
+      <Move className="w-3 h-3 text-foreground/60 absolute bottom-1 right-1" />
     </motion.div>
   );
 }
@@ -173,10 +173,10 @@ function DropZoneElement({ zone, isOccupied, colorIndex }: DropZoneElementProps)
       className={cn(
         "absolute rounded-lg border-2 border-dashed",
         "flex flex-col items-center justify-center gap-1 p-2",
-        "transition-all duration-200",
+        "transition duration-200",
         isOccupied
           ? "border-green-500 bg-green-500/10"
-          : `border-gray-400/50 ${baseColor.replace("/80", "/10")}`
+          : `border-border/50 ${baseColor.replace("/80", "/10")}`
       )}
     >
       {isOccupied ? (
@@ -468,7 +468,7 @@ export const UI_ARRANGE_PRESETS = {
       { id: "urgent-important", label: "Do First", x: 0, y: 0, width: 2, height: 2, color: "bg-red-500/80" },
       { id: "not-urgent-important", label: "Schedule", x: 2, y: 0, width: 2, height: 2, color: "bg-blue-500/80" },
       { id: "urgent-not-important", label: "Delegate", x: 0, y: 2, width: 2, height: 2, color: "bg-yellow-500/80" },
-      { id: "not-urgent-not-important", label: "Don't Do", x: 2, y: 2, width: 2, height: 2, color: "bg-gray-500/80" },
+      { id: "not-urgent-not-important", label: "Don't Do", x: 2, y: 2, width: 2, height: 2, color: "bg-muted/80" },
     ],
   },
 

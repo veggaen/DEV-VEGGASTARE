@@ -161,17 +161,17 @@ function PaperTradingWorkspace() {
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-2xl font-bold text-foreground">
               Paper Trading
             </h1>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
               Trade crypto with virtual USD at real market prices. No risk, real
               learning. Track your P&L and sharpen your strategy.
             </p>
           </div>
 
           <div className="space-y-3">
-            <label htmlFor="paper-starting-balance" className="block text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <label htmlFor="paper-starting-balance" className="block text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Starting Balance (USD)
             </label>
             <div className="flex gap-2">
@@ -180,10 +180,10 @@ function PaperTradingWorkspace() {
                   key={val}
                   type="button"
                   onClick={() => setStartingBalance(val)}
-                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
                     startingBalance === val
                       ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      : "bg-muted text-foreground/80 hover:bg-muted"
                   }`}
                 >
                   ${parseInt(val).toLocaleString()}
@@ -198,7 +198,7 @@ function PaperTradingWorkspace() {
               placeholder="Custom amount..."
               min={1000}
               max={10000000}
-              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-mono text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -206,7 +206,7 @@ function PaperTradingWorkspace() {
             type="button"
             onClick={handleCreate}
             disabled={isPending}
-            className="w-full rounded-xl bg-linear-to-r from-amber-500 to-amber-600 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-amber-500 disabled:opacity-50"
+            className="w-full rounded-xl bg-linear-to-r from-amber-500 to-amber-600 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/25 transition hover:from-amber-400 hover:to-amber-500 disabled:opacity-50"
           >
             {isPending ? (
               <span className="flex items-center justify-center gap-2">
@@ -218,7 +218,7 @@ function PaperTradingWorkspace() {
             )}
           </button>
 
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-[10px] text-muted-foreground">
             Prices from CoinGecko · 0.3% simulated fees · Up to 200 trades/day
           </p>
         </motion.div>
@@ -246,13 +246,13 @@ function PaperTradingWorkspace() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             📝 Paper Trading
             <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-500 uppercase tracking-wider">
               Simulated
             </span>
           </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Saved to your account · Virtual money · Experimental
           </p>
         </div>
@@ -266,7 +266,7 @@ function PaperTradingWorkspace() {
             aria-label="Refresh portfolio"
           >
             <FiRefreshCw
-              className={`h-4 w-4 text-zinc-400 ${isPending ? "animate-spin" : ""}`}
+              className={`h-4 w-4 text-muted-foreground ${isPending ? "animate-spin" : ""}`}
             />
           </button>
           <button
@@ -322,7 +322,7 @@ function PaperTradingWorkspace() {
       </div>
 
       {/* Tab nav */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex border-b border-border">
         {(
           [
             { id: "portfolio" as TabId, label: "Portfolio", icon: <FiBarChart2 className="h-3.5 w-3.5" /> },
@@ -337,7 +337,7 @@ function PaperTradingWorkspace() {
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
               activeTab === tab.id
                 ? "text-amber-500 border-b-2 border-amber-500"
-                : "text-zinc-400 hover:text-zinc-300"
+                : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
             {tab.icon}
@@ -358,14 +358,14 @@ function PaperTradingWorkspace() {
           >
             {positions.length === 0 ? (
               <div className="py-16 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                   No positions yet. Go to the <button type="button" onClick={() => setActiveTab("trade")} className="text-amber-500 hover:underline font-medium">Trade</button> tab to buy your first token.
                 </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg overflow-hidden">
+              <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
                 {/* Table header */}
-                <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   <span>Token</span>
                   <span className="text-right">Amount</span>
                   <span className="text-right">Avg Entry</span>
@@ -379,35 +379,35 @@ function PaperTradingWorkspace() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors items-center"
+                    className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-border/60 hover:bg-muted/40 transition-colors items-center"
                   >
                     {/* Token */}
                     <div>
-                      <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+                      <span className="font-semibold text-sm text-foreground">
                         {pos.tokenSymbol}
                       </span>
                     </div>
                     {/* Amount */}
-                    <div className="text-right text-xs font-mono text-zinc-600 dark:text-zinc-300">
+                    <div className="text-right text-xs font-mono text-foreground/80">
                       {formatAmount(pos.displayAmount)}
                     </div>
                     {/* Avg Entry */}
-                    <div className="text-right text-xs font-mono text-zinc-500 hidden sm:block">
+                    <div className="text-right text-xs font-mono text-muted-foreground hidden sm:block">
                       ${pos.avgEntryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </div>
                     {/* Current Price */}
-                    <div className="text-right text-xs font-mono text-zinc-500 hidden sm:block">
+                    <div className="text-right text-xs font-mono text-muted-foreground hidden sm:block">
                       {formatUsd(pos.currentPriceUsd)}
                     </div>
                     {/* Value */}
-                    <div className="text-right text-xs font-mono font-semibold text-zinc-900 dark:text-zinc-100 hidden sm:block">
+                    <div className="text-right text-xs font-mono font-semibold text-foreground hidden sm:block">
                       {formatUsd(pos.valueUsd)}
                     </div>
                     {/* P&L */}
                     <div
                       className={`text-right text-xs font-mono font-semibold ${
                         pos.pnlUsd === null ? 'text-muted-foreground' : pos.pnlUsd >= 0
-                          ? "text-emerald-500"
+                          ? "text-brand-accent"
                           : "text-rose-500"
                       }`}
                     >
@@ -475,16 +475,16 @@ function StatCard({
   color: "zinc" | "sky" | "emerald" | "rose";
 }) {
   const colorMap = {
-    zinc: "text-zinc-400 bg-zinc-500/10 border-zinc-200 dark:border-zinc-700",
-    sky: "text-sky-400 bg-sky-500/10 border-sky-200 dark:border-sky-500/30",
+    zinc: "text-muted-foreground bg-muted/10 border-border",
+    sky: "text-brand-accent bg-brand-accent/10 border-brand-accent",
     emerald:
-      "text-emerald-400 bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30",
+      "text-brand-accent bg-brand-accent/10 border-brand-accent",
     rose: "text-rose-400 bg-rose-500/10 border-rose-200 dark:border-rose-500/30",
   };
 
   return (
     <div
-      className={`rounded-xl border p-3 ${colorMap[color]} bg-white dark:bg-zinc-950`}
+      className={`rounded-xl border p-3 ${colorMap[color]} bg-card`}
     >
       <div className="flex items-center gap-1.5 mb-1">
         {icon}
@@ -492,7 +492,7 @@ function StatCard({
           {label}
         </span>
       </div>
-      <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-mono">
+      <p className="text-sm font-bold text-foreground font-mono">
         {value}
       </p>
     </div>

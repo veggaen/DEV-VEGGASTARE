@@ -22,7 +22,7 @@ export function NotificationItem({ notification, onClick, onMarkRead, compact = 
       {notification.preview && !compact && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{notification.preview}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <time dateTime={new Date(notification.createdAt).toISOString()} title={new Date(notification.createdAt).toLocaleString()}>{getTimeAgo(notification.createdAt)}</time>
-        {!notification.isRead && <span className="font-medium text-emerald-700 dark:text-emerald-400">Unread</span>}
+        {!notification.isRead && <span className="font-medium text-brand-accent-hover dark:text-brand-accent-light">Unread</span>}
         {notification.groupCount > 1 && <span>{notification.groupCount} updates</span>}
         {href && <span className="font-medium text-foreground">View details →</span>}
       </div>

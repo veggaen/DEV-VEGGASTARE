@@ -540,10 +540,10 @@ export function DexSwapPanel() {
   // ── Not connected state ───────────────────────────────────
   if (!isConnected) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 text-center">
-        <Repeat className="h-10 w-10 text-sky-500/40 mx-auto mb-3" />
-        <h3 className="text-sm font-semibold text-zinc-200 mb-1">DEX Swap</h3>
-        <p className="text-xs text-zinc-500">
+      <div className="rounded-2xl border border-border bg-surface-1 p-8 text-center">
+        <Repeat className="h-10 w-10 text-brand-accent/40 mx-auto mb-3" />
+        <h3 className="text-sm font-semibold text-foreground/80 mb-1">DEX Swap</h3>
+        <p className="text-xs text-muted-foreground">
           Connect a wallet to swap tokens via DEX aggregator.
         </p>
       </div>
@@ -553,12 +553,12 @@ export function DexSwapPanel() {
   // ── Unsupported chain state ───────────────────────────────
   if (!isSupported) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 text-center">
+      <div className="rounded-2xl border border-border bg-surface-1 p-8 text-center">
         <FiAlertTriangle className="h-10 w-10 text-amber-500/40 mx-auto mb-3" />
-        <h3 className="text-sm font-semibold text-zinc-200 mb-1">
+        <h3 className="text-sm font-semibold text-foreground/80 mb-1">
           Unsupported Chain
         </h3>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           DEX swaps are available on Ethereum, Polygon, Arbitrum, Optimism, Base,
           BSC, Avalanche, Fantom, Linea, Scroll, and zkSync. Switch to a supported chain.
         </p>
@@ -569,10 +569,10 @@ export function DexSwapPanel() {
   // ── Swap success state ────────────────────────────────────
   if (step === "success" && result) {
     return (
-      <div className="rounded-2xl border border-sky-500/20 bg-zinc-950 overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-          <Repeat className="h-4 w-4 text-sky-400" />
-          <h3 className="text-sm font-semibold text-zinc-200">DEX Swap</h3>
+      <div className="rounded-2xl border border-brand-accent/20 bg-surface-1 overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+          <Repeat className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-sm font-semibold text-foreground/80">DEX Swap</h3>
         </div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -586,43 +586,43 @@ export function DexSwapPanel() {
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
             <motion.div
-              className="absolute inset-0 rounded-full bg-emerald-400/20"
+              className="absolute inset-0 rounded-full bg-brand-accent/20"
               animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
-            <div className="relative h-16 w-16 rounded-full bg-emerald-900/30 flex items-center justify-center">
-              <FiCheckCircle className="h-8 w-8 text-emerald-500" />
+            <div className="relative h-16 w-16 rounded-full bg-brand-accent/30 flex items-center justify-center">
+              <FiCheckCircle className="h-8 w-8 text-brand-accent" />
             </div>
           </motion.div>
 
-          <h3 className="text-base font-bold text-zinc-200 mb-1">
+          <h3 className="text-base font-bold text-foreground/80 mb-1">
             Swap Complete!
           </h3>
-          <p className="text-xs text-zinc-400 mb-3">
+          <p className="text-xs text-muted-foreground mb-3">
             {sellToken?.symbol ?? "Token"} → {selectedBuyToken?.symbol ?? "Token"}
           </p>
 
-          <div className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-1.5 text-[11px]">
+          <div className="w-full max-w-xs rounded-lg border border-border bg-surface-3/60 p-3 space-y-1.5 text-[11px]">
             <div className="flex justify-between">
               <span className="text-red-400">Sold</span>
-              <span className="text-zinc-200 font-mono">
+              <span className="text-foreground/80 font-mono">
                 {sellAmount} {sellToken?.symbol}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-emerald-400">Received</span>
-              <span className="text-zinc-200 font-mono">
+              <span className="text-brand-accent">Received</span>
+              <span className="text-foreground/80 font-mono">
                 ≈{buyAmount ? Number(buyAmount).toFixed(6) : "—"}{" "}
                 {selectedBuyToken?.symbol}
               </span>
             </div>
-            <div className="flex justify-between pt-1 border-t border-zinc-800">
-              <span className="text-zinc-500">Tx</span>
+            <div className="flex justify-between pt-1 border-t border-border">
+              <span className="text-muted-foreground">Tx</span>
               <a
                 href={getExplorerTxUrl(chainId, result.txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1"
+                className="text-brand-accent hover:text-brand-accent-light font-mono flex items-center gap-1"
               >
                 {result.txHash.slice(0, 8)}…{result.txHash.slice(-6)}
                 <FiExternalLink className="h-2.5 w-2.5" />
@@ -633,7 +633,7 @@ export function DexSwapPanel() {
           <button
             type="button"
             onClick={handleNewSwap}
-            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sm font-semibold text-sky-400 hover:bg-sky-500/20 transition-colors"
+            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-accent/10 border border-brand-accent/30 text-sm font-semibold text-brand-accent hover:bg-brand-accent/20 transition-colors"
           >
             <FiRefreshCw className="h-3.5 w-3.5" />
             New Swap
@@ -645,13 +645,13 @@ export function DexSwapPanel() {
 
   // ── Main swap UI ──────────────────────────────────────────
   return (
-    <div className="rounded-2xl border border-sky-500/20 bg-zinc-950">
+    <div className="rounded-2xl border border-brand-accent/20 bg-surface-1">
       {/* ── Header ──────────────────────────────────── */}
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between rounded-t-2xl">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between rounded-t-2xl">
         <div className="flex items-center gap-2">
-          <Repeat className="h-4 w-4 text-sky-400" />
-          <h3 className="text-sm font-semibold text-zinc-200">DEX Swap</h3>
-          <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-sky-400 uppercase tracking-wider">
+          <Repeat className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-sm font-semibold text-foreground/80">DEX Swap</h3>
+          <span className="inline-flex items-center rounded-full border border-brand-accent/30 bg-brand-accent/10 px-1.5 py-0.5 text-[9px] font-semibold text-brand-accent uppercase tracking-wider">
             KyberSwap
           </span>
         </div>
@@ -660,8 +660,8 @@ export function DexSwapPanel() {
           onClick={() => setShowSettings(!showSettings)}
           className={`p-1.5 rounded-lg transition-colors ${
             showSettings
-              ? "bg-sky-500/10 text-sky-400"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+              ? "bg-brand-accent/10 text-brand-accent"
+              : "text-muted-foreground hover:text-foreground/80 hover:bg-muted"
           }`}
         >
           <FiSettings className="h-3.5 w-3.5" />
@@ -675,10 +675,10 @@ export function DexSwapPanel() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-zinc-800"
+            className="overflow-hidden border-b border-border"
           >
-            <div className="px-4 py-3 bg-zinc-900/30 space-y-2">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+            <div className="px-4 py-3 bg-surface-3/30 space-y-2">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                 Slippage Tolerance
               </span>
               <div className="flex items-center gap-1.5">
@@ -687,10 +687,10 @@ export function DexSwapPanel() {
                     key={opt.bps}
                     type="button"
                     onClick={() => setSlippageBps(opt.bps)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
                       slippageBps === opt.bps
-                        ? "border-sky-500/60 bg-sky-500/10 text-sky-300"
-                        : "border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
+                        ? "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-light"
+                        : "border-border text-muted-foreground hover:text-foreground/80 hover:border-border"
                     }`}
                   >
                     {opt.label}
@@ -705,15 +705,15 @@ export function DexSwapPanel() {
       {/* ── Swap Body ───────────────────────────────── */}
       <div className="p-4 space-y-2">
         {/* ─── SELL panel ──────────────────────────── */}
-        <div className={`rounded-xl border ${inputSide === "sell" ? "border-sky-500/30" : "border-zinc-800"} bg-zinc-900/40 p-3 space-y-2 transition-colors`}>
+        <div className={`rounded-xl border ${inputSide === "sell" ? "border-brand-accent/30" : "border-border"} bg-surface-3/40 p-3 space-y-2 transition-colors`}>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
               Sell
             </span>
             {sellToken && (
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px] text-muted-foreground">
                 Balance:{" "}
-                <span className="text-zinc-400 font-mono">
+                <span className="text-muted-foreground font-mono">
                   {sellToken.displayBalance}
                 </span>
               </span>
@@ -729,7 +729,7 @@ export function DexSwapPanel() {
                   setShowBuyPicker(false);
                   setSellSearch("");
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-sm font-semibold text-zinc-200 hover:border-zinc-600 transition-all min-w-25"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted border border-border text-sm font-semibold text-foreground/80 hover:border-border transition min-w-25"
               >
                 {sellToken && (
                   <TokenIcon
@@ -741,7 +741,7 @@ export function DexSwapPanel() {
                   />
                 )}
                 <span>{sellToken?.symbol ?? "Select"}</span>
-                <FiChevronDown className="h-3 w-3 text-zinc-400 ml-auto" />
+                <FiChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />
               </button>
 
               {/* Sell token picker dropdown */}
@@ -751,28 +751,28 @@ export function DexSwapPanel() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="absolute top-[calc(100%+4px)] left-0 z-100 w-72 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl max-h-80 flex flex-col"
+                    className="absolute top-[calc(100%+4px)] left-0 z-100 w-72 rounded-xl border border-border bg-surface-3 shadow-2xl max-h-80 flex flex-col"
                   >
-                    <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50 rounded-t-xl">
+                    <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50 rounded-t-xl">
                       Your Tokens
                     </div>
                     {/* Search input */}
-                    <div className="px-2 py-1.5 border-b border-zinc-800">
-                      <div className="flex items-center gap-1.5 rounded-lg bg-zinc-800/60 px-2 py-1">
-                        <FiSearch className="h-3 w-3 text-zinc-500 shrink-0" />
+                    <div className="px-2 py-1.5 border-b border-border">
+                      <div className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-2 py-1">
+                        <FiSearch className="h-3 w-3 text-muted-foreground shrink-0" />
                         <input
                           type="text"
                           value={sellSearch}
                           onChange={(e) => setSellSearch(e.target.value)}
                           placeholder="Search by name or symbol…"
-                          className="flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+                          className="flex-1 bg-transparent text-xs text-foreground/80 placeholder:text-muted-foreground focus:outline-none"
                           autoFocus
                         />
                       </div>
                     </div>
                     <div className="overflow-y-auto flex-1">
                       {tokens.filter((t) => matchesSearch(t, sellSearch)).length === 0 && (
-                        <p className="px-3 py-4 text-[11px] text-zinc-500 italic text-center">
+                        <p className="px-3 py-4 text-[11px] text-muted-foreground italic text-center">
                           No tokens found in your wallet
                         </p>
                       )}
@@ -791,8 +791,8 @@ export function DexSwapPanel() {
                             setInputSide("sell");
                             reset();
                           }}
-                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-zinc-800/80 transition-colors ${
-                            sellToken?.id === token.id ? "bg-sky-500/5" : ""
+                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-muted/80 transition-colors ${
+                            sellToken?.id === token.id ? "bg-brand-accent/5" : ""
                           }`}
                         >
                           <TokenIcon
@@ -803,15 +803,15 @@ export function DexSwapPanel() {
                             size={20}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-zinc-200">
+                            <p className="text-xs font-semibold text-foreground/80">
                               {token.symbol}
                             </p>
-                            <p className="text-[10px] text-zinc-500 font-mono truncate">
+                            <p className="text-[10px] text-muted-foreground font-mono truncate">
                               {token.displayBalance}
                             </p>
                           </div>
                           {sellToken?.id === token.id && (
-                            <FiCheckCircle className="h-3 w-3 text-sky-400 shrink-0" />
+                            <FiCheckCircle className="h-3 w-3 text-brand-accent shrink-0" />
                           )}
                         </button>
                       ))}
@@ -839,10 +839,10 @@ export function DexSwapPanel() {
                 }}
                 onFocus={() => setInputSide("sell")}
                 placeholder="0.0"
-                className="w-full bg-transparent text-right text-lg font-mono font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                className="w-full bg-transparent text-right text-lg font-mono font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
               {inputSide === "buy" && sellAmount && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">≈</span>
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">≈</span>
               )}
             </div>
 
@@ -851,7 +851,7 @@ export function DexSwapPanel() {
               <button
                 type="button"
                 onClick={handleMaxAmount}
-                className="px-2 py-1 rounded-md text-[10px] font-bold text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 transition-colors uppercase tracking-wider"
+                className="px-2 py-1 rounded-md text-[10px] font-bold text-brand-accent bg-brand-accent/10 hover:bg-brand-accent/20 transition-colors uppercase tracking-wider"
               >
                 Max
               </button>
@@ -865,15 +865,15 @@ export function DexSwapPanel() {
             type="button"
             onClick={handleFlipTokens}
             disabled={!sellToken || !selectedBuyToken || isLoading}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-sky-400 hover:border-sky-500/40 hover:bg-sky-500/5 disabled:opacity-40 disabled:hover:text-zinc-400 transition-all shadow-md shadow-black/20"
+            className="p-2 rounded-xl bg-surface-3 border border-border text-muted-foreground hover:text-brand-accent hover:border-brand-accent/40 hover:bg-brand-accent/5 disabled:opacity-40 disabled:hover:text-muted-foreground transition shadow-md shadow-black/20"
           >
             <FiArrowDown className="h-4 w-4" />
           </button>
         </div>
 
         {/* ─── BUY panel ───────────────────────────── */}
-        <div className={`rounded-xl border ${inputSide === "buy" ? "border-sky-500/30" : "border-zinc-800"} bg-zinc-900/40 p-3 space-y-2 transition-colors`}>
-          <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+        <div className={`rounded-xl border ${inputSide === "buy" ? "border-brand-accent/30" : "border-border"} bg-surface-3/40 p-3 space-y-2 transition-colors`}>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
             Buy
           </span>
           <div className="flex items-center gap-2">
@@ -886,7 +886,7 @@ export function DexSwapPanel() {
                   setShowSellPicker(false);
                   setBuySearch("");
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-sm font-semibold text-zinc-200 hover:border-zinc-600 transition-all min-w-25"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted border border-border text-sm font-semibold text-foreground/80 hover:border-border transition min-w-25"
               >
                 {selectedBuyToken && (
                   <TokenIcon
@@ -897,7 +897,7 @@ export function DexSwapPanel() {
                   />
                 )}
                 <span>{selectedBuyToken?.symbol ?? "Select"}</span>
-                <FiChevronDown className="h-3 w-3 text-zinc-400 ml-auto" />
+                <FiChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />
               </button>
 
               {/* Buy token picker dropdown — dynamic list with search */}
@@ -907,28 +907,28 @@ export function DexSwapPanel() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="absolute top-[calc(100%+4px)] left-0 z-100 w-72 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl max-h-80 flex flex-col"
+                    className="absolute top-[calc(100%+4px)] left-0 z-100 w-72 rounded-xl border border-border bg-surface-3 shadow-2xl max-h-80 flex flex-col"
                   >
-                    <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50 rounded-t-xl">
+                    <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50 rounded-t-xl">
                       {loadingTokens ? "Loading tokens…" : `${mergedBuyTokens.length} tokens available`}
                     </div>
                     {/* Search input */}
-                    <div className="px-2 py-1.5 border-b border-zinc-800">
-                      <div className="flex items-center gap-1.5 rounded-lg bg-zinc-800/60 px-2 py-1">
-                        <FiSearch className="h-3 w-3 text-zinc-500 shrink-0" />
+                    <div className="px-2 py-1.5 border-b border-border">
+                      <div className="flex items-center gap-1.5 rounded-lg bg-muted/60 px-2 py-1">
+                        <FiSearch className="h-3 w-3 text-muted-foreground shrink-0" />
                         <input
                           type="text"
                           value={buySearch}
                           onChange={(e) => setBuySearch(e.target.value)}
                           placeholder="Search name, symbol or paste address…"
-                          className="flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+                          className="flex-1 bg-transparent text-xs text-foreground/80 placeholder:text-muted-foreground focus:outline-none"
                           autoFocus
                         />
                       </div>
                     </div>
                     <div className="overflow-y-auto flex-1">
                       {mergedBuyTokens.filter((t) => matchesSearch(t, buySearch)).length === 0 && (
-                        <p className="px-3 py-4 text-[11px] text-zinc-500 italic text-center">
+                        <p className="px-3 py-4 text-[11px] text-muted-foreground italic text-center">
                           {buySearch ? "No tokens match your search" : "No tokens available"}
                         </p>
                       )}
@@ -946,8 +946,8 @@ export function DexSwapPanel() {
                             setInputSide("sell");
                             reset();
                           }}
-                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-zinc-800/80 transition-colors ${
-                            buyTokenAddr.toLowerCase() === token.address.toLowerCase() ? "bg-sky-500/5" : ""
+                          className={`w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-muted/80 transition-colors ${
+                            buyTokenAddr.toLowerCase() === token.address.toLowerCase() ? "bg-brand-accent/5" : ""
                           }`}
                         >
                           <TokenIcon
@@ -959,23 +959,23 @@ export function DexSwapPanel() {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
-                              <p className="text-xs font-semibold text-zinc-200">
+                              <p className="text-xs font-semibold text-foreground/80">
                                 {token.symbol}
                               </p>
                               {token.isPopular && (
-                                <span className="text-[8px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 font-semibold">
+                                <span className="text-[8px] px-1 py-0.5 rounded bg-brand-accent/10 text-brand-accent font-semibold">
                                   TOP
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] text-zinc-500 truncate">
+                            <p className="text-[10px] text-muted-foreground truncate">
                               {token.name !== token.symbol ? token.name : (
                                 token.address === NATIVE_TOKEN_ADDRESS ? "Native" : `${token.address.slice(0, 8)}…${token.address.slice(-6)}`
                               )}
                             </p>
                           </div>
                           {buyTokenAddr.toLowerCase() === token.address.toLowerCase() && (
-                            <FiCheckCircle className="h-3 w-3 text-sky-400 shrink-0" />
+                            <FiCheckCircle className="h-3 w-3 text-brand-accent shrink-0" />
                           )}
                         </button>
                       ))}
@@ -989,8 +989,8 @@ export function DexSwapPanel() {
             <div className="flex-1 relative">
               {step === "quoting" && inputSide === "sell" ? (
                 <div className="flex items-center justify-end gap-1.5">
-                  <FiLoader className="h-3.5 w-3.5 text-sky-400 animate-spin" />
-                  <span className="text-sm text-zinc-500 font-mono">…</span>
+                  <FiLoader className="h-3.5 w-3.5 text-brand-accent animate-spin" />
+                  <span className="text-sm text-muted-foreground font-mono">…</span>
                 </div>
               ) : (
                 <>
@@ -1010,10 +1010,10 @@ export function DexSwapPanel() {
                     }}
                     onFocus={() => setInputSide("buy")}
                     placeholder="0.0"
-                    className="w-full bg-transparent text-right text-lg font-mono font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                    className="w-full bg-transparent text-right text-lg font-mono font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none"
                   />
                   {inputSide === "sell" && buyAmount && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">≈</span>
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">≈</span>
                   )}
                 </>
               )}
@@ -1030,17 +1030,17 @@ export function DexSwapPanel() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-3 space-y-1.5 text-[11px]">
+              <div className="rounded-xl border border-border bg-surface-3/30 p-3 space-y-1.5 text-[11px]">
                 {/* Rate + Refresh + Toggle direction */}
                 {rate && sellToken && selectedBuyToken && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-500 flex items-center gap-1">
+                    <span className="text-muted-foreground flex items-center gap-1">
                       Rate
                       <button
                         type="button"
                         onClick={() => setRefreshKey((k) => k + 1)}
                         disabled={isLoading}
-                        className="p-0.5 rounded text-zinc-500 hover:text-sky-400 transition-colors disabled:opacity-40"
+                        className="p-0.5 rounded text-muted-foreground hover:text-brand-accent transition-colors disabled:opacity-40"
                         title="Refresh quote"
                       >
                         <FiRefreshCw className={`h-2.5 w-2.5 ${step === "quoting" ? "animate-spin" : ""}`} />
@@ -1049,7 +1049,7 @@ export function DexSwapPanel() {
                     <button
                       type="button"
                       onClick={() => setShowInverseRate((v) => !v)}
-                      className="text-zinc-300 font-mono hover:text-sky-400 transition-colors cursor-pointer"
+                      className="text-foreground/80 font-mono hover:text-brand-accent transition-colors cursor-pointer"
                       title="Toggle rate direction"
                     >
                       {showInverseRate
@@ -1063,16 +1063,16 @@ export function DexSwapPanel() {
                 {/* Price impact with visual gauge */}
                 {quote.estimatedPriceImpact && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-500">Price Impact</span>
+                    <span className="text-muted-foreground">Price Impact</span>
                     <div className="flex items-center gap-1.5">
-                      <div className="w-12 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="w-12 h-1 rounded-full bg-muted overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${
+                          className={`h-full rounded-full transition ${
                             parseFloat(quote.estimatedPriceImpact) > 3
                               ? "bg-red-400"
                               : parseFloat(quote.estimatedPriceImpact) > 1
                                 ? "bg-amber-400"
-                                : "bg-emerald-400"
+                                : "bg-brand-accent-light"
                           }`}
                           style={{ width: `${Math.min(parseFloat(quote.estimatedPriceImpact) * 10, 100)}%` }}
                         />
@@ -1083,7 +1083,7 @@ export function DexSwapPanel() {
                             ? "text-red-400"
                             : parseFloat(quote.estimatedPriceImpact) > 1
                               ? "text-amber-400"
-                              : "text-emerald-400"
+                              : "text-brand-accent"
                         }`}
                       >
                         {quote.estimatedPriceImpact}%
@@ -1094,24 +1094,24 @@ export function DexSwapPanel() {
 
                 {/* Gas estimate */}
                 <div className="flex justify-between">
-                  <span className="text-zinc-500">Est. Gas</span>
-                  <span className="text-zinc-400 font-mono">
+                  <span className="text-muted-foreground">Est. Gas</span>
+                  <span className="text-muted-foreground font-mono">
                     {Number(quote.estimatedGas).toLocaleString()} units
                   </span>
                 </div>
 
                 {/* Slippage */}
                 <div className="flex justify-between">
-                  <span className="text-zinc-500">Max Slippage</span>
-                  <span className="text-zinc-400">
+                  <span className="text-muted-foreground">Max Slippage</span>
+                  <span className="text-muted-foreground">
                     {(slippageBps / 100).toFixed(1)}%
                   </span>
                 </div>
 
                 {/* Route/Sources visualization (chip-style) */}
                 {quote.sources && quote.sources.filter((s) => parseFloat(s.proportion) > 0).length > 0 && (
-                  <div className="pt-1.5 border-t border-zinc-800/50">
-                    <span className="text-zinc-500 text-[10px]">Route</span>
+                  <div className="pt-1.5 border-t border-border/50">
+                    <span className="text-muted-foreground text-[10px]">Route</span>
                     <div className="mt-1 flex items-center gap-1 flex-wrap">
                       {quote.sources
                         .filter((s) => parseFloat(s.proportion) > 0)
@@ -1120,11 +1120,11 @@ export function DexSwapPanel() {
                         .map((s) => (
                         <span
                           key={s.name}
-                          className="inline-flex items-center gap-0.5 rounded-md bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-300"
+                          className="inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/80"
                         >
-                          <FiZap className="h-2 w-2 text-sky-400" />
+                          <FiZap className="h-2 w-2 text-brand-accent" />
                           {s.name}
-                          <span className="text-zinc-500 ml-0.5">
+                          <span className="text-muted-foreground ml-0.5">
                             {(parseFloat(s.proportion) * 100).toFixed(0)}%
                           </span>
                         </span>
@@ -1156,7 +1156,7 @@ export function DexSwapPanel() {
                 <button
                   type="button"
                   onClick={reset}
-                  className="shrink-0 p-1 text-zinc-500 hover:text-zinc-300"
+                  className="shrink-0 p-1 text-muted-foreground hover:text-foreground/80"
                 >
                   <FiX className="h-3 w-3" />
                 </button>
@@ -1174,8 +1174,8 @@ export function DexSwapPanel() {
               exit={{ opacity: 0 }}
               className="flex items-center justify-center gap-2 py-1"
             >
-              <FiLoader className="h-3.5 w-3.5 text-sky-400 animate-spin" />
-              <span className="text-[11px] text-sky-400 font-medium">
+              <FiLoader className="h-3.5 w-3.5 text-brand-accent animate-spin" />
+              <span className="text-[11px] text-brand-accent font-medium">
                 {STEP_LABELS[step]}
               </span>
             </motion.div>
@@ -1187,10 +1187,10 @@ export function DexSwapPanel() {
           type="button"
           onClick={canSwap ? handleSwap : undefined}
           disabled={!canSwap || isLoading}
-          className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
+          className={`w-full py-3 rounded-xl text-sm font-bold transition ${
             canSwap && !isLoading
-              ? "bg-sky-500 hover:bg-sky-400 text-white shadow-lg shadow-sky-500/20"
-              : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+              ? "bg-brand-accent hover:bg-brand-accent-light text-brand-accent-foreground shadow-lg shadow-brand-accent/20"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >
           {!sellToken || !buyTokenAddr
@@ -1210,8 +1210,8 @@ export function DexSwapPanel() {
 
         {/* ─── Footer ──────────────────────────────── */}
         <div className="flex items-center justify-center gap-1.5 pt-1">
-          <FiShield className="h-2.5 w-2.5 text-zinc-600" />
-          <span className="text-[9px] text-zinc-600">
+          <FiShield className="h-2.5 w-2.5 text-muted-foreground" />
+          <span className="text-[9px] text-muted-foreground">
             Best prices from 100+ DEX sources via KyberSwap &middot; No extra fees
           </span>
         </div>

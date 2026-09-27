@@ -108,22 +108,22 @@ export default async function CompanyPublicPage({
         </div>
 
         <div className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8 md:pb-12 md:pt-10">
-          <Link href="/companies" className="mb-4 inline-flex min-h-11 items-center text-sm text-white underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">Back to companies</Link>
+          <Link href="/companies" className="mb-4 inline-flex min-h-11 items-center text-sm text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background">Back to companies</Link>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="flex min-w-0 items-end gap-4">
-                {logo && <div className="relative h-16 w-16 shrink-0 md:h-20 md:w-20 overflow-hidden border border-white/20 bg-black/20 shadow-sm rounded-lg">
+                {logo && <div className="relative h-16 w-16 shrink-0 md:h-20 md:w-20 overflow-hidden border border-border bg-muted shadow-sm rounded-lg">
                   <Image src={logo} alt={`${company.name} logo`} fill sizes="80px" className="object-cover" />
                 </div>}
 
                 <div className="min-w-0">
-                  <h1 className="text-balance text-3xl md:text-4xl font-semibold tracking-tight text-white">
+                  <h1 className="text-balance text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
                     {company.name}
                   </h1>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/80">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-foreground/80">
                     {company.websiteUrl ? (
                       <a
-                        className="max-w-full break-all underline underline-offset-4 hover:text-white"
+                        className="max-w-full break-all underline underline-offset-4 hover:text-foreground"
                         href={company.websiteUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -134,7 +134,7 @@ export default async function CompanyPublicPage({
                     <span>{company.Product.length} products</span>
                     {company.orgVerification?.status === 'VERIFIED' && company.orgNumber ? (
                       <span
-                        className="inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
+                        className="inline-flex items-center gap-1 rounded-full border border-brand-accent/40 bg-brand-accent/15 px-2 py-0.5 text-brand-accent-light"
                         title="Verified organization: company ownership confirmed via official registered email"
                       >
                         ✓ Verified organization
@@ -155,14 +155,14 @@ export default async function CompanyPublicPage({
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/companies/${company.id}/hub`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-muted/60"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Hub
                   </Link>
                   <Link
                     href={`/companies/${company.id}/settings`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-muted/60"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                     Settings
@@ -172,7 +172,7 @@ export default async function CompanyPublicPage({
             </div>
 
             {company.description ? (
-              <p className="max-w-4xl text-pretty text-sm md:text-base text-white/85">
+              <p className="max-w-4xl text-pretty text-sm md:text-base text-foreground/85">
                 {company.description}
               </p>
             ) : null}
@@ -184,10 +184,10 @@ export default async function CompanyPublicPage({
       <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="pt-8">
           <div className="flex items-end justify-between gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/85">
               Products
             </h2>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="text-xs text-muted-foreground">
               Latest first
             </div>
           </div>
@@ -207,13 +207,13 @@ export default async function CompanyPublicPage({
                       ) : null}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                         {p.category}
                       </div>
-                      <div className="mt-1 line-clamp-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      <div className="mt-1 line-clamp-2 text-sm font-semibold text-foreground">
                         {p.title}
                       </div>
-                      <div className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                      <div className="mt-2 text-sm font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                         <PriceAmount amount={p.price} currency={p.priceCurrency} />
                       </div>
                     </div>
@@ -222,7 +222,7 @@ export default async function CompanyPublicPage({
               ))}
             </div>
           ) : (
-            <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">No products yet.</div>
+            <div className="mt-4 text-sm text-foreground/80">No products yet.</div>
           )}
 
           {/* Company Reach Analytics */}

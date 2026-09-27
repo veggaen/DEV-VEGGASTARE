@@ -11,6 +11,7 @@ import PreferredMoney from '@/components/checkout/preferred-money';
 import HistoricalPriceNote from '@/components/checkout/historical-price-note';
 import OrderRecoveryActions from '@/components/checkout/order-recovery-actions';
 import { FiChevronDown, FiDownload, FiPackage, FiRefreshCw } from 'react-icons/fi';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 export default function MyOrdersPage() {
   const user = useCurrentUser();
@@ -32,13 +33,17 @@ export default function MyOrdersPage() {
   const loading = !user || isLoading;
   return <section aria-labelledby="orders-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
     <div className="mx-auto max-w-4xl">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0"><h1 id="orders-title" className="text-2xl font-semibold tracking-tight">My orders</h1><p className="mt-1 text-sm text-muted-foreground">Receipts, order details and your digital purchases.</p></div>
-        <div className="flex w-full gap-2 sm:w-auto">
+      <PageHeader
+        eyebrow="Purchases"
+        titleId="orders-title"
+        title="My orders"
+        description="Receipts, order details and your digital purchases."
+        actions={<>
           <Button variant="outline" className="h-11 flex-1 gap-2 sm:flex-none" disabled={loading || isValidating} onClick={() => void mutate()}><FiRefreshCw aria-hidden />{isValidating && !loading ? 'Refreshing…' : 'Refresh'}</Button>
           <Button variant="outline" asChild className="h-11 flex-1 gap-2 sm:flex-none"><Link href="/my-downloads"><FiDownload aria-hidden />Downloads</Link></Button>
-        </div>
-      </div>
+        </>}
+        className="mb-6"
+      />
       <details className="mb-4 text-xs text-muted-foreground"><summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4 focus-visible:outline-2">About displayed prices</summary><HistoricalPriceNote /></details>
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>{error instanceof Error && error.name !== 'TimeoutError' ? error.message : 'The request timed out. Please try again.'}</p><Button variant="outline" className="mt-3 h-11" onClick={() => void mutate()}>Try again</Button></div>}
       {loading ? <div role="status" aria-label="Loading orders" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="min-h-36 rounded-xl border border-border p-4 sm:min-h-28 sm:p-5"><div className="h-4 w-36 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-3 h-3 w-44 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-6 w-24 rounded bg-muted motion-safe:animate-pulse" /></div>)}</div>

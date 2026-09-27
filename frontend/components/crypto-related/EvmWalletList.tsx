@@ -147,13 +147,13 @@ export default function EvmWalletList({
 	};
 
 	return (
-		<div role="region" aria-label="Saved receiving wallets" className="min-w-0 rounded-xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+		<div role="region" aria-label="Saved receiving wallets" className="min-w-0 rounded-xl border border-border bg-surface-1/60 p-3 dark:bg-muted/40">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+					<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 						Verified receiving wallets
 					</div>
-					<div className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
+					<div className="mt-1 text-sm text-foreground">
 						{defaultWallet
 							? `Active for new listings: ${trimAddress(defaultWallet.address)}`
 							: "No active receiving wallet yet"}
@@ -170,13 +170,13 @@ export default function EvmWalletList({
 			</div>
 
 			{!enabled ? (
-				<div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+				<div className="mt-2 text-xs text-muted-foreground">
 					Enable Web3 mode to manage wallets.
 				</div>
 			) : null}
 
 			{enabled && wallets.length === 0 && !loading ? (
-				<div className="mt-3 rounded-lg border border-dashed border-black/10 px-3 py-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+				<div className="mt-3 rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground dark:text-foreground/80">
 					No verified wallets yet. Connect a wallet above, then sign once to make it available for product payouts.
 				</div>
 			) : null}
@@ -190,21 +190,21 @@ export default function EvmWalletList({
 								key={w.id}
 								role="group"
 								aria-label={`${w.label} receiving wallet`}
-								className="rounded-lg border border-black/10 p-2 dark:border-white/10"
+								className="rounded-lg border border-border p-2"
 							>
 								<div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
 									<div className="min-w-0">
 										<div className="flex flex-wrap items-center gap-2">
-											<div className="min-w-0 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+											<div className="min-w-0 break-words text-sm font-semibold text-foreground">
 												{w.label}
 											</div>
 											{w.isDefault ? (
-												<span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
+												<span className="rounded-full bg-brand-accent/15 px-2 py-0.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
 													Primary
 												</span>
 											) : null}
 											{w.verifiedAt ? (
-												<span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:text-sky-200">
+												<span className="rounded-full bg-brand-accent/10 px-2 py-0.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
 													Verified
 												</span>
 											) : (
@@ -213,10 +213,10 @@ export default function EvmWalletList({
 												</span>
 											)}
 										</div>
-										<div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 break-all">
+										<div className="mt-0.5 text-xs text-muted-foreground break-all">
 											{w.address}
 										</div>
-										<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+										<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
 											<span>Last signed on {chainLabel(w.chainId)}</span>
 											{w.authProvider ? <span>via {w.authProvider}</span> : null}
 											{w.socialEmail ? <span>{w.socialEmail}</span> : null}
@@ -280,7 +280,7 @@ export default function EvmWalletList({
 
 								{isPending ? (
 									<form className="mt-3 max-w-sm space-y-2" onSubmit={event => { event.preventDefault(); if (/^\d{6}$/.test(code)) void runAction(pending!, code); }}>
-										<div className="text-xs text-zinc-500 dark:text-zinc-400">
+										<div className="text-xs text-muted-foreground">
 											{pending.type === 'unlink' ? 'Confirm removal with the code sent to your email.' : 'Confirm the receiving wallet with the code sent to your email.'}
 										</div>
 										<label className="block text-sm" htmlFor={`wallet-action-code-${w.id}`}>Email verification code</label>

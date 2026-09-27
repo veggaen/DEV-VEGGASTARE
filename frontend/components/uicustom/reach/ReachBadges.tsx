@@ -27,9 +27,9 @@ const TIER_COLORS: Record<string, { bg: string; border: string; text: string; gl
     glow: 'rgba(234, 88, 12, 0.2)',
   },
   silver: {
-    bg: 'bg-zinc-50 dark:bg-zinc-800/30',
-    border: 'border-zinc-300 dark:border-zinc-600/50',
-    text: 'text-zinc-700 dark:text-zinc-300',
+    bg: 'bg-muted/40',
+    border: 'border-border',
+    text: 'text-foreground/85',
     glow: 'rgba(161, 161, 170, 0.2)',
   },
   gold: {

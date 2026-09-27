@@ -80,9 +80,9 @@ const MODE_CONFIG: Record<TradeMode, {
   P2P: {
     label: "P2P",
     color: "emerald",
-    bgClass: "bg-emerald-500/10",
-    textClass: "text-emerald-400",
-    borderClass: "border-emerald-500/30",
+    bgClass: "bg-brand-accent/10",
+    textClass: "text-brand-accent",
+    borderClass: "border-brand-accent/30",
     icon: <Users className="h-3 w-3" />,
   },
   SELF: {
@@ -96,9 +96,9 @@ const MODE_CONFIG: Record<TradeMode, {
   DEX: {
     label: "DEX",
     color: "sky",
-    bgClass: "bg-sky-500/10",
-    textClass: "text-sky-400",
-    borderClass: "border-sky-500/30",
+    bgClass: "bg-brand-accent/10",
+    textClass: "text-brand-accent",
+    borderClass: "border-brand-accent/30",
     icon: <Repeat className="h-3 w-3" />,
   },
   PAPER: {
@@ -121,9 +121,9 @@ const MODE_CONFIG: Record<TradeMode, {
 
 const STATUS_CONFIG: Record<TradeRecordStatus, { label: string; dotClass: string }> = {
   PENDING: { label: "Pending", dotClass: "bg-amber-400 animate-pulse" },
-  COMPLETED: { label: "Completed", dotClass: "bg-emerald-400" },
+  COMPLETED: { label: "Completed", dotClass: "bg-brand-accent-light" },
   FAILED: { label: "Failed", dotClass: "bg-red-400" },
-  REVERTED: { label: "Reverted", dotClass: "bg-zinc-400" },
+  REVERTED: { label: "Reverted", dotClass: "bg-muted" },
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -337,12 +337,12 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg ring-1 ring-zinc-600/40 bg-zinc-800/60 text-zinc-400">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg ring-1 ring-border/40 bg-muted/60 text-muted-foreground">
             <FiClock className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-zinc-200 leading-tight">Trade History</h2>
-            <p className="text-[10px] text-zinc-500">
+            <h2 className="text-sm font-bold text-foreground/80 leading-tight">Trade History</h2>
+            <p className="text-[10px] text-muted-foreground">
               {pagination.total} total record{pagination.total !== 1 ? "s" : ""}
             </p>
           </div>
@@ -353,7 +353,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
           <button
             type="button"
             onClick={() => setShowNok((p) => !p)}
-            className="px-2.5 py-1.5 rounded-lg border border-zinc-700/60 text-[10px] font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            className="px-2.5 py-1.5 rounded-lg border border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
             title="Toggle USD/NOK"
           >
             {showNok ? "NOK" : "USD"}
@@ -365,8 +365,8 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             onClick={() => setShowFilters((p) => !p)}
             className={`p-2 rounded-lg border transition-colors ${
               showFilters
-                ? "border-sky-500/50 bg-sky-500/10 text-sky-400"
-                : "border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
+                : "border-border/60 text-muted-foreground hover:text-foreground/80 hover:bg-muted"
             }`}
             title="Toggle filters"
           >
@@ -377,7 +377,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
           <button
             type="button"
             onClick={() => fetchRecords(pagination.page)}
-            className="p-2 rounded-lg border border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
             disabled={loading}
             title="Refresh"
           >
@@ -389,7 +389,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             type="button"
             onClick={() => exportToCsv(records)}
             disabled={records.length === 0}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-700/60 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/60 text-[11px] font-medium text-muted-foreground hover:text-foreground/80 hover:bg-muted transition-colors disabled:opacity-40"
             title="Export CSV for tax reporting"
           >
             <FiDownload className="h-3 w-3" />
@@ -402,8 +402,8 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             onClick={() => setShowTaxPanel((p) => !p)}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
               showTaxPanel
-                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                : "border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
+                : "border-border/60 text-muted-foreground hover:text-foreground/80 hover:bg-muted"
             }`}
             title="Tax overview (Skatteetaten)"
           >
@@ -415,7 +415,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-lg border border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              className="p-2 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground/80 hover:bg-muted transition-colors"
               title="Close history"
             >
               <FiX className="h-3.5 w-3.5" />
@@ -434,10 +434,10 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-3 flex flex-wrap gap-3">
+            <div className="rounded-xl border border-border/60 bg-surface-3/40 p-3 flex flex-wrap gap-3">
               {/* Mode filter */}
               <div className="space-y-1">
-                <label className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">Mode</label>
+                <label className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Mode</label>
                 <div className="flex flex-wrap gap-1">
                   {(["ALL", "P2P", "SELF", "DEX", "PAPER", "LOCAL"] as const).map((m) => (
                     <button
@@ -447,9 +447,9 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
                       className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
                         modeFilter === m
                           ? m === "ALL"
-                            ? "border-zinc-500/60 bg-zinc-700/30 text-zinc-200"
+                            ? "border-border/60 bg-muted/30 text-foreground/80"
                             : `${MODE_CONFIG[m].borderClass} ${MODE_CONFIG[m].bgClass} ${MODE_CONFIG[m].textClass}`
-                          : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40"
+                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
                       }`}
                     >
                       {m !== "ALL" && MODE_CONFIG[m].icon}
@@ -461,7 +461,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
 
               {/* Status filter */}
               <div className="space-y-1">
-                <label className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">Status</label>
+                <label className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Status</label>
                 <div className="flex flex-wrap gap-1">
                   {(["ALL", "COMPLETED", "PENDING", "FAILED", "REVERTED"] as const).map((s) => (
                     <button
@@ -470,8 +470,8 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
                       onClick={() => setStatusFilter(s)}
                       className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
                         statusFilter === s
-                          ? "border-zinc-500/60 bg-zinc-700/30 text-zinc-200"
-                          : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40"
+                          ? "border-border/60 bg-muted/30 text-foreground/80"
+                          : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
                       }`}
                     >
                       {s !== "ALL" && (
@@ -531,10 +531,10 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
       )}
 
       {/* ── Records List ────────────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/20 overflow-hidden">
+      <div className="rounded-2xl border border-border/60 bg-surface-3/20 overflow-hidden">
         {loading && records.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <FiRefreshCw className="h-5 w-5 text-zinc-600 animate-spin" />
+            <FiRefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
@@ -542,21 +542,21 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             <button
               type="button"
               onClick={() => fetchRecords(1)}
-              className="text-[11px] text-zinc-400 hover:text-zinc-200 underline"
+              className="text-[11px] text-muted-foreground hover:text-foreground/80 underline"
             >
               Retry
             </button>
           </div>
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <FiClock className="h-6 w-6 text-zinc-700" />
-            <p className="text-xs text-zinc-500">No trades found</p>
-            <p className="text-[10px] text-zinc-600">
+            <FiClock className="h-6 w-6 text-foreground" />
+            <p className="text-xs text-muted-foreground">No trades found</p>
+            <p className="text-[10px] text-muted-foreground">
               Trade history will appear here once you make your first trade.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-800/40">
+          <div className="divide-y divide-border/40">
             {records.map((record, idx) => (
               <TradeRow
                 key={record.id}
@@ -572,7 +572,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
       {/* ── Pagination ──────────────────────────────────────── */}
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-[10px] text-muted-foreground">
             Page {pagination.page} of {pagination.totalPages}
           </p>
           <div className="flex items-center gap-1">
@@ -580,7 +580,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
               type="button"
               onClick={() => fetchRecords(pagination.page - 1)}
               disabled={pagination.page <= 1 || loading}
-              className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             >
               <FiChevronLeft className="h-3.5 w-3.5" />
             </button>
@@ -588,7 +588,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
               type="button"
               onClick={() => fetchRecords(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages || loading}
-              className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             >
               <FiChevronRight className="h-3.5 w-3.5" />
             </button>
@@ -615,16 +615,16 @@ function StatCard({
   negative?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 px-3 py-2">
-      <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-surface-3/40 px-3 py-2">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
       <p
         className={`text-sm font-bold leading-tight mt-0.5 ${
-          positive ? "text-emerald-400" : negative ? "text-red-400" : "text-zinc-200"
+          positive ? "text-brand-accent" : negative ? "text-red-400" : "text-foreground/80"
         }`}
       >
         {value}
       </p>
-      <p className="text-[9px] text-zinc-600 mt-0.5">{sub}</p>
+      <p className="text-[9px] text-muted-foreground mt-0.5">{sub}</p>
     </div>
   );
 }
@@ -650,7 +650,7 @@ function TradeRow({
 
   return (
     <div
-      className={`group flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/30 transition-colors ${
+      className={`group flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors ${
         isLast ? "" : ""
       }`}
     >
@@ -665,17 +665,17 @@ function TradeRow({
       {/* Trade pair */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="font-semibold text-zinc-200 truncate">
+          <span className="font-semibold text-foreground/80 truncate">
             {record.sellToken ?? "???"}
           </span>
-          <span className="text-zinc-600 text-[10px]">
+          <span className="text-muted-foreground text-[10px]">
             {formatAmount(record.sellDisplayAmt)}
           </span>
-          <FiArrowRight className="h-2.5 w-2.5 text-zinc-600 shrink-0" />
-          <span className="font-semibold text-zinc-200 truncate">
+          <FiArrowRight className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+          <span className="font-semibold text-foreground/80 truncate">
             {record.buyToken ?? "???"}
           </span>
-          <span className="text-zinc-600 text-[10px]">
+          <span className="text-muted-foreground text-[10px]">
             {formatAmount(record.buyDisplayAmt)}
           </span>
         </div>
@@ -683,10 +683,10 @@ function TradeRow({
         <div className="flex items-center gap-2 mt-0.5">
           {/* Status dot */}
           <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusConf.dotClass}`} />
-          <span className="text-[10px] text-zinc-500">{statusConf.label}</span>
+          <span className="text-[10px] text-muted-foreground">{statusConf.label}</span>
 
           {/* Time */}
-          <span className="text-[10px] text-zinc-600" title={new Date(record.executedAt).toLocaleString()}>
+          <span className="text-[10px] text-muted-foreground" title={new Date(record.executedAt).toLocaleString()}>
             {formatDate(record.executedAt)} · {formatTime(record.executedAt)}
           </span>
 
@@ -697,13 +697,13 @@ function TradeRow({
                 href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 text-[10px] text-zinc-500 hover:text-sky-400 transition-colors font-mono"
+                className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-brand-accent transition-colors font-mono"
               >
                 {truncateHash(record.txHash)}
                 <FiExternalLink className="h-2.5 w-2.5" />
               </a>
             ) : (
-              <span className="text-[10px] text-zinc-600 font-mono">
+              <span className="text-[10px] text-muted-foreground font-mono">
                 {truncateHash(record.txHash)}
               </span>
             )
@@ -713,21 +713,21 @@ function TradeRow({
 
       {/* Price + P&L */}
       <div className="text-right shrink-0">
-        <p className="text-[11px] text-zinc-300 font-medium">
+        <p className="text-[11px] text-foreground/80 font-medium">
           {showNok ? formatNok(record.priceNok) : formatUsd(record.priceUsd)}
         </p>
         {gainLoss != null && (
           <div className="flex items-center justify-end gap-0.5 mt-0.5">
             {isProfit ? (
-              <TrendingUp className="h-2.5 w-2.5 text-emerald-400" />
+              <TrendingUp className="h-2.5 w-2.5 text-brand-accent" />
             ) : isLoss ? (
               <TrendingDown className="h-2.5 w-2.5 text-red-400" />
             ) : (
-              <Minus className="h-2.5 w-2.5 text-zinc-500" />
+              <Minus className="h-2.5 w-2.5 text-muted-foreground" />
             )}
             <span
               className={`text-[10px] font-semibold ${
-                isProfit ? "text-emerald-400" : isLoss ? "text-red-400" : "text-zinc-500"
+                isProfit ? "text-brand-accent" : isLoss ? "text-red-400" : "text-muted-foreground"
               }`}
             >
               {isProfit && "+"}

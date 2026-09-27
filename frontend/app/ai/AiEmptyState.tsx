@@ -51,10 +51,10 @@ export function AiEmptyState({ userName }: { userName: string | null }) {
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-md text-center"
       >
-        <div className="mx-auto grid place-items-center h-14 w-14 rounded-2xl bg-emerald-500/10 text-2xl text-emerald-500 dark:text-emerald-400 mb-5">
+        <div className="mx-auto grid place-items-center h-14 w-14 rounded-2xl bg-brand-accent/10 text-2xl text-brand-accent mb-5">
           ✦
         </div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-500 dark:text-emerald-400">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-brand-accent">
           AI workspace
         </p>
         <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-[-0.03em]">
@@ -70,9 +70,9 @@ export function AiEmptyState({ userName }: { userName: string | null }) {
               key={s.label}
               onClick={() => startPrompt(s.prompt)}
               disabled={busy}
-              className="group flex items-start gap-3 px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] disabled:opacity-50 transition-all"
+              className="group flex items-start gap-3 px-4 py-3.5 rounded-2xl border border-border/50 bg-surface-1/60 hover:bg-surface-1/90 disabled:opacity-50 transition"
             >
-              <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-sm group-hover:scale-110 transition-transform">
+              <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-brand-accent/10 text-brand-accent text-sm group-hover:scale-110 transition-transform">
                 {s.icon}
               </span>
               <span className="min-w-0">
@@ -86,7 +86,7 @@ export function AiEmptyState({ userName }: { userName: string | null }) {
         <button
           onClick={() => startPrompt()}
           disabled={busy}
-          className="mt-5 inline-flex min-h-11 items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-500/20"
+          className="mt-5 inline-flex min-h-11 items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-accent text-foreground font-semibold text-sm hover:bg-brand-accent-light disabled:opacity-50 transition-colors shadow-lg shadow-brand-accent/20"
         >
           {busy ? "Starting…" : "Start a blank chat"}
         </button>

@@ -271,7 +271,7 @@ export function PollNavigationBar({
   };
 
   const containerClasses = cn(
-    "fixed z-9999 transition-all duration-300",
+    "fixed z-9999 transition duration-300",
     positionStyles[position],
     isDragging && "cursor-grabbing"
   );

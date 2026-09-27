@@ -101,7 +101,7 @@ export function SliderQuestion({
         "bg-yellow-500/90 dark:bg-yellow-600/90",
         "bg-lime-500/90 dark:bg-lime-600/90",
         "bg-green-500/90 dark:bg-green-600/90",
-        "bg-emerald-500/90 dark:bg-emerald-600/90",
+        "bg-brand-accent/90",
       ];
       return colors[stepIndex] || colors[colors.length - 1];
     }
@@ -385,12 +385,12 @@ export function SliderQuestion({
         />
 
         {/* Background Track - extends from center of first to center of last circle */}
-        <div className="absolute top-1/2 left-[calc(0.5rem+20px)] right-[calc(0.5rem+20px)] h-2 -translate-y-1/2 bg-zinc-700/60 rounded-full pointer-events-none">
+        <div className="absolute top-1/2 left-[calc(0.5rem+20px)] right-[calc(0.5rem+20px)] h-2 -translate-y-1/2 bg-muted/60 rounded-full pointer-events-none">
           {/* Progress Track - inside the background track for accurate percentage */}
           <motion.div
             className={cn(
               "absolute top-0 left-0 h-full rounded-full",
-              colorScheme === "reach" ? "bg-linear-to-r from-red-500 via-yellow-500 to-emerald-500" : "bg-linear-to-r from-violet-600 to-violet-400"
+              colorScheme === "reach" ? "bg-linear-to-r from-red-500 via-yellow-500 to-brand-accent-hover" : "bg-linear-to-r from-violet-600 to-violet-400"
             )}
             initial={false}
             animate={{ 
@@ -473,7 +473,7 @@ export function SliderQuestion({
                           "border-violet-500/70 bg-violet-500/90",
                           "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.4)]"
                         )
-                      : "border-zinc-600 bg-zinc-800 hover:border-violet-500/50 text-zinc-300",
+                      : "border-border bg-muted hover:border-violet-500/50 text-foreground/80",
                     disabled && "pointer-events-none"
                   )}
                   whileHover={disabled ? {} : { scale: isSelected ? 1.25 : 1.1 }}

@@ -218,7 +218,7 @@ const CarouselPrevious = React.forwardRef<
       size={size}
       aria-label={ariaLabel ?? "Previous slide"}
       className={cn(
-        `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollPrev ? 'hidden' : 'sm:flex'}`,
+        `absolute hidden group h-8 w-8 rounded-full z-10 text-foreground border-transparent hover:text-blue-500 ${!canScrollPrev ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
           ? "left-2 top-1/2 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -238,7 +238,7 @@ const CarouselPrevious = React.forwardRef<
       }}
       {...props}
     >
-      <IoArrowBackCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <IoArrowBackCircleOutline className="h-4 w-4 text-foreground border-background hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
     </Button>
   )
 })
@@ -257,7 +257,7 @@ const CarouselNext = React.forwardRef<
       size={size}
       aria-label={ariaLabel ?? "Next slide"}
       className={cn(
-        `absolute hidden group h-8 w-8 rounded-full z-10 text-white dark:text-white border-transparent hover:text-blue-500 ${!canScrollNext ? 'hidden' : 'sm:flex'}`,
+        `absolute hidden group h-8 w-8 rounded-full z-10 text-foreground border-transparent hover:text-blue-500 ${!canScrollNext ? 'hidden' : 'sm:flex'}`,
         orientation === "horizontal"
           ? "right-2 top-1/2 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -277,7 +277,7 @@ const CarouselNext = React.forwardRef<
       }}
       {...props}
     >
-      <IoArrowForwardCircleOutline className="h-4 w-4 text-white dark:text-white border-white dark:border-white hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
+      <IoArrowForwardCircleOutline className="h-4 w-4 text-foreground border-background hover:border-blue-500 hover:dark:border-blue-500 group-hover:text-blue-500" />
     </Button>
   )
 })
