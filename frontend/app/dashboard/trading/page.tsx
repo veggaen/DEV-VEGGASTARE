@@ -20,7 +20,7 @@
  * @stability experimental
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OsrsInventory } from "@/components/crypto-related/OsrsInventory";
 import {
@@ -98,8 +98,21 @@ type UserSearchResult = {
   email: string | null;
 };
 
+const noopSubscribe = () => () => {};
+
 export default function TradingPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, status: accountStatus } = useAccount();
+  // Extensions reconnect silently right after load; during that second the
+  // account is "reconnecting", not absent, so the hub must not flash its
+  // "No wallet connected" call to action and remount everything twice.
+  // Before hydration the server and client must paint the same thing, and the
+  // server has no wallet state at all: treat "not hydrated yet" as settling.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  // The extension reconnect starts in an effect after hydration; until it has
+  // had a moment, "disconnected" only means "not yet".
+  const [graceOver, setGraceOver] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setGraceOver(true), 1800); return () => window.clearTimeout(t); }, []);
+  const walletSettling = !hydrated || !graceOver || accountStatus === "reconnecting" || accountStatus === "connecting";
   // A local dev-chain account activated from the wallet panel (Ganache/Anvil
   // "temporary wallet") is a usable wallet here even without an injected one:
   // the inventory and the trade window already read the same override.
@@ -184,6 +197,15 @@ export default function TradingPage() {
   const alwaysShowTradeArea = true;
 
   /* ── Not connected — but paper mode works without wallet ────── */
+  if (!walletReady && mode !== "paper" && walletSettling) {
+    return (
+      <section aria-busy="true" aria-label="Connecting your wallet" className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">
+        <div className="size-10 animate-spin rounded-full border-2 border-brand-accent/30 border-t-brand-accent motion-reduce:animate-none" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">Connecting your wallet…</p>
+      </section>
+    );
+  }
+
   if (!walletReady && mode !== "paper") {
     return (
       <section aria-labelledby="trading-empty-title" className="page-rise flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">

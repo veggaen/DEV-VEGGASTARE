@@ -145,11 +145,24 @@ export function useTokenBalances() {
   // the inventory (split stacks, drags in progress and the trade grid all key
   // off the token array's identity).
   const signatureRef = useRef<string>("");
+  // Stacks keep their positions: existing ids stay in their previous order and
+  // only new ids are appended, so a price tick updates numbers in place instead
+  // of re-sorting the grid (which remounts every cell that moved).
+  const orderRef = useRef<Map<string, number>>(new Map());
   const setTokens = useCallback((next: InventoryToken[]) => {
-    const signature = next.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}`).join("|");
+    const order = orderRef.current;
+    const stable = order.size === 0 ? next : [...next].sort((a, b) => {
+      const ia = order.get(a.id), ib = order.get(b.id);
+      if (ia !== undefined && ib !== undefined) return ia - ib;
+      if (ia !== undefined) return -1;
+      if (ib !== undefined) return 1;
+      return 0;
+    });
+    const signature = stable.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}`).join("|");
     if (signature === signatureRef.current) return;
     signatureRef.current = signature;
-    setTokensState(next);
+    orderRef.current = new Map(stable.map((t, i) => [t.id, i]));
+    setTokensState(stable);
   }, []);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -178,7 +191,7 @@ export function useTokenBalances() {
   const fetchBalances = useCallback(async () => {
     if (!address || !isConnected || !chainId) return;
     const walletKey = `${chainId}:${address.toLowerCase()}`;
-    if (walletKeyRef.current !== walletKey) { walletKeyRef.current = walletKey; signatureRef.current = ""; }
+    if (walletKeyRef.current !== walletKey) { walletKeyRef.current = walletKey; signatureRef.current = ""; orderRef.current = new Map(); }
 
     // Increment version — any older in-flight fetch becomes stale
     const version = ++fetchVersionRef.current;
@@ -312,17 +325,22 @@ export function useTokenBalances() {
           });
         }
       };
+      // Native first, then by USD value (priced stacks before unpriced), then by raw amount.
+      const usdOf = (t: InventoryToken) => (t.usdPrice ? Number(formatUnits(t.rawBalance, t.decimals)) * t.usdPrice : -1);
       const byValue = (a: InventoryToken, b: InventoryToken) => {
-        if (a.isNative && !b.isNative) return -1;
-        if (!a.isNative && b.isNative) return 1;
-        return Number(b.rawBalance - a.rawBalance);
+        if (a.isNative !== b.isNative) return a.isNative ? -1 : 1;
+        const ua = usdOf(a), ub = usdOf(b);
+        if (ua !== ub) return ub - ua;
+        return b.rawBalance > a.rawBalance ? 1 : b.rawBalance < a.rawBalance ? -1 : 0;
       };
 
-      // Pass 1: the known list, shown as soon as it is read.
+      // Pass 1: the known list, shown as soon as it is read. Only on the first
+      // read for this wallet: on later polls the short list would replace the
+      // full one for a moment and every cell would remount.
       const known = mergeTokenCandidates(knownTokens, []);
       pushConfirmed(known, await readBalances(known));
       if (version !== fetchVersionRef.current) return;
-      setTokens([...results].sort(byValue));
+      if (!signatureRef.current) setTokens([...results].sort(byValue));
 
       // Pass 2: what the indexer knows beyond the list.
       let indexerFailed = false;
@@ -341,7 +359,16 @@ export function useTokenBalances() {
             discoveryRef.current = { key: cacheKey, ts: Date.now(), tokens: discovered };
           }
           const seen = new Set(known.map((t) => t.address.toLowerCase()));
-          const extra = mergeTokenCandidates(knownTokens, discovered).filter((t) => !seen.has(t.address.toLowerCase()));
+          const merged = mergeTokenCandidates(knownTokens, discovered);
+          // The known list was read before discovery: give those stacks the indexer's price now.
+          const priceOf = new Map(merged.filter((t) => t.indexedUsdRate).map((t) => [t.address.toLowerCase(), t.indexedUsdRate as number]));
+          for (const token of results) {
+            if (!token.isNative && token.usdPrice === undefined) {
+              const price = priceOf.get(token.address.toLowerCase());
+              if (price) token.usdPrice = price;
+            }
+          }
+          const extra = merged.filter((t) => !seen.has(t.address.toLowerCase()));
           if (version !== fetchVersionRef.current) return;
           pushConfirmed(extra, await readBalances(extra));
         } catch (indexErr) {
@@ -375,7 +402,7 @@ export function useTokenBalances() {
         setRefreshing(false);
       }
     }
-  }, [address, isConnected, chainId, nativeBalance, isLocalOverride, override?.rpcUrl]);
+  }, [address, isConnected, chainId, nativeBalance, isLocalOverride, override?.rpcUrl, setTokens]);
 
   // Initial fetch + poll for balance changes
   useEffect(() => {

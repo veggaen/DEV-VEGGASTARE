@@ -20,6 +20,7 @@ import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
 import { useTokenBalances, CHAIN_LOGOS, type InventoryToken } from "@/hooks/use-token-balances";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import { formatUsd, formatUsdCompact, stackUsd, sumStacksUsd } from "@/lib/stack-value";
 import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { toast } from "sonner";
@@ -272,23 +273,10 @@ export function OsrsInventory({
     [gridState],
   );
 
-  // What the visible stacks are worth: indexer prices per token, display rates for the native coin.
-  const portfolio = useMemo(() => {
-    let usd = 0, priced = 0;
-    for (const slot of inventorySlots) {
-      const t = slot.token;
-      const price = t.usdPrice ?? (t.isNative ? cryptoPrices[t.symbol] : undefined);
-      if (!price) continue;
-      let raw = BigInt(0);
-      try { raw = BigInt(slot.rawAmount); } catch { continue; }
-      const amount = Number(formatUnits(raw, t.decimals));
-      if (Number.isFinite(amount)) { usd += amount * price; priced++; }
-    }
-    return { usd, priced, total: inventorySlots.length };
-  }, [inventorySlots, cryptoPrices]);
-  const portfolioLabel = portfolio.priced > 0
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: portfolio.usd >= 1000 ? 0 : 2 }).format(portfolio.usd)
-    : null;
+  // What the visible stacks are worth (same helper as the cells and the trade window).
+  const portfolio = useMemo(() => sumStacksUsd(inventorySlots, cryptoPrices), [inventorySlots, cryptoPrices]);
+  const portfolioLabel = portfolio.priced > 0 ? formatUsd(portfolio.usd) : null;
+  const stackValueLabel = (slot: InventorySlot) => { const usd = stackUsd(slot.token, slot.rawAmount, cryptoPrices); return usd === null ? null : formatUsdCompact(usd); };
 
   // ── Stablecoin symbols for filter ─────────────────────────
   const STABLECOINS = useMemo(() => new Set(["USDC", "USDT", "DAI", "BUSD", "TUSD", "FRAX", "LUSD", "GUSD", "PYUSD", "USDP", "USDD", "RAI"]), []);
@@ -1191,6 +1179,7 @@ export function OsrsInventory({
                 key={slot ? `${slot.id}@${idx}` : `empty-${idx}`}
                 slot={slot}
                 index={idx}
+                valueLabel={slot ? stackValueLabel(slot) : null}
                 isSelected={slot ? selectedSlot === slot.id : false}
                 isDragging={slot ? draggedSlotId === slot.id : false}
                 isDragOver={dragOverIndex === idx}
@@ -1588,6 +1577,7 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
 function OsrsSlot({
   slot,
   index,
+  valueLabel,
   isSelected,
   isDragging,
   isDragOver,
@@ -1605,6 +1595,8 @@ function OsrsSlot({
 }: {
   slot: InventorySlot | null;
   index: number;
+  /** "$1.2K" for this stack, null when unpriced. */
+  valueLabel?: string | null;
   isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
@@ -1691,16 +1683,22 @@ function OsrsSlot({
             </span>
           </div>
 
-          {/* Symbol label — bottom center */}
-          <div className="absolute bottom-0 inset-x-0 text-center z-10 pointer-events-none">
+          {/* Bottom row: symbol left, value right */}
+          <div className="absolute bottom-0.5 inset-x-1 z-10 flex items-end justify-between gap-1 pointer-events-none">
             <span
-              className="text-[7px] sm:text-[8px] font-semibold text-muted-foreground/90 leading-none uppercase tracking-wider"
-              style={{
-                textShadow: "0 1px 3px rgba(0,0,0,0.9)",
-              }}
+              className="min-w-0 truncate text-[7px] sm:text-[8px] font-semibold text-muted-foreground/90 leading-none uppercase tracking-wider"
+              style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
             >
               {slot.token.symbol}
             </span>
+            {valueLabel && (
+              <span
+                className="shrink-0 text-[7px] sm:text-[8px] font-semibold leading-none tabular-nums text-foreground/85"
+                style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+              >
+                {valueLabel}
+              </span>
+            )}
           </div>
 
           {/* Chain badge — top-right mini indicator */}

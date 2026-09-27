@@ -42,6 +42,8 @@ import {
 import { ArrowLeftRight, Users } from "lucide-react";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { acknowledgeInventoryDrop } from "@/lib/trade-drag-ack";
+import { formatUsd, sumStacksUsd } from "@/lib/stack-value";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 import {
   INVENTORY_DND_TYPE,
   type InventorySlot,
@@ -869,6 +871,11 @@ export function OsrsTradeWindow({
   }, [myItems]);
   useEffect(() => () => { window.dispatchEvent(new CustomEvent("veggat:offerChanged", { detail: [] })); }, []);
   const [theirItems, setTheirItems] = useState<InventorySlot[]>([]);
+  // What each side is worth; remote items carry the sender's token price.
+  const { cryptoPrices } = useCurrencyRates();
+  const myValue = useMemo(() => sumStacksUsd(myItems, cryptoPrices), [myItems, cryptoPrices]);
+  const theirValue = useMemo(() => sumStacksUsd(theirItems, cryptoPrices), [theirItems, cryptoPrices]);
+  const valueLabel = (v: { usd: number; priced: number; total: number }) => v.priced > 0 ? `≈ ${formatUsd(v.usd)}${v.priced < v.total ? "+" : ""}` : null;
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
   const [myOfferDragOver, setMyOfferDragOver] = useState(false);
@@ -1590,8 +1597,9 @@ export function OsrsTradeWindow({
                 {/* Your side (left — source) */}
                 <div className="rounded-xl border border-border/60 bg-surface-1/50 p-2">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <span className="flex min-w-0 items-baseline gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       {selfTrade ? "From" : "Your offer"}
+                      {valueLabel(myValue) && <span className="normal-case tracking-normal text-foreground/85 tabular-nums" title={myValue.priced < myValue.total ? `${myValue.priced} of ${myValue.total} stacks priced` : "All stacks priced"}>{valueLabel(myValue)}</span>}
                     </span>
                     <AnimatePresence>
                       {myReady && (
@@ -1628,8 +1636,9 @@ export function OsrsTradeWindow({
                 {/* Their side (right — destination) */}
                 <div className="rounded-xl border border-border/60 bg-surface-1/50 p-2">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      {selfTrade ? "To" : displayPartner.name ?? "Partner"}
+                    <span className="flex min-w-0 items-baseline gap-2 truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      <span className="truncate">{selfTrade ? "To" : displayPartner.name ?? "Partner"}</span>
+                      {valueLabel(theirValue) && <span className="shrink-0 normal-case tracking-normal text-foreground/85 tabular-nums" title={theirValue.priced < theirValue.total ? `${theirValue.priced} of ${theirValue.total} stacks priced` : "All stacks priced"}>{valueLabel(theirValue)}</span>}
                     </span>
                     <AnimatePresence>
                       {theirReady && (

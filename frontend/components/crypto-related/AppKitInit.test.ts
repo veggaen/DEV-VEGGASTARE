@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const sdk = vi.hoisted(() => ({
-  ready: vi.fn(), open: vi.fn(), create: vi.fn(), storage: vi.fn(),
+  ready: vi.fn(), open: vi.fn(), create: vi.fn(), storage: vi.fn(), features: vi.fn(),
   session: { status: 'unauthenticated', data: null as null | { user: { web3ModeEnabled: boolean } } },
 }));
 vi.mock('react', () => ({ useEffect: (effect: () => void) => effect() }));
@@ -23,7 +23,7 @@ beforeEach(() => {
   sdk.storage.mockReturnValue(null);
   sdk.ready.mockResolvedValue(undefined);
   sdk.open.mockResolvedValue(undefined);
-  sdk.create.mockImplementation(() => ({ ready: sdk.ready, open: sdk.open }));
+  sdk.create.mockImplementation(() => ({ ready: sdk.ready, open: sdk.open, remoteFeatures: { email: true }, updateRemoteFeatures: sdk.features }));
   vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } });
   vi.stubGlobal('localStorage', { getItem: sdk.storage });
 });
@@ -39,6 +39,9 @@ it('restores a previously opted-in account once without opening a modal', async 
   sdk.session = { status: 'authenticated', data: { user: { web3ModeEnabled: true } } };
   AppKitInitializer(); AppKitInitializer(); await globalThis.__veggatAppKitPromise;
   expect(sdk.create).toHaveBeenCalledTimes(1); expect(sdk.open).not.toHaveBeenCalled();
+  // Multi-wallet is a remote flag the cloud config never sends here; init turns it on so a
+  // second extension never disconnects (and revokes) the first.
+  expect(sdk.features).toHaveBeenCalledWith(expect.objectContaining({ email: true, multiWallet: true }));
 });
 it('an old browser opt-in cannot override a disabled signed-in account', () => {
   sdk.storage.mockReturnValue('true');
