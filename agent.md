@@ -36,6 +36,8 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
 - I always run `npm run start:project` in VSCode terminal.
 - Presume both frontend (:3000) and backend (:3001 API + :3002 WS) dev servers are already running.
 - Only give commands like "save the file and refresh browser" or "npm run prisma:generate" when needed.
+- Local database: `frontend/lib/db.ts` reads `DATABASE_URL_MAINDEV` (Vercel: MAINLIVE / MAINPREVIEW). Set it in `frontend/.env.local` (gitignored) to the isolated Neon dev DB — the Feb-era `DATABASE_URL` in `.env` is the same DB but under the old name, which is why sign-in "worked yesterday" on the old local main and broke after the handoff switched branches. That DB was schema-synced with `prisma db push` and seeded with the showcase catalog (`node --env-file=.env.local scripts/seed-showcase.mjs development`; needs exactly one OWNER user) on 2026-09-27. Live is a different Neon host; never point MAINDEV at it.
+- `REDIS_URL` is optional. If it is set but nothing listens, the rate limiter now gives up after ~3s and uses memory (it used to hang every sign-in for 60s+).
 - Frontend runs plain `next dev` / `next build` (see `frontend/package.json`); `next.config.mjs` carries both `turbopack.root` and a `webpack()` hook — leave both alone, do not change the bundler.
 
 ---
