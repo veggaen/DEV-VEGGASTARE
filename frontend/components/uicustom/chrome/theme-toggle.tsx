@@ -21,6 +21,7 @@ import { useTheme } from "next-themes";
 import { FiSun } from "react-icons/fi";
 import { IoMoonOutline } from "react-icons/io5";
 import { useClientReady } from "@/hooks/use-client-ready";
+import { HeaderTip } from "./header-tip";
 import { cn } from "@/lib/utils";
 
 let crossfadeTimer: number | undefined;
@@ -80,11 +81,12 @@ export function ThemeToggle({ className }: { className?: string }) {
     swapThemeWithReveal(() => setTheme(next), { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
   };
 
+  const effective = (resolvedTheme ?? theme) as string | undefined;
   return (
+    <HeaderTip label={ready && effective === "dark" ? "Switch to light" : ready ? "Switch to dark" : "Theme"}>
     <button
       type="button"
       aria-label="Toggle theme"
-      title="Toggle theme"
       disabled={!ready}
       onClick={toggle}
       className={cn(
@@ -105,6 +107,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className="absolute size-[18px] rotate-90 scale-0 transition-transform duration-300 ease-out motion-reduce:transition-none dark:rotate-0 dark:scale-100"
       />
     </button>
+    </HeaderTip>
   );
 }
 

@@ -37,29 +37,31 @@ export function CreditModelPicker({ provider, model, onSelect, config, byokProvi
   }).filter(group => group.models.length > 0);
   return <Sheet open={open} onOpenChange={value => { setOpen(value); if (!value) setSearch(''); }}>
     <SheetTrigger asChild>
-      <button type="button" disabled={disabled} aria-label={`Choose AI model: ${label}`} className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-lg border border-border px-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">
-        <span className="truncate">{label}</span><span aria-hidden="true" className="shrink-0">⌄</span>
+      <button type="button" disabled={disabled} aria-label={`Choose AI model: ${label}`} className="group inline-flex min-h-10 min-w-0 max-w-full items-center gap-2 rounded-full border border-border/60 bg-foreground/[0.05] pl-3 pr-2.5 text-left text-[13px] font-medium text-foreground/90 transition-[background-color,border-color,color] duration-200 hover:border-border hover:bg-foreground/[0.08] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
+        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-brand-accent" />
+        <span className="truncate">{label}</span>
+        <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6l4 4 4-4" /></svg>
       </button>
     </SheetTrigger>
     <SheetContent side="bottom" accessibleTitle="Choose AI model" accessibleDescription="Choose a model and review its credit cost before sending."
-      className="ai-model-picker z-[150] mx-auto flex flex-col gap-3 overflow-hidden border border-border bg-popover p-4 sm:p-5 [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:p-3">
+      className="ai-model-picker z-[150] mx-auto flex flex-col gap-3 overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-4 shadow-e3 backdrop-blur-xl sm:p-5 [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:p-3">
       <div className="shrink-0 pr-10"><h2 className="text-lg font-semibold">Choose AI model</h2><AiCreditStatus config={config} error={error} /></div>
       <label className="block shrink-0 text-sm">Search models
-        <input name="model-search" autoComplete="off" spellCheck={false} value={search} onChange={event => { setSearch(event.target.value); if (modelList.current) modelList.current.scrollTop = 0; }} className="mt-2 h-11 w-full rounded-lg border border-border bg-background px-3 text-base" placeholder="Model or provider" />
+        <input name="model-search" autoComplete="off" spellCheck={false} value={search} onChange={event => { setSearch(event.target.value); if (modelList.current) modelList.current.scrollTop = 0; }} className="mt-2 h-11 w-full rounded-xl border border-border/70 bg-input px-3 text-base transition-[border-color,box-shadow] duration-200 focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.14)]" placeholder="Model or provider" />
       </label>
       <div ref={modelList} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" data-ai-model-scroll>
         {!config && !error && <p role="status" className="py-4 text-sm text-muted-foreground">Loading model availability…</p>}
         {!groups.length && <p role="status" className="py-8 text-center text-sm text-muted-foreground">No models found.</p>}
         {groups.map(group => {
           const { ownKey, models } = group;
-          return <section key={group.value} className="py-3"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</h3>
+          return <section key={group.value} className="py-3"><h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">{group.label}</h3>
             <div className="space-y-1">{models.map(item => {
               const available = Boolean(item.available || ownKey), active = item.provider === provider && item.model === model;
               return <button key={item.model} type="button" disabled={!available} aria-pressed={active}
                 onClick={() => { onSelect(item.provider, item.model); setOpen(false); setSearch(''); }}
-                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50 ${active ? 'border-border bg-muted' : 'border-transparent enabled:hover:bg-muted'}`}>
+                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-[background-color,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${active ? 'border-brand-accent/40 bg-brand-accent/10 text-foreground' : 'border-transparent enabled:hover:border-border/60 enabled:hover:bg-foreground/[0.06]'}`}>
                 <span className="min-w-0 break-words">{item.label}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{ownKey ? 'Your key' : !item.available ? 'Own key required' : item.credits ? `${item.credits} credit${item.credits === 1 ? '' : 's'}` : 'Free'}</span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${active ? 'bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light' : 'bg-foreground/[0.06] text-muted-foreground'}`}>{ownKey ? 'Your key' : !item.available ? 'Own key required' : item.credits ? `${item.credits} credit${item.credits === 1 ? '' : 's'}` : 'Free'}</span>
               </button>;
             })}</div>
           </section>;

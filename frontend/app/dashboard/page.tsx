@@ -174,10 +174,10 @@ export default async function DashboardPage() {
 
       {/* ── Quick Links — clean open cards ─────────────── */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-5">
+        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
           Quick Access
         </h2>
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_LINKS.map((link) => {
             const txt = accentText[link.accent] ?? "text-muted-foreground";
             const bg = accentBg[link.accent] ?? "bg-muted/8";
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group flex min-w-0 items-start gap-3.5 px-4 py-3.5 rounded-lg transition-colors duration-200 motion-reduce:transition-none hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card/70 px-4 py-3.5 shadow-e1 backdrop-blur-xl transition-[transform,box-shadow,border-color,background-color] duration-200 motion-reduce:transition-none hover:border-brand-accent/40 hover:bg-card hover:shadow-e2 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div
                   className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${bg}`}
@@ -202,7 +202,7 @@ export default async function DashboardPage() {
                     {link.description}
                   </p>
                 </div>
-                <FiArrowRight aria-hidden="true" className="shrink-0 h-3.5 w-3.5 text-muted-foreground mt-1" />
+                <FiArrowRight aria-hidden="true" className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
               </Link>
             );
           })}

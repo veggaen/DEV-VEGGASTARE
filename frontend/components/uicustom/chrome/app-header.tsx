@@ -18,6 +18,7 @@
 
 import * as React from "react";
 import { BrandMark } from "./brand-mark";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export const AppHeader = React.forwardRef<
@@ -37,6 +38,9 @@ export const AppHeader = React.forwardRef<
 >(function AppHeader({ rail, utilities, account, scrolled = false, logoHref = "/", className }, ref) {
   return (
     <header ref={ref} className={cn("sticky top-0 z-60 w-full shrink-0", className)}>
+      {/* One tooltip provider for the whole chrome: rail chips and utilities
+          share timing, so moving across the header feels like one surface. */}
+      <TooltipProvider delayDuration={200} skipDelayDuration={200}>
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 border-b border-border/70 bg-background/80 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-300 ease-out motion-reduce:transition-none"
@@ -57,6 +61,7 @@ export const AppHeader = React.forwardRef<
           {account}
         </div>
       </div>
+      </TooltipProvider>
     </header>
   );
 });

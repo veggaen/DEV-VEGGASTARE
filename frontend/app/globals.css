@@ -788,16 +788,14 @@ html:not(.dark) .glass-panel {
   border: 1px solid rgba(0, 0, 0, 0.07);
 }
 html:not(.dark) .chat-desktop-panel:hover {
-  border-color: rgba(14, 165, 233, 0.35) !important;
+  border-color: hsl(var(--brand-accent) / 0.35);
   box-shadow:
-    0 0 40px rgba(14,165,233,0.06),
+    0 0 40px hsl(var(--brand-accent) / 0.06),
     0 8px 32px rgba(0,0,0,0.08);
 }
 html:not(.dark) .chat-desktop-panel:focus-within {
-  border-color: rgba(14, 165, 233, 0.45) !important;
-  box-shadow:
-    0 0 50px rgba(14,165,233,0.08),
-    0 8px 40px rgba(0,0,0,0.10);
+  border-color: hsl(var(--brand-accent) / 0.18);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.08);
 }
 
 /* Desktop chat container — feature-card-style hover with gradient accent + border glow */
@@ -830,17 +828,18 @@ html:not(.dark) .chat-desktop-panel:focus-within {
 }
 .chat-desktop-panel:hover {
   box-shadow:
-    0 0 50px rgba(34,197,94,0.10),
+    0 0 50px hsl(var(--brand-accent) / 0.10),
     0 8px 40px rgba(0,0,0,0.25),
-    inset 0 -40px 60px -30px rgba(34,197,94,0.04);
-  border-color: rgba(34, 197, 94, 0.30);
+    inset 0 -40px 60px -30px hsl(var(--brand-accent) / 0.04);
+  border-color: hsl(var(--brand-accent) / 0.30);
 }
+/* While typing, the panel steps back (faint accent hairline) and the composer
+   carries the glow — one focal point, not two competing green frames. */
 .chat-desktop-panel:focus-within {
   box-shadow:
-    0 0 60px rgba(34,197,94,0.14),
-    0 8px 40px rgba(0,0,0,0.35),
-    inset 0 -50px 70px -30px rgba(34,197,94,0.06);
-  border-color: rgba(34, 197, 94, 0.40);
+    0 8px 40px rgba(0,0,0,0.30),
+    inset 0 -50px 70px -30px hsl(var(--brand-accent) / 0.05);
+  border-color: hsl(var(--brand-accent) / 0.18);
 }
 
 /* Chat input wrapper — neutral, no green glow */
@@ -973,10 +972,15 @@ html.dark .chat-send-btn:not(:disabled):hover {
 
 /* One neutral focus boundary, shared by the homepage and full chat. This sits
    after the global focus fallback so it replaces, rather than doubles, it. */
+.ai-composer-surface {
+  transition: border-color 0.2s ease-out, box-shadow 0.25s ease-out;
+}
 .ai-composer-surface:has(textarea:focus-visible) {
-  border-color: hsl(var(--muted-foreground));
-  outline: 2px solid hsl(var(--muted-foreground));
-  outline-offset: -1px;
+  border-color: hsl(var(--brand-accent) / 0.6);
+  outline: none;
+  box-shadow:
+    0 0 0 3px hsl(var(--brand-accent) / 0.14),
+    0 0 32px -8px hsl(var(--brand-accent) / 0.35);
 }
 .ai-composer-surface textarea:focus-visible {
   outline: none;

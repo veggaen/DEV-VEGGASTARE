@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import AppProviders from "@/components/providers/app-providers";
 import { auth } from "@/auth";
 import { headers } from "next/headers";
+import Script from "next/script";
 import { CONSENT_VISIBILITY_SCRIPT } from "@/lib/consent-visibility";
 import { ACCENT_BOOT_SCRIPT } from "@/lib/accent-boot";
 
@@ -52,9 +53,9 @@ export default async function RootLayout({ children, modal }: { children: React.
       {/* Parser-time presentation check, like the theme bootstrap: returning
           visitors never see a consent flash while the application JS downloads.
           Nonce is inherited from the existing CSP; this does not enable tracking. */}
-      <script id="consent-visibility" nonce={nonce} dangerouslySetInnerHTML={{ __html: CONSENT_VISIBILITY_SCRIPT }} />
+      <Script id="consent-visibility" strategy="beforeInteractive" nonce={nonce}>{CONSENT_VISIBILITY_SCRIPT}</Script>
       {/* Saved accent preset on <html> before hydration — no colour flash. */}
-      <script id="accent-boot" nonce={nonce} dangerouslySetInnerHTML={{ __html: ACCENT_BOOT_SCRIPT }} />
+      <Script id="accent-boot" strategy="beforeInteractive" nonce={nonce}>{ACCENT_BOOT_SCRIPT}</Script>
       {/* With JS disabled no optional SDK can run, and an inert consent panel
           must not cover the readable sales terms or other server content. */}
       <noscript><style>{'[data-cookie-banner]{display:none}'}</style></noscript>

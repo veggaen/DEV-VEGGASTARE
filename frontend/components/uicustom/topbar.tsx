@@ -14,6 +14,7 @@ import { useTheme } from "next-themes";
 import { signIn, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
+import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import { FcGoogle } from "react-icons/fc";
 import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ import { CurrencySelector } from "@/components/uicustom/currency-selector";
 import { AppHeader } from "@/components/uicustom/chrome/app-header";
 import { AppRail } from "@/components/uicustom/chrome/app-rail";
 import { ThemeToggle, swapThemeWithReveal } from "@/components/uicustom/chrome/theme-toggle";
+import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
 import { isDemoUserId } from '@/lib/demo-policy';
@@ -176,13 +178,6 @@ const MyTopBar = () => {
 		} finally {
 			if (request === walletOpeningRequest.current) setWalletOpening(false);
 		}
-	};
-	// Which OAuth provider is mid-redirect, so its button can show a spinner
-	// instead of feeling unresponsive while the browser navigates to the provider.
-	const [oauthPending, setOauthPending] = useState<null | 'google' | 'discord' | 'github'>(null);
-	const startOauth = (provider: 'google' | 'discord' | 'github') => {
-		setOauthPending(provider);
-		signIn(provider, { callbackUrl: '/products' });
 	};
 	const [isMobile, setIsMobile] = useState(false);
 	const [nexusOpen, setNexusOpen] = useState(false);
@@ -365,12 +360,13 @@ const MyTopBar = () => {
 										<CurrencySelector variant="ghost" size="sm" />
 									</div>
 								</TooltipTrigger>
-								<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Currency</TooltipContent>
+								<TooltipContent side="bottom" sideOffset={6} className="rounded-full border-border/60 px-3 py-1.5 text-[11px] font-medium">Currency</TooltipContent>
 							</Tooltip>
 
 							{clientUser && (
 								<>
 									{/* Notification Bell */}
+											<HeaderTip label="Alerts">
 											<div data-nav-key="notifications" className="relative">
 												<NotificationDropdown
 													notifications={notifications}
@@ -384,6 +380,7 @@ const MyTopBar = () => {
 													onMarkAllRead={markAllAsRead}
 												/>
 											</div>
+											</HeaderTip>
 									
 									{/* Mini Cart Dropdown */}
 									<Tooltip>
@@ -396,7 +393,7 @@ const MyTopBar = () => {
 												/>
 											</div>
 										</TooltipTrigger>
-										<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
+										<TooltipContent side="bottom" sideOffset={6} className="rounded-full border-border/60 px-3 py-1.5 text-[11px] font-medium">Cart</TooltipContent>
 									</Tooltip>
 
 
@@ -404,15 +401,18 @@ const MyTopBar = () => {
 							)}
 						</div>
 						{clientUser && (
+							<HeaderTip label="Messages">
 							<div data-nav-key="conversations" className="relative">
 								<ChatLiteDropdown />
 							</div>
+							</HeaderTip>
 						)}
 						<ThemeToggle />
 						</TooltipProvider>
 						</>
 					}
 					account={
+					<HeaderTip label={clientUser ? "Account" : "Menu"}>
 					<SheetTrigger asChild>
 						<button
 							type="button"
@@ -438,6 +438,7 @@ const MyTopBar = () => {
 							)}</span>
 						</button>
 					</SheetTrigger>
+					</HeaderTip>
 					}
 				/>
 					<SheetContent
@@ -531,14 +532,14 @@ const MyTopBar = () => {
 								{/* Navigation Pane */}
 								{(!clientUser || menuPane === "nav") && (
 									<div className="p-3">
-										{/* Grouped navigation */}
-										<nav className="space-y-4">
+										{/* Grouped navigation — compact tiles, two per row, icon in a soft well */}
+										<nav className="space-y-5" aria-label="Menu">
 											{menuGroups.map((group) => (
 												<div key={group.label}>
-													<div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+													<div className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
 														{group.label}
 													</div>
-													<div className="space-y-0.5">
+													<div className="grid grid-cols-2 gap-1.5">
 														{group.items.map((item) => {
 															const active = isActivePath(pathname, item.href);
 															const Icon = item.icon;
@@ -548,15 +549,14 @@ const MyTopBar = () => {
 																	href={item.href}
 																	onClick={() => setMenuOpen(false)}
 																	aria-current={active ? 'page' : undefined}
-																	className={`group/navitem relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground"}`}
+																	className={`group/navitem flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-200 motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "border-brand-accent/40 bg-brand-accent/10 text-foreground" : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-foreground/[0.06] hover:text-foreground"}`}
 																>
-																	{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
-																		<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
-																	<span>{item.label}</span>
+																	<span className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${active ? "bg-brand-accent/15 text-brand-accent" : "bg-foreground/[0.05] text-muted-foreground group-hover/navitem:text-foreground"}`}>
+																		<Icon className="h-4 w-4" />
+																	</span>
+																	<span className="min-w-0 truncate">{item.label}</span>
 																	{item.href === "/pulse" && (
-																		<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
-																			<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-accent" />
-																		</span>
+																		<span className="ml-auto flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent" aria-hidden="true" />
 																	)}
 																</Link>
 															);
@@ -640,38 +640,7 @@ const MyTopBar = () => {
 										</button>
 
 										{/* OAuth providers row */}
-										<div className="flex gap-2">
-											<button
-												type="button"
-												onClick={() => startOauth("google")}
-												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
-												title="Continue with Google"
-											>
-												{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
-												Google
-											</button>
-											<button
-												type="button"
-												onClick={() => startOauth("discord")}
-												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
-												title="Continue with Discord"
-											>
-												{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
-												Discord
-											</button>
-											<button
-												type="button"
-												onClick={() => startOauth("github")}
-												disabled={oauthPending !== null}
-												className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/[0.07] transition-colors"
-												title="Continue with GitHub"
-											>
-												{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
-												GitHub
-											</button>
-										</div>
+										<MySocialAuth redirectTo="/products" />
 
 										{/* Sign in / Sign up links */}
 										<div className="flex gap-2 pt-1">

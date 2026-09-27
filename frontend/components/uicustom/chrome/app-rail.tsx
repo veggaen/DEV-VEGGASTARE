@@ -35,6 +35,8 @@ import { usePathname } from "next/navigation";
 import Link, { useLinkStatus } from "next/link";
 import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
 import { isActiveNavigationPath, type PrimaryNavItem } from "@/components/uicustom/site-navigation";
+import { HeaderTip } from "./header-tip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type RailItem = PrimaryNavItem;
@@ -54,6 +56,17 @@ function ChipPending() {
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 rounded-full bg-brand-accent/10 motion-safe:animate-pulse"
     />
+  );
+}
+
+/** Tooltip only where it adds information; a Radix Tooltip needs its provider,
+ *  so the rail carries one of its own (the header adds another — nesting is fine). */
+function MaybeTip({ enabled, label, className, children }: { enabled: boolean; label: string; className?: string; children: React.ReactElement }) {
+  if (!enabled) return children;
+  return (
+    <TooltipProvider delayDuration={200} skipDelayDuration={200}>
+      <HeaderTip label={label} className={className}>{children}</HeaderTip>
+    </TooltipProvider>
   );
 }
 
@@ -247,10 +260,13 @@ export function AppRail({
               {active && !measured && (
                 <span aria-hidden="true" className={cn("pointer-events-none absolute inset-0", activeBoxClass)} />
               )}
+              {/* Header chips are icon-only below lg, so the tooltip carries the
+                  label there; from lg the label is visible and the tip hides.
+                  The dock always shows labels, so it gets the plain link. */}
+              <MaybeTip enabled={!isDock} label={item.live ? `${item.label} · live` : item.label} className="lg:hidden">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                title={isDock ? undefined : item.live ? `${item.label} — live` : item.label}
                 onClick={onNavigate}
                 onPointerEnter={() => setHovered(item.href)}
                 onFocus={() => setHovered(item.href)}
@@ -276,6 +292,7 @@ export function AppRail({
                 </span>
                 <ChipPending />
               </Link>
+              </MaybeTip>
             </li>
           );
         })}

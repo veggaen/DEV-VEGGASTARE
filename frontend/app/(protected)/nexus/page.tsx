@@ -167,7 +167,7 @@ export default function NexusPage() {
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: sectionIndex * 0.05 }}
               >
-                <h2 className="text-sm font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+                <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
                   {section.section}
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -175,16 +175,16 @@ export default function NexusPage() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card/30 p-4 transition hover:bg-card/60 hover:border-border"
+                      className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl transition-[transform,box-shadow,border-color,background-color] duration-200 hover:border-brand-accent/40 hover:bg-card hover:shadow-e2 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${colorClasses[item.color]}`}>
+                      <div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-foreground/[0.05] transition-colors ${colorClasses[item.color]}`}>
                         <item.icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-foreground">{item.label}</div>
                         <div className="text-xs text-muted-foreground">{item.description}</div>
                       </div>
-                      <FiChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+                      <FiChevronRight className="h-4 w-4 text-muted-foreground/50 transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
                     </Link>
                   ))}
                 </div>
