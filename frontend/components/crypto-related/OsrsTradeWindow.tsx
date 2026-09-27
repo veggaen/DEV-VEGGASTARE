@@ -413,6 +413,7 @@ function OfferGrid({
   items,
   isRemote,
   isDragOver,
+  ghostOver = false,
   isLocked,
   onRemoveItem,
   onReorderItem,
@@ -423,6 +424,8 @@ function OfferGrid({
   items: InventorySlot[];
   isRemote?: boolean;
   isDragOver?: boolean;
+  /** A split ghost from the inventory is looking for a home: light the grid up. */
+  ghostOver?: boolean;
   isLocked?: boolean;
   onRemoveItem?: (id: string) => void;
   onReorderItem?: (fromIndex: number, toIndex: number) => void;
@@ -511,13 +514,14 @@ function OfferGrid({
 
   return (
     <div
+      data-offer-grid={isRemote ? "theirs" : isLocked ? "locked" : "mine"}
       className={`relative mx-auto grid w-full max-w-[400px] gap-1 rounded-xl p-1.5 transition-[background-color,border-color,box-shadow,opacity] duration-200 ${
         isLocked
           ? "border-2 border-border/40 bg-foreground/[0.04] opacity-80"
-          : isDragOver
+          : isDragOver || ghostOver
             ? "border-2 border-dashed border-brand-accent/60 bg-brand-accent/10 shadow-[inset_0_0_20px_hsl(var(--brand-accent)/0.08)]"
             : "border-2 border-dashed border-border/70 bg-foreground/[0.03]"
-      }`}
+      } ${ghostOver && !isLocked ? "cursor-copy" : ""}`}
       style={{
         gridTemplateColumns: `repeat(${OFFER_COLS}, 1fr)`,
         gridTemplateRows: `repeat(${OFFER_ROWS}, 1fr)`,
@@ -565,7 +569,7 @@ function OfferGrid({
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <FiPackage className="mb-1 h-5 w-5 text-muted-foreground/70" />
           <span className="text-[11px] text-muted-foreground">
-            {isRemote ? "Waiting for their items…" : "Drop items here"}
+            {isRemote ? "Waiting for their items…" : ghostOver ? "Click to place it here" : "Drop items here"}
           </span>
         </div>
       )}
@@ -868,6 +872,13 @@ export function OsrsTradeWindow({
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
   const [myOfferDragOver, setMyOfferDragOver] = useState(false);
+  /** True while the inventory has a split ghost on the cursor (see OsrsInventory). */
+  const [ghostActive, setGhostActive] = useState(false);
+  useEffect(() => {
+    const handler = (e: Event) => setGhostActive(Boolean((e as CustomEvent<{ active: boolean }>).detail?.active));
+    window.addEventListener("veggat:ghostActive", handler);
+    return () => window.removeEventListener("veggat:ghostActive", handler);
+  }, []);
   const [tradeReceipt, setTradeReceipt] = useState<TradeReceipt | null>(null);
   const [executing, setExecuting] = useState(false);
   /** Trade hash at time of ready — used for tamper detection */
@@ -1598,6 +1609,7 @@ export function OsrsTradeWindow({
                   <OfferGrid
                     items={myItems}
                     isDragOver={myOfferDragOver}
+                    ghostOver={ghostActive && phase === "offer" && !myReady}
                     isLocked={myReady}
                     onRemoveItem={removeMyItem}
                     onReorderItem={reorderMyItem}

@@ -374,7 +374,9 @@ export function OsrsInventory({
     setFloatingItem(ghost);
     setSplitDialog(null);
     toast.success(
-      `${splitAmount} ${sourceSlot.token.symbol} split — click a slot to place it`,
+      onAddToTrade
+        ? `${splitAmount} ${sourceSlot.token.symbol} split — click the trade grid or an inventory slot to place it`
+        : `${splitAmount} ${sourceSlot.token.symbol} split — click a slot to place it`,
       { duration: 4000 },
     );
   }, [splitDialog, splitAmount, inventorySlots]);
@@ -398,6 +400,27 @@ export function OsrsInventory({
     setSplitDialog(null);
     toast.success(`${splitAmount} ${sourceSlot.token.symbol} added to the trade`);
   }, [splitDialog, splitAmount, inventorySlots, onAddToTrade]);
+
+  // ── Ghost ↔ trade window ───────────────────────────────────
+  // While a split ghost follows the cursor the trade window highlights its
+  // own offer grid; a click there hands the ghost over instead of forcing a
+  // detour through an inventory slot first.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("veggat:ghostActive", { detail: { active: Boolean(floatingItem) && Boolean(onAddToTrade) } }));
+  }, [floatingItem, onAddToTrade]);
+  useEffect(() => {
+    if (!floatingItem || !onAddToTrade) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target?.closest("[data-offer-grid='mine']")) return;
+      e.preventDefault(); e.stopPropagation();
+      onAddToTrade(floatingItem);
+      setFloatingItem(null);
+      toast.success(`${floatingItem.amount} ${floatingItem.token.symbol} placed in the trade`);
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [floatingItem, onAddToTrade]);
 
   // ── Mouse tracking for floating ghost ──────────────────────
   useEffect(() => {
@@ -2036,7 +2059,7 @@ function OsrsFloatingGhost({
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           <FiTarget className="h-2.5 w-2.5" />
-          Click slot to place
+          Click a slot or the trade grid
         </motion.div>
       </div>
     </motion.div>

@@ -400,7 +400,7 @@ const MyTopBar = () => {
 								<ThemeToggle variant="chip" />
 							</RailSlot>
 							{/* The account circle is taller than the pill and hangs off its end. */}
-							<RailSlot id="account" className="-my-2 -mr-2.5 ml-0.5">
+							<RailSlot id="account" className="-my-3 -mr-3 ml-0.5">
 								<HeaderTip label={clientUser ? "Account" : "Menu"}>
 									<SheetTrigger asChild>
 										<button
@@ -409,12 +409,12 @@ const MyTopBar = () => {
 											data-nav-round="true"
 											aria-label="Open menu"
 											disabled={!clientReady}
-											className="group grid size-12 shrink-0 place-items-center rounded-full border border-border/60 bg-surface-1 text-foreground shadow-e1 transition-[border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-brand-accent/40 hover:shadow-e2 motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:size-[3.25rem]"
+											className={`group grid size-[3.25rem] shrink-0 place-items-center overflow-hidden rounded-full text-foreground shadow-e1 transition-[transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:shadow-e2 hover:ring-2 hover:ring-brand-accent/50 motion-safe:hover:scale-[1.04] motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:size-14 ${clientUser ? "bg-transparent" : "border border-border/60 bg-surface-1"}`}
 										>
 											{clientUser ? (
-												<Avatar className="size-9 ring-2 ring-background transition-[box-shadow] duration-200 group-hover:ring-brand-accent/40 lg:size-10">
-													<AvatarImage src={clientUser.image || "/users/avatar.webp"} alt="User" />
-													<AvatarFallback className="bg-muted text-sm text-muted-foreground"><FaUser className="size-4" /></AvatarFallback>
+												<Avatar className="size-full rounded-full transition-transform duration-300 group-hover:scale-105">
+													<AvatarImage src={clientUser.image || "/users/avatar.webp"} alt="User" className="object-cover" />
+													<AvatarFallback className="bg-muted text-sm text-muted-foreground"><FaUser className="size-5" /></AvatarFallback>
 												</Avatar>
 											) : (
 												<TbHexagons aria-hidden="true" className="size-5 text-muted-foreground transition-[color,transform] duration-300 group-hover:rotate-12 group-hover:text-brand-accent" />

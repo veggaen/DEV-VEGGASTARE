@@ -197,8 +197,8 @@ const FeatureCard = React.memo(function FeatureCard({
 }) {
   return (
     <motion.div
-      initial={false}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 26, filter: "blur(8px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-60px 0px" }}
       transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       whileTap={{ scale: 0.98 }}
@@ -282,8 +282,8 @@ const StepCard = React.memo(function StepCard({
   return (
     <motion.div
       className="relative flex flex-col gap-3 cursor-default"
-      initial={false}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 26, filter: "blur(8px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-40px 0px" }}
       transition={{ delay, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={onMouseEnter}
@@ -364,8 +364,8 @@ const SectionHeading = React.memo(function SectionHeading({
     <div className="mb-12 text-center">
       <motion.p
         className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent-hover dark:text-brand-accent-light"
-        initial={false}
-        whileInView={{ opacity: 1 }}
+        initial={{ opacity: 0, y: 10 }}
+        whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.45 }}
       >
@@ -373,8 +373,8 @@ const SectionHeading = React.memo(function SectionHeading({
       </motion.p>
       <motion.h2
         className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
-        initial={false}
-        whileInView={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 26, filter: "blur(8px)" }}
+        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         viewport={{ once: true }}
         transition={{ duration: 0.45, delay: 0.1 }}
       >
@@ -383,8 +383,8 @@ const SectionHeading = React.memo(function SectionHeading({
       {subtitle && (
         <motion.p
           className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground"
-          initial={false}
-          whileInView={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45, delay: 0.2 }}
         >
@@ -571,8 +571,8 @@ export default function BelowFoldSections() {
                   statCellRefs.current[i] = el;
                 }}
                 className="flex flex-col items-center justify-center gap-1 px-6 py-8 text-center cursor-default"
-                initial={false}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 26, filter: "blur(8px)" }}
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 viewport={{ once: true, margin: "-50px 0px" }}
                 transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
                 onMouseEnter={() => handleStatEnter(i)}
@@ -623,8 +623,8 @@ export default function BelowFoldSections() {
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20 xl:max-w-6xl">
           <motion.div
             className="flex flex-col items-center gap-5 text-center"
-            initial={false}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 26, filter: "blur(8px)" }}
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
