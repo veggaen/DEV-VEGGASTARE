@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
 import { useTokenBalances, CHAIN_LOGOS, type InventoryToken } from "@/hooks/use-token-balances";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { toast } from "sonner";
@@ -130,7 +131,8 @@ export function OsrsInventory({
   const chains = useChains();
   const { switchChain, status: switchStatus } = useSwitchChain();
   const { override } = useActiveWalletOverride();
-  const { tokens, loading, error: balancesError, refetch } = useTokenBalances();
+  const { tokens, loading, refreshing, error: balancesError, refetch } = useTokenBalances();
+  const { cryptoPrices } = useCurrencyRates();
   const { nfts, loading: nftsLoading, refetch: refetchNfts } = useNftBalances();
 
   /** Active tab: "tokens" (ERC-20 + native) or "nfts" (ERC-721/1155) */
@@ -269,6 +271,24 @@ export function OsrsInventory({
     () => gridState.filter((slot): slot is InventorySlot => slot !== null),
     [gridState],
   );
+
+  // What the visible stacks are worth: indexer prices per token, display rates for the native coin.
+  const portfolio = useMemo(() => {
+    let usd = 0, priced = 0;
+    for (const slot of inventorySlots) {
+      const t = slot.token;
+      const price = t.usdPrice ?? (t.isNative ? cryptoPrices[t.symbol] : undefined);
+      if (!price) continue;
+      let raw = BigInt(0);
+      try { raw = BigInt(slot.rawAmount); } catch { continue; }
+      const amount = Number(formatUnits(raw, t.decimals));
+      if (Number.isFinite(amount)) { usd += amount * price; priced++; }
+    }
+    return { usd, priced, total: inventorySlots.length };
+  }, [inventorySlots, cryptoPrices]);
+  const portfolioLabel = portfolio.priced > 0
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: portfolio.usd >= 1000 ? 0 : 2 }).format(portfolio.usd)
+    : null;
 
   // ── Stablecoin symbols for filter ─────────────────────────
   const STABLECOINS = useMemo(() => new Set(["USDC", "USDT", "DAI", "BUSD", "TUSD", "FRAX", "LUSD", "GUSD", "PYUSD", "USDP", "USDD", "RAI"]), []);
@@ -1076,7 +1096,7 @@ export function OsrsInventory({
             title="Refresh balances (consolidates split stacks)"
           >
             <FiRefreshCw
-              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 ${loading || refreshing ? "animate-spin" : ""}`}
             />
           </button>
         </div>
@@ -1393,7 +1413,12 @@ export function OsrsInventory({
           <span className="text-[10px] text-muted-foreground">
             {activeTab === "tokens"
               ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
-              : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}{" "}
+              : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}
+            {activeTab === "tokens" && portfolioLabel && (
+              <span className="font-medium text-foreground/85" title={portfolio.priced < portfolio.total ? `${portfolio.priced} of ${portfolio.total} stacks have a price` : "All stacks priced"}>
+                {" "}· ≈ {portfolioLabel}{portfolio.priced < portfolio.total ? "+" : ""}
+              </span>
+            )}{" "}
             · {activeChain?.name ?? `Chain ${chainId}`}
           </span>
         )}

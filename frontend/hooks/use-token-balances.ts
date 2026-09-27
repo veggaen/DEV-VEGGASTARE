@@ -116,6 +116,8 @@ export interface InventoryToken {
   rawBalance: bigint;
   displayBalance: string;
   isNative: boolean;
+  /** USD per whole token when a price is known (indexer); native coins are priced by the caller. */
+  usdPrice?: number;
 }
 
 /**
@@ -134,8 +136,21 @@ export function useTokenBalances() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const wagmiChainId = useChainId();
   const { override } = useActiveWalletOverride();
-  const [tokens, setTokens] = useState<InventoryToken[]>([]);
+  const [tokens, setTokensState] = useState<InventoryToken[]>([]);
+  /** True until the first read for this wallet/chain completes. */
   const [loading, setLoading] = useState(false);
+  /** True while a background poll is in flight; the list stays as it is meanwhile. */
+  const [refreshing, setRefreshing] = useState(false);
+  // Same content → same array. A poll that finds nothing new must not rebuild
+  // the inventory (split stacks, drags in progress and the trade grid all key
+  // off the token array's identity).
+  const signatureRef = useRef<string>("");
+  const setTokens = useCallback((next: InventoryToken[]) => {
+    const signature = next.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}`).join("|");
+    if (signature === signatureRef.current) return;
+    signatureRef.current = signature;
+    setTokensState(next);
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Version counter to prevent stale async results from overwriting newer ones
@@ -159,13 +174,17 @@ export function useTokenBalances() {
     query: { enabled: !isLocalOverride && wagmiConnected },
   });
 
+  const walletKeyRef = useRef("");
   const fetchBalances = useCallback(async () => {
     if (!address || !isConnected || !chainId) return;
+    const walletKey = `${chainId}:${address.toLowerCase()}`;
+    if (walletKeyRef.current !== walletKey) { walletKeyRef.current = walletKey; signatureRef.current = ""; }
 
     // Increment version — any older in-flight fetch becomes stale
     const version = ++fetchVersionRef.current;
 
-    setLoading(true);
+    if (!signatureRef.current) setLoading(true);
+    setRefreshing(true);
     setError(null);
 
     try {
@@ -289,6 +308,7 @@ export function useTokenBalances() {
             rawBalance: raw,
             displayBalance: formatBalance(formatUnits(raw, token.decimals)),
             isNative: false,
+            usdPrice: token.indexedUsdRate,
           });
         }
       };
@@ -352,6 +372,7 @@ export function useTokenBalances() {
     } finally {
       if (version === fetchVersionRef.current) {
         setLoading(false);
+        setRefreshing(false);
       }
     }
   }, [address, isConnected, chainId, nativeBalance, isLocalOverride, override?.rpcUrl]);
@@ -391,7 +412,7 @@ export function useTokenBalances() {
     };
   }, [fetchBalances, isLocalOverride, refetchNative]);
 
-  return { tokens, loading, error, refetch: fetchBalances, chainId };
+  return { tokens, loading, refreshing, error, refetch: fetchBalances, chainId };
 }
 
 /** Format large numbers in compact form: 1.5M, 255.5K, etc. */

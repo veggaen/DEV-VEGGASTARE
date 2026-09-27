@@ -41,6 +41,8 @@ export interface KnownTokenMeta {
 export interface TokenCandidate extends KnownTokenMeta {
   /** Balance the indexer reported, used when the RPC read fails for this token. */
   indexedBalance?: bigint;
+  /** USD per whole token as the indexer knows it (CoinGecko-backed); undefined when unpriced. */
+  indexedUsdRate?: number;
 }
 
 const ADDRESS = /^0x[a-fA-F0-9]{40}$/;
@@ -94,13 +96,13 @@ export function mergeTokenCandidates(known: KnownTokenMeta[], discovered: Discov
   const byAddress = new Map(discovered.map((t) => [t.address.toLowerCase(), t]));
   const result: TokenCandidate[] = known.map((t) => {
     const hit = byAddress.get(t.address.toLowerCase());
-    return { ...t, logo: t.logo ?? hit?.logo, indexedBalance: hit ? safeBigInt(hit.balance) : undefined };
+    return { ...t, logo: t.logo ?? hit?.logo, indexedBalance: hit ? safeBigInt(hit.balance) : undefined, indexedUsdRate: hit?.usdRate };
   });
   for (const t of discovered) {
     const key = t.address.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push({ address: t.address, symbol: t.symbol, decimals: t.decimals, logo: t.logo, indexedBalance: safeBigInt(t.balance) });
+    result.push({ address: t.address, symbol: t.symbol, decimals: t.decimals, logo: t.logo, indexedBalance: safeBigInt(t.balance), indexedUsdRate: t.usdRate });
   }
   return result;
 }
