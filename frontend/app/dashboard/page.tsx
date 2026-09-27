@@ -117,9 +117,16 @@ export default async function DashboardPage() {
   const firstName = user.name?.split(" ")[0] ?? "there";
 
   // ── Fetch real stats ─────────────────────────────────────
-  const [productCount, orderCount, dbUser] = await Promise.all([
+  // "Open" = still in flight: payment pending/confirming, or paid but not yet
+  // delivered. Settled, refunded and cancelled orders are history, not a number
+  // that needs attention.
+  const [productCount, orderCount, openOrderCount, dbUser] = await Promise.all([
     dbPrisma.product.count({ where: { userId: user.id! } }).catch(() => 0),
     dbPrisma.order.count({ where: { userId: user.id! } }).catch(() => 0),
+    dbPrisma.order.count({ where: { userId: user.id!, OR: [
+      { status: { in: ["PENDING", "CONFIRMING"] } },
+      { status: "COMPLETED", fulfilmentStatus: { in: ["UNFULFILLED", "PROCESSING", "SHIPPED"] } },
+    ] } }).catch(() => 0),
     dbPrisma.user
       .findUnique({
         where: { id: user.id! },
@@ -155,8 +162,10 @@ export default async function DashboardPage() {
         />
         <StatCard
           icon={FiShoppingBag}
-          label="My Orders"
-          value={orderCount.toString()}
+          label="Open orders"
+          value={openOrderCount.toString()}
+          hint={orderCount === 0 ? "No orders yet" : openOrderCount === 0 ? `${orderCount} total · all settled` : `of ${orderCount} total`}
+          href="/my-orders"
           accent="sky"
         />
         <StatCard
@@ -219,16 +228,22 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  hint,
+  href,
   accent,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  /** One quiet line under the number, for the context that keeps it honest. */
+  hint?: string;
+  /** Makes the whole stat a link. */
+  href?: string;
   accent: string;
 }) {
   const txt = accentText[accent] ?? "text-muted-foreground";
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+  const body = (
+    <>
       <div className="flex items-center gap-2">
         <Icon className={`h-3.5 w-3.5 ${txt}`} />
         <span className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
@@ -238,6 +253,15 @@ function StatCard({
       <span className={`text-2xl font-bold ${txt} tabular-nums`}>
         {value}
       </span>
-    </div>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className="flex min-w-0 flex-col gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {body}
+      </Link>
+    );
+  }
+  return <div className="flex min-w-0 flex-col gap-1.5">{body}</div>;
 }

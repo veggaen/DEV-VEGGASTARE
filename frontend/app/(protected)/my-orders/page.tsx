@@ -12,6 +12,7 @@ import HistoricalPriceNote from '@/components/checkout/historical-price-note';
 import OrderRecoveryActions from '@/components/checkout/order-recovery-actions';
 import { FiChevronDown, FiDownload, FiPackage, FiRefreshCw } from 'react-icons/fi';
 import { PageHeader } from "@/components/uicustom/chrome/page-header";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 
 export default function MyOrdersPage() {
   const user = useCurrentUser();
@@ -47,11 +48,11 @@ export default function MyOrdersPage() {
       <details className="mb-4 text-xs text-muted-foreground"><summary className="inline-flex min-h-11 cursor-pointer items-center underline underline-offset-4 focus-visible:outline-2">About displayed prices</summary><HistoricalPriceNote /></details>
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>{error instanceof Error && error.name !== 'TimeoutError' ? error.message : 'The request timed out. Please try again.'}</p><Button variant="outline" className="mt-3 h-11" onClick={() => void mutate()}>Try again</Button></div>}
       {loading ? <div role="status" aria-label="Loading orders" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="min-h-36 rounded-xl border border-border p-4 sm:min-h-28 sm:p-5"><div className="h-4 w-36 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-3 h-3 w-44 rounded bg-muted motion-safe:animate-pulse" /><div className="mt-4 h-6 w-24 rounded bg-muted motion-safe:animate-pulse" /></div>)}</div>
-        : orders?.length ? <ul aria-label="Your orders" className="space-y-3">{orders.map(order => {
+        : orders?.length ? <HoverChaser as="ul" aria-label="Your orders" className="space-y-3" boxClassName="rounded-xl">{orders.map(order => {
           const open = expanded === order.id, demo = order.checkout?.environment === 'DEMO', sandbox = order.checkout?.environment === 'SANDBOX';
           const paid = order.checkout?.state === 'COMPLETED' || (!order.checkout && order.payment?.status === 'COMPLETED');
-          return <li key={order.id} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-            <h2><button type="button" aria-expanded={open} aria-controls={'details-' + order.id} onClick={() => toggle(order.id)} className="flex w-full min-w-0 items-start justify-between gap-3 rounded-xl p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [@media(hover:hover)]:hover:bg-foreground/[0.05] sm:items-center sm:p-5">
+          return <li key={order.id} data-chase className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card">
+            <h2><button type="button" aria-expanded={open} aria-controls={'details-' + order.id} onClick={() => toggle(order.id)} className="flex w-full min-w-0 items-start justify-between gap-3 rounded-xl p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:items-center sm:p-5">
               <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="min-w-0"><span className="block text-sm font-semibold">Order #{order.id.slice(-8).toUpperCase()}</span><time dateTime={order.createdAt} className="mt-1 block text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</time><span className="mt-3 inline-flex rounded-full border border-border bg-foreground/[0.05] px-2.5 py-1 text-xs font-medium">{orderStatusLabel(order)}</span></span>
                 <span className="min-w-0 sm:text-right"><span className="block text-sm font-semibold tabular-nums"><PreferredMoney context="history" amount={demo ? 0 : order.totalAmount} currency={order.currency ?? null} /></span><span className="mt-1 block text-xs text-muted-foreground">{demo ? 'No payment collected' : sandbox ? 'Test amount · no real money' : 'Order total'}</span></span>
@@ -68,7 +69,7 @@ export default function MyOrdersPage() {
               {['REFUNDED', 'REVERSED', 'PAYMENT_REVIEW'].includes(order.checkout?.state ?? '') && <Button asChild variant="outline" className="min-h-11"><Link href={orderReceiptHref(order)}>Payment details & support</Link></Button>}
             </div>}
           </li>;
-        })}</ul> : !error && <div className="rounded-2xl border border-dashed border-border p-8 text-center"><FiPackage aria-hidden className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h2 className="text-lg font-semibold">No orders yet</h2><p className="mt-2 text-sm text-muted-foreground">Your purchases and demo receipts will appear here.</p><Button asChild className="mt-5 h-11"><Link href="/products">Browse products</Link></Button></div>}
+        })}</HoverChaser> : !error && <div className="rounded-2xl border border-dashed border-border p-8 text-center"><FiPackage aria-hidden className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h2 className="text-lg font-semibold">No orders yet</h2><p className="mt-2 text-sm text-muted-foreground">Your purchases and demo receipts will appear here.</p><Button asChild className="mt-5 h-11"><Link href="/products">Browse products</Link></Button></div>}
       {!!orders?.length && <p className="mt-4 text-xs text-muted-foreground">Showing {orders.length === 100 ? 'your latest 100 orders' : `${orders.length} ${orders.length === 1 ? 'order' : 'orders'}`}.</p>}
     </div>
   </section>;

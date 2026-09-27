@@ -41,15 +41,33 @@ export function HoverChaser({
   const reduceMotion = useHydratedReducedMotion();
   const [box, setBox] = React.useState<Box | null>(null);
   const [visible, setVisible] = React.useState(false);
+  const itemRef = React.useRef<HTMLElement | null>(null);
+
+  const place = React.useCallback((item: HTMLElement) => {
+    const root = ref.current;
+    if (!root) return;
+    const r = root.getBoundingClientRect(), i = item.getBoundingClientRect();
+    setBox({ x: i.left - r.left + root.scrollLeft, y: i.top - r.top + root.scrollTop, w: i.width, h: i.height });
+  }, []);
 
   const measure = React.useCallback((target: Element | null) => {
     const root = ref.current;
     const item = target instanceof Element ? target.closest<HTMLElement>("[data-chase]") : null;
-    if (!root || !item || !root.contains(item)) { setVisible(false); return; }
-    const r = root.getBoundingClientRect(), i = item.getBoundingClientRect();
-    setBox({ x: i.left - r.left + root.scrollLeft, y: i.top - r.top + root.scrollTop, w: i.width, h: i.height });
+    if (!root || !item || !root.contains(item)) { setVisible(false); itemRef.current = null; return; }
+    itemRef.current = item;
+    place(item);
     setVisible(true);
-  }, []);
+  }, [place]);
+
+  // An item that grows under the pointer (an order expanding, a card revealing
+  // more) keeps the box fitted; without this it would lag until the next move.
+  React.useEffect(() => {
+    if (!visible || !itemRef.current || typeof ResizeObserver === "undefined") return;
+    const item = itemRef.current;
+    const ro = new ResizeObserver(() => place(item));
+    ro.observe(item);
+    return () => ro.disconnect();
+  }, [visible, box?.x, box?.y, place]);
 
   const Comp = Tag as unknown as "div";
   return (
