@@ -20,7 +20,9 @@ describe('stackUsd', () => {
 describe('sumStacksUsd', () => {
   it('adds what it can and reports how many stacks contributed', () => {
     const r = sumStacksUsd([{ token: usdc, rawAmount: '1000000' }, { token: eth, rawAmount: '1000000000000000000' }, { token: junk, rawAmount: '5' }], { ETH: 100 });
-    expect(r).toEqual({ usd: 101, priced: 2, total: 3 });
+    expect(r).toEqual({ usd: 101, priced: 2, total: 3, unverified: 0 });
+    const gated = sumStacksUsd([{ token: { symbol: 'SCAM', decimals: 18, isNative: false, usdPrice: 6000, valueVerified: false }, rawAmount: BigInt('1000000000000000000') }]);
+    expect(gated).toEqual({ usd: 0, priced: 0, total: 1, unverified: 1 });
   });
 });
 

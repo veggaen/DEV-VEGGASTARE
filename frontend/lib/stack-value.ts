@@ -13,10 +13,13 @@ export interface PricedStackToken {
   decimals: number;
   isNative: boolean;
   usdPrice?: number;
+  /** False when the price is not trusted (flagged token the user has not chosen to count). */
+  valueVerified?: boolean;
 }
 
-/** USD value of `rawAmount` of `token`, or null when no price is known. */
+/** USD value of `rawAmount` of `token`, or null when no price is known or the price must not count. */
 export function stackUsd(token: PricedStackToken, rawAmount: bigint | string, nativePrices: Record<string, number> = {}): number | null {
+  if (token.valueVerified === false) return null;
   const price = token.usdPrice ?? (token.isNative ? nativePrices[token.symbol] : undefined);
   if (!price || price <= 0) return null;
   let raw: bigint;
@@ -26,15 +29,16 @@ export function stackUsd(token: PricedStackToken, rawAmount: bigint | string, na
   return amount * price;
 }
 
-/** Sum of a list of stacks; `priced` says how many contributed (so "+" can mark an incomplete total). */
+/** Sum of a list of stacks; `priced` says how many contributed (so "+" can mark an incomplete total), `unverified` how many were left out on purpose. */
 export function sumStacksUsd(stacks: { token: PricedStackToken; rawAmount: bigint | string }[], nativePrices: Record<string, number> = {}) {
-  let usd = 0, priced = 0;
+  let usd = 0, priced = 0, unverified = 0;
   for (const stack of stacks) {
+    if (stack.token.valueVerified === false) { unverified++; continue; }
     const value = stackUsd(stack.token, stack.rawAmount, nativePrices);
     if (value === null) continue;
     usd += value; priced++;
   }
-  return { usd, priced, total: stacks.length };
+  return { usd, priced, total: stacks.length, unverified };
 }
 
 /** "$0.42", "$12.30", "$1.2K", "$636K", "$4.1M": short enough for a 70px cell. */

@@ -82,6 +82,9 @@ export const TOKEN_LOGO_FALLBACKS: Record<string, string> = {
 /** Chain ID → block explorer base URL */
 export const CHAIN_EXPLORERS: Record<number, string> = {
   1: "https://etherscan.io",
+  369: "https://scan.pulsechain.com",
+  11155111: "https://sepolia.etherscan.io",
+  84532: "https://sepolia.basescan.org",
   137: "https://polygonscan.com",
   42161: "https://arbiscan.io",
   10: "https://optimistic.etherscan.io",

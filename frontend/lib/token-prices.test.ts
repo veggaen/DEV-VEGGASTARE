@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { GECKO_BATCH, chunk, normaliseAddresses, parseGeckoPrices } from './token-prices';
+import { GECKO_BATCH, chunk, normaliseAddresses, parseGeckoPrices, parseGeckoSimple } from './token-prices';
+
+describe('parseGeckoSimple', () => {
+  it('reads prices, reserves and volumes side by side, tolerating missing tables', () => {
+    const out = parseGeckoSimple({ data: { attributes: { token_prices: { '0xA': '0.5' }, total_reserve_in_usd: { '0xA': '3722741.95', '0xB': '0.0' }, h24_volume_usd: { '0xA': 516405 } } } });
+    expect(out.prices).toEqual({ '0xa': 0.5 });
+    expect(out.reserves).toEqual({ '0xa': 3722741.95, '0xb': 0 });
+    expect(out.volumes).toEqual({ '0xa': 516405 });
+    expect(parseGeckoSimple({ data: { attributes: { token_prices: {} } } })).toEqual({ prices: {}, reserves: {}, volumes: {} });
+  });
+});
 
 describe('parseGeckoPrices', () => {
   it('lower-cases addresses and keeps only finite positive numbers', () => {

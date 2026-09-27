@@ -23,6 +23,9 @@ import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 import { formatUsd, formatUsdCompact, stackUsd, sumStacksUsd } from "@/lib/stack-value";
 import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
+import { SendStackDialog } from "@/components/crypto-related/SendStackDialog";
+import { RISK_LABEL, type RiskLevel } from "@/lib/token-risk";
+import { isTokenTrusted, setTokenTrusted } from "@/lib/trusted-tokens";
 import { toast } from "sonner";
 import { consumeInventoryDropAck } from "@/lib/trade-drag-ack";
 import {
@@ -38,6 +41,7 @@ import {
   FiTarget,
   FiExternalLink,
   FiArrowRight,
+  FiShield,
 } from "react-icons/fi";
 
 // ────────────────────────────────────────────────────────────
@@ -160,6 +164,8 @@ export function OsrsInventory({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   /** Expanded detail panel — shows token info below grid without layout shift */
   const [detailSlotId, setDetailSlotId] = useState<string | null>(null);
+  /** Stack being sent through the wallet (Send dialog). */
+  const [sendSlotId, setSendSlotId] = useState<string | null>(null);
   const inventoryRef = useRef<HTMLDivElement>(null);
   const pointerIntentRef = useRef<{
     slotId: string;
@@ -1180,6 +1186,8 @@ export function OsrsInventory({
                 slot={slot}
                 index={idx}
                 valueLabel={slot ? stackValueLabel(slot) : null}
+                risk={slot?.token.risk?.level}
+                verified={slot ? slot.token.valueVerified !== false : true}
                 isSelected={slot ? selectedSlot === slot.id : false}
                 isDragging={slot ? draggedSlotId === slot.id : false}
                 isDragOver={dragOverIndex === idx}
@@ -1334,6 +1342,36 @@ export function OsrsInventory({
                   </div>
                 </div>
 
+                {/* Risk verdict + whether the price counts */}
+                {detailSlot.token.risk && detailSlot.token.risk.level !== "ok" && (() => {
+                  const r = detailSlot.token.risk;
+                  const trusted = isTokenTrusted(detailSlot.token.chainId, detailSlot.token.address);
+                  const tone = r.level === "danger" ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300" : r.level === "caution" ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200" : "border-border/60 bg-foreground/[0.04] text-muted-foreground";
+                  return (
+                    <div className={`space-y-1.5 rounded-md border px-2.5 py-2 ${tone}`} role="note">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider">{RISK_LABEL[r.level]}</span>
+                        {r.liquidityUsd !== undefined && <span className="text-[10px] tabular-nums opacity-80">liquidity {formatUsdCompact(r.liquidityUsd)}</span>}
+                      </div>
+                      {r.reasons.length > 0 && (
+                        <ul className="space-y-0.5 text-[10px] leading-snug">
+                          {r.reasons.slice(0, 4).map((reason) => <li key={reason}>· {reason}</li>)}
+                        </ul>
+                      )}
+                      <label className="flex cursor-pointer items-center justify-between gap-2 border-t border-current/15 pt-1.5 text-[10px]">
+                        <span className="text-foreground/85">{trusted ? "Counted in your total (your choice)" : "Left out of your total until you count it"}</span>
+                        <input
+                          type="checkbox"
+                          checked={trusted}
+                          onChange={(e) => { setTokenTrusted(detailSlot.token.chainId, detailSlot.token.address, e.target.checked); toast.info(e.target.checked ? `${detailSlot.token.symbol} now counts toward your total` : `${detailSlot.token.symbol} no longer counts`); }}
+                          aria-label={`Count ${detailSlot.token.symbol} value in totals`}
+                          className="h-3.5 w-3.5 accent-[hsl(var(--brand-accent))]"
+                        />
+                      </label>
+                    </div>
+                  );
+                })()}
+
                 {/* Action buttons */}
                 <div className="flex gap-1.5">
                   {explorerUrl && (
@@ -1373,9 +1411,7 @@ export function OsrsInventory({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      toast.info("Send coming soon");
-                    }}
+                    onClick={() => setSendSlotId(detailSlot.id)}
                     className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                   >
                     <FiSend className="h-3 w-3" />
@@ -1387,6 +1423,13 @@ export function OsrsInventory({
           );
         })()}
       </AnimatePresence>
+
+      <SendStackDialog
+        open={Boolean(sendSlotId)}
+        onOpenChange={(next) => { if (!next) setSendSlotId(null); }}
+        target={(() => { const s = sendSlotId ? inventorySlots.find((x) => x.id === sendSlotId) : undefined; return s ? { token: s.token, rawAmount: s.rawAmount } : null; })()}
+        from={effectiveAddress}
+      />
 
       {/* ── Status Bar — chain + active wallet ──────────── */}
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-border bg-surface-3/60">
@@ -1404,8 +1447,9 @@ export function OsrsInventory({
               ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
               : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}
             {activeTab === "tokens" && portfolioLabel && (
-              <span className="font-medium text-foreground/85" title={portfolio.priced < portfolio.total ? `${portfolio.priced} of ${portfolio.total} stacks have a price` : "All stacks priced"}>
-                {" "}· ≈ {portfolioLabel}{portfolio.priced < portfolio.total ? "+" : ""}
+              <span className="font-medium text-foreground/85" title={portfolio.unverified > 0 ? `${portfolio.unverified} flagged stack${portfolio.unverified > 1 ? "s" : ""} left out; open a stack to count it` : portfolio.priced < portfolio.total ? `${portfolio.priced} of ${portfolio.total} stacks have a price` : "All stacks priced"}>
+                {" "}· ≈ {portfolioLabel}{portfolio.priced + portfolio.unverified < portfolio.total ? "+" : ""}
+                {portfolio.unverified > 0 && <span className="text-amber-700 dark:text-amber-300"> · {portfolio.unverified} unverified</span>}
               </span>
             )}{" "}
             · {activeChain?.name ?? `Chain ${chainId}`}
@@ -1440,6 +1484,7 @@ export function OsrsInventory({
               quickSplitCustomAmount(contextMenu.slotId, amount)
             }
             onCopy={() => handleCopyAddress(contextMenu.slotId)}
+            onSend={() => setSendSlotId(contextMenu.slotId)}
             onClose={closeContextMenu}
             tradeMode={tradeMode}
             onAddToTrade={onAddToTrade ? (slot) => {
@@ -1578,6 +1623,8 @@ function OsrsSlot({
   slot,
   index,
   valueLabel,
+  risk,
+  verified = true,
   isSelected,
   isDragging,
   isDragOver,
@@ -1597,6 +1644,9 @@ function OsrsSlot({
   index: number;
   /** "$1.2K" for this stack, null when unpriced. */
   valueLabel?: string | null;
+  /** Risk verdict; anything but "ok" shows a warning badge, and an untrusted price greys the cell. */
+  risk?: RiskLevel;
+  verified?: boolean;
   isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
@@ -1658,7 +1708,7 @@ function OsrsSlot({
         <>
           {/* Token Icon — larger, centered */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={`transition-transform duration-150 ${isHovered && !isDragging ? "scale-110" : ""}`}>
+            <div className={`transition-[transform,opacity,filter] duration-150 ${isHovered && !isDragging ? "scale-110" : ""} ${!verified ? "opacity-55 saturate-50" : ""}`}>
               <TokenIcon
                 address={slot.token.address}
                 chainId={slot.token.chainId}
@@ -1669,6 +1719,19 @@ function OsrsSlot({
               />
             </div>
           </div>
+
+          {/* Risk badge — top-right, replaces the chain dot for flagged tokens */}
+          {risk && risk !== "ok" && (
+            <span
+              className={`absolute top-0.5 right-0.5 z-10 grid h-3 w-3 place-items-center rounded-full text-[8px] font-black leading-none pointer-events-none ${
+                risk === "danger" ? "bg-red-500/90 text-white" : risk === "caution" ? "bg-amber-400/90 text-black" : "bg-foreground/25 text-foreground"
+              }`}
+              aria-label={RISK_LABEL[risk]}
+              title={RISK_LABEL[risk]}
+            >
+              {risk === "unknown" ? "?" : "!"}
+            </span>
+          )}
 
           {/* Stack Size — top-left, OSRS style */}
           <div className="absolute top-0.5 left-1 z-10 pointer-events-none">
@@ -1699,7 +1762,7 @@ function OsrsSlot({
           </div>
 
           {/* Chain badge — top-right mini indicator */}
-          {CHAIN_LOGOS[slot.token.chainId] && (
+          {CHAIN_LOGOS[slot.token.chainId] && (!risk || risk === "ok") && (
             <div className={`absolute top-0.5 right-0.5 z-10 pointer-events-none transition-opacity duration-150 ${isHovered ? "opacity-100" : "opacity-40"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={CHAIN_LOGOS[slot.token.chainId]} alt="" className="w-3 h-3 rounded-full ring-1 ring-foreground/20" draggable={false} />
@@ -1763,6 +1826,7 @@ function OsrsContextMenu({
   onClose,
   tradeMode,
   onAddToTrade,
+  onSend,
 }: {
   x: number;
   y: number;
@@ -1772,6 +1836,7 @@ function OsrsContextMenu({
   onQuickSplit: (amount: string) => void;
   onCopy: () => void;
   onClose: () => void;
+  onSend?: () => void;
   tradeMode: boolean;
   onAddToTrade?: (slot: InventorySlot) => void;
 }) {
@@ -1791,7 +1856,17 @@ function OsrsContextMenu({
           },
         }]
       : []),
-    { icon: FiSend, label: "Send", action: onClose },
+    { icon: FiSend, label: "Send…", action: () => { onSend?.(); onClose(); } },
+    ...(slot && slot.token.risk && slot.token.risk.level !== "ok"
+      ? [{
+          icon: FiShield,
+          label: isTokenTrusted(slot.token.chainId, slot.token.address) ? "Stop counting value" : "Count value in total",
+          action: () => {
+            setTokenTrusted(slot.token.chainId, slot.token.address, !isTokenTrusted(slot.token.chainId, slot.token.address));
+            onClose();
+          },
+        }]
+      : []),
   ];
 
   const maxAmount = slot

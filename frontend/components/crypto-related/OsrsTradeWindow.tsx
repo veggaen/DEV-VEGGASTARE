@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWalletAddressBook } from "@/hooks/use-wallet-address-book";
-import { useAccount, useChainId, useConnections } from "wagmi";
+import { useAccount, useChainId, useChains, useConnections } from "wagmi";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { toast } from "sonner";
 import {
@@ -45,6 +45,10 @@ import { acknowledgeInventoryDrop } from "@/lib/trade-drag-ack";
 import { formatUsd, sumStacksUsd } from "@/lib/stack-value";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import { useSendStacks, type SendOutcome } from "@/hooks/use-send-stacks";
+import { SendProgress } from "@/components/crypto-related/SendProgress";
+import { shortAddress } from "@/lib/send-stacks";
+import { getExplorerTxUrl } from "@/lib/token-icons";
 import {
   INVENTORY_DND_TYPE,
   type InventorySlot,
@@ -611,6 +615,9 @@ function TradeActionPanel({
   onCancel,
   onReady,
   onConfirm,
+  confirmLabel,
+  confirmDisabled,
+  confirmHint,
 }: {
   phase: TradePhase;
   myReady: boolean;
@@ -621,6 +628,9 @@ function TradeActionPanel({
   onCancel: () => void;
   onReady: () => void;
   onConfirm: () => void;
+  confirmLabel?: string;
+  confirmDisabled?: boolean;
+  confirmHint?: string;
 }) {
   if (phase === "offer") {
     return (
@@ -692,7 +702,7 @@ function TradeActionPanel({
           <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
             <FiAlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
           </motion.div>
-          <p className="text-[11px] text-amber-700 dark:text-amber-300">Last check before anything moves.</p>
+          <p className="text-[11px] text-amber-700 dark:text-amber-300">{confirmHint ?? "Last check before anything moves."}</p>
         </motion.div>
         <div className="grid grid-cols-2 gap-1.5">
           <motion.button
@@ -707,9 +717,9 @@ function TradeActionPanel({
           <motion.button
             type="button"
             onClick={onConfirm}
-            disabled={confirmed || executing}
-            whileHover={!confirmed && !executing ? { scale: 1.02 } : {}}
-            whileTap={!confirmed && !executing ? { scale: 0.98 } : {}}
+            disabled={confirmed || executing || confirmDisabled}
+            whileHover={!confirmed && !executing && !confirmDisabled ? { scale: 1.02 } : {}}
+            whileTap={!confirmed && !executing && !confirmDisabled ? { scale: 0.98 } : {}}
             className="min-h-9 rounded-lg bg-brand-accent text-xs font-semibold text-brand-accent-foreground shadow-e1 transition-[background-color,box-shadow] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_24px_-12px_hsl(var(--brand-accent)/0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:shadow-none"
           >
             {executing ? (
@@ -728,7 +738,7 @@ function TradeActionPanel({
               </span>
             ) : (
               <span className="flex items-center justify-center gap-1.5">
-                <FiShield className="h-3.5 w-3.5" /> Confirm
+                <FiShield className="h-3.5 w-3.5" /> {confirmLabel ?? "Confirm"}
               </span>
             )}
           </motion.button>
@@ -869,7 +879,21 @@ export function OsrsTradeWindow({
   const { override } = useActiveWalletOverride();
   const effectiveAddress = override?.address ?? address;
   const chainId = useChainId();
+  const chains = useChains();
   const addressBook = useWalletAddressBook();
+  // Every real move goes through the wallet that holds the stack.
+  const { send: sendItems, steps: sendSteps, connectionFor } = useSendStacks();
+  /** Hashes already sent for this P2P trade, so a failed confirm never re-sends. */
+  const sentHashesRef = useRef<string[]>([]);
+  /** P2P settlement facts mirrored from the server: wallets and verified hashes per side. */
+  const [settlement, setSettlement] = useState<{
+    iAmInitiator: boolean;
+    myWallet?: string;
+    partnerWallet?: string;
+    initiatorTxHashes: string[];
+    responderTxHashes: string[];
+    confirmedBy: string[];
+  }>({ iAmInitiator: true, initiatorTxHashes: [], responderTxHashes: [], confirmedBy: [] });
 
   // Inline address rename
   const [isRenaming, setIsRenaming] = useState(false);
@@ -1064,6 +1088,21 @@ export function OsrsTradeWindow({
 
         if (data.expiresAt) setExpiresAt(data.expiresAt);
 
+        {
+          const mine = data.initiatorId === currentUser?.id;
+          const meta = (data.metadata ?? {}) as Record<string, unknown>;
+          const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+          const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+          setSettlement({
+            iAmInitiator: mine,
+            myWallet: str(meta[mine ? "initiatorWallet" : "responderWallet"]),
+            partnerWallet: str(meta[mine ? "responderWallet" : "initiatorWallet"]),
+            initiatorTxHashes: list(meta.initiatorTxHashes),
+            responderTxHashes: list(meta.responderTxHashes),
+            confirmedBy: list(meta.confirmedBy),
+          });
+        }
+
         if (data.status === "CANCELLED" || data.status === "EXPIRED") {
           setPhase("cancelled");
           return;
@@ -1149,6 +1188,7 @@ export function OsrsTradeWindow({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            walletAddress: effectiveAddress,
             items: myItems.map((item) => ({
               tokenAddress: item.token.address,
               tokenSymbol: item.token.symbol,
@@ -1218,13 +1258,36 @@ export function OsrsTradeWindow({
 
     setConfirmed(true);
 
-    if (tradeId) {
+    // ── P2P: my stacks go on-chain first, then the server verifies the hashes ──
+    if (tradeId && !selfTrade) {
+      const from = effectiveAddress;
+      const to = settlement.partnerWallet;
+      let txHashes: string[] = sentHashesRef.current;
+      if (myItems.length > 0 && txHashes.length === 0) {
+        if (!from || !to) {
+          toast.error("Both wallets must be known before settlement. Ask your partner to accept again with a connected wallet.");
+          setConfirmed(false);
+          return;
+        }
+        setExecuting(true);
+        const result = await sendItems({ chainId, from, to, items: myItems.map((s) => ({ token: s.token, rawAmount: s.rawAmount })) });
+        setExecuting(false);
+        if (!result.ok) {
+          toast.error(result.error ?? "Transfer failed");
+          setConfirmed(false);
+          return;
+        }
+        txHashes = result.hashes;
+        sentHashesRef.current = txHashes;
+      }
       try {
         const res = await fetch(`/api/trades/${tradeId}/confirm`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ txHashes, walletAddress: from }),
         });
         if (!res.ok) {
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           toast.error(data.error ?? "Confirmation failed");
           setConfirmed(false);
         }
@@ -1233,15 +1296,57 @@ export function OsrsTradeWindow({
         toast.error("Failed to confirm trade");
         setConfirmed(false);
       }
+      return;
     }
 
-    // Self-trade: execute actual on-chain transfers via direct RPC
+    // ── Internal transfer between my own wallets ──
     if (selfTrade && selfSourceAddr && selfDestAddr) {
       const rpcUrl = LOCAL_RPC_URLS[chainId];
 
-      if (!rpcUrl) {
-        // Not a local chain — can't do direct RPC, show notice
-        toast.info("Self-trade on non-local chains requires wallet approval (coming soon)");
+      if (!rpcUrl || connectionFor(selfSourceAddr)) {
+        // A wallet holds the source account (always on a live network): the
+        // extension signs each stack. Only unlocked dev-chain accounts without
+        // a wallet fall through to the direct-RPC path below.
+        setExecuting(true);
+        const toItems = (list: InventorySlot[]) => list.map((s) => ({ token: s.token, rawAmount: s.rawAmount }));
+        const mine = await sendItems({ chainId, from: selfSourceAddr, to: selfDestAddr, items: toItems(myItems) });
+        if (!mine.ok) {
+          setExecuting(false);
+          setConfirmed(false);
+          toast.error(mine.error ?? "Transfer failed");
+          return;
+        }
+        let theirs: SendOutcome = { ok: true, steps: [], hashes: [] };
+        if (theirItems.length) {
+          theirs = await sendItems({ chainId, from: selfDestAddr, to: selfSourceAddr, items: toItems(theirItems) });
+          if (!theirs.ok) toast.error(theirs.error ?? "The return transfer failed. The first transfer is already confirmed.");
+        }
+        const txHashes: string[] = [...mine.hashes, ...theirs.hashes];
+        setTradeReceipt({
+          txHashes,
+          sourceAddress: selfSourceAddr,
+          destAddress: selfDestAddr,
+          chainId,
+          chainName: chains.find((c) => c.id === chainId)?.name ?? `Chain ${chainId}`,
+          items: [...myItems, ...theirItems].map((s) => ({ symbol: s.token.symbol, amount: s.amount, isNative: s.token.isNative })),
+          timestamp: Date.now(),
+        });
+        // App history entries; the chain stays the source of truth.
+        myItems.forEach((s, i) => {
+          void fetch("/api/trades/record", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: "SELF",
+              sellToken: s.token.symbol, sellTokenAddress: s.token.address, sellAmount: s.rawAmount, sellDisplayAmt: s.amount, sellDecimals: Math.min(18, s.token.decimals), sellChainId: chainId,
+              buyToken: s.token.symbol, buyTokenAddress: s.token.address, buyAmount: s.rawAmount, buyDisplayAmt: s.amount, buyDecimals: Math.min(18, s.token.decimals), buyChainId: chainId,
+              txHash: mine.hashes[i], walletAddress: selfSourceAddr,
+              metadata: { kind: "internal-transfer", to: selfDestAddr },
+            }),
+          }).catch(() => undefined);
+        });
+        toast.success(`Transfer confirmed — ${txHashes.length} transaction${txHashes.length > 1 ? "s" : ""}`);
+        setExecuting(false);
         setPhase("complete");
         return;
       }
@@ -1362,7 +1467,22 @@ export function OsrsTradeWindow({
       setExecuting(false);
       setPhase("complete");
     }
-  }, [tradeId, selfTrade, selfSourceAddr, selfDestAddr, chainId, myItems, theirItems, readyTradeHash, tradeHash]);
+  }, [tradeId, selfTrade, selfSourceAddr, selfDestAddr, chainId, myItems, theirItems, readyTradeHash, tradeHash, effectiveAddress, settlement.partnerWallet, sendItems, connectionFor, chains]);
+
+  // What the confirm button means for a P2P trade right now: the initiator sends
+  // first; the responder's turn comes once the server has verified that leg.
+  const p2pConfirm = useMemo(() => {
+    const count = myItems.length;
+    const sendLabel = count ? `Send ${count} stack${count > 1 ? "s" : ""} & confirm` : "Confirm";
+    const initiatorId = settlement.iAmInitiator ? currentUser?.id : partner?.id;
+    const initiatorConfirmed = Boolean(initiatorId && settlement.confirmedBy.includes(initiatorId));
+    const iConfirmed = Boolean(currentUser?.id && settlement.confirmedBy.includes(currentUser.id));
+    const initiatorHasItems = settlement.iAmInitiator ? count > 0 : theirItems.length > 0;
+    if (iConfirmed) return { label: "Waiting for partner", disabled: true, hint: "Your side is settled and verified on-chain. Waiting for your partner's transfer." };
+    if (settlement.iAmInitiator) return { label: sendLabel, disabled: false, hint: "You send first, from your wallet. Your partner sends after your transfer is confirmed on-chain." };
+    if (initiatorHasItems && !initiatorConfirmed) return { label: "Waiting for partner", disabled: true, hint: "Your partner sends first. Your turn comes once their transfer is confirmed on-chain." };
+    return { label: sendLabel, disabled: false, hint: "Your partner's transfer is confirmed on-chain. Send yours to finish the trade." };
+  }, [myItems.length, theirItems.length, settlement, currentUser?.id, partner?.id]);
 
   // ── Cancel ──
   const handleCancel = useCallback(async () => {
@@ -1602,7 +1722,15 @@ export function OsrsTradeWindow({
               key="complete"
               name={displayPartner.name}
               selfTrade={selfTrade}
-              receipt={tradeReceipt}
+              receipt={tradeReceipt ?? (!selfTrade && (settlement.initiatorTxHashes.length || settlement.responderTxHashes.length) ? {
+                txHashes: [...settlement.initiatorTxHashes, ...settlement.responderTxHashes],
+                sourceAddress: settlement.myWallet ?? effectiveAddress ?? "",
+                destAddress: settlement.partnerWallet ?? "",
+                chainId,
+                chainName: chains.find((c) => c.id === chainId)?.name ?? `Chain ${chainId}`,
+                items: [...myItems, ...theirItems].map((s) => ({ symbol: s.token.symbol, amount: s.amount, isNative: s.token.isNative })),
+                timestamp: Date.now(),
+              } : null)}
             />
           ) : phase === "cancelled" ? (
             <TradeCancelled key="cancelled" />
@@ -1736,6 +1864,11 @@ export function OsrsTradeWindow({
                 )}
               </AnimatePresence>
 
+              {phase === "confirm" && !selfTrade && (
+                <SettlementPanel settlement={settlement} partnerName={displayPartner.name} chainId={chainId} />
+              )}
+              {sendSteps.length > 0 && <SendProgress steps={sendSteps} />}
+
               {/* Action Panel — compact bar below both grids */}
               <TradeActionPanel
                 phase={phase}
@@ -1747,6 +1880,9 @@ export function OsrsTradeWindow({
                 onCancel={handleCancel}
                 onReady={handleReady}
                 onConfirm={handleConfirm}
+                confirmLabel={selfTrade ? "Transfer with wallet" : p2pConfirm.label}
+                confirmDisabled={!selfTrade && p2pConfirm.disabled}
+                confirmHint={selfTrade ? "Your wallet asks you to confirm each stack. Nothing moves until you approve it there." : p2pConfirm.hint}
               />
             </motion.div>
           )}
@@ -1768,6 +1904,54 @@ export function OsrsTradeWindow({
       {/* ── Action Bar ───────────────────────────────────── */}
       {phase !== "complete" && phase !== "cancelled" && null}
     </motion.div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// P2P settlement status (two wallet transfers, verified server-side)
+// ────────────────────────────────────────────────────────────
+
+function SettlementPanel({
+  settlement,
+  partnerName,
+  chainId,
+}: {
+  settlement: { iAmInitiator: boolean; partnerWallet?: string; initiatorTxHashes: string[]; responderTxHashes: string[] };
+  partnerName: string | null;
+  chainId: number;
+}) {
+  const partner = partnerName ?? "Partner";
+  const rows = [
+    { key: "first", who: settlement.iAmInitiator ? "You" : partner, role: "send first", hashes: settlement.initiatorTxHashes },
+    { key: "second", who: settlement.iAmInitiator ? partner : "You", role: "send second", hashes: settlement.responderTxHashes },
+  ];
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border/60 bg-foreground/[0.03] p-2 text-[11px]">
+      <div className="flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <FiLock className="h-3 w-3" /> Settlement
+      </div>
+      <p className="text-muted-foreground">Two wallet transfers, no escrow: each side is accepted only after its transactions are confirmed on-chain.</p>
+      {settlement.partnerWallet ? (
+        <p className="text-muted-foreground">Partner wallet <span className="font-mono text-foreground">{shortAddress(settlement.partnerWallet)}</span></p>
+      ) : (
+        <p className="text-amber-700 dark:text-amber-300">Partner wallet unknown yet. They need to accept with a connected wallet.</p>
+      )}
+      {rows.map((r) => (
+        <div key={r.key} className="flex items-center justify-between gap-2">
+          <span className="text-foreground">{r.who} <span className="text-muted-foreground">{r.role}</span></span>
+          {r.hashes.length ? (
+            <span className="flex items-center gap-1.5 text-brand-accent-hover dark:text-brand-accent-light">
+              <FiCheckCircle className="h-3 w-3" aria-hidden="true" /> Confirmed
+              {r.hashes.map((h, i) => (
+                <a key={h} href={getExplorerTxUrl(chainId, h)} target="_blank" rel="noopener noreferrer" className="font-mono underline-offset-2 hover:underline">tx{i + 1}</a>
+              ))}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Pending</span>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1885,9 +2069,9 @@ function TradeComplete({
                 {receipt.txHashes.map((hash, i) => (
                   <div key={i} className="flex items-center gap-1 text-[9px]">
                     <span className="text-muted-foreground">Tx {i + 1}:</span>
-                    <span className="truncate font-mono text-muted-foreground" aria-label={`Transaction ${hash}`}>
+                    <a href={getExplorerTxUrl(receipt.chainId, hash)} target="_blank" rel="noopener noreferrer" className="truncate font-mono text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" aria-label={`Transaction ${hash} on the explorer`}>
                       {hash.slice(0, 10)}…{hash.slice(-8)}
-                    </span>
+                    </a>
                   </div>
                 ))}
               </div>

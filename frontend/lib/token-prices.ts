@@ -52,6 +52,30 @@ export function chunk<T>(list: T[], size: number): T[][] {
   return out;
 }
 
+export type GeckoSimple = {
+  prices: Record<string, number>;
+  /** Total DEX reserve (liquidity) in USD per address. */
+  reserves: Record<string, number>;
+  /** 24 h traded volume in USD per address. */
+  volumes: Record<string, number>;
+};
+
+/** The full "simple token price" answer: prices plus, when requested, reserve and 24 h volume tables. */
+export function parseGeckoSimple(payload: unknown): GeckoSimple {
+  const attrs = ((payload as { data?: { attributes?: Record<string, unknown> } } | null)?.data?.attributes ?? {}) as Record<string, unknown>;
+  const table = (key: string): Record<string, number> => {
+    const out: Record<string, number> = {};
+    const src = attrs[key];
+    if (!src || typeof src !== 'object') return out;
+    for (const [address, value] of Object.entries(src as Record<string, unknown>)) {
+      const n = typeof value === 'number' ? value : Number(value);
+      if (Number.isFinite(n) && n >= 0) out[address.toLowerCase()] = n;
+    }
+    return out;
+  };
+  return { prices: parseGeckoPrices(payload), reserves: table('total_reserve_in_usd'), volumes: table('h24_volume_usd') };
+}
+
 /** `{ data: { attributes: { token_prices: { addr: "0.0032" } } } }` → `{ addr: 0.0032 }` (finite, positive only). */
 export function parseGeckoPrices(payload: unknown): Record<string, number> {
   const prices: Record<string, number> = {};

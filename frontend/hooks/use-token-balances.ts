@@ -8,6 +8,8 @@ import { TOKEN_LOGO_FALLBACKS } from "@/lib/token-icons";
 import { rpcUrlFor } from "@/lib/evm-rpc";
 import { BLOCKSCOUT_HOSTS, mergeTokenCandidates, type DiscoveredToken, type TokenCandidate } from "@/lib/wallet-tokens";
 import { GECKO_NETWORKS } from "@/lib/token-prices";
+import { assessToken, valueCounts, type GoPlusSecurity, type TokenRisk } from "@/lib/token-risk";
+import { TRUSTED_TOKENS_EVENT, readTrustedTokens, trustedTokenKey } from "@/lib/trusted-tokens";
 
 /** Chain icon data URIs — simple coloured circles with chain abbreviation */
 export const CHAIN_LOGOS: Record<number, string> = {
@@ -119,7 +121,20 @@ export interface InventoryToken {
   isNative: boolean;
   /** USD per whole token when a price is known (indexer); native coins are priced by the caller. */
   usdPrice?: number;
+  /** DEX reserve and 24 h volume in USD (GeckoTerminal), when known. */
+  liquidityUsd?: number;
+  volume24hUsd?: number;
+  /** Contract red flags from GoPlus, when the chain is covered. */
+  security?: GoPlusSecurity;
+  /** The risk verdict built from the above. */
+  risk?: TokenRisk;
+  /** False when the price must not count toward totals (risky token the user has not trusted). */
+  valueVerified?: boolean;
 }
+
+/** What makes a published list "different": a new stack, a new balance, a new price, or a new verdict. */
+const signatureOf = (list: InventoryToken[]) =>
+  list.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}:${t.risk?.level ?? ""}:${t.valueVerified === false ? 0 : 1}`).join("|");
 
 /**
  * Fetches native + ERC-20 token balances for the connected wallet.
@@ -132,6 +147,7 @@ export interface InventoryToken {
  */
 const POLL_INTERVAL = 12_000;
 const DISCOVERY_TTL = 60_000;
+const SECURITY_TTL = 15 * 60_000;
 
 export function useTokenBalances() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
@@ -159,13 +175,28 @@ export function useTokenBalances() {
       if (ib !== undefined) return 1;
       return 0;
     });
-    const signature = stable.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}`).join("|");
+    const signature = signatureOf(stable);
     if (signature === signatureRef.current) return;
     signatureRef.current = signature;
     orderRef.current = new Map(stable.map((t, i) => [t.id, i]));
     setTokensState(stable);
   }, []);
   const [error, setError] = useState<string | null>(null);
+  /** Flagged tokens the user chose to count anyway (localStorage); changes apply without a refetch. */
+  const trustedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const apply = () => {
+      trustedRef.current = readTrustedTokens();
+      setTokensState((prev) => {
+        const next = prev.map((t) => ({ ...t, valueVerified: valueCounts(t.risk?.level, trustedRef.current.has(trustedTokenKey(t.chainId, t.address))) }));
+        signatureRef.current = signatureOf(next);
+        return next;
+      });
+    };
+    trustedRef.current = readTrustedTokens();
+    window.addEventListener(TRUSTED_TOKENS_EVENT, apply);
+    return () => window.removeEventListener(TRUSTED_TOKENS_EVENT, apply);
+  }, []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Version counter to prevent stale async results from overwriting newer ones
   const fetchVersionRef = useRef(0);
@@ -176,7 +207,9 @@ export function useTokenBalances() {
   // minute per wallet/chain and reuse the list between the 12 s balance polls.
   const discoveryRef = useRef<{ key: string; ts: number; tokens: DiscoveredToken[] } | null>(null);
   // DEX prices (GeckoTerminal via our route) for stacks the indexer left unpriced; a minute is plenty.
-  const pricesRef = useRef<{ key: string; ts: number; asked: Set<string>; prices: Record<string, number>; native: number | null } | null>(null);
+  const pricesRef = useRef<{ key: string; ts: number; asked: Set<string>; prices: Record<string, number>; liquidity: Record<string, number>; volume: Record<string, number>; native: number | null } | null>(null);
+  // GoPlus contract flags; a quarter of an hour is plenty, they rarely change.
+  const securityRef = useRef<{ key: string; ts: number; asked: Set<string>; tokens: Record<string, GoPlusSecurity> } | null>(null);
 
   // Determine effective address / chain / connection status
   const isLocalOverride = Boolean(override?.address);
@@ -391,12 +424,14 @@ export function useTokenBalances() {
           if (!quotes || unpriced.some((a) => !quotes!.asked.has(a))) {
             const res = await fetch(`/api/wallets/evm/prices?chainId=${chainId}&addresses=${unpriced.slice(0, 90).join(",")}`, { signal: AbortSignal.timeout(15_000) });
             if (!res.ok) throw new Error(`prices ${res.status}`);
-            const data = (await res.json()) as { prices?: Record<string, number>; native?: number | null };
+            const data = (await res.json()) as { prices?: Record<string, number>; liquidity?: Record<string, number>; volume24h?: Record<string, number>; native?: number | null };
             quotes = {
               key: cacheKey,
               ts: Date.now(),
               asked: new Set([...(quotes?.asked ?? []), ...unpriced]),
               prices: { ...(quotes?.prices ?? {}), ...(data.prices ?? {}) },
+              liquidity: { ...(quotes?.liquidity ?? {}), ...(data.liquidity ?? {}) },
+              volume: { ...(quotes?.volume ?? {}), ...(data.volume24h ?? {}) },
               native: data.native ?? quotes?.native ?? null,
             };
             pricesRef.current = quotes;
@@ -404,11 +439,48 @@ export function useTokenBalances() {
           if (version !== fetchVersionRef.current) return;
           for (const token of results) {
             if (token.isNative) { if (quotes.native) token.usdPrice = quotes.native; continue; }
-            if (token.usdPrice === undefined) { const p = quotes.prices[token.address.toLowerCase()]; if (p) token.usdPrice = p; }
+            const key = token.address.toLowerCase();
+            if (token.usdPrice === undefined) { const p = quotes.prices[key]; if (p) token.usdPrice = p; }
+            if (key in quotes.liquidity) token.liquidityUsd = quotes.liquidity[key];
+            if (key in quotes.volume) token.volume24hUsd = quotes.volume[key];
           }
         } catch (priceErr) {
           console.warn("[useTokenBalances] DEX prices unavailable:", priceErr);
         }
+      }
+
+      // Pass 4: contract red flags (GoPlus) on the chains it covers.
+      if (!isLocalOverride) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const erc20s = results.filter((t) => !t.isNative).map((t) => t.address.toLowerCase());
+          const cached = securityRef.current;
+          let sec = cached && cached.key === cacheKey && Date.now() - cached.ts < SECURITY_TTL ? cached : null;
+          if (erc20s.length && (!sec || erc20s.some((a) => !sec!.asked.has(a)))) {
+            const res = await fetch(`/api/wallets/evm/security?chainId=${chainId}&addresses=${erc20s.slice(0, 120).join(",")}`, { signal: AbortSignal.timeout(15_000) });
+            if (!res.ok) throw new Error(`security ${res.status}`);
+            const data = (await res.json()) as { tokens?: Record<string, GoPlusSecurity> };
+            sec = { key: cacheKey, ts: Date.now(), asked: new Set([...(sec?.asked ?? []), ...erc20s]), tokens: { ...(sec?.tokens ?? {}), ...(data.tokens ?? {}) } };
+            securityRef.current = sec;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) if (!token.isNative) token.security = sec?.tokens[token.address.toLowerCase()] ?? token.security;
+        } catch (secErr) {
+          console.warn("[useTokenBalances] token security unavailable:", secErr);
+        }
+      }
+
+      // The verdict, and whether the price counts: "ok" always, anything else only when the user trusted it.
+      const knownAddrs = new Set(knownTokens.map((t) => t.address.toLowerCase()));
+      for (const token of results) {
+        token.risk = assessToken({
+          isNative: token.isNative,
+          isKnown: knownAddrs.has(token.address.toLowerCase()),
+          goplus: token.security ?? null,
+          liquidityUsd: token.liquidityUsd,
+          volume24hUsd: token.volume24hUsd,
+        });
+        token.valueVerified = valueCounts(token.risk.level, trustedRef.current.has(trustedTokenKey(token.chainId, token.address)));
       }
 
       const totalFailure = rpcFailed && (indexerFailed || !BLOCKSCOUT_HOSTS[chainId]) && !isLocalOverride;
@@ -420,11 +492,14 @@ export function useTokenBalances() {
       // Bail if a newer fetch was started while we were awaiting
       if (version !== fetchVersionRef.current) return;
 
-      // Sort: native first, then by display value descending
+      // Sort: native first, then stacks whose value counts, then by value, then by amount.
       results.sort((a, b) => {
-        if (a.isNative && !b.isNative) return -1;
-        if (!a.isNative && b.isNative) return 1;
-        return Number(b.rawBalance - a.rawBalance);
+        if (a.isNative !== b.isNative) return a.isNative ? -1 : 1;
+        const va = a.valueVerified === false ? 1 : 0, vb = b.valueVerified === false ? 1 : 0;
+        if (va !== vb) return va - vb;
+        const ua = usdOf(a), ub = usdOf(b);
+        if (ua !== ub) return ub - ua;
+        return b.rawBalance > a.rawBalance ? 1 : b.rawBalance < a.rawBalance ? -1 : 0;
       });
 
       setTokens(results);
