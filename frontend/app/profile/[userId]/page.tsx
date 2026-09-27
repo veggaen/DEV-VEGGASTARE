@@ -18,7 +18,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { profileRequest } from '@/lib/profile-request';
 import { saveProfileImage } from '@/lib/profile-image-save';
-import ImagePositionAdjuster from '@/components/uicustom/image-position-adjuster';
+import { FramerZoom, ImageFramer, type ImageFramerHandle } from '@/components/uicustom/image-framer';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { IdentityImageSources, IdentitySource } from '@/lib/identity-display';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,7 @@ import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-
 import {
   FiUser, FiSettings, FiMessageCircle, FiCalendar, FiMapPin,
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
-  FiRepeat, FiEye, FiBarChart2, FiZap, FiCheck, FiMove, FiTrash2
+  FiRepeat, FiEye, FiBarChart2, FiZap, FiCheck, FiMove, FiTrash2, FiChevronDown, FiImage
 } from 'react-icons/fi';
 import { Pin, Shield, ArrowLeftRight } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
@@ -220,6 +220,7 @@ const accentButton = 'inline-flex min-h-11 items-center gap-2 rounded-full bg-br
 const avatarRoundButton = 'absolute flex size-11 items-center justify-center rounded-full border-2 border-background bg-card text-foreground shadow-e1 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted';
 const menuClass = 'z-90 w-72 rounded-2xl border-border/70 bg-popover/95 p-1.5 shadow-e3 backdrop-blur-xl';
 const menuItem = 'min-h-11 gap-3 rounded-lg px-3 text-sm';
+const toolbarChip = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 bg-foreground/[0.04] px-2.5 text-xs font-medium text-foreground transition-[background-color,border-color] duration-200 hover:border-border hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
 export default function ProfilePage() {
   const reduceMotion = useReducedMotion();
@@ -273,13 +274,17 @@ export default function ProfilePage() {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Preview states for save/confirm workflow. `original` is the file as picked,
-  // so "Reframe" can reopen the framing dialog without another file pick.
-  type ImagePreview = { file: File; original: File; url: string; uploadedUrl?: string };
-  const [bannerPreview, setBannerPreview] = useState<ImagePreview | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<ImagePreview | null>(null);
-  // Zoom + pan dialog shown before a static image becomes a preview.
-  const [adjusting, setAdjusting] = useState<{ file: File; target: 'banner' | 'avatar' } | null>(null);
+  // In-place edit mode: the banner/avatar becomes a framing surface where it sits.
+  // `file` is what is being framed (the current image, fetched, or a fresh pick);
+  // `uploadedUrl` remembers a finished upload so a failed save retries without re-uploading.
+  type ImageEdit = { file: File; uploadedUrl?: string };
+  const [bannerEdit, setBannerEdit] = useState<ImageEdit | null>(null);
+  const [avatarEdit, setAvatarEdit] = useState<ImageEdit | null>(null);
+  const [bannerZoom, setBannerZoom] = useState(1);
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const bannerFramer = useRef<ImageFramerHandle>(null);
+  const avatarFramer = useRef<ImageFramerHandle>(null);
+  const [openingEdit, setOpeningEdit] = useState<'banner' | 'avatar' | null>(null);
   const [imageSourceBusy, setImageSourceBusy] = useState(false);
   const [removingBanner, setRemovingBanner] = useState(false);
 
@@ -295,26 +300,82 @@ export default function ProfilePage() {
   const canEditProfile = isOwnProfile && !readOnly;
   const followQuery = useSWR<{ isFollowing: boolean; followerCount: number; followingCount: number }>(currentUser?.id && !isOwnProfile ? ['/api/users/' + encodeURIComponent(userId) + '/follow', currentUser.id] : null, ([url]: [string, string]) => profileRequest(url), { revalidateOnFocus: false, shouldRetryOnError: false });
   const isFollowing = followQuery.data?.isFollowing ?? false, followerCount = followQuery.data?.followerCount ?? profile?._count?.followers ?? 0, followingCount = followQuery.data?.followingCount ?? profile?._count?.following ?? 0;
-  const bannerPreviewUrl = bannerPreview?.url, avatarPreviewUrl = avatarPreview?.url;
-  useEffect(() => () => { if (bannerPreviewUrl) URL.revokeObjectURL(bannerPreviewUrl); }, [bannerPreviewUrl]);
-  useEffect(() => () => { if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl); }, [avatarPreviewUrl]);
-  useEffect(() => { setBannerPreview(null); setAvatarPreview(null); setBannerUploadError(null); setAvatarUploadError(null); }, [userId]);
+  useEffect(() => { setBannerEdit(null); setAvatarEdit(null); setBannerUploadError(null); setAvatarUploadError(null); }, [userId]);
 
   const validImage = (file: File) => {
     if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) { toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)'); return false; }
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be less than 5MB'); return false; }
     return true;
   };
-  const setPreviewFor = (target: 'banner' | 'avatar', preview: ImagePreview | null) => (target === 'banner' ? setBannerPreview : setAvatarPreview)(preview);
+  type ImageTarget = 'banner' | 'avatar';
+  const setEditFor = (target: ImageTarget, edit: ImageEdit | null) => (target === 'banner' ? setBannerEdit : setAvatarEdit)(edit);
 
-  // A picked file opens the framing dialog first (zoom + pan). Animated GIFs
-  // skip it so the animation is not flattened to one frame.
-  const pickImage = (target: 'banner' | 'avatar', file: File) => {
+  type SavedProfile = { image: string | null; banner: string | null; imageSource?: IdentitySource; imageSources?: IdentityImageSources };
+  const patchProfile = async (body: Record<string, unknown>): Promise<SavedProfile> => {
+    const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error('Profile save failed');
+    return (await response.json()).user as SavedProfile;
+  };
+
+  // Export the framing (or a GIF as-is), upload it, persist it. Stays in edit
+  // mode on failure so Save can be tried again with the same framing.
+  const saveImage = async (target: ImageTarget, gif?: File) => {
+    const lock = target === 'banner' ? bannerSaveLock : avatarSaveLock;
+    const edit = target === 'banner' ? bannerEdit : avatarEdit;
+    if (!canEditProfile || lock.current || storageState.loading || (!gif && !edit)) return;
+    const framer = target === 'banner' ? bannerFramer : avatarFramer;
+    const setBusy = target === 'banner' ? setIsUploadingBanner : setIsUploadingAvatar;
+    const setErr = target === 'banner' ? setBannerUploadError : setAvatarUploadError;
+    const setProgress = target === 'banner' ? setBannerProgress : setAvatarProgress;
+    const label = target === 'banner' ? 'banner' : 'picture';
+    lock.current = true;
+    setBusy(true);
+    setErr(null);
+    setProgress(edit?.uploadedUrl ? 100 : 0);
+    let uploadedUrl = gif ? undefined : edit?.uploadedUrl;
+    const saved: { user?: SavedProfile } = {};
+    try {
+      let file = gif;
+      if (!file) {
+        if (!framer.current) throw new Error('Framer not ready');
+        const blob = await framer.current.export(target === 'banner' ? 1500 : 512, target === 'banner' ? 500 : 512);
+        file = new File([blob], `${target}-framed.webp`, { type: 'image/webp' });
+      }
+      const upload = file;
+      if (!uploadedUrl && !storageState.initialized) await resetStorage();
+      const url = await saveProfileImage({
+        uploadedUrl,
+        upload: () => edgestore.myPublicImages.upload({ file: upload, onProgressChange: progress => setProgress(Math.floor(progress / 10) * 10) }),
+        remember: url => { uploadedUrl = url; if (edit) setEditFor(target, { ...edit, uploadedUrl: url }); },
+        persist: async url => { saved.user = await patchProfile(target === 'banner' ? { banner: url } : { image: url }); },
+      });
+      if (target === 'banner') {
+        setProfile(prev => prev ? { ...prev, banner: url } : null);
+      } else {
+        // Uploading a picture also makes it the one shown (the server switches the source to MANUAL).
+        setProfile(prev => prev ? { ...prev, image: saved.user?.image ?? url, imageSource: saved.user?.imageSource ?? 'MANUAL', imageSources: saved.user?.imageSources ?? prev.imageSources } : null);
+        void refreshSession();
+      }
+      toast.success(target === 'banner' ? 'Banner updated' : 'Profile picture updated');
+      setEditFor(target, null);
+    } catch {
+      setErr(uploadedUrl ? `The ${label} uploaded, but your profile could not save. Try Save again; the uploaded file will be reused.` : `The ${label} could not upload. Check your connection and try Save again.`);
+      toast.error(`Failed to save ${label}`);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
+
+  // A picked file goes straight into in-place edit mode. GIFs are saved as
+  // they are: framing would flatten the animation to one frame.
+  const pickImage = (target: ImageTarget, file: File) => {
     const lock = target === 'banner' ? bannerSaveLock : avatarSaveLock;
     if (!canEditProfile || lock.current || !validImage(file)) return;
     (target === 'banner' ? setBannerUploadError : setAvatarUploadError)(null);
-    if (file.type === 'image/gif') { setPreviewFor(target, { file, original: file, url: URL.createObjectURL(file) }); return; }
-    setAdjusting({ file, target });
+    (target === 'banner' ? setBannerZoom : setAvatarZoom)(1);
+    if (file.type === 'image/gif') { void saveImage(target, file); return; }
+    setEditFor(target, { file });
   };
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -326,79 +387,34 @@ export default function ProfilePage() {
     if (avatarInputRef.current) avatarInputRef.current.value = '';
     if (file) pickImage('avatar', file);
   };
-  const confirmFraming = (blob: Blob) => {
-    if (!adjusting) return;
-    const { target, file: original } = adjusting;
-    const framed = new File([blob], `${target}-framed.webp`, { type: 'image/webp' });
-    setPreviewFor(target, { file: framed, original, url: URL.createObjectURL(framed) });
-    setAdjusting(null);
-  };
-  const reframe = (target: 'banner' | 'avatar') => {
-    const preview = target === 'banner' ? bannerPreview : avatarPreview;
-    if (preview) setAdjusting({ file: preview.original, target });
-  };
-  // Re-crop what is already saved. The hosts in use (EdgeStore, Google, GitHub,
-  // Discord) allow cross-origin reads, so the current image can be fetched and reframed.
-  const repositionCurrent = async (target: 'banner' | 'avatar') => {
+
+  // Edit starts from what is already there: the saved image is fetched and
+  // framed where it sits (EdgeStore, Google, GitHub and Discord allow
+  // cross-origin reads). Nothing saved yet → pick a file first.
+  const startEdit = async (target: ImageTarget) => {
+    if (!canEditProfile || openingEdit) return;
     const src = target === 'banner' ? profile?.banner : profile?.image;
-    if (!src || !canEditProfile) return;
+    if (!src) { (target === 'banner' ? bannerInputRef : avatarInputRef).current?.click(); return; }
+    setOpeningEdit(target);
     try {
       const response = await fetch(src, { mode: 'cors', signal: AbortSignal.timeout(15_000) });
       if (!response.ok) throw new Error(String(response.status));
       const blob = await response.blob();
       if (!blob.type.startsWith('image/')) throw new Error(blob.type);
       const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
-      pickImage(target, new File([blob], `${target}-current.${ext}`, { type: blob.type }));
+      (target === 'banner' ? setBannerZoom : setAvatarZoom)(1);
+      (target === 'banner' ? setBannerUploadError : setAvatarUploadError)(null);
+      setEditFor(target, { file: new File([blob], `${target}-current.${ext}`, { type: blob.type }) });
     } catch {
-      toast.error('That image could not be loaded for repositioning. Upload it again instead.');
-    }
-  };
-
-  type SavedProfile = { image: string | null; banner: string | null; imageSource?: IdentitySource; imageSources?: IdentityImageSources };
-  const patchProfile = async (body: Record<string, unknown>): Promise<SavedProfile> => {
-    const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) throw new Error('Profile save failed');
-    return (await response.json()).user as SavedProfile;
-  };
-
-  // Confirm and upload banner
-  const confirmBannerUpload = async () => {
-    if (!canEditProfile || !bannerPreview || bannerSaveLock.current || storageState.loading) return;
-
-    bannerSaveLock.current = true;
-    setIsUploadingBanner(true);
-    setBannerUploadError(null);
-    setBannerProgress(bannerPreview.uploadedUrl ? 100 : 0);
-    let uploadedUrl = bannerPreview.uploadedUrl;
-    try {
-      if (!uploadedUrl && !storageState.initialized) await resetStorage();
-      const url = await saveProfileImage({
-        uploadedUrl,
-        upload: () => edgestore.myPublicImages.upload({ file: bannerPreview.file, onProgressChange: progress => setBannerProgress(Math.floor(progress / 10) * 10) }),
-        remember: url => { uploadedUrl = url; setBannerPreview(current => current?.url === bannerPreview.url ? { ...current, uploadedUrl: url } : current); },
-        persist: async url => { await patchProfile({ banner: url }); },
-      });
-      setProfile(prev => prev ? { ...prev, banner: url } : null);
-      toast.success('Banner updated');
-      URL.revokeObjectURL(bannerPreview.url);
-      setBannerPreview(null);
-    } catch {
-      setBannerUploadError(uploadedUrl ? 'The banner uploaded, but your profile could not save. Try Save banner again; the uploaded file will be reused.' : 'The banner could not upload. Check your connection and try Save banner again.');
-      toast.error('Failed to upload banner');
+      toast.error('That image could not be loaded for editing. Upload a new one instead.');
     } finally {
-      bannerSaveLock.current = false;
-      setIsUploadingBanner(false);
+      setOpeningEdit(null);
     }
   };
-
-  // Cancel banner preview
-  const cancelBannerPreview = () => {
-    if (bannerSaveLock.current) return;
-    setBannerUploadError(null);
-    if (bannerPreview) {
-      URL.revokeObjectURL(bannerPreview.url);
-      setBannerPreview(null);
-    }
+  const cancelEdit = (target: ImageTarget) => {
+    if ((target === 'banner' ? bannerSaveLock : avatarSaveLock).current) return;
+    (target === 'banner' ? setBannerUploadError : setAvatarUploadError)(null);
+    setEditFor(target, null);
   };
 
   const removeBanner = async () => {
@@ -407,56 +423,12 @@ export default function ProfilePage() {
     try {
       await patchProfile({ banner: null });
       setProfile(prev => prev ? { ...prev, banner: null } : null);
+      setBannerEdit(null);
       toast.success('Banner removed');
     } catch {
       toast.error('The banner could not be removed. Try again.');
     } finally {
       setRemovingBanner(false);
-    }
-  };
-
-  // Confirm and upload avatar
-  const confirmAvatarUpload = async () => {
-    if (!canEditProfile || !avatarPreview || avatarSaveLock.current || storageState.loading) return;
-
-    avatarSaveLock.current = true;
-    setIsUploadingAvatar(true);
-    setAvatarUploadError(null);
-    setAvatarProgress(avatarPreview.uploadedUrl ? 100 : 0);
-    let uploadedUrl = avatarPreview.uploadedUrl;
-    const saved: { user?: SavedProfile } = {};
-    try {
-      if (!uploadedUrl && !storageState.initialized) await resetStorage();
-      const url = await saveProfileImage({
-        uploadedUrl,
-        upload: () => edgestore.myPublicImages.upload({ file: avatarPreview.file, onProgressChange: progress => setAvatarProgress(Math.floor(progress / 10) * 10) }),
-        remember: url => { uploadedUrl = url; setAvatarPreview(current => current?.url === avatarPreview.url ? { ...current, uploadedUrl: url } : current); },
-        // Uploading a picture also makes it the one shown (the server switches the source to MANUAL).
-        persist: async url => { saved.user = await patchProfile({ image: url }); },
-      });
-      setProfile(prev => prev ? { ...prev, image: saved.user?.image ?? url, imageSource: saved.user?.imageSource ?? 'MANUAL', imageSources: saved.user?.imageSources ?? prev.imageSources } : null);
-      void refreshSession();
-      toast.success('Profile picture updated');
-
-      // Cleanup preview
-      URL.revokeObjectURL(avatarPreview.url);
-      setAvatarPreview(null);
-    } catch {
-      setAvatarUploadError(uploadedUrl ? 'The picture uploaded, but your profile could not save. Try Save profile picture again; the uploaded file will be reused.' : 'The picture could not upload. Check your connection and try Save profile picture again.');
-      toast.error('Failed to upload profile picture');
-    } finally {
-      avatarSaveLock.current = false;
-      setIsUploadingAvatar(false);
-    }
-  };
-
-  // Cancel avatar preview
-  const cancelAvatarPreview = () => {
-    if (avatarSaveLock.current) return;
-    setAvatarUploadError(null);
-    if (avatarPreview) {
-      URL.revokeObjectURL(avatarPreview.url);
-      setAvatarPreview(null);
     }
   };
 
@@ -468,6 +440,7 @@ export default function ProfilePage() {
     try {
       const saved = await patchProfile({ imageSource: source });
       setProfile(prev => prev ? { ...prev, image: saved.image, imageSource: saved.imageSource ?? source, imageSources: saved.imageSources ?? prev.imageSources } : null);
+      setAvatarEdit(null);
       void refreshSession();
       toast.success('Profile picture updated');
     } catch {
@@ -637,21 +610,7 @@ export default function ProfilePage() {
       <input ref={bannerInputRef} aria-label="Choose banner image" type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleBannerSelect} />
       <input ref={avatarInputRef} aria-label="Choose profile picture" type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleAvatarSelect} />
 
-      {/* Zoom + pan before anything is saved. The banner frame is the same 3:1 the banner renders at. */}
-      {canEditProfile && (
-        <ImagePositionAdjuster
-          file={adjusting?.file ?? null}
-          aspect={adjusting?.target === 'avatar' ? 1 : 3}
-          round={adjusting?.target === 'avatar'}
-          outputWidth={adjusting?.target === 'avatar' ? 512 : 1500}
-          outputHeight={adjusting?.target === 'avatar' ? 512 : 500}
-          title={adjusting?.target === 'avatar' ? 'Position your profile picture' : 'Position your banner'}
-          onCancel={() => setAdjusting(null)}
-          onConfirm={confirmFraming}
-        />
-      )}
-
-      {/* Banner: a 3:1 frame at every width, so what you framed is what shows. */}
+      {/* Banner: a 3:1 frame at every width. In edit mode it IS the framing surface: drag, scroll or slide to zoom, then Save. */}
       <div
         className="relative aspect-[3/1] w-full overflow-hidden rounded-2xl bg-foreground/[0.04]"
         onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
@@ -662,8 +621,8 @@ export default function ProfilePage() {
           if (file && file.type.startsWith('image/')) pickImage('banner', file);
         }}
       >
-        {bannerPreview ? (
-          <Image src={bannerPreview.url} alt="Banner preview" fill sizes="(min-width: 1024px) 896px, calc(100vw - 32px)" className="object-cover" priority />
+        {bannerEdit ? (
+          <ImageFramer ref={bannerFramer} fill file={bannerEdit.file} aspect={3} zoom={bannerZoom} onZoomChange={setBannerZoom} className="rounded-2xl" />
         ) : profile.banner ? (
           <Image src={profile.banner} alt="Profile banner" fill sizes="(min-width: 1024px) 896px, calc(100vw - 32px)" className="object-cover" priority />
         ) : (
@@ -676,51 +635,55 @@ export default function ProfilePage() {
             }}
           />
         )}
-        {/* Fades into the page so the avatar and name sit on it. */}
-        <div className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
+        {/* Fades into the page so the avatar and name sit on it; hidden while editing so the framing is honest. */}
+        {!bannerEdit && <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />}
 
         {canEditProfile && (
           <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-4 sm:top-4">
-            {bannerPreview ? (
+            {bannerEdit ? (
               <>
-                <button type="button" onClick={() => reframe('banner')} disabled={isUploadingBanner} className={onImageButton}>
-                  <FiMove className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Reframe</span><span className="sr-only sm:hidden">Reframe banner</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" disabled={isUploadingBanner} className={onImageButton} aria-label="Change banner image">
+                      <FiImage className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Change</span><FiChevronDown className="size-3.5 opacity-70" aria-hidden="true" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className={menuClass}>
+                    <DropdownMenuItem className={menuItem} onSelect={() => bannerInputRef.current?.click()}>
+                      <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload from device…
+                    </DropdownMenuItem>
+                    {profile.banner && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className={cn(menuItem, 'text-destructive focus:text-destructive')} onSelect={() => void removeBanner()}>
+                          <FiTrash2 className="size-4" aria-hidden="true" />Remove banner
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <button type="button" onClick={() => cancelEdit('banner')} disabled={isUploadingBanner} className={onImageButton}>
+                  <FiX className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Cancel</span><span className="sr-only sm:hidden">Cancel editing</span>
                 </button>
-                <button type="button" onClick={cancelBannerPreview} disabled={isUploadingBanner} className={onImageButton}>
-                  <FiX className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Cancel</span><span className="sr-only sm:hidden">Cancel banner</span>
-                </button>
-                <button type="button" onClick={confirmBannerUpload} disabled={isUploadingBanner || storageState.loading} className={accentButton}>
-                  {isUploadingBanner ? <Spinner className="size-4" /> : <FiUpload className="size-4" aria-hidden="true" />}
-                  {isUploadingBanner ? 'Saving…' : 'Save banner'}
+                <button type="button" onClick={() => void saveImage('banner')} disabled={isUploadingBanner || storageState.loading} className={accentButton}>
+                  {isUploadingBanner ? <Spinner className="size-4" /> : <FiCheck className="size-4" aria-hidden="true" />}
+                  {isUploadingBanner ? 'Saving…' : 'Save'}
                 </button>
               </>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" disabled={isUploadingBanner || removingBanner} aria-label="Edit banner" className={onImageButton}>
-                    {removingBanner ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}<span className="hidden sm:inline">Edit banner</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={menuClass}>
-                  <DropdownMenuItem className={menuItem} onSelect={() => bannerInputRef.current?.click()}>
-                    <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload a new banner…
-                  </DropdownMenuItem>
-                  {profile.banner && (
-                    <DropdownMenuItem className={menuItem} onSelect={() => void repositionCurrent('banner')}>
-                      <FiMove className="size-4 text-muted-foreground" aria-hidden="true" />Reposition the current banner
-                    </DropdownMenuItem>
-                  )}
-                  {profile.banner && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className={cn(menuItem, 'text-destructive focus:text-destructive')} onSelect={() => void removeBanner()}>
-                        <FiTrash2 className="size-4" aria-hidden="true" />Remove banner
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button type="button" onClick={() => void startEdit('banner')} disabled={isUploadingBanner || removingBanner || openingEdit === 'banner'} aria-label="Edit banner" className={onImageButton}>
+                {openingEdit === 'banner' || removingBanner ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}<span className="hidden sm:inline">Edit banner</span>
+              </button>
             )}
+          </div>
+        )}
+        {/* Zoom pill bottom-right: the avatar overlaps the banner's bottom-left corner. */}
+        {bannerEdit && (
+          <div className="absolute bottom-3 right-3 flex w-56 items-center gap-3 sm:bottom-4 sm:right-4 sm:w-72">
+            <span className={cn(onImageButton, 'w-full gap-2 px-3')}>
+              <FiMove className="size-4 shrink-0" aria-hidden="true" />
+              <FramerZoom zoom={bannerZoom} onZoomChange={setBannerZoom} className="flex-1 [&_input]:bg-white/25" />
+            </span>
           </div>
         )}
       </div>
@@ -729,112 +692,101 @@ export default function ProfilePage() {
       <div className="relative mx-auto w-full min-w-0 px-0 pb-2 sm:px-4">
         {/* Avatar and basic info */}
         <div className="relative -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
-          {/* Avatar with paste/drag support */}
+          {/* Avatar with paste/drag support. In edit mode the circle is the framing surface. */}
           <div
             className="relative w-fit shrink-0 self-start"
             onPaste={handleAvatarPaste}
             onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
             onDrop={handleAvatarDrop}
             tabIndex={canEditProfile ? 0 : undefined}
-            aria-label={canEditProfile ? 'Profile picture: paste or drop an image, or use Change profile picture' : undefined}
+            aria-label={canEditProfile ? 'Profile picture: paste or drop an image, or use Edit profile picture' : undefined}
           >
-            <Avatar className="h-28 w-28 sm:h-36 sm:w-36 ring-4 ring-background shadow-2xl">
-              {/* Show preview if available, otherwise the picture the account currently shows */}
-              <AvatarImage src={avatarPreview?.url || profile.image || undefined} alt={`${profile.name || 'User'} profile picture`} className="object-cover" />
-              <AvatarFallback
-                className="text-3xl sm:text-4xl text-foreground font-medium"
-                style={{
-                  background: bannerColors
-                    ? `linear-gradient(135deg, ${bannerColors.primary}, ${bannerColors.secondary})`
-                    : 'linear-gradient(135deg, hsl(var(--brand-accent) / 0.5), hsl(var(--muted)))'
-                }}
-              >
-                {profile.name?.[0] || profile.email?.[0]?.toUpperCase() || profile.id?.[0]?.toUpperCase() || '?'}
-              </AvatarFallback>
-            </Avatar>
-
-            {/* Camera button opens the picture menu: upload, reposition, or pick a linked sign-in picture */}
-            {canEditProfile && !avatarPreview && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={isUploadingAvatar || imageSourceBusy}
-                    title="Change profile picture, or drag & drop / paste an image"
-                    aria-label="Change profile picture"
-                    className={cn(avatarRoundButton, 'bottom-0 right-0')}
-                  >
-                    {isUploadingAvatar || imageSourceBusy ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className={menuClass}>
-                  <DropdownMenuItem className={menuItem} onSelect={() => avatarInputRef.current?.click()}>
-                    <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload a new picture…
-                  </DropdownMenuItem>
-                  {profile.image && (
-                    <DropdownMenuItem className={menuItem} onSelect={() => void repositionCurrent('avatar')}>
-                      <FiMove className="size-4 text-muted-foreground" aria-hidden="true" />Reposition the current picture
-                    </DropdownMenuItem>
-                  )}
-                  {imageChoices.length > 1 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Show the picture from</DropdownMenuLabel>
-                      {imageChoices.map(choice => (
-                        <DropdownMenuItem
-                          key={choice.source}
-                          aria-current={choice.active ? 'true' : undefined}
-                          className={cn(menuItem, choice.active && 'bg-brand-accent/[0.08]')}
-                          onSelect={() => void chooseImageSource(choice.source)}
-                        >
-                          <Avatar className="size-7 shrink-0">
-                            <AvatarImage src={choice.image} alt="" className="object-cover" />
-                            <AvatarFallback className="text-[10px]">{choice.label[0]}</AvatarFallback>
-                          </Avatar>
-                          <span className="min-w-0 flex-1 truncate">{choice.label}</span>
-                          {choice.active && <FiCheck className="size-4 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {avatarEdit ? (
+              <div className="relative h-28 w-28 overflow-hidden rounded-full shadow-2xl ring-4 ring-background sm:h-36 sm:w-36">
+                <ImageFramer ref={avatarFramer} fill round file={avatarEdit.file} aspect={1} zoom={avatarZoom} onZoomChange={setAvatarZoom} className="rounded-full" />
+              </div>
+            ) : (
+              <Avatar className="h-28 w-28 sm:h-36 sm:w-36 ring-4 ring-background shadow-2xl">
+                <AvatarImage src={profile.image || undefined} alt={`${profile.name || 'User'} profile picture`} className="object-cover" />
+                <AvatarFallback
+                  className="text-3xl sm:text-4xl text-foreground font-medium"
+                  style={{
+                    background: bannerColors
+                      ? `linear-gradient(135deg, ${bannerColors.primary}, ${bannerColors.secondary})`
+                      : 'linear-gradient(135deg, hsl(var(--brand-accent) / 0.5), hsl(var(--muted)))'
+                  }}
+                >
+                  {profile.name?.[0] || profile.email?.[0]?.toUpperCase() || profile.id?.[0]?.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
             )}
 
-            {/* Preview controls: reframe (top), save (bottom right), cancel (bottom left) */}
-            {canEditProfile && avatarPreview && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => reframe('avatar')}
-                  disabled={isUploadingAvatar}
-                  title="Reframe"
-                  aria-label="Reframe profile picture"
-                  className={cn(avatarRoundButton, 'right-0 top-0')}
-                >
-                  <FiMove className="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmAvatarUpload}
-                  disabled={isUploadingAvatar || storageState.loading}
-                  title="Save new profile picture"
-                  aria-label="Save profile picture"
-                  className={cn(avatarRoundButton, '-bottom-2 right-0 bg-brand-accent text-brand-accent-foreground [@media(hover:hover)]:hover:bg-brand-accent-hover')}
-                >
-                  {isUploadingAvatar ? <Spinner className="size-4" /> : <FiCheck className="size-4" aria-hidden="true" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelAvatarPreview}
-                  disabled={isUploadingAvatar}
-                  title="Cancel"
-                  aria-label="Cancel profile picture"
-                  className={cn(avatarRoundButton, '-bottom-2 left-0')}
-                >
-                  <FiX className="size-3.5" aria-hidden="true" />
-                </button>
-              </>
+            {/* Camera enters edit mode on the current picture (or asks for one when there is none). */}
+            {canEditProfile && !avatarEdit && (
+              <button
+                type="button"
+                onClick={() => void startEdit('avatar')}
+                disabled={isUploadingAvatar || imageSourceBusy || openingEdit === 'avatar'}
+                title="Edit profile picture, or drag & drop / paste an image"
+                aria-label="Edit profile picture"
+                className={cn(avatarRoundButton, 'bottom-0 right-0')}
+              >
+                {isUploadingAvatar || imageSourceBusy || openingEdit === 'avatar' ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}
+              </button>
+            )}
+
+            {/* Edit toolbar floats under the avatar: zoom, change (upload or a linked picture), cancel, save. */}
+            {canEditProfile && avatarEdit && (
+              <div className="absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border border-border/70 bg-popover/95 p-2 shadow-e3 backdrop-blur-xl">
+                <FramerZoom zoom={avatarZoom} onZoomChange={setAvatarZoom} className="px-1 pb-2" onReset={() => avatarFramer.current?.reset()} />
+                <div className="flex items-center gap-1.5">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" disabled={isUploadingAvatar} className={toolbarChip} aria-label="Change profile picture">
+                        <FiImage className="size-3.5" aria-hidden="true" />Change<FiChevronDown className="size-3 opacity-70" aria-hidden="true" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className={menuClass}>
+                      <DropdownMenuItem className={menuItem} onSelect={() => avatarInputRef.current?.click()}>
+                        <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload from device…
+                      </DropdownMenuItem>
+                      {imageChoices.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Show the picture from</DropdownMenuLabel>
+                          {imageChoices.map(choice => (
+                            <DropdownMenuItem
+                              key={choice.source}
+                              aria-current={choice.active ? 'true' : undefined}
+                              className={cn(menuItem, choice.active && 'bg-brand-accent/[0.08]')}
+                              onSelect={() => void chooseImageSource(choice.source)}
+                            >
+                              <Avatar className="size-7 shrink-0">
+                                <AvatarImage src={choice.image} alt="" className="object-cover" />
+                                <AvatarFallback className="text-[10px]">{choice.label[0]}</AvatarFallback>
+                              </Avatar>
+                              <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                              {choice.active && <FiCheck className="size-4 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <button type="button" onClick={() => cancelEdit('avatar')} disabled={isUploadingAvatar} className={toolbarChip} aria-label="Cancel editing profile picture">
+                    <FiX className="size-3.5" aria-hidden="true" />Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveImage('avatar')}
+                    disabled={isUploadingAvatar || storageState.loading}
+                    aria-label="Save profile picture"
+                    className={cn(toolbarChip, 'ml-auto border-transparent bg-brand-accent text-brand-accent-foreground hover:border-transparent hover:bg-brand-accent-hover')}
+                  >
+                    {isUploadingAvatar ? <Spinner className="size-3.5" /> : <FiCheck className="size-3.5" aria-hidden="true" />}Save
+                  </button>
+                </div>
+              </div>
             )}
           </div>
           <div className="flex-1 min-w-0 pb-2">
@@ -973,8 +925,8 @@ export default function ProfilePage() {
         {/* Bio and meta info */}
         <div className="mt-5 space-y-4">
           {error && <SectionError retry={() => void profileQuery.mutate()} />}
-          {canEditProfile && (isUploadingBanner || isUploadingAvatar || bannerUploadError || avatarUploadError || ((bannerPreview || avatarPreview) && storageState.loading)) && <div className="space-y-2 text-sm">
-            {(bannerPreview || avatarPreview) && storageState.loading && <p role="status" className="text-muted-foreground">Preparing secure upload…</p>}
+          {canEditProfile && (isUploadingBanner || isUploadingAvatar || bannerUploadError || avatarUploadError || ((bannerEdit || avatarEdit) && storageState.loading)) && <div className="space-y-2 text-sm">
+            {(bannerEdit || avatarEdit) && storageState.loading && <p role="status" className="text-muted-foreground">Preparing secure upload…</p>}
             {isUploadingBanner && <p role="status" className="text-muted-foreground">{bannerProgress >= 100 ? 'Saving banner…' : `Uploading banner… ${bannerProgress}%`}</p>}
             {isUploadingAvatar && <p role="status" className="text-muted-foreground">{avatarProgress >= 100 ? 'Saving profile picture…' : `Uploading profile picture… ${avatarProgress}%`}</p>}
             {bannerUploadError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">{bannerUploadError}</p>}
