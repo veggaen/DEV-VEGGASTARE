@@ -4,6 +4,9 @@ Veggat is a trust-first marketplace for digital products: discover a file, check
 
 [Live app](https://www.veggat.com) · [Architecture](docs/architecture.md) · [Verified feature scoreboard](docs/production-scoreboard.md) · [Frontend setup](frontend/README.md)
 
+Continuing development? Read the [current handoff](HANDOFF.md), including the
+production/Preview boundary and the remaining full-workflow acceptance checks.
+
 ## Try it in 90 seconds
 
 [![Watch the 76-second Veggat walkthrough](frontend/public/showcase/veggat-walkthrough-poster.png)](https://www.veggat.com/showcase/walkthrough.html)
