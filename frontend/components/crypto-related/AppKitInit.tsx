@@ -182,6 +182,12 @@ export function ensureAppKit(): Promise<AppKit> {
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Wallet services took too long to start')), 15_000); }),
       ]);
     } finally { clearTimeout(timer); }
+    // Keep every connected extension connected. AppKit's default disconnects the
+    // previous connector on each account change, and wagmi's disconnect revokes
+    // the site permission in MetaMask, which forced a fresh "Connect" on every
+    // switch back. The flag is a remote feature the cloud config never sends
+    // here, and the local `features` value is ignored for it, so set it after init.
+    appKit.updateRemoteFeatures({ ...appKit.remoteFeatures, multiWallet: true });
     const source = process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ? 'Reown' : 'WalletConnect';
     log.info(`Initialized (${isTestMode ? 'TEST' : 'PROD'}, ${source})`);
     return appKit;

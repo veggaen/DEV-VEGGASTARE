@@ -1387,6 +1387,8 @@ export function OsrsInventory({
             <FiRefreshCw className="h-2.5 w-2.5" aria-hidden="true" />
             Balances didn’t load · Retry
           </button>
+        ) : activeTab === "tokens" && loading && inventorySlots.length === 0 ? (
+          <span role="status" className="text-[10px] text-muted-foreground">Reading balances… · {activeChain?.name ?? `Chain ${chainId}`}</span>
         ) : (
           <span className="text-[10px] text-muted-foreground">
             {activeTab === "tokens"
