@@ -6,6 +6,10 @@
 
 ---
 
+## Shipped 2026-09-27 — Market terminal (Phase 1 in practice)
+
+Phase 1 (DB-simulated paper trading) is live and now has a real workspace: `frontend/components/trading/terminal/MarketTerminal.tsx` (rendered by the trading hub's Paper tab and `/dashboard/paper-trading`). It pairs the existing `paperBuy`/`paperSell`/`paperSwap` actions with a dependency-free canvas chart (`components/trading/chart/CandleChart.tsx`: 7 timeframes, candles/line/area, volume, crosshair, drawing tools trend/ray/horizontal/rectangle/fib persisted per market) and resting limit/stop orders (`PaperOrder` model, `actions/paper-orders.ts`; filled at market by `settlePaperOrders` when the live price crosses the trigger). Market data comes from `lib/market/feed.ts` (Binance public endpoints, CoinGecko fallback) via `/api/market/candles` and `/api/market/ticker`. Leverage is shown in the ticket but disabled until a margin mode exists; the Phase 2/3 sections below remain the roadmap.
+
 ## Executive Summary
 
 Build a **production-grade paper trading system** that lets users practice buying, selling, swapping, and P2P trading crypto with **virtual funds in a live market environment** — zero financial risk. Then layer on **DEX swap integration** (both real and simulated) to make VeggaStare a one-stop crypto trading platform.

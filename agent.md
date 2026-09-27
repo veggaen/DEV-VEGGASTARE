@@ -36,7 +36,10 @@ Root: C:\Users\v3gga\Documents\DEV-VEGGASTARE\
 - I always run `npm run start:project` in VSCode terminal.
 - Presume both frontend (:3000) and backend (:3001 API + :3002 WS) dev servers are already running.
 - Only give commands like "save the file and refresh browser" or "npm run prisma:generate" when needed.
-- Local database: `frontend/lib/db.ts` reads `DATABASE_URL_MAINDEV` (Vercel: MAINLIVE / MAINPREVIEW). Set it in `frontend/.env.local` (gitignored) to the isolated Neon dev DB — the Feb-era `DATABASE_URL` in `.env` is the same DB but under the old name, which is why sign-in "worked yesterday" on the old local main and broke after the handoff switched branches. That DB was schema-synced with `prisma db push` and seeded with the showcase catalog (`node --env-file=.env.local scripts/seed-showcase.mjs development`; needs exactly one OWNER user) on 2026-09-27. Live is a different Neon host; never point MAINDEV at it.
+- Local database: `frontend/lib/db.ts` reads `DATABASE_URL_MAINDEV` (Vercel: MAINLIVE / MAINPREVIEW). The ignored `frontend/.env.local` now points at the previously tested isolated QA database, not the February-era `DATABASE_URL` in `.env`. On 2026-09-27 the older DB contained the test user's email but no Google/GitHub account links, causing `OAuthAccountNotLinked`; those links remained intact in the QA DB. Do not switch databases or copy account links to fix OAuth. Verify the intended target without printing connection strings. No schema migration was needed for this repair.
+- Local OAuth origin is `http://localhost:3000`, explicitly set as `AUTH_URL` and `NEXTAUTH_URL`. Use the development GitHub app credentials, not the production app. Environment files are ignored and are not restored by switching Git branches. Restart the frontend after changing its DB target: the development Prisma singleton keeps the previous connection.
+- Discord's client secret was replaced by the owner on 2026-09-27 and saved to Vercel and ignored local configuration. Older worktree copies are invalid; do not restore them. Local Discord sign-in now passes. Its browser identity has a different email from the Google/GitHub test account; account linking must remain explicit.
+- Local PayPal credentials are Sandbox-only, verified against the Sandbox OAuth endpoint. Local purchase emails remain disabled deliberately. Platform keys may be configured locally, but model availability alone is not evidence of a successful provider request. Never copy Live PayPal keys, Vercel tokens or the Live DB into local tests.
 - `REDIS_URL` is optional. If it is set but nothing listens, the rate limiter now gives up after ~3s and uses memory (it used to hang every sign-in for 60s+).
 - Frontend runs plain `next dev` / `next build` (see `frontend/package.json`); `next.config.mjs` carries both `turbopack.root` and a `webpack()` hook — leave both alone, do not change the bundler.
 
@@ -153,7 +156,11 @@ Washes: a translucent hover/surface wash must be ink-alpha (`bg-foreground/[0.05
 
 Routes sharing header + rail: everything under `AppShell` (`/`, `/products/*`, `/pulse/*`, `/auth/*`, `/dashboard`, `/ai`, `/settings`, …). Only `/gate` is outside.
 
-Verification harness (gitignored): `frontend/scripts/_probe/chrome-shots.mjs` (4 routes × 2 themes × 390/1280) and `chrome-hover.mjs` (hover/travel frame sequences) → `scripts/_probe/chrome-shots/`.
+Tooltips (2026-09-27): every control in the app chrome uses `HeaderTip` (`chrome/header-tip.tsx`, a Radix pill: `rounded-full border-border/60 px-3 py-1.5 text-[11px]`) — rail chips (icon-only below lg), currency, alerts, cart, messages, theme, account, and the terminal toolbar. Never a native `title` attribute on chrome controls: it ignores the theme. A Radix Tooltip needs a `TooltipProvider`; `AppHeader` provides one, `AppRail` carries its own (`MaybeTip`) because the mobile dock renders outside the header.
+
+Account drawer (2026-09-27): Navigate tab = two-column tile grid with icon wells; Settings tab = quick-settings tiles + one wallet card (verify/manage tools behind a `<details>`). Appearance and currency are NOT repeated in the drawer — they live in the header.
+
+Verification harness (gitignored, `frontend/scripts/_probe/`): `probe-auth.mjs` exports `gateState()`, `authedState(browser)` (ONE cached demo session per day in `.demo-auth.json` — the demo login allows 5 sign-ins per connection per day, see `lib/demo-user.ts`; `db-demo-purge.mjs` deletes today's probe demo users from the QA DB when the allowance is spent) and `userAuthedState(browser)` (real password account created by `db-test-user.mjs`, needed for anything a demo user cannot do such as paper trading). Screenshot scripts: `chrome-shots.mjs`, `public-shots.mjs <routes>`, `interactions-authed.mjs`, `tip-probe.mjs`, `wallet-panel-shots.mjs`, `terminal-shots.mjs`, `terminal-interact.mjs`, `terminal-trade.mjs` → `scripts/_probe/chrome-shots/`. Run with `MSYS_NO_PATHCONV=1` from `frontend/`.
 
 ---
 
@@ -233,7 +240,15 @@ Implemented 2026-02-28. Complete trade execution tracking across all 5 trading m
 | `frontend/components/crypto-related/OsrsTradeWindow.tsx` | `veggat:addToTrade` CustomEvent listener |
 | `frontend/app/dashboard/trading/page.tsx` | Trading Hub: history toggle, always-visible trade panel |
 
+### Paper terminal + market data (2026-09-27)
+The Paper tab of the trading hub and `/dashboard/paper-trading` both render `components/trading/terminal/MarketTerminal.tsx`: market list (`MarketList`, a Sheet below lg), `components/trading/chart/CandleChart.tsx` (dependency-free canvas: candles/line/area, volume, crosshair + OHLC legend, wheel/pinch zoom, drag pan, drawing tools trend/ray/hline/rect/fib persisted per market in `localStorage` `veggat:chart-drawings:<SYMBOL>` in data space), `OrderTicket` (buy/sell · market/limit/stop · USD or units · leverage control shown but spot-only) and `TerminalPanels` (positions with Close, orders with Cancel, history). Guests see the live chart + sign-in card; the demo gets a disabled ticket; a signed-in user opens the portfolio in one click beside the chart (the old info → next → start flow is gone).
+- Market data: `lib/market/symbols.ts` (29 markets, Binance pair + CoinGecko id), `lib/market/feed.ts` (server-only: Binance klines/24h tickers first, CoinGecko OHLC/markets fallback, short caches), routes `/api/market/candles?symbol&interval&limit` and `/api/market/ticker?symbols`, hooks `hooks/use-market-data.ts` (tail-merge polling per timeframe).
+- Resting orders: `PaperOrder` model (+ enums, migration `20260927160000_paper_orders`), `actions/paper-orders.ts` (`placePaperOrder`, `cancelPaperOrder`, `listPaperOrders`, `settlePaperOrders`). There is no order book: `settlePaperOrders` runs on load and every 30s while the terminal is visible and fills crossed orders at market through `paperBuy`/`paperSell` (fees, daily limits and history unchanged). BUY orders store USD to spend, SELL orders store units.
+- Colour tokens `--chart-up` / `--chart-down` (Tailwind `text-chart-up`) are market semantics, not the accent. Swap actions are purple; buy accent-green; sell red.
+- Local chains: `.env.local` has `NEXT_PUBLIC_ENABLE_LOCAL_CHAINS=true` (Ganache 127.0.0.1:7545 / chain 1337, Anvil 8545 / 31337). The wallet panel's Local Dev Chains auto-selects the chain that is online; an activated local account counts as a connected wallet on the trading hub (`walletReady`). User guide: `/help/local-chains` (public route). Inventory drag → offer grid uses the `lib/trade-drag-ack.ts` handshake so a missed drop never deletes the item.
+
 ### Schema Additions (in `frontend/prisma/schema.prisma`)
+- `PaperOrder` model + `PaperOrderSide`/`PaperOrderType`/`PaperOrderStatus` enums — resting limit/stop paper orders (2026-09-27)
 - `TradeRecord` model — unified execution log with sell/buy token pairs, USD/NOK pricing, tax fields
 - `TradeMode` enum — P2P, SELF, DEX, PAPER, LOCAL
 - `TradeRecordStatus` enum — PENDING, COMPLETED, FAILED, REVERTED

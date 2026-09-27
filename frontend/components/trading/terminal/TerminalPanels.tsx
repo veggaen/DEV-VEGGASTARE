@@ -18,7 +18,10 @@ type Tab = "positions" | "orders" | "history";
 function Pnl({ value, pct }: { value: number | null; pct?: number | null }) {
   if (value === null) return <span className="text-muted-foreground">—</span>;
   const up = value >= 0;
-  return <span className={cn("tabular-nums", up ? "text-chart-up" : "text-chart-down")}>{up ? "+" : "−"}${formatPrice(Math.abs(value))}{pct != null && <span className="ml-1 text-[11px] opacity-80">({up ? "+" : ""}{pct.toFixed(2)}%)</span>}</span>;
+  // Money, not price: always cents, and a rounding-dust P&L reads as 0.00 rather than −$0.000006.
+  const cents = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const flat = Math.abs(value) < 0.005;
+  return <span className={cn("tabular-nums", flat ? "text-muted-foreground" : up ? "text-chart-up" : "text-chart-down")}>{flat ? "" : up ? "+" : "−"}${cents}{pct != null && <span className="ml-1 text-[11px] opacity-80">({up ? "+" : ""}{pct.toFixed(2)}%)</span>}</span>;
 }
 
 export function TerminalPanels({ portfolio, orders, ordersLoading, onSelectSymbol, onClosePosition, onCancelOrder, className }: {

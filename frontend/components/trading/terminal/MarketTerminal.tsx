@@ -59,15 +59,16 @@ export function MarketTerminal({ className }: { className?: string }) {
   const [drawings, setDrawings] = React.useState<Drawing[]>([]);
   const [listOpen, setListOpen] = React.useState(false);
   const [full, setFull] = React.useState(false);
-  const hydrated = React.useRef(false);
 
   React.useEffect(() => {
-    // Restore the last market/timeframe once, after mount (localStorage is client-only).
+    // Restore the last market/timeframe once, after mount (localStorage is
+    // client-only). Persisting happens in the change handlers, not an effect,
+    // so a StrictMode double run can never overwrite the stored value.
     const s = readStored(SYMBOL_KEY, (v): v is string => Boolean(marketBySymbol(v)), "BTC");
     const i = readStored(INTERVAL_KEY, (v): v is Interval => (INTERVALS as readonly string[]).includes(v), "1h");
-    setSymbol(s); setInterval_(i); setDrawings(loadDrawings(s)); hydrated.current = true;
+    setSymbol(s); setInterval_(i); setDrawings(loadDrawings(s));
   }, []);
-  React.useEffect(() => { if (hydrated.current) { try { localStorage.setItem(SYMBOL_KEY, symbol); localStorage.setItem(INTERVAL_KEY, interval); } catch { /* optional */ } } }, [symbol, interval]);
+  const setInterval = React.useCallback((iv: Interval) => { setInterval_(iv); try { localStorage.setItem(INTERVAL_KEY, iv); } catch { /* optional */ } }, []);
 
   const market: Market = marketBySymbol(symbol) ?? CHARTABLE_MARKETS[0];
   const { tickers } = useTickers(React.useMemo(() => CHARTABLE_MARKETS.map((m) => m.symbol), []));
@@ -77,6 +78,7 @@ export function MarketTerminal({ className }: { className?: string }) {
 
   const selectMarket = React.useCallback((m: Market) => {
     setSymbol(m.symbol); setDrawings(loadDrawings(m.symbol)); setTool("cursor"); setListOpen(false);
+    try { localStorage.setItem(SYMBOL_KEY, m.symbol); } catch { /* optional */ }
   }, []);
   const updateDrawings = React.useCallback((next: Drawing[]) => { setDrawings(next); saveDrawings(market.symbol, next); }, [market.symbol]);
 
@@ -104,7 +106,7 @@ export function MarketTerminal({ className }: { className?: string }) {
   const refreshOrders = React.useCallback(async () => {
     if (!canTrade) { setOrders([]); return; }
     setOrdersLoading(true);
-    try { const r = await listPaperOrders(); if (r.success) setOrders(r.data); } finally { setOrdersLoading(false); }
+    try { const r = await listPaperOrders(); if (r.success) setOrders(r.data); } catch { /* keep the last list; the next refresh retries */ } finally { setOrdersLoading(false); }
   }, [canTrade]);
 
   const settle = React.useCallback(async () => {
@@ -219,7 +221,7 @@ export function MarketTerminal({ className }: { className?: string }) {
           <div className="flex flex-wrap items-center gap-1.5 sm:ml-2">
             <div role="tablist" aria-label="Timeframe" className="flex items-center gap-0.5 rounded-lg bg-foreground/[0.04] p-0.5">
               {INTERVALS.map((iv) => (
-                <button key={iv} type="button" role="tab" aria-selected={interval === iv} onClick={() => setInterval_(iv)}
+                <button key={iv} type="button" role="tab" aria-selected={interval === iv} onClick={() => setInterval(iv)}
                   className={cn("min-h-7 min-w-8 rounded-md px-1.5 text-[11px] font-semibold uppercase transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", interval === iv ? "bg-card text-foreground shadow-e1" : "text-muted-foreground hover:text-foreground")}>
                   {iv}
                 </button>
@@ -249,7 +251,7 @@ export function MarketTerminal({ className }: { className?: string }) {
               <dl className="hidden items-center gap-4 text-[11px] tabular-nums md:flex">
                 <div><dt className="text-muted-foreground">Value</dt><dd className="font-semibold text-foreground">{portfolio.totalValueUsd != null ? `$${formatPrice(portfolio.totalValueUsd)}` : "—"}</dd></div>
                 <div><dt className="text-muted-foreground">Cash</dt><dd className="font-semibold text-foreground">${formatPrice(cash)}</dd></div>
-                <div><dt className="text-muted-foreground">P&amp;L</dt><dd className={cn("font-semibold", portfolio.totalPnlUsd == null ? "text-muted-foreground" : portfolio.totalPnlUsd >= 0 ? "text-chart-up" : "text-chart-down")}>{portfolio.totalPnlUsd == null ? "—" : `${portfolio.totalPnlUsd >= 0 ? "+" : "−"}$${formatPrice(Math.abs(portfolio.totalPnlUsd))}`}{portfolio.totalPnlPercent != null && <span className="ml-1 opacity-80">({portfolio.totalPnlPercent >= 0 ? "+" : ""}{portfolio.totalPnlPercent.toFixed(2)}%)</span>}</dd></div>
+                <div><dt className="text-muted-foreground">P&amp;L</dt><dd className={cn("font-semibold", portfolio.totalPnlUsd == null ? "text-muted-foreground" : portfolio.totalPnlUsd >= 0 ? "text-chart-up" : "text-chart-down")}>{portfolio.totalPnlUsd == null ? "—" : `${portfolio.totalPnlUsd >= 0 ? "+" : "−"}${Math.abs(portfolio.totalPnlUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}{portfolio.totalPnlPercent != null && <span className="ml-1 opacity-80">({portfolio.totalPnlPercent >= 0 ? "+" : ""}{portfolio.totalPnlPercent.toFixed(2)}%)</span>}</dd></div>
               </dl>
             )}
             <span className="hidden rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 sm:inline dark:text-amber-300">Paper</span>
