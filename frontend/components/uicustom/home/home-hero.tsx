@@ -121,8 +121,8 @@ export default function HomeHero({
 
   const firstName = userName?.trim().split(/\s+/)[0];
   const subcopy = isLoggedIn
-    ? `Welcome back${firstName ? `, ${firstName}` : ""}. Creator-made digital products, live polls and AI — right where you left them.`
-    : "Creator-made digital products, live polls and AI. Explore the demo — no card, no account needed to look around.";
+    ? `Welcome back${firstName ? `, ${firstName}` : ""}. Your products, polls and AI credits are right where you left them.`
+    : "Creator-made digital products, live polls and AI in one place. Look around freely — no card, no account needed.";
 
   const rise = (delay: number) =>
     reduceMotion
@@ -233,7 +233,7 @@ export default function HomeHero({
         {!children && (
           <motion.p {...rise(0.4)} className="m-0 inline-flex items-center gap-2 text-xs text-muted-foreground/80">
             <FiZap aria-hidden="true" className="size-3.5 text-brand-accent" />
-            AI models, live polls and verified sellers — all in one place.
+            Verified sellers, prepaid AI and live polls. Nothing hidden behind a paywall.
           </motion.p>
         )}
       </div>

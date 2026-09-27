@@ -472,8 +472,8 @@ export default function BelowFoldSections() {
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
         <SectionHeading
           eyebrow="The marketplace"
-          title="Digital goods, from discovery to delivery"
-          subtitle="Browse a product, review your order, and keep your files in your account."
+          title="From discovery to delivery"
+          subtitle="Find a product, check out on clear terms, and keep every file in your account."
         />
 
         <div
@@ -500,7 +500,7 @@ export default function BelowFoldSections() {
             delay={0}
             href="/products"
             title="Digital products"
-            description="Explore digital artwork and prepaid AI credits. Try the marketplace for free with the demo."
+            description="Digital artwork and prepaid AI credits from verified sellers. Try the whole journey free with the demo."
             icon={BOX_ICON}
             accentClass="from-violet-500/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -509,7 +509,7 @@ export default function BelowFoldSections() {
             delay={0.1}
             href="/ai"
             title="Prepaid AI chat"
-            description="Choose an available model and see its credit cost before sending. Personal API keys bill your provider directly; daily safety limits apply."
+            description="Pick a model and see the credit cost before you send. Bring your own API key and your provider bills you directly."
             icon={AI_ICON}
             accentClass="from-brand-accent/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -518,7 +518,7 @@ export default function BelowFoldSections() {
             delay={0.2}
             href="/pulse"
             title="Experimental modules"
-            description="Pulse, polls and Web3 trading are experiments on the same stack. They are separate from the digital-product purchase and delivery flow."
+            description="Pulse, polls and Web3 trading run on the same stack as the marketplace, kept apart from purchases and delivery."
             icon={POLL_ICON}
             accentClass="from-brand-accent/6 to-transparent"
             onMouseEnter={handleFeatureEnter}
@@ -560,9 +560,9 @@ export default function BelowFoldSections() {
             {(
               [
                 { value: "Demo", label: "No card required" },
-                { value: "BYOK", label: "Your Keys, Your Billing" },
-                { value: "Files", label: "Private account access" },
-                { value: "AI", label: "Prepaid usage" },
+                { value: "BYOK", label: "Your keys, your billing" },
+                { value: "Files", label: "Private downloads" },
+                { value: "AI", label: "Prepaid, capped daily" },
               ] as const
             ).map(({ value, label }, i) => (
               <motion.div
@@ -591,7 +591,7 @@ export default function BelowFoldSections() {
 
       {/* ── How it works ────────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
-        <SectionHeading eyebrow="How it works" title="Three steps to get started" />
+        <SectionHeading eyebrow="How it works" title="Three steps from browsing to owning" />
 
         <div
           className="grid gap-10 sm:grid-cols-3"
@@ -599,9 +599,9 @@ export default function BelowFoldSections() {
         >
           {(
             [
-              { step: "01", title: "Find a product", description: "Review the gallery, included files and price. Use the demo first if you want to explore without paying." },
-              { step: "02", title: "Review your checkout", description: "Sign in, check each item and read the delivery terms. Real purchases use PayPal; the demo never charges you." },
-              { step: "03", title: "Access your purchase", description: "After verified payment, find your files in My downloads or your credits in AI chat. Your order keeps the purchase record." },
+              { step: "01", title: "Find a product", description: "Check the gallery, the included files and the price. Not sure yet? Start with the free demo." },
+              { step: "02", title: "Review your checkout", description: "Sign in, confirm each item and read the delivery terms. Real purchases go through PayPal; the demo never charges you." },
+              { step: "03", title: "Own your purchase", description: "Once payment is verified, your files appear in My downloads and credits in AI chat. The order keeps the record." },
             ] as const
           ).map(({ step, title, description }, i) => (
             <StepCard
@@ -632,8 +632,8 @@ export default function BelowFoldSections() {
               <HoverableHeading text="Start exploring Veggat" />
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-              Discover digital goods and explore the free demo. Premium AI uses prepaid credits;
-              personal keys bill your provider directly. Daily limits apply.
+              Browse digital goods, try the free demo, and add prepaid AI credits or your own
+              key when you are ready.
             </p>
             <Link
               href="/pricing"
