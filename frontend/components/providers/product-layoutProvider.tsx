@@ -5,7 +5,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefCallback, RefObject } from "react";
 import { usePathname } from "next/navigation";
-import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
 import { DEFAULT_CATALOG_PAGE_SIZE } from '@/lib/catalog-snapshot';
 
 export type SidebarDock = "edge-left" | "frame-left" | "frame-right" | "edge-right";
@@ -499,15 +498,9 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, []);
 
-	// ─── Sidebar content adjustment ──────────────────────────────────────────
-	// When the sidebar is open on edge-left or edge-right, we use a flex layout
-	// with a spacer that takes up the sidebar width. This forces the content to
-	// shrink (grid reflows to fewer columns, inputs shrink) instead of just shifting.
-	const isDesktop = viewportWidth >= 1024; // lg breakpoint
+	// The filter panel is part of the catalog frame now (CatalogClient renders
+	// it as a column on xl+ and a Sheet below); the page is never pushed aside.
 	const effectiveSidebarOpen = hideSidebarOnThisRoute ? false : isSidebarOpen;
-	const showLeftSpacer = effectiveSidebarOpen && isDesktop && (sidebarDock === 'edge-left' || sidebarDock === 'frame-left');
-	const showRightSpacer = effectiveSidebarOpen && isDesktop && (sidebarDock === 'edge-right' || sidebarDock === 'frame-right');
-	const spacerWidth = SIDEBAR_WIDTH; // No extra gap needed - sidebar already has some padding
 
 
 	// /products/create should fit on one screen on desktop. Lock the provider scroll
@@ -547,15 +540,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 						className="flex-1 min-w-0 h-full min-h-0 overscroll-contain"
 						style={{ overflowY: lockScrollOnDesktopCreate ? "hidden" : undefined }}
 					>
-								{!hideSidebarOnThisRoute && <MySidebarProductsMenu />}
-							{/* Content wrapper with sidebar spacing */}
-							<div 
-								className="h-full"
-								style={{
-									paddingLeft: showLeftSpacer ? spacerWidth : 0,
-									paddingRight: showRightSpacer ? spacerWidth : 0,
-								}}
-							>
+							<div className="h-full">
 								{children}
 							</div>
 					</div>
