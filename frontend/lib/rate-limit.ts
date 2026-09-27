@@ -115,6 +115,7 @@ function checkMemory(key: string, maxRequests: number, windowMs: number): RateLi
 // Backend: Redis
 // ─────────────────────────────────────────────────────────────────────────────
 
+const REDIS_CONNECT_TIMEOUT_MS = 1500;
 let redisClient: RedisClientType | null = null;
 let redisReady = false;
 let redisInitPromise: Promise<void> | null = null;
@@ -129,7 +130,17 @@ async function initRedis(): Promise<void> {
   if (!url) return;
 
   try {
-    redisClient = createClient({ url }) as RedisClientType;
+    // Fail fast. node-redis retries forever by default, and every caller awaits
+    // this promise — with REDIS_URL pointing at a Redis that is not running,
+    // sign-in and every other rate-limited path used to hang for 60s+ before
+    // the in-memory fallback kicked in. Two quick attempts, then give up.
+    redisClient = createClient({
+      url,
+      socket: {
+        connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
+        reconnectStrategy: (retries: number) => (retries >= 2 ? false : 250),
+      },
+    }) as RedisClientType;
 
     redisClient.on("error", (err: Error) => {
       if (!redisErrorLogged) {
@@ -144,14 +155,22 @@ async function initRedis(): Promise<void> {
       redisErrorLogged = false; // Reset so we log again if it fails after recovery
     });
 
-    await redisClient.connect();
+    await Promise.race([
+      redisClient.connect(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`no Redis at ${new URL(url).host} within ${REDIS_CONNECT_TIMEOUT_MS * 2}ms`)), REDIS_CONNECT_TIMEOUT_MS * 2),
+      ),
+    ]);
     redisReady = true;
   } catch (err) {
     console.warn("[rate-limit] Redis connection failed, using in-memory fallback:", (err as Error).message);
+    const client = redisClient;
     redisClient = null;
     redisReady = false;
+    if (client) void client.disconnect().catch(() => undefined);
   }
 }
+
 
 function ensureRedis(): Promise<void> {
   if (!getRedisUrl()) return Promise.resolve();
