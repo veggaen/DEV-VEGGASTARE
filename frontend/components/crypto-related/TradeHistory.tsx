@@ -26,6 +26,14 @@ import {
 } from "react-icons/fi";
 import { Users, ArrowLeftRight, Repeat, FileText, Monitor, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { PersonalTaxSummary } from "./PersonalTaxSummary";
+import { WalletHistory } from "./WalletHistory";
+
+type HistoryView = "live" | "paper";
+const VIEW_KEY = "veggat:history:view";
+const readView = (): HistoryView => {
+  if (typeof window === "undefined") return "live";
+  try { return localStorage.getItem(VIEW_KEY) === "paper" ? "paper" : "live"; } catch { return "live"; }
+};
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -272,6 +280,9 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showNok, setShowNok] = useState(false); // toggle USD/NOK
   const [showTaxPanel, setShowTaxPanel] = useState(false);
+  /** Live = what your wallets did on-chain plus the app's records of real trades; Paper = the virtual account only. */
+  const [view, setViewState] = useState<HistoryView>(readView);
+  const setView = (v: HistoryView) => { setViewState(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* optional */ } };
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -290,7 +301,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
         page: String(page),
         limit: "20",
       });
-      if (modeFilter !== "ALL") params.set("mode", modeFilter);
+      params.set("mode", view === "paper" ? "PAPER" : modeFilter === "ALL" ? "LIVE" : modeFilter);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
 
       const res = await fetch(`/api/trades/history?${params.toString()}`, {
@@ -311,7 +322,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
     } finally {
       setLoading(false);
     }
-  }, [modeFilter, statusFilter]);
+  }, [modeFilter, statusFilter, view]);
 
   // Fetch on mount + filter changes
   useEffect(() => {
@@ -341,9 +352,21 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
             <FiClock className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-foreground/80 leading-tight">Trade History</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-foreground/80 leading-tight">{view === "paper" ? "Paper history" : "Live history"}</h2>
+              <div role="tablist" aria-label="History account" className="flex items-center gap-0.5 rounded-full border border-border/60 bg-foreground/[0.04] p-0.5">
+                {(["live", "paper"] as const).map((v) => (
+                  <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}
+                    className={`min-h-6 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-wider transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      view === v ? (v === "paper" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light") : "text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {v === "live" ? "Live" : "Paper"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-[10px] text-muted-foreground">
-              {pagination.total} total record{pagination.total !== 1 ? "s" : ""}
+              {view === "paper" ? `${pagination.total} paper trade${pagination.total !== 1 ? "s" : ""}` : `On-chain activity of your wallets · ${pagination.total} app record${pagination.total !== 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
@@ -439,7 +462,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
               <div className="space-y-1">
                 <label className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Mode</label>
                 <div className="flex flex-wrap gap-1">
-                  {(["ALL", "P2P", "SELF", "DEX", "PAPER", "LOCAL"] as const).map((m) => (
+                  {(view === "paper" ? ([] as const) : (["ALL", "P2P", "SELF", "DEX", "LOCAL"] as const)).map((m) => (
                     <button
                       key={m}
                       type="button"
@@ -501,6 +524,14 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── On-chain activity (live view) ───────────────────── */}
+      {view === "live" && (
+        <section aria-label="On-chain activity" className="space-y-2">
+          <WalletHistory />
+          <h3 className="pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">App records · P2P, transfers, DEX</h3>
+        </section>
+      )}
 
       {/* ── Summary Stats ───────────────────────────────────── */}
       {records.length > 0 && (
