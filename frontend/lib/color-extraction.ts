@@ -437,3 +437,19 @@ export function generateColorStyles(colors: DominantColors | null): React.CSSPro
     '--theme-contrast-rgb': `${contrastRgb.r}, ${contrastRgb.g}, ${contrastRgb.b}`,
   } as React.CSSProperties;
 }
+
+/**
+ * A banner-derived colour that stays readable as TEXT on the page surface.
+ * The mode-adapted palette is lightened in light mode, so a fixed "darker"
+ * step is not enough for pale banners (sky, sand): clamp lightness instead —
+ * at most 36% on light, at least 66% on dark — and keep some saturation so it
+ * still reads as the banner's hue rather than grey.
+ */
+export function readableTint(hex: string, mode: ThemeMode): string {
+  const { r, g, b } = hexToRgbValues(hex);
+  const { h, s, l } = rgbToHsl(r, g, b);
+  const lightness = mode === 'light' ? Math.min(l, 36) : Math.max(l, 66);
+  const saturation = Math.max(s, 40);
+  const rgb = hslToRgb(h, saturation, lightness);
+  return rgbToHex(rgb.r, rgb.g, rgb.b);
+}

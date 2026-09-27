@@ -27,106 +27,8 @@ const requireOauthEmailConfirmation =
   process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION === 'true' ||
   (!isDev && process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION !== 'false');
 
-type IdentitySource = 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
-type IdentityEmailMode = 'PRIMARY' | 'HIDE';
-type IdentityProvider = 'google' | 'github' | 'discord';
-
-function sourceToProvider(source?: IdentitySource): IdentityProvider | null {
-  if (source === 'GOOGLE') return 'google';
-  if (source === 'GITHUB') return 'github';
-  if (source === 'DISCORD') return 'discord';
-  return null;
-}
-
-function getProviderProfile(user: {
-  googleProfileName?: string | null;
-  googleProfileImage?: string | null;
-  githubProfileName?: string | null;
-  githubProfileImage?: string | null;
-  discordProfileName?: string | null;
-  discordProfileImage?: string | null;
-}, provider: IdentityProvider) {
-  if (provider === 'google') {
-    return {
-      name: user.googleProfileName ?? null,
-      image: user.googleProfileImage ?? null,
-    };
-  }
-  if (provider === 'github') {
-    return {
-      name: user.githubProfileName ?? null,
-      image: user.githubProfileImage ?? null,
-    };
-  }
-  return {
-    name: user.discordProfileName ?? null,
-    image: user.discordProfileImage ?? null,
-  };
-}
-
-function resolveDisplayName(user: {
-  name?: string | null;
-  googleProfileName?: string | null;
-  githubProfileName?: string | null;
-  discordProfileName?: string | null;
-}, source: IdentitySource | undefined, lastAuthProvider?: string): string | null {
-  if (source === 'MANUAL') return user.name ?? null;
-
-  const explicitProvider = sourceToProvider(source);
-  if (explicitProvider) {
-    return getProviderProfile(user, explicitProvider).name ?? user.name ?? null;
-  }
-
-  const authProvider =
-    lastAuthProvider === 'google' || lastAuthProvider === 'github' || lastAuthProvider === 'discord'
-      ? lastAuthProvider
-      : null;
-
-  if (authProvider) {
-    const providerName = getProviderProfile(user, authProvider).name;
-    if (providerName) return providerName;
-  }
-
-  return (
-    user.name ??
-    user.googleProfileName ??
-    user.githubProfileName ??
-    user.discordProfileName ??
-    null
-  );
-}
-
-function resolveDisplayImage(user: {
-  image?: string | null;
-  googleProfileImage?: string | null;
-  githubProfileImage?: string | null;
-  discordProfileImage?: string | null;
-}, source: IdentitySource | undefined, lastAuthProvider?: string): string | null {
-  if (source === 'MANUAL') return user.image ?? null;
-
-  const explicitProvider = sourceToProvider(source);
-  if (explicitProvider) {
-    return getProviderProfile(user, explicitProvider).image ?? user.image ?? null;
-  }
-
-  const authProvider =
-    lastAuthProvider === 'google' || lastAuthProvider === 'github' || lastAuthProvider === 'discord'
-      ? lastAuthProvider
-      : null;
-
-  if (authProvider) {
-    const providerImage = getProviderProfile(user, authProvider).image;
-    if (providerImage) return providerImage;
-  }
-
-  return (
-    user.image ??
-    user.googleProfileImage ??
-    user.githubProfileImage ??
-    user.discordProfileImage ??
-    null
-  );
-}
+import { resolveDisplayImage, resolveDisplayName, type IdentityEmailMode, type IdentitySource } from '@/lib/identity-display';
+import type { ExtendedUser } from '@/next-auth';
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
 const authUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL
@@ -372,6 +274,7 @@ export const {
             session.user.identityNameSource = token.identityNameSource as IdentitySource | undefined;
             session.user.identityImageSource = token.identityImageSource as IdentitySource | undefined;
             session.user.emailDisplayMode = token.emailDisplayMode as IdentityEmailMode | undefined;
+            session.user.lastAuthProvider = token.lastAuthProvider as ExtendedUser['lastAuthProvider'];
 
             if (typeof token.displayName === 'string' || token.displayName === null) {
               session.user.name = (token.displayName as string | null) ?? session.user.name;

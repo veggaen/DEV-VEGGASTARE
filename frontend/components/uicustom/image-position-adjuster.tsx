@@ -96,6 +96,18 @@ export function ImagePositionAdjuster({
     };
   }, [file]);
 
+  // Wheel zooms. Native listener: React's onWheel is passive and cannot preventDefault.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || !file) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z - e.deltaY * 0.0015)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [file]);
+
   // Geometry: scale needed for the image to exactly cover the frame, × zoom
   const geometry = useMemo(() => {
     if (!natural || frameW === 0 || frameH === 0) return null;
@@ -203,7 +215,7 @@ export function ImagePositionAdjuster({
           {title}
         </DialogTitle>
         <p className="-mt-2 text-sm text-muted-foreground">
-          Drag to position · scroll the slider to zoom · arrow keys to nudge
+          Drag to move · scroll or use the slider to zoom · arrow keys to nudge
         </p>
 
         {/* Frame */}
@@ -217,10 +229,11 @@ export function ImagePositionAdjuster({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onKeyDown={onKeyDown}
-          className={`relative w-full select-none overflow-hidden rounded-xl border border-border bg-foreground/[0.05] outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          className={`relative mx-auto select-none overflow-hidden rounded-xl border border-border bg-foreground/[0.05] outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             dragging ? "cursor-grabbing" : "cursor-grab"
           }`}
-          style={{ aspectRatio: `${aspect}`, touchAction: "none" }}
+          // Tall frames (avatars) are capped by the viewport height; width follows so the ratio holds.
+          style={{ aspectRatio: `${aspect}`, touchAction: "none", width: aspect < 1.5 ? `min(100%, ${Math.round(56 * aspect)}vh)` : "100%" }}
         >
           {objectUrl && natural && geometry ? (
             <>

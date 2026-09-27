@@ -14,6 +14,7 @@ const SIDEBAR_WIDTH = 340;
 
 const SIDEBAR_DOCK_KEY = "veggastare.products.sidebarDock";
 const LEGACY_PLACEMENT_KEY = "veggastare.products.sidebarPlacement";
+const FILTER_COLUMN_KEY = "veggat:catalog:filtersHidden";
 
 // Define the context props interface
 interface SidebarContextProps {
@@ -43,6 +44,9 @@ interface SidebarContextProps {
 	/** Pagination size for /products */
 	perPage: number;
 	setPerPage: (n: number) => void;
+	/** xl+ only: the inline filter column is hidden so the grid takes the whole frame. Persisted. */
+	filterColumnHidden: boolean;
+	setFilterColumnHidden: (hidden: boolean) => void;
 }
 
 // Create the context
@@ -408,6 +412,18 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		};
 	}, [openSidebar]);
 	const [perPage, setPerPage] = useState(DEFAULT_CATALOG_PAGE_SIZE);
+	const [filterColumnHidden, setFilterColumnHiddenState] = useState(false);
+	useEffect(() => {
+		// Browser-only preference; read after mount so server markup matches.
+		try {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setFilterColumnHiddenState(localStorage.getItem(FILTER_COLUMN_KEY) === "1");
+		} catch {}
+	}, []);
+	const setFilterColumnHidden = useCallback((hidden: boolean) => {
+		setFilterColumnHiddenState(hidden);
+		try { localStorage.setItem(FILTER_COLUMN_KEY, hidden ? "1" : "0"); } catch {}
+	}, []);
 	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>('edge-left');
 	useEffect(() => {
 		const readDock = (): SidebarDock => {
@@ -526,6 +542,8 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 					productsFrameBounds,
 					perPage,
 					setPerPage,
+					filterColumnHidden,
+					setFilterColumnHidden,
 			}}
 		>
 		    <div className="productProvider relative flex w-full h-full min-h-0">

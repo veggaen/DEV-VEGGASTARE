@@ -19,6 +19,8 @@ export type ExtendedUser = DefaultSession['user'] & {
     identityNameSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
     identityImageSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
     emailDisplayMode?: 'PRIMARY' | 'HIDE';
+    /** How this session signed in; resolves the AUTO picture/name source. */
+    lastAuthProvider?: 'google' | 'github' | 'discord';
     /** Impersonation – present when an OWNER is viewing as another user */
     isImpersonating?: boolean;
     impersonatingFromId?: string;

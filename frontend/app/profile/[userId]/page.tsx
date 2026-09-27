@@ -18,14 +18,18 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { profileRequest } from '@/lib/profile-request';
 import { saveProfileImage } from '@/lib/profile-image-save';
+import ImagePositionAdjuster from '@/components/uicustom/image-position-adjuster';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { IdentityImageSources, IdentitySource } from '@/lib/identity-display';
+import { cn } from '@/lib/utils';
 import ProfileLoading from '../loading';
 import { useEdgeStore } from '@/lib/edgestore';
-import { useBannerColors, generateColorStyles } from '@/lib/color-extraction';
+import { useBannerColors, generateColorStyles, readableTint } from '@/lib/color-extraction';
 import { useProfileThemeFromBanner } from '@/components/providers/profile-theme-provider';
 import {
   FiUser, FiSettings, FiMessageCircle, FiCalendar, FiMapPin,
   FiLink, FiEdit2, FiGrid, FiActivity, FiUsers, FiCamera, FiUpload, FiX, FiTrendingUp,
-  FiRepeat, FiEye, FiBarChart2, FiZap
+  FiRepeat, FiEye, FiBarChart2, FiZap, FiCheck, FiMove, FiTrash2
 } from 'react-icons/fi';
 import { Pin, Shield, ArrowLeftRight } from 'lucide-react';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
@@ -48,6 +52,9 @@ interface UserProfile {
   image: string | null;
   banner?: string | null;
   bio?: string | null;
+  /** Own profile only: which linked picture is shown, and every picture the account can show. */
+  imageSource?: IdentitySource;
+  imageSources?: IdentityImageSources;
   location?: string | null;
   website?: string | null;
   createdAt: string;
@@ -207,6 +214,13 @@ function PostsLoading() {
   return <div role="status" aria-label="Loading profile posts" className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-36 rounded-xl border border-border bg-foreground/[0.04] motion-safe:animate-pulse" />)}</div>;
 }
 
+/** Controls that sit on the banner photo: a dark scrim so they read on any image, in both themes. */
+const onImageButton = 'inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-black/55 px-3.5 text-sm font-medium text-white backdrop-blur-md transition-[background-color,border-color] duration-200 hover:border-white/30 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+const accentButton = 'inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-accent px-4 text-sm font-semibold text-brand-accent-foreground shadow-e1 transition-[background-color,box-shadow] duration-200 hover:bg-brand-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+const avatarRoundButton = 'absolute flex size-11 items-center justify-center rounded-full border-2 border-background bg-card text-foreground shadow-e1 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted';
+const menuClass = 'z-90 w-72 rounded-2xl border-border/70 bg-popover/95 p-1.5 shadow-e3 backdrop-blur-xl';
+const menuItem = 'min-h-11 gap-3 rounded-lg px-3 text-sm';
+
 export default function ProfilePage() {
   const reduceMotion = useReducedMotion();
   const { resolvedTheme } = useTheme();
@@ -243,6 +257,8 @@ export default function ProfilePage() {
   // Extract colors from banner for dynamic theming
   const { colors: bannerColors } = useBannerColors(profile?.banner);
   const themeStyles = generateColorStyles(bannerColors);
+  // Banner-derived text tint, lightness-clamped per theme so it reads on the page surface in both.
+  const tintText = bannerColors ? readableTint(bannerColors.primary, isDark ? 'dark' : 'light') : undefined;
 
   // Apply global page-level theme tinting from banner
   useProfileThemeFromBanner(profile?.banner);
@@ -257,9 +273,15 @@ export default function ProfilePage() {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Preview states for save/confirm workflow
-  const [bannerPreview, setBannerPreview] = useState<{ file: File; url: string; uploadedUrl?: string } | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<{ file: File; url: string; uploadedUrl?: string } | null>(null);
+  // Preview states for save/confirm workflow. `original` is the file as picked,
+  // so "Reframe" can reopen the framing dialog without another file pick.
+  type ImagePreview = { file: File; original: File; url: string; uploadedUrl?: string };
+  const [bannerPreview, setBannerPreview] = useState<ImagePreview | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<ImagePreview | null>(null);
+  // Zoom + pan dialog shown before a static image becomes a preview.
+  const [adjusting, setAdjusting] = useState<{ file: File; target: 'banner' | 'avatar' } | null>(null);
+  const [imageSourceBusy, setImageSourceBusy] = useState(false);
+  const [removingBanner, setRemovingBanner] = useState(false);
 
   // Follow states
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -278,31 +300,65 @@ export default function ProfilePage() {
   useEffect(() => () => { if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl); }, [avatarPreviewUrl]);
   useEffect(() => { setBannerPreview(null); setAvatarPreview(null); setBannerUploadError(null); setAvatarUploadError(null); }, [userId]);
 
-  // Handle banner file selection - show preview, don't upload yet
+  const validImage = (file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) { toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)'); return false; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be less than 5MB'); return false; }
+    return true;
+  };
+  const setPreviewFor = (target: 'banner' | 'avatar', preview: ImagePreview | null) => (target === 'banner' ? setBannerPreview : setAvatarPreview)(preview);
+
+  // A picked file opens the framing dialog first (zoom + pan). Animated GIFs
+  // skip it so the animation is not flattened to one frame.
+  const pickImage = (target: 'banner' | 'avatar', file: File) => {
+    const lock = target === 'banner' ? bannerSaveLock : avatarSaveLock;
+    if (!canEditProfile || lock.current || !validImage(file)) return;
+    (target === 'banner' ? setBannerUploadError : setAvatarUploadError)(null);
+    if (file.type === 'image/gif') { setPreviewFor(target, { file, original: file, url: URL.createObjectURL(file) }); return; }
+    setAdjusting({ file, target });
+  };
   const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditProfile || bannerSaveLock.current) return;
     const file = e.target.files?.[0];
-    if (!file) return;
     if (bannerInputRef.current) bannerInputRef.current.value = '';
-    setBannerUploadError(null);
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)');
-      return;
+    if (file) pickImage('banner', file);
+  };
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+    if (file) pickImage('avatar', file);
+  };
+  const confirmFraming = (blob: Blob) => {
+    if (!adjusting) return;
+    const { target, file: original } = adjusting;
+    const framed = new File([blob], `${target}-framed.webp`, { type: 'image/webp' });
+    setPreviewFor(target, { file: framed, original, url: URL.createObjectURL(framed) });
+    setAdjusting(null);
+  };
+  const reframe = (target: 'banner' | 'avatar') => {
+    const preview = target === 'banner' ? bannerPreview : avatarPreview;
+    if (preview) setAdjusting({ file: preview.original, target });
+  };
+  // Re-crop what is already saved. The hosts in use (EdgeStore, Google, GitHub,
+  // Discord) allow cross-origin reads, so the current image can be fetched and reframed.
+  const repositionCurrent = async (target: 'banner' | 'avatar') => {
+    const src = target === 'banner' ? profile?.banner : profile?.image;
+    if (!src || !canEditProfile) return;
+    try {
+      const response = await fetch(src, { mode: 'cors', signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) throw new Error(String(response.status));
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error(blob.type);
+      const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+      pickImage(target, new File([blob], `${target}-current.${ext}`, { type: blob.type }));
+    } catch {
+      toast.error('That image could not be loaded for repositioning. Upload it again instead.');
     }
+  };
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
-      return;
-    }
-
-    // Create preview URL
-    const url = URL.createObjectURL(file);
-    setBannerPreview({ file, url });
-    if (bannerInputRef.current) bannerInputRef.current.value = '';
+  type SavedProfile = { image: string | null; banner: string | null; imageSource?: IdentitySource; imageSources?: IdentityImageSources };
+  const patchProfile = async (body: Record<string, unknown>): Promise<SavedProfile> => {
+    const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error('Profile save failed');
+    return (await response.json()).user as SavedProfile;
   };
 
   // Confirm and upload banner
@@ -320,21 +376,14 @@ export default function ProfilePage() {
         uploadedUrl,
         upload: () => edgestore.myPublicImages.upload({ file: bannerPreview.file, onProgressChange: progress => setBannerProgress(Math.floor(progress / 10) * 10) }),
         remember: url => { uploadedUrl = url; setBannerPreview(current => current?.url === bannerPreview.url ? { ...current, uploadedUrl: url } : current); },
-        persist: async url => {
-          const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ banner: url }), signal: AbortSignal.timeout(15_000) });
-          if (!response.ok) throw new Error('Profile save failed');
-        },
+        persist: async url => { await patchProfile({ banner: url }); },
       });
-
-      // Update local state
       setProfile(prev => prev ? { ...prev, banner: url } : null);
-      toast.success('Banner updated successfully!');
-
-      // Cleanup preview
+      toast.success('Banner updated');
       URL.revokeObjectURL(bannerPreview.url);
       setBannerPreview(null);
     } catch {
-      setBannerUploadError(uploadedUrl ? 'The banner uploaded, but your profile could not save. Try Save Banner again; the uploaded file will be reused.' : 'The banner could not upload. Check your connection and try Save Banner again.');
+      setBannerUploadError(uploadedUrl ? 'The banner uploaded, but your profile could not save. Try Save banner again; the uploaded file will be reused.' : 'The banner could not upload. Check your connection and try Save banner again.');
       toast.error('Failed to upload banner');
     } finally {
       bannerSaveLock.current = false;
@@ -352,29 +401,18 @@ export default function ProfilePage() {
     }
   };
 
-  // Handle avatar file selection - show preview, don't upload yet
-  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditProfile || avatarSaveLock.current) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
-    setAvatarUploadError(null);
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Please upload a valid image file (JPG, PNG, GIF, or WebP)');
-      return;
+  const removeBanner = async () => {
+    if (!canEditProfile || removingBanner || !profile?.banner) return;
+    setRemovingBanner(true);
+    try {
+      await patchProfile({ banner: null });
+      setProfile(prev => prev ? { ...prev, banner: null } : null);
+      toast.success('Banner removed');
+    } catch {
+      toast.error('The banner could not be removed. Try again.');
+    } finally {
+      setRemovingBanner(false);
     }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
-      return;
-    }
-
-    // Create preview URL
-    const url = URL.createObjectURL(file);
-    setAvatarPreview({ file, url });
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
   };
 
   // Confirm and upload avatar
@@ -386,20 +424,19 @@ export default function ProfilePage() {
     setAvatarUploadError(null);
     setAvatarProgress(avatarPreview.uploadedUrl ? 100 : 0);
     let uploadedUrl = avatarPreview.uploadedUrl;
+    const saved: { user?: SavedProfile } = {};
     try {
       if (!uploadedUrl && !storageState.initialized) await resetStorage();
       const url = await saveProfileImage({
         uploadedUrl,
         upload: () => edgestore.myPublicImages.upload({ file: avatarPreview.file, onProgressChange: progress => setAvatarProgress(Math.floor(progress / 10) * 10) }),
         remember: url => { uploadedUrl = url; setAvatarPreview(current => current?.url === avatarPreview.url ? { ...current, uploadedUrl: url } : current); },
-        persist: async url => {
-          const response = await fetch(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }), signal: AbortSignal.timeout(15_000) });
-          if (!response.ok) throw new Error('Profile save failed');
-        },
+        // Uploading a picture also makes it the one shown (the server switches the source to MANUAL).
+        persist: async url => { saved.user = await patchProfile({ image: url }); },
       });
-      setProfile(prev => prev ? { ...prev, image: url } : null);
+      setProfile(prev => prev ? { ...prev, image: saved.user?.image ?? url, imageSource: saved.user?.imageSource ?? 'MANUAL', imageSources: saved.user?.imageSources ?? prev.imageSources } : null);
       void refreshSession();
-      toast.success('Profile picture updated successfully!');
+      toast.success('Profile picture updated');
 
       // Cleanup preview
       URL.revokeObjectURL(avatarPreview.url);
@@ -422,6 +459,45 @@ export default function ProfilePage() {
       setAvatarPreview(null);
     }
   };
+
+  // Show the picture from another linked sign-in method (or the uploaded one).
+  // One account: the choice applies everywhere the avatar appears.
+  const chooseImageSource = async (source: IdentitySource) => {
+    if (!canEditProfile || imageSourceBusy || source === profile?.imageSource) return;
+    setImageSourceBusy(true);
+    try {
+      const saved = await patchProfile({ imageSource: source });
+      setProfile(prev => prev ? { ...prev, image: saved.image, imageSource: saved.imageSource ?? source, imageSources: saved.imageSources ?? prev.imageSources } : null);
+      void refreshSession();
+      toast.success('Profile picture updated');
+    } catch {
+      toast.error('The picture could not be changed. Try again.');
+    } finally {
+      setImageSourceBusy(false);
+    }
+  };
+
+  // Every picture this account can show. A manual copy of a provider picture
+  // (linking backfills it) is not offered twice.
+  const imageChoices = (() => {
+    const sources = profile?.imageSources;
+    if (!sources) return [] as { source: IdentitySource; label: string; image: string; active: boolean }[];
+    const providers = [sources.google, sources.github, sources.discord];
+    const raw: { source: IdentitySource; label: string; image: string | null }[] = [
+      { source: 'MANUAL', label: 'Uploaded picture', image: sources.manual && providers.includes(sources.manual) ? null : sources.manual },
+      { source: 'GOOGLE', label: 'Google', image: sources.google },
+      { source: 'GITHUB', label: 'GitHub', image: sources.github },
+      { source: 'DISCORD', label: 'Discord', image: sources.discord },
+    ];
+    const active = profile?.imageSource ?? 'AUTO';
+    let matched = false;
+    return raw.flatMap(choice => {
+      if (!choice.image) return [];
+      const isActive = active === choice.source || (active === 'AUTO' && !matched && choice.image === profile?.image);
+      if (isActive) matched = true;
+      return [{ source: choice.source, label: choice.label, image: choice.image, active: isActive }];
+    });
+  })();
 
   // Handle paste for avatar (Ctrl+V)
   const handleAvatarPaste = (e: React.ClipboardEvent) => {
@@ -558,119 +634,92 @@ export default function ProfilePage() {
         />
       )}
       {/* Hidden file inputs */}
-      <input
-        ref={bannerInputRef}
-        aria-label="Choose banner image"
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
-        className="hidden"
-        onChange={handleBannerSelect}
-      />
-      <input
-        ref={avatarInputRef}
-        aria-label="Choose profile picture"
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
-        className="hidden"
-        onChange={handleAvatarSelect}
-      />
+      <input ref={bannerInputRef} aria-label="Choose banner image" type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleBannerSelect} />
+      <input ref={avatarInputRef} aria-label="Choose profile picture" type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleAvatarSelect} />
 
-      {/* Banner */}
-      <div 
-        className="relative h-44 sm:h-56 lg:h-64 w-full overflow-hidden rounded-2xl"
+      {/* Zoom + pan before anything is saved. The banner frame is the same 3:1 the banner renders at. */}
+      {canEditProfile && (
+        <ImagePositionAdjuster
+          file={adjusting?.file ?? null}
+          aspect={adjusting?.target === 'avatar' ? 1 : 3}
+          round={adjusting?.target === 'avatar'}
+          outputWidth={adjusting?.target === 'avatar' ? 512 : 1500}
+          outputHeight={adjusting?.target === 'avatar' ? 512 : 500}
+          title={adjusting?.target === 'avatar' ? 'Position your profile picture' : 'Position your banner'}
+          onCancel={() => setAdjusting(null)}
+          onConfirm={confirmFraming}
+        />
+      )}
+
+      {/* Banner: a 3:1 frame at every width, so what you framed is what shows. */}
+      <div
+        className="relative aspect-[3/1] w-full overflow-hidden rounded-2xl bg-foreground/[0.04]"
         onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
         onDrop={(e) => {
           if (!canEditProfile) return;
           e.preventDefault();
           const file = e.dataTransfer?.files?.[0];
-          if (file && file.type.startsWith('image/')) {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            const fakeEvent = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
-            handleBannerSelect(fakeEvent);
-          }
+          if (file && file.type.startsWith('image/')) pickImage('banner', file);
         }}
       >
-        {/* Show preview if available, otherwise show current banner */}
         {bannerPreview ? (
-          <Image
-            src={bannerPreview.url}
-            alt="Banner preview"
-            fill
-            sizes="(min-width: 1024px) 896px, calc(100vw - 32px)"
-            className="object-cover"
-            priority
-          />
+          <Image src={bannerPreview.url} alt="Banner preview" fill sizes="(min-width: 1024px) 896px, calc(100vw - 32px)" className="object-cover" priority />
         ) : profile.banner ? (
-          <Image
-            src={profile.banner}
-            alt="Profile banner"
-            fill
-            sizes="(min-width: 1024px) 896px, calc(100vw - 32px)"
-            className="object-cover"
-            priority
-          />
+          <Image src={profile.banner} alt="Profile banner" fill sizes="(min-width: 1024px) 896px, calc(100vw - 32px)" className="object-cover" priority />
         ) : (
           <div
             className="absolute inset-0"
             style={{
               background: bannerColors
                 ? `linear-gradient(135deg, ${bannerColors.primary}90, ${bannerColors.secondary}90, ${bannerColors.accent}90)`
-                : 'linear-gradient(135deg, #18181b, #27272a, #3f3f46)'
+                : 'linear-gradient(135deg, hsl(var(--brand-accent) / 0.45), hsl(var(--brand-accent) / 0.12) 55%, hsl(var(--muted)))'
             }}
           />
         )}
-        {/* Cleaner gradient overlay - fades to page background */}
+        {/* Fades into the page so the avatar and name sit on it. */}
         <div className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
 
-        {/* Banner edit/confirm buttons (own profile only) */}
         {canEditProfile && (
-          <div className="absolute top-4 right-4 flex items-center gap-2">
+          <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-4 sm:top-4">
             {bannerPreview ? (
               <>
-                {/* Cancel preview */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={cancelBannerPreview}
-                  disabled={isUploadingBanner}
-                  className="h-11 border-border bg-black/70 text-white hover:bg-black/80 rounded-lg"
-                >
-                  <FiX className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                {/* Confirm/Save */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={confirmBannerUpload}
-                  disabled={isUploadingBanner || storageState.loading}
-                  className="h-11 border-brand-accent/30 bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent-hover rounded-lg"
-                >
-                  {isUploadingBanner ? (
-                    <>
-                      <Spinner className="h-4 w-4 mr-2" />
-                      Saving…
-                    </>
-                  ) : (
-                    <>
-                      <FiUpload className="h-4 w-4 mr-2" />
-                      Save Banner
-                    </>
-                  )}
-                </Button>
+                <button type="button" onClick={() => reframe('banner')} disabled={isUploadingBanner} className={onImageButton}>
+                  <FiMove className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Reframe</span><span className="sr-only sm:hidden">Reframe banner</span>
+                </button>
+                <button type="button" onClick={cancelBannerPreview} disabled={isUploadingBanner} className={onImageButton}>
+                  <FiX className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Cancel</span><span className="sr-only sm:hidden">Cancel banner</span>
+                </button>
+                <button type="button" onClick={confirmBannerUpload} disabled={isUploadingBanner || storageState.loading} className={accentButton}>
+                  {isUploadingBanner ? <Spinner className="size-4" /> : <FiUpload className="size-4" aria-hidden="true" />}
+                  {isUploadingBanner ? 'Saving…' : 'Save banner'}
+                </button>
               </>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => bannerInputRef.current?.click()}
-                disabled={isUploadingBanner}
-                className="h-11 border-border bg-black/70 text-white hover:bg-black/80 rounded-lg"
-              >
-                <FiCamera className="h-4 w-4 mr-2" />
-                Edit Banner
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" disabled={isUploadingBanner || removingBanner} aria-label="Edit banner" className={onImageButton}>
+                    {removingBanner ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}<span className="hidden sm:inline">Edit banner</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={menuClass}>
+                  <DropdownMenuItem className={menuItem} onSelect={() => bannerInputRef.current?.click()}>
+                    <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload a new banner…
+                  </DropdownMenuItem>
+                  {profile.banner && (
+                    <DropdownMenuItem className={menuItem} onSelect={() => void repositionCurrent('banner')}>
+                      <FiMove className="size-4 text-muted-foreground" aria-hidden="true" />Reposition the current banner
+                    </DropdownMenuItem>
+                  )}
+                  {profile.banner && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className={cn(menuItem, 'text-destructive focus:text-destructive')} onSelect={() => void removeBanner()}>
+                        <FiTrash2 className="size-4" aria-hidden="true" />Remove banner
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         )}
@@ -681,7 +730,7 @@ export default function ProfilePage() {
         {/* Avatar and basic info */}
         <div className="relative -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
           {/* Avatar with paste/drag support */}
-          <div 
+          <div
             className="relative w-fit shrink-0 self-start"
             onPaste={handleAvatarPaste}
             onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
@@ -690,70 +739,104 @@ export default function ProfilePage() {
             aria-label={canEditProfile ? 'Profile picture: paste or drop an image, or use Change profile picture' : undefined}
           >
             <Avatar className="h-28 w-28 sm:h-36 sm:w-36 ring-4 ring-background shadow-2xl">
-              {/* Show preview if available, otherwise current image */}
+              {/* Show preview if available, otherwise the picture the account currently shows */}
               <AvatarImage src={avatarPreview?.url || profile.image || undefined} alt={`${profile.name || 'User'} profile picture`} className="object-cover" />
               <AvatarFallback
                 className="text-3xl sm:text-4xl text-foreground font-medium"
                 style={{
                   background: bannerColors
                     ? `linear-gradient(135deg, ${bannerColors.primary}, ${bannerColors.secondary})`
-                    : 'linear-gradient(135deg, #3f3f46, #52525b)'
+                    : 'linear-gradient(135deg, hsl(var(--brand-accent) / 0.5), hsl(var(--muted)))'
                 }}
               >
                 {profile.name?.[0] || profile.email?.[0]?.toUpperCase() || profile.id?.[0]?.toUpperCase() || '?'}
               </AvatarFallback>
             </Avatar>
-            
-            {/* Camera button (always visible for own profile) */}
+
+            {/* Camera button opens the picture menu: upload, reposition, or pick a linked sign-in picture */}
             {canEditProfile && !avatarPreview && (
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={isUploadingAvatar}
-                title="Click to change avatar, or drag & drop / paste an image"
-                aria-label="Change profile picture"
-                className="absolute bottom-0 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-background text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted"
-              >
-                {isUploadingAvatar ? (
-                  <Spinner className="h-4 w-4" />
-                ) : (
-                  <FiCamera className="h-4 w-4" />
-                )}
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isUploadingAvatar || imageSourceBusy}
+                    title="Change profile picture, or drag & drop / paste an image"
+                    aria-label="Change profile picture"
+                    className={cn(avatarRoundButton, 'bottom-0 right-0')}
+                  >
+                    {isUploadingAvatar || imageSourceBusy ? <Spinner className="size-4" /> : <FiCamera className="size-4" aria-hidden="true" />}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className={menuClass}>
+                  <DropdownMenuItem className={menuItem} onSelect={() => avatarInputRef.current?.click()}>
+                    <FiUpload className="size-4 text-muted-foreground" aria-hidden="true" />Upload a new picture…
+                  </DropdownMenuItem>
+                  {profile.image && (
+                    <DropdownMenuItem className={menuItem} onSelect={() => void repositionCurrent('avatar')}>
+                      <FiMove className="size-4 text-muted-foreground" aria-hidden="true" />Reposition the current picture
+                    </DropdownMenuItem>
+                  )}
+                  {imageChoices.length > 1 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Show the picture from</DropdownMenuLabel>
+                      {imageChoices.map(choice => (
+                        <DropdownMenuItem
+                          key={choice.source}
+                          aria-current={choice.active ? 'true' : undefined}
+                          className={cn(menuItem, choice.active && 'bg-brand-accent/[0.08]')}
+                          onSelect={() => void chooseImageSource(choice.source)}
+                        >
+                          <Avatar className="size-7 shrink-0">
+                            <AvatarImage src={choice.image} alt="" className="object-cover" />
+                            <AvatarFallback className="text-[10px]">{choice.label[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="min-w-0 flex-1 truncate">{choice.label}</span>
+                          {choice.active && <FiCheck className="size-4 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
-            {/* Green checkmark confirm button (appears when preview is set) */}
+            {/* Preview controls: reframe (top), save (bottom right), cancel (bottom left) */}
             {canEditProfile && avatarPreview && (
-              <button
-                onClick={confirmAvatarUpload}
-                disabled={isUploadingAvatar || storageState.loading}
-                title="Save new profile picture"
-                aria-label="Save profile picture"
-                className="absolute -bottom-2 right-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-brand-accent-hover text-brand-accent-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-brand-accent-hover"
-              >
-                {isUploadingAvatar ? (
-                  <Spinner className="h-4 w-4" />
-                ) : (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-            )}
-
-            {/* Cancel button (appears when preview is set) */}
-            {canEditProfile && avatarPreview && (
-              <button
-                onClick={cancelAvatarPreview}
-                title="Cancel"
-                aria-label="Cancel profile picture"
-                disabled={isUploadingAvatar}
-                className="absolute -bottom-2 left-0 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background bg-background text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [@media(hover:hover)]:hover:bg-muted"
-              >
-                <FiX className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => reframe('avatar')}
+                  disabled={isUploadingAvatar}
+                  title="Reframe"
+                  aria-label="Reframe profile picture"
+                  className={cn(avatarRoundButton, 'right-0 top-0')}
+                >
+                  <FiMove className="size-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmAvatarUpload}
+                  disabled={isUploadingAvatar || storageState.loading}
+                  title="Save new profile picture"
+                  aria-label="Save profile picture"
+                  className={cn(avatarRoundButton, '-bottom-2 right-0 bg-brand-accent text-brand-accent-foreground [@media(hover:hover)]:hover:bg-brand-accent-hover')}
+                >
+                  {isUploadingAvatar ? <Spinner className="size-4" /> : <FiCheck className="size-4" aria-hidden="true" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelAvatarPreview}
+                  disabled={isUploadingAvatar}
+                  title="Cancel"
+                  aria-label="Cancel profile picture"
+                  className={cn(avatarRoundButton, '-bottom-2 left-0')}
+                >
+                  <FiX className="size-3.5" aria-hidden="true" />
+                </button>
+              </>
             )}
           </div>
-
           <div className="flex-1 min-w-0 pb-2">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="min-w-0">
@@ -916,7 +999,7 @@ export default function ProfilePage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 transition-colors"
-                style={{ color: bannerColors?.primaryLight || '#60a5fa' }}
+                style={{ color: tintText || 'hsl(var(--brand-accent))' }}
                 onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
                 onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
               >
@@ -1041,7 +1124,7 @@ export default function ProfilePage() {
                 className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'posts' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
-                  color: bannerColors?.primaryLight,
+                  color: tintText,
                 } : undefined}
               >
                 <FiGrid aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
@@ -1052,7 +1135,7 @@ export default function ProfilePage() {
                 className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'activity' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
-                  color: bannerColors?.primaryLight,
+                  color: tintText,
                 } : undefined}
               >
                 <FiActivity aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
@@ -1074,7 +1157,7 @@ export default function ProfilePage() {
                 className="min-h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[11px] transition-colors duration-200 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:min-h-11 sm:flex-row sm:px-3 sm:text-sm"
                 style={activeTab === 'connections' ? {
                   backgroundColor: bannerColors ? `${bannerColors.primary}15` : 'hsl(var(--background))',
-                  color: bannerColors?.primaryLight,
+                  color: tintText,
                 } : undefined}
               >
                 <FiUsers aria-hidden="true" className="h-4 w-4 shrink-0 sm:mr-1.5" />
@@ -1295,7 +1378,7 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between mb-2">
                           <div
                             className="flex items-center gap-2 text-xs"
-                            style={{ color: bannerColors?.primaryLight || 'hsl(var(--primary))' }}
+                            style={{ color: tintText || 'hsl(var(--primary))' }}
                           >
                             <FiMessageCircle className="h-3 w-3" />
                             <span>Engaged with</span>
@@ -1730,7 +1813,7 @@ export default function ProfilePage() {
                       <div>
                         <div
                           className="text-3xl font-bold tabular-nums"
-                          style={{ color: bannerColors?.primaryLight || '#3b82f6' }}
+                          style={{ color: tintText || 'hsl(var(--brand-accent))' }}
                         >
                           {(profile?.reach?.uniqueViewers || 0).toLocaleString()}
                         </div>
@@ -1743,7 +1826,7 @@ export default function ProfilePage() {
                         className="h-12 w-12 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: isDark ? `${bannerColors?.primary || '#3b82f6'}15` : `${bannerColors?.primary || '#3b82f6'}20` }}
                       >
-                        <FiUsers className="h-6 w-6" style={{ color: bannerColors?.primaryLight || '#60a5fa' }} />
+                        <FiUsers className="h-6 w-6" style={{ color: tintText || 'hsl(var(--brand-accent))' }} />
                       </div>
                     </div>
                   </div>
@@ -1805,13 +1888,13 @@ export default function ProfilePage() {
                     </div>
                     <div
                       className="rounded-xl border-2 p-5 bg-surface-1/30 shadow-sm"
-                      style={{ borderColor: `${bannerColors?.primaryLight || '#3b82f6'}40` }}
+                      style={{ borderColor: tintText ? `${tintText}40` : 'hsl(var(--brand-accent) / 0.25)' }}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <FiBarChart2 className="h-5 w-5" style={{ color: bannerColors?.primaryLight || '#3b82f6' }} />
+                        <FiBarChart2 className="h-5 w-5" style={{ color: tintText || 'hsl(var(--brand-accent))' }} />
                         <span className="text-sm font-semibold text-foreground">Lifetime Reach</span>
                       </div>
-                      <div className="text-3xl font-bold tabular-nums" style={{ color: bannerColors?.primaryLight || '#3b82f6' }}>
+                      <div className="text-3xl font-bold tabular-nums" style={{ color: tintText || 'hsl(var(--brand-accent))' }}>
                         {(profile?.reach?.reachLifetime || 0).toFixed(0)}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-1">

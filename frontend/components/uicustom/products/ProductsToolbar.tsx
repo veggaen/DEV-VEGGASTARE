@@ -1,6 +1,6 @@
 /**
  * @fileOverview Sticky glass catalog toolbar: categories, search, and the filter
- *               button (below xl; on xl+ the filter column is always beside the grid).
+ *               button (opens the Sheet below xl; shows/hides the inline column on xl+).
  * @stability stable
  */
 'use client';
@@ -8,6 +8,7 @@
 import { LayoutGrid, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useCategories } from '@/components/providers/categoriesContext';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
+import { useMinWidth } from '@/hooks/use-min-width';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
@@ -17,7 +18,11 @@ const chip = 'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bord
 
 export function ProductsToolbar() {
   const { categoriesWithCounts, categoriesLoading, selectedCategories, setSelectedCategories, searchTerm, setSearchTerm, activeFilterCount } = useCategories();
-  const { isSidebarOpen, toggleSidebar } = useSidebar();
+  const { isSidebarOpen, toggleSidebar, filterColumnHidden, setFilterColumnHidden } = useSidebar();
+  // One button, two homes: below xl it opens the Sheet; on xl+ it shows/hides the inline column.
+  const isXl = useMinWidth(1280);
+  const filtersShown = isXl ? !filterColumnHidden : isSidebarOpen;
+  const toggleFilters = () => { if (isXl) setFilterColumnHidden(!filterColumnHidden); else toggleSidebar(); };
   return (
     <div className="border-b border-border/60 bg-background/85 backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex w-full max-w-[1440px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
@@ -57,8 +62,8 @@ export function ProductsToolbar() {
           </button>}
         </div>
 
-        <button type="button" onClick={toggleSidebar} data-product-filter-trigger aria-label="Product filters" aria-expanded={isSidebarOpen}
-          className={cn(chip, 'relative size-11 px-0 sm:w-auto sm:px-3.5 xl:hidden', (isSidebarOpen || activeFilterCount > 0) && 'border-brand-accent/40 bg-brand-accent/10')}>
+        <button type="button" onClick={toggleFilters} data-product-filter-trigger aria-label="Product filters" aria-expanded={filtersShown}
+          className={cn(chip, 'relative size-11 px-0 sm:w-auto sm:px-3.5', (filtersShown || activeFilterCount > 0) && 'border-brand-accent/40 bg-brand-accent/10')}>
           <SlidersHorizontal className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Filters</span>
           {activeFilterCount > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent px-1 text-[11px] font-semibold text-brand-accent-foreground">{activeFilterCount}</span>}
         </button>

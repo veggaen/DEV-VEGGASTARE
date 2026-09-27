@@ -8,7 +8,7 @@
  */
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Layers, Package, ShoppingBag, ShoppingCart, Sparkles, X, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/cart-context';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { useMinWidth } from '@/hooks/use-min-width';
 import { useProductListing } from '@/hooks/use-product-listing';
 import { useCategories } from '@/components/providers/categoriesContext';
 import { useSidebar } from '@/components/providers/product-layoutProvider';
@@ -27,6 +28,7 @@ import ProductsSkeleton from '@/components/uicustom/skeletons/products-skeleton'
 import { ProductsToolbar } from '@/components/uicustom/products/ProductsToolbar';
 import { CatalogFilters } from '@/components/uicustom/products/CatalogFilters';
 import { CatalogHeader, catalogFrame, catalogGrid } from '@/components/uicustom/products/CatalogHeader';
+import { HoverChaser } from '@/components/uicustom/chrome/hover-chaser';
 import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { productPurchaseState } from '@/lib/product-purchase-state';
 import type { CatalogSnapshot } from '@/lib/catalog-snapshot';
@@ -37,15 +39,6 @@ const typeMeta = {
   PHYSICAL: { label: 'Physical', icon: Package },
   HYBRID: { label: 'Hybrid', icon: Layers },
 };
-
-/** `(min-width)` as a subscription; false on the server so the Sheet never renders during SSR. */
-function useMinWidth(px: number) {
-  return useSyncExternalStore(
-    (onChange) => { const m = window.matchMedia(`(min-width:${px}px)`); m.addEventListener('change', onChange); return () => m.removeEventListener('change', onChange); },
-    () => window.matchMedia(`(min-width:${px}px)`).matches,
-    () => false,
-  );
-}
 
 const ProductCard = React.memo(function ProductCard({ product, priority, authStatus }: {
   product: ProductsListItem;
@@ -102,8 +95,9 @@ const ProductCard = React.memo(function ProductCard({ product, priority, authSta
   const arrowClass = 'flex size-10 border-border/60 bg-background/85 text-foreground shadow-e1 backdrop-blur-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 disabled:invisible';
 
   return (
-    <article aria-label={product.title}
-      className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/70 text-card-foreground shadow-e1 backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-300 ease-out motion-reduce:transition-none hover:border-brand-accent/40 hover:shadow-e2 [@media(hover:hover)]:motion-safe:hover:-translate-y-1">
+    // data-chase: the grid's trailing box is the hover state, so the card keeps still (no lift) for the box to land on.
+    <article aria-label={product.title} data-chase
+      className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/70 text-card-foreground shadow-e1 backdrop-blur-xl transition-[box-shadow] duration-300 ease-out motion-reduce:transition-none hover:shadow-e2">
       <div className="relative overflow-hidden bg-foreground/[0.04]">
         {product.image.length ? <Carousel className="relative" aria-label={`${product.title} images`}>
           <CarouselContent>
@@ -178,7 +172,7 @@ export default function CatalogClient({ initialCatalog }: { initialCatalog: Cata
     selectedCategories, setSelectedCategories, selectedSellers, setSelectedSellers, sellers,
     minPrice, maxPrice, searchTerm, setSearchTerm, resetAllFilters, resetPriceFilters, activeFilterCount,
   } = useCategories();
-  const { perPage, registerProductsFrame, isSidebarOpen, closeSidebar } = useSidebar();
+  const { perPage, registerProductsFrame, isSidebarOpen, closeSidebar, filterColumnHidden, setFilterColumnHidden } = useSidebar();
   const isXl = useMinWidth(1280);
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -197,11 +191,18 @@ export default function CatalogClient({ initialCatalog }: { initialCatalog: Cata
     <div className="sticky top-0 z-40"><ProductsToolbar /></div>
 
     <div ref={registerProductsFrame} className={catalogFrame}>
-      <div className="grid gap-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-4 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-8 xl:pt-6">
+      <div className={cn(
+        'grid gap-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-4 xl:gap-x-8 xl:pt-6 xl:transition-[grid-template-columns,column-gap] xl:duration-300 xl:ease-out motion-reduce:transition-none',
+        // Hidden = a 0px column, so the grid widens in place (more cards per row) instead of remounting.
+        filterColumnHidden ? 'xl:grid-cols-[0px_minmax(0,1fr)] xl:gap-x-0' : 'xl:grid-cols-[280px_minmax(0,1fr)]',
+      )}>
         {/* Filter column: part of the frame, never a page shift. */}
-        <aside className="hidden xl:block" aria-label="Filters">
-          <div className="sticky top-[5.25rem] flex max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-6.5rem)] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl">
-            <CatalogFilters variant="inline" className="min-h-0 flex-1" />
+        <aside className="hidden min-w-0 overflow-hidden xl:block" aria-label="Filters" aria-hidden={filterColumnHidden} inert={filterColumnHidden}>
+          <div className={cn(
+            'sticky top-[5.25rem] flex w-[280px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-6.5rem)] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl transition-opacity duration-200',
+            filterColumnHidden && 'opacity-0',
+          )}>
+            <CatalogFilters variant="inline" className="min-h-0 flex-1" onHide={() => setFilterColumnHidden(true)} />
           </div>
         </aside>
 
@@ -230,9 +231,10 @@ export default function CatalogClient({ initialCatalog }: { initialCatalog: Cata
               <p className="max-w-md text-sm leading-6 text-muted-foreground">Try a different search, widen the price range, or clear the filters to browse everything.</p>
               {activeFilterCount > 0 && <Button className="min-h-11 rounded-full" onClick={resetAllFilters}>Show all products</Button>}
             </div>}
-            {products.length > 0 && <div className={catalogGrid}>
+            {/* The trailing box slides between cards in any direction, the same chaser as the dashboard. */}
+            {products.length > 0 && <HoverChaser className={catalogGrid} boxClassName="rounded-2xl">
               {products.map((product, index) => <ProductCard key={product.id} product={product} priority={index === 0} authStatus={authStatus} />)}
-            </div>}
+            </HoverChaser>}
           </section>
 
           {hasMore && !error && <div className="flex justify-center pt-8">

@@ -12,7 +12,7 @@
  */
 
 import * as React from "react";
-import { ChevronDown, Grid2x2, RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronDown, Grid2x2, PanelLeftClose, RotateCcw, Search, SlidersHorizontal, Users } from "lucide-react";
 import { useCategories } from "@/components/providers/categoriesContext";
 import { useSidebar } from "@/components/providers/product-layoutProvider";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +25,8 @@ function Group({ title, icon: Icon, count, selected, open, onToggle, onReset, ch
 }) {
   const id = React.useId();
   return (
-    <section className="border-b border-border/60 last:border-b-0">
+    // Vertical padding keeps the header's hover fill clear of the divider lines.
+    <section className="border-b border-border/60 py-1.5 last:border-b-0">
       <div className="flex items-center gap-1 px-1">
         <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -42,7 +43,7 @@ function Group({ title, icon: Icon, count, selected, open, onToggle, onReset, ch
           </button>
         )}
       </div>
-      <div id={id} hidden={!open} className="px-2 pb-4 pt-1">{children}</div>
+      <div id={id} hidden={!open} className="px-2 pb-3 pt-0.5">{children}</div>
     </section>
   );
 }
@@ -57,7 +58,13 @@ function Row({ label, count, checked, onChange }: { label: string; count: number
   );
 }
 
-export function CatalogFilters({ variant, onClose, className }: { variant: "inline" | "sheet"; onClose?: () => void; className?: string }) {
+export function CatalogFilters({ variant, onClose, onHide, className }: {
+  variant: "inline" | "sheet";
+  onClose?: () => void;
+  /** Inline column only: collapse the column so the grid takes the whole frame. */
+  onHide?: () => void;
+  className?: string;
+}) {
   const {
     categoriesWithCounts, categoriesLoading, selectedCategories, setSelectedCategories,
     sellers, sellersLoading, selectedSellers, setSelectedSellers,
@@ -79,8 +86,14 @@ export function CatalogFilters({ variant, onClose, className }: { variant: "inli
           Filters
           {activeFilterCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-accent/15 px-1.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">{activeFilterCount}</span>}
         </h2>
-        {/* The Sheet renders its own close control; the inline column has none to close. */}
+        {/* The Sheet renders its own close control; the inline column can be hidden entirely. */}
         {variant === "sheet" && onClose && <span className="w-9" aria-hidden="true" />}
+        {variant === "inline" && onHide && (
+          <button type="button" onClick={onHide} aria-label="Hide filters" title="Hide filters"
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <PanelLeftClose className="size-4" aria-hidden="true" />
+          </button>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1">
