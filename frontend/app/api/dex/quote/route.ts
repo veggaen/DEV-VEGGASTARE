@@ -31,6 +31,8 @@ const bodySchema = z.object({
   sellAmount: z.string().regex(/^\d+$/, "Amount must be a positive integer string"),
   taker: z.string().regex(addressPattern, "Invalid taker address").optional(),
   slippageBps: z.coerce.number().int().min(1).max(2000).optional(), // max 20%
+  /** Restrict routing to these KyberSwap DEX ids (comma-separated); empty = best price across all. */
+  sources: z.string().regex(/^[a-z0-9-]+(,[a-z0-9-]+)*$/).max(200).optional(),
   mode: z.enum(["price", "quote"]).default("price"),
 });
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { chainId, sellToken, buyToken, sellAmount, taker, slippageBps, mode } = parsed.data;
+  const { chainId, sellToken, buyToken, sellAmount, taker, slippageBps, sources: routeSources, mode } = parsed.data;
 
   if (!isSupportedChain(chainId)) {
     return NextResponse.json(
@@ -72,6 +74,7 @@ export async function POST(req: NextRequest) {
       tokenIn: sellToken,
       tokenOut: buyToken,
       amountIn: sellAmount,
+      includedSources: routeSources,
     });
 
     const summary = routeRes.data.routeSummary;

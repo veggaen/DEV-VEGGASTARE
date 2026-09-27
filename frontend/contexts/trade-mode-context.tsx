@@ -68,7 +68,8 @@ const MODE_META: Record<TradeMode, {
   p2p:        { label: "P2P Trade",      color: "emerald", onChain: true,  simulated: false, nfts: true  },
   self:       { label: "Internal Transfer", color: "purple",  onChain: true,  simulated: false, nfts: true  },
   dex:        { label: "DEX Swap",       color: "sky",     onChain: true,  simulated: false, nfts: false },
-  paper:      { label: "Paper Trade",    color: "amber",   onChain: false, simulated: true,  nfts: false },
+  // The terminal trades live (DEX) or on paper; "paper" is the mode id for compatibility.
+  paper:      { label: "Terminal",       color: "amber",   onChain: false, simulated: true,  nfts: false },
   localchain: { label: "Local Chain",    color: "orange",  onChain: true,  simulated: false, nfts: true  },
 };
 

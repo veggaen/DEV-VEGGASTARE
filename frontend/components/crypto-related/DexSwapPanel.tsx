@@ -144,6 +144,16 @@ const BUYABLE_TOKENS: Record<number, Array<{ address: string; symbol: string; de
 /** Supported chains for KyberSwap aggregator */
 const SUPPORTED_CHAIN_IDS = new Set([1, 137, 42161, 10, 8453, 56, 43114, 250, 59144, 534352, 324]);
 
+/** Route restrictions offered in Settings; ids are KyberSwap aggregator source ids. */
+const ROUTE_OPTIONS: { id: string; label: string }[] = [
+  { id: "", label: "Best price" },
+  { id: "uniswapv3,uniswap", label: "Uniswap" },
+  { id: "sushiswap", label: "SushiSwap" },
+  { id: "curve", label: "Curve" },
+  { id: "balancer-v2", label: "Balancer" },
+  { id: "pancake-v3,pancake", label: "PancakeSwap" },
+];
+
 const SLIPPAGE_OPTIONS = [
   { label: "0.1%", bps: 10 },
   { label: "0.5%", bps: 50 },
@@ -209,6 +219,8 @@ export function DexSwapPanel() {
   const [inputSide, setInputSide] = useState<"sell" | "buy">("sell");
   const [slippageBps, setSlippageBps] = useState(50);
   const [showSettings, setShowSettings] = useState(false);
+  // "" = best price across every DEX the aggregator knows; otherwise only these source ids.
+  const [routeVia, setRouteVia] = useState("");
   const [showSellPicker, setShowSellPicker] = useState(false);
   const [showBuyPicker, setShowBuyPicker] = useState(false);
   const [sellSearch, setSellSearch] = useState("");
@@ -349,6 +361,7 @@ export function DexSwapPanel() {
           sellAmount: parsed.toString(),
           taker: address,
           slippageBps,
+          sources: routeVia || undefined,
         });
       } catch {
         // invalid amount — ignore
@@ -356,7 +369,7 @@ export function DexSwapPanel() {
     }, 600);
 
     return () => window.clearTimeout(timeout);
-  }, [inputSide, sellToken, buyTokenAddr, sellAmount, buyAmount, slippageBps, chainId, address, isSupported, getQuote, refreshKey, selectedBuyToken]);
+  }, [inputSide, sellToken, buyTokenAddr, sellAmount, buyAmount, slippageBps, routeVia, chainId, address, isSupported, getQuote, refreshKey, selectedBuyToken]);
 
   // ── Sync the non-active amount from quote result ──────────
   useEffect(() => {
@@ -485,11 +498,12 @@ export function DexSwapPanel() {
         sellAmount: parsed.toString(),
         taker: address,
         slippageBps,
+        sources: routeVia || undefined,
       });
     } catch {
       // invalid amount
     }
-  }, [sellToken, buyTokenAddr, address, sellAmount, chainId, slippageBps, executeSwap]);
+  }, [sellToken, buyTokenAddr, address, sellAmount, chainId, slippageBps, routeVia, executeSwap]);
 
   const handleNewSwap = useCallback(() => {
     setSellAmount("");
@@ -658,6 +672,8 @@ export function DexSwapPanel() {
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
+          aria-label="Swap settings"
+          aria-expanded={showSettings}
           className={`p-1.5 rounded-lg transition-colors ${
             showSettings
               ? "bg-brand-accent/10 text-brand-accent"
@@ -697,6 +713,29 @@ export function DexSwapPanel() {
                   </button>
                 ))}
               </div>
+              <span className="block pt-1 text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+                Route via
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {ROUTE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setRouteVia(opt.id)}
+                    aria-pressed={routeVia === opt.id}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                      routeVia === opt.id
+                        ? "border-brand-accent/60 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
+                        : "border-border text-muted-foreground hover:text-foreground/80"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Best price splits across 100+ DEXes. Picking one routes only through it; quotes can be worse or unavailable.
+              </p>
             </div>
           </motion.div>
         )}
@@ -1212,7 +1251,7 @@ export function DexSwapPanel() {
         <div className="flex items-center justify-center gap-1.5 pt-1">
           <FiShield className="h-2.5 w-2.5 text-muted-foreground" />
           <span className="text-[9px] text-muted-foreground">
-            Best prices from 100+ DEX sources via KyberSwap &middot; No extra fees
+            {routeVia ? `Routed only through ${ROUTE_OPTIONS.find((o) => o.id === routeVia)?.label ?? routeVia} via KyberSwap` : "Best prices from 100+ DEX sources via KyberSwap"} &middot; No extra fees
           </span>
         </div>
       </div>

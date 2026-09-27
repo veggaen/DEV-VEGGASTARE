@@ -198,7 +198,7 @@ export default function TradingPage() {
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-accent-hover dark:text-brand-accent-light">Trading</p>
         <h2 id="trading-empty-title" className="text-xl font-semibold tracking-tight text-foreground">No wallet connected</h2>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Connect a wallet from the account menu to see your inventory and trade with others, or try paper trading with no wallet at all.
+          Connect a wallet from the account menu to see your inventory and trade with others, or open the terminal: live prices, paper money, no wallet needed.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
           <button
@@ -207,7 +207,7 @@ export default function TradingPage() {
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-accent px-5 text-sm font-semibold text-brand-accent-foreground shadow-e2 transition-[background-color,transform,box-shadow] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.6)] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <FileText className="size-4" />
-            Try paper trading
+            Open the terminal
           </button>
           <button
             type="button"
@@ -240,7 +240,7 @@ export default function TradingPage() {
               </h1>
               <p className="text-[10px] text-muted-foreground leading-tight">
                 {modeLabel}
-                {isSimulated && " · Simulated"}
+                {mode === "paper" ? " · Live & paper" : isSimulated ? " · Simulated" : null}
               </p>
             </div>
           </div>

@@ -18,6 +18,8 @@ export interface KyberRouteParams {
   tokenIn: string;
   tokenOut: string;
   amountIn: string;
+  /** Comma-separated KyberSwap DEX ids to route through exclusively (e.g. "uniswapv3,uniswap"). */
+  includedSources?: string;
 }
 
 export interface KyberRouteSummary {
@@ -182,6 +184,7 @@ export async function getRoute(
   url.searchParams.set("amountIn", params.amountIn);
   url.searchParams.set("saveGas", "false");
   url.searchParams.set("gasInclude", "true");
+  if (params.includedSources) url.searchParams.set("includedSources", params.includedSources);
 
   // Optional integrator fee
   const fee = getFeeConfig();
