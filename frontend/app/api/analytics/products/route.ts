@@ -29,7 +29,8 @@ export async function GET(request: Request) {
       select: {
         createdAt: true,
       },
-      take: 10000, // Safety limit to prevent unbounded queries
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 10000, // Bounded, deterministic earliest-record cohort, disclosed in the UI.
     });
 
     if (products.length === 0) {
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 
     // Prepare daily data from firstProductDate to today
     const productGrowthData: Record<string, number> = {};
-    for (let d = new Date(firstProductDate); d <= today; d.setDate(d.getDate() + 1)) {
+    for (const d = new Date(firstProductDate.toISOString().slice(0, 10) + 'T00:00:00Z'); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
       const dateKey = d.toISOString().split('T')[0]; // YYYY-MM-DD format
       productGrowthData[dateKey] = 0; // Initialize all days with 0
     }

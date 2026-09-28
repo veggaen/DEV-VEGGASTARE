@@ -29,6 +29,14 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
 
   // Subscribe to real-time reaction updates
   const channelName = `ConversationChannel_${pulseId}`;
+  usePusher(channelName, 'conversation-updated', useCallback(async () => {
+    try {
+      const response = await fetch(`/api/messages?conversationId=${encodeURIComponent(pulseId)}`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (typeof data.conversation?.messageCount === 'number') setStats(previous => ({ ...previous, messageCount: data.conversation.messageCount }));
+    } catch { /* Keep the last confirmed count while offline. */ }
+  }, [pulseId]));
 
   usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
     channelName,
@@ -118,7 +126,7 @@ export function PulseStatsBar({ pulseId, initialStats }: PulseStatsBarProps) {
           <FiTrendingUp className="w-4 h-4 text-amber-500" />
           {Math.round(stats.reachScore)} reach
           {(stats.reachMomentum ?? 0) > 0 && (
-            <span className="flex items-center gap-0.5 text-xs text-emerald-500">
+            <span className="flex items-center gap-0.5 text-xs text-brand-accent">
               <FiZap className="w-3 h-3" />
               {Math.round(stats.reachMomentum!)}
             </span>

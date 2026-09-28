@@ -1,84 +1,26 @@
-'use server'
-
-import { cache } from 'react';
+/** @fileOverview Internal product read; visibility is enforced by the consuming route. @stability stable */
+import 'server-only';
 import { dbPrisma } from '@/lib/db';
-import { Product as PrismaProduct } from '@/generated/prisma/browser';
+import type { Prisma } from '@/generated/prisma/client';
 
-// Define the Specification type based on your actual data structure
-interface Specification {
-  key: string;
-  value: string;
+// This must not be a Server Action: that would bypass API visibility checks.
+// Never read private asset identifiers, wallet relations or entire model rows.
+const detailSelect = {
+  id: true, title: true, description: true, category: true, price: true,
+  priceCurrency: true, acceptedFiatCurrencies: true, stock: true, productType: true,
+  visibility: true, hiddenAt: true, archivedAt: true, downloadsEnabled: true,
+  condition: true, image: true, specifications: true, features: true,
+  userId: true, companyId: true, shipFromPostalId: true, updatedAt: true, createdAt: true,
+  Company: { select: { ownerId: true, WarehouseLocation: {
+    where: { isActive: true }, select: { id: true, country: true, postalCode: true },
+  } } },
+  Inventory: { select: { id: true, quantity: true, stock: true, warehouseId: true } },
+  ProductAcceptedToken: { select: { symbol: true, family: true, decimals: true,
+    tokenAddress: true, tokenMint: true, receiverWalletId: true, receiverAddress: true } },
+} satisfies Prisma.ProductSelect;
+
+export async function fetchProductById(id: string) {
+  // An outage must reach the route's retryable error state, not become a 404.
+  // Only a successful absent-row read returns null.
+  return dbPrisma.product.findUnique({ where: { id }, select: detailSelect });
 }
-
-// Extend the Product type from Prisma to adjust for frontend use
-interface Product extends Omit<PrismaProduct, 'specifications'> {
-  specifications: Specification[] | null; // Adjust according to your actual specifications structure
-}
-
-export const fetchProductById = cache(async (id: string): Promise<Product | null> => {
-  try {
-    // Fetch product data from the database — use select instead of include
-    // to avoid pulling entire Company/WarehouseLocation rows
-    const productData = await dbPrisma.product.findUnique({
-      where: { id },
-      include: {
-        Company: {
-          select: {
-            id: true,
-            name: true,
-            logo: true,
-            colorScheme: true,
-            ownerId: true,
-            WarehouseLocation: {
-              where: { isActive: true },
-              select: {
-                id: true,
-                name: true,
-                city: true,
-                country: true,
-                postalCode: true,
-              },
-            },
-          },
-        },
-        Inventory: {
-          select: {
-            id: true,
-            quantity: true,
-            stock: true,
-            warehouseId: true,
-          },
-        },
-        ProductAcceptedToken: {
-          select: {
-            id: true,
-            symbol: true,
-            family: true,
-            decimals: true,
-            tokenAddress: true,
-            tokenMint: true,
-            receiverWalletId: true,
-            receiverAddress: true,
-          },
-        },
-      },
-    });
-
-    if (!productData) {
-      return null;
-    }
-
-    // Parse specifications if needed
-    const product: Product = {
-      ...productData,
-      specifications: typeof productData.specifications === 'string'
-        ? JSON.parse(productData.specifications)
-        : productData.specifications,
-    };
-
-    return product;
-  } catch (error) {
-    console.error('Error fetching product by ID:', error);
-    return null;
-  }
-});

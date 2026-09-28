@@ -1,90 +1,48 @@
-import { EmployeeRole, UserRole } from '@/generated/prisma/browser'
+import { EmployeeRole } from '@/generated/prisma/browser'
 import * as z from 'zod'
 
 /**
  * User related schemas
 */
-export const MyAuthSettingsSchema = z.object({
-    name: z.string(), // /* .min(6, { message: 'Minimum 6 characters required'}), */
-    isTwoFactorEnabled: z.optional(z.boolean()),
-    role: z.enum([UserRole.OWNER, UserRole.ADMIN, UserRole.USER]),
-    email: z.optional(z.string().email()),
-    identityNameSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
-    identityImageSource: z.optional(z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD'])),
-    emailDisplayMode: z.optional(z.enum(['PRIMARY', 'HIDE'])),
-    password: z.optional(z.string().min(6)),
-    newPassword: z.optional(z.string().min(6)),
-})
-
-// COOL FEATURE FROM ZOD REFINE, checks the data and makes 2 or 0 inputs be filled, so you can't just fill 1 of them and also has a message to give back if errors are encountered
-.refine((data) => {
-    if (data.password && !data.newPassword) {
-        return false;
-    }
-
-    return true;
-}, {
-    message: "New password is required!",
-    path: ["newPassword"]
-})
-.refine((data) => {
-    if (data.newPassword && !data.password) {
-        return false;
-    }
-
-    return true;
-}, {
-    message: "Password is required!",
-    path: ["password"]
-})
+export { accountSettingsSchema as MyAuthSettingsSchema } from '@/lib/account-settings-policy';
 
 // Reset schema for 'email'
+const authEmail = z.string().trim().email({ message: 'Enter a valid email address' }).max(254).transform(value => value.toLowerCase());
+const newPassword = z.string().min(8, { message: 'Minimum 8 characters required' }).max(72)
+  .refine(value => new TextEncoder().encode(value).length <= 72, { message: 'Password must be at most 72 bytes' });
+
 export const MyAuthNewPasswordSchema = z.object({
-    password: z.string().min(6, {
-        message: 'Minimum 6 characters required'
-    }),
+    password: newPassword,
 })
 
 // Reset schema for 'email'
 export const MyAuthResetSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
+    email: authEmail,
 })
 
 // Login schema for 'email' and 'password'
 export const MyAuthLoginSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
+    email: authEmail,
     password: z.string().min(1, {
         message: 'Password is required'
-    }),
-    code: z.optional(z.string()),
+    }).max(1024),
+    code: z.union([z.literal(''), z.string().regex(/^\d{6}$/, 'Enter the six-digit code')]).optional(),
 })
 
 // Schema for magic-link login via email verification token
 export const MyEmailLoginTokenSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
-    loginToken: z.string().min(1, {
-        message: 'Login token is required'
-    }),
+    email: authEmail,
+    loginToken: z.string().uuid('This sign-in link is invalid'),
 })
 
 export const MyAuthRegisterSchema = z.object({
-    email: z.string().email({
-        message: 'Email is required'
-    }),
-    password: z.string().min(6, {
-        message: 'Minimum 6 characters required'
-    }),
-    name: z.string().min(1, {
+    email: authEmail,
+    password: newPassword,
+    name: z.string().trim().max(100).min(1, {
         message: 'Name is required'
     }),
     referredBy: z.union([z.string().length(0), z.string().min(3)]).optional().transform(e => e === "" ? undefined : e), // `referredBy` is a string that can be either optional (undefined or missing), empty, or min 3
-    image: z.string().optional(),
+    image: z.union([z.literal(''), z.string().url().max(2048)]).optional(),
 })
 
 /**
@@ -142,13 +100,13 @@ export const AcceptedTokenSchema = z.object({
 export type AcceptedToken = z.infer<typeof AcceptedTokenSchema>;
 
 export const MyProductCreateSchema = z.object({
-    title: z.string().min(1, { message: "Title is required" }),
-    description: z.string().min(1, { message: "Description is required" }),
+    title: z.string().trim().min(1, { message: "Title is required" }).max(200),
+    description: z.string().trim().min(1, { message: "Description is required" }).max(8000),
     // Legacy single category - kept for backward compatibility
-    category: z.string().min(1, { message: "Category is required" }),
+    category: z.string().trim().min(1, { message: "Category is required" }).max(200),
     // New multi-category system - array of category tags
     categories: z.array(CategoryTagSchema).optional().default([]),
-    price: z.number().min(0, { message: "Price must be 0 or greater" }),
+    price: z.number({ invalid_type_error: 'Enter a valid price with up to 2 decimal places' }).min(0, { message: "Price must be 0 or greater" }),
     priceCurrency: z.enum(FiatCurrencyValues).default('USD'),
     acceptedFiatCurrencies: z.array(z.enum(FiatCurrencyValues)).default([]),
     condition: z.enum(ProductConditionValues).default('NEW'),

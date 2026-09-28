@@ -1,388 +1,213 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
-import { 
-  FiUsers, FiSearch, FiFilter, FiChevronLeft, FiChevronRight,
-  FiEdit2, FiTrash2, FiShield, FiStar, FiEye, FiMoreVertical,
-  FiMail, FiCalendar, FiCheckCircle, FiBriefcase, FiShoppingBag
-} from 'react-icons/fi';
-import { cn } from '@/lib/utils';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FiChevronLeft, FiChevronRight, FiRefreshCw, FiSearch, FiUsers } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isDemoUserId } from '@/lib/demo-policy';
 
-interface User {
+interface DirectoryUser {
   id: string;
   name: string | null;
   email: string | null;
   image: string | null;
   role: 'OWNER' | 'ADMIN' | 'USER';
-  verificationTier: string;
-  verificationScore: number;
   createdAt: string;
   emailVerified: string | null;
-  _count: {
-    Company_Company_ownerIdToUser: number;
-    Employee: number;
-    Order: number;
-  };
+  _count: { Company_Company_ownerIdToUser: number; Employee: number; Order: number };
 }
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
+interface DirectoryData {
+  users: DirectoryUser[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
+type Result = { key: string; data?: DirectoryData; error?: string };
+const selectClass = 'h-11 w-full min-w-0 rounded-md border border-border bg-input px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const labelClass = 'mb-1.5 block text-sm font-medium';
+const roleNames = { OWNER: 'Owner', ADMIN: 'Admin', USER: 'User' };
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Check auth
+  const actor = session?.user;
+  const allowed = !!actor?.id && !isDemoUserId(actor.id) && (actor.role === 'OWNER' || actor.role === 'ADMIN');
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session || (session.user?.role !== 'OWNER' && session.user?.role !== 'ADMIN')) {
-      router.push('/');
+    if (status !== 'loading' && !allowed) router.replace('/');
+  }, [status, allowed, router]);
+
+  // Unmount private rows immediately on sign-out, role loss or account change.
+  if (status === 'loading' || !allowed) return <p role="status" className="p-6 text-sm text-muted-foreground">Checking access…</p>;
+  return <UserDirectory key={actor.id + ':' + actor.role} />;
+}
+
+function UserDirectory() {
+  const params = useSearchParams();
+  const querySearch = (params.get('search') ?? '').slice(0, 100);
+  const role = ['OWNER', 'ADMIN', 'USER'].includes(params.get('role') ?? '') ? params.get('role')! : 'all';
+  const sortBy = ['name', 'email'].includes(params.get('sortBy') ?? '') ? params.get('sortBy')! : 'createdAt';
+  const sortOrder = params.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+  const rawPage = Number(params.get('page') ?? 1);
+  const page = Number.isInteger(rawPage) && rawPage >= 1 && rawPage <= 1000 ? rawPage : 1;
+  const [search, setSearch] = useState(querySearch);
+  const [refresh, setRefresh] = useState(0);
+  const [result, setResult] = useState<Result>({ key: '' });
+  const query = new URLSearchParams({ page: String(page), limit: '20', search: querySearch, sortBy, sortOrder });
+  if (role !== 'all') query.set('role', role);
+  const queryKey = query.toString();
+  const resultKey = queryKey + ':' + refresh;
+  const waitingSearch = search.trim() !== querySearch;
+  const current = result.key === resultKey && !waitingSearch;
+  const data = current ? result.data : undefined;
+  const error = current ? result.error : undefined;
+  const busy = !data && !error;
+
+  function navigate(changes: Record<string, string>) {
+    const next = new URLSearchParams(window.location.search);
+    next.delete('limit');
+    for (const [name, value] of Object.entries(changes)) {
+      if (!value || value === 'all') next.delete(name);
+      else next.set(name, value);
     }
-  }, [session, status, router]);
-
-  // Fetch users
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        search,
-        sortBy,
-        sortOrder,
-        ...(roleFilter && { role: roleFilter }),
-      });
-
-      const res = await fetch(`/api/admin/users?${params}`);
-      if (!res.ok) throw new Error('Failed to fetch users');
-      
-      const data = await res.json();
-      setUsers(data.users);
-      setPagination(data.pagination);
-    } catch (error) {
-      toast.error('Failed to load users');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [pagination.page, pagination.limit, search, roleFilter, sortBy, sortOrder]);
-
-  useEffect(() => {
-    if (session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN') {
-      fetchUsers();
-    }
-  }, [fetchUsers, session?.user?.role]);
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPagination(p => ({ ...p, page: 1 }));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'OWNER': return 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30';
-      case 'ADMIN': return 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30';
-      default: return 'bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border-zinc-500/30';
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  if (status === 'loading' || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500" />
-      </div>
-    );
+    window.history.replaceState(null, '', '/admin/users?' + next.toString());
   }
 
+  useEffect(() => { setSearch(querySearch); }, [querySearch]);
+  useEffect(() => {
+    if (search.trim() === querySearch) return;
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams(window.location.search);
+      next.delete('limit');
+      next.set('page', '1');
+      next.set('search', search.trim());
+      window.history.replaceState(null, '', '/admin/users?' + next.toString());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, querySearch]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 15_000);
+    async function load() {
+      try {
+        const response = await fetch('/api/admin/users?' + queryKey, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) {
+          const message = response.status === 401 || response.status === 403
+            ? 'Your admin access is no longer available. Sign in again.'
+            : response.status === 429 ? 'Too many requests. Wait a moment, then retry.' : 'Users could not be loaded. Try again.';
+          if (active) setResult({ key: resultKey, error: message });
+          return;
+        }
+        const body: DirectoryData = await response.json();
+        if (!Array.isArray(body.users) || !body.pagination || !Number.isInteger(body.pagination.total)) throw new Error('Invalid directory');
+        if (active) setResult({ key: resultKey, data: body });
+      } catch {
+        if (active) setResult({ key: resultKey, error: timedOut ? 'The request took too long. Try again.' : 'Connection lost. Check your connection and retry.' });
+      } finally { clearTimeout(timeout); }
+    }
+    void load();
+    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+  }, [queryKey, resultKey]);
+
+  const reset = () => { setSearch(''); window.history.replaceState(null, '', '/admin/users'); };
+  const pages = Math.min(data?.pagination.totalPages ?? 0, 1000);
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
-              <FiUsers className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                User Management
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {pagination.total} total users
-              </p>
-            </div>
+    <section aria-labelledby="users-title" className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 id="users-title" className="text-2xl font-semibold tracking-tight">User management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Accounts, roles and activity.</p>
+        </div>
+        <Button type="button" variant="outline" className="h-11 gap-2" disabled={busy} onClick={() => setRefresh(value => value + 1)}>
+          <FiRefreshCw aria-hidden="true" /> Refresh
+        </Button>
+      </header>
+      <div className="mb-5 grid min-w-0 grid-cols-2 items-end gap-3 lg:grid-cols-[minmax(16rem,1fr)_9rem_10rem_10rem]">
+        <div className="col-span-2 lg:col-span-1">
+          <label htmlFor="directory-search" className={labelClass}>Search users</label>
+          <div className="relative">
+            <FiSearch aria-hidden="true" className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <Input id="directory-search" name="search" type="search" autoComplete="off" maxLength={100}
+              placeholder="Name, email or ID…" value={search} onChange={event => setSearch(event.target.value)} className="pl-10 text-base" />
           </div>
         </div>
-
-        {/* Filters */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <Input
-              type="search"
-              placeholder="Search by name, email, or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="All Roles" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Roles</SelectItem>
-              <SelectItem value="OWNER">Owner</SelectItem>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-              <SelectItem value="USER">User</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="createdAt">Join Date</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-            title={`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
-          >
-            <FiFilter className={cn(
-              "h-4 w-4 transition-transform",
-              sortOrder === 'asc' && "rotate-180"
-            )} />
-          </Button>
+        <div>
+          <label htmlFor="directory-role" className={labelClass}>Role</label>
+          <select id="directory-role" name="role" value={role} onChange={event => navigate({ role: event.target.value, page: '1', search: search.trim() })} className={selectClass}>
+            <option value="all">All roles</option><option value="OWNER">Owner</option><option value="ADMIN">Admin</option><option value="USER">User</option>
+          </select>
         </div>
-
-        {/* Users Grid */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          {loading ? (
-            <div className="p-6 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-12 w-12 rounded-full" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-3 w-1/4" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : users.length === 0 ? (
-            <div className="p-12 text-center">
-              <FiUsers className="h-12 w-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
-              <p className="text-zinc-500 dark:text-zinc-400">No users found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {users.map((user, index) => (
-                <motion.div
-                  key={user.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 ring-2 ring-zinc-100 dark:ring-zinc-800">
-                      <AvatarImage src={user.image || undefined} />
-                      <AvatarFallback className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        {user.name?.charAt(0) || user.email?.charAt(0) || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                          {user.name || 'Unnamed User'}
-                        </span>
-                        <Badge variant="outline" className={cn("text-xs", getRoleBadgeColor(user.role))}>
-                          {user.role === 'OWNER' && <FiStar className="h-3 w-3 mr-1" />}
-                          {user.role === 'ADMIN' && <FiShield className="h-3 w-3 mr-1" />}
-                          {user.role}
-                        </Badge>
-                        {user.emailVerified && (
-                          <FiCheckCircle className="h-4 w-4 text-emerald-500" title="Email verified" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400">
-                        {user.email && (
-                          <span className="flex items-center gap-1 truncate">
-                            <FiMail className="h-3 w-3" />
-                            {user.email}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <FiCalendar className="h-3 w-3" />
-                          {formatDate(user.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="hidden md:flex items-center gap-6 text-sm text-zinc-500 dark:text-zinc-400">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiBriefcase className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {user._count.Company_Company_ownerIdToUser}
-                          </span>
-                        </div>
-                        <span className="text-xs">Companies</span>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiUsers className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {user._count.Employee}
-                          </span>
-                        </div>
-                        <span className="text-xs">Employments</span>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <FiShoppingBag className="h-3 w-3" />
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {user._count.Order}
-                          </span>
-                        </div>
-                        <span className="text-xs">Orders</span>
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <FiMoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/users/${user.id}`)}
-                        >
-                          <FiEye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/users/${user.id}/edit`)}
-                        >
-                          <FiEdit2 className="h-4 w-4 mr-2" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => window.open(`/profile/${user.id}`, '_blank')}
-                        >
-                          <FiUsers className="h-4 w-4 mr-2" />
-                          View Profile
-                        </DropdownMenuItem>
-                        {session?.user?.role === 'OWNER' && user.role !== 'OWNER' && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600 dark:text-red-400"
-                              onClick={() => {
-                                // TODO: Implement delete confirmation modal
-                                toast.error('Delete functionality coming soon');
-                              }}
-                            >
-                              <FiTrash2 className="h-4 w-4 mr-2" />
-                              Delete User
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                  disabled={pagination.page <= 1}
-                >
-                  <FiChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                  disabled={pagination.page >= pagination.totalPages}
-                >
-                  Next
-                  <FiChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
+        <div>
+          <label htmlFor="directory-sort" className={labelClass}>Sort by</label>
+          <select id="directory-sort" name="sortBy" value={sortBy} onChange={event => navigate({ sortBy: event.target.value, page: '1', search: search.trim() })} className={selectClass}>
+            <option value="createdAt">Join date</option><option value="name">Name</option><option value="email">Email</option>
+          </select>
+        </div>
+        <div className="col-span-2 lg:col-span-1">
+          <label htmlFor="directory-order" className={labelClass}>Order</label>
+          <select id="directory-order" name="sortOrder" value={sortOrder} onChange={event => navigate({ sortOrder: event.target.value, page: '1', search: search.trim() })} className={selectClass}>
+            <option value="desc">{sortBy === 'createdAt' ? 'Newest first' : 'Z to A'}</option>
+            <option value="asc">{sortBy === 'createdAt' ? 'Oldest first' : 'A to Z'}</option>
+          </select>
         </div>
       </div>
-    </div>
+      <p role="status" className="mb-3 min-h-5 text-sm text-muted-foreground tabular-nums">
+        {busy ? 'Loading users…' : error ? 'Directory unavailable' : (data?.pagination.total ?? 0).toLocaleString() + ' matching users'}
+      </p>
+      <div aria-busy={busy} aria-label="User directory" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+        {busy ? (
+          <div aria-hidden="true" className="divide-y divide-border">
+            {Array.from({ length: 5 }, (_, index) => <div key={index} className="flex min-h-32 items-center gap-4 p-4 sm:min-h-24">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-full" /><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-4 w-64 max-w-full" /></div>
+            </div>)}
+          </div>
+        ) : error ? (
+          <div className="space-y-4 p-6"><p role="alert" className="text-sm">{error}</p><Button type="button" variant="outline" className="h-11" onClick={() => setRefresh(value => value + 1)}>Retry</Button></div>
+        ) : !data?.users.length ? (
+          <div className="p-8 text-center"><FiUsers aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <h2 className="font-medium">No users found</h2>
+            <Button type="button" variant="link" className="mt-2 h-11" onClick={reset}>Clear filters</Button>
+          </div>
+        ) : <ul className="divide-y divide-border">
+          {data.users.map(user => <li key={user.id} className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 p-4 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto] sm:items-center">
+            <Avatar className="h-10 w-10">
+              <AvatarImage alt="" src={user.image ?? undefined} />
+              <AvatarFallback>{(user.name || user.email || '?').slice(0, 1)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">{user.name || 'Unnamed user'}</span>
+                <Badge variant="secondary">{roleNames[user.role]}</Badge>
+              </div>
+              <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{user.email || 'No email'}{user.emailVerified && <span className="sr-only"> · Email verified</span>}</p>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span>Joined {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(user.createdAt))}</span>
+                <span>{user._count.Company_Company_ownerIdToUser.toLocaleString()} companies</span>
+                <span>{user._count.Employee.toLocaleString()} memberships</span>
+                <span>{user._count.Order.toLocaleString()} orders</span>
+              </div>
+            </div>
+            <div className="col-start-2 flex flex-wrap gap-2 sm:col-start-auto">
+              <Button asChild variant="outline" className="h-11"><Link prefetch={false} href={'/admin/users/' + encodeURIComponent(user.id)}>Manage<span className="sr-only"> {user.name || user.email || 'user'}</span></Link></Button>
+              <Button asChild variant="ghost" className="h-11"><Link prefetch={false} href={'/profile/' + encodeURIComponent(user.id)}>Profile<span className="sr-only"> {user.name || user.email || 'user'}</span></Link></Button>
+            </div>
+          </li>)}
+        </ul>}
+        {!!data && pages > 1 && <nav aria-label="User pages" className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4">
+          <span className="text-sm text-muted-foreground tabular-nums">Page {page} of {pages}</span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="h-11 gap-1" disabled={page <= 1} onClick={() => navigate({ page: String(page - 1) })}><FiChevronLeft aria-hidden="true" />Previous</Button>
+            <Button type="button" variant="outline" className="h-11 gap-1" disabled={page >= pages} onClick={() => navigate({ page: String(page + 1) })}>Next<FiChevronRight aria-hidden="true" /></Button>
+          </div>
+        </nav>}
+        {!!data && !data.users.length && page > 1 && <Button type="button" variant="link" className="m-4 h-11" onClick={() => navigate({ page: '1' })}>First page</Button>}
+      </div>
+    </section>
   );
 }

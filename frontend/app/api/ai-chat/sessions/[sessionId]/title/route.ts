@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
-import { getUserAiKeyForGeneration } from "@/lib/ai-key-store";
 import { stripHtml } from "@/lib/ai-chat/safety";
 
 export const maxDuration = 30;
@@ -24,6 +23,7 @@ export async function POST(
   const { sessionId } = await params;
   const session = await MyLibUserAuth();
   if (!session?.id) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  if (_req.headers.get('origin') !== _req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
@@ -52,45 +52,9 @@ export async function POST(
   const firstMessage = stripHtml(conv.messages[0]?.content ?? "").trim();
   if (!firstMessage) return NextResponse.json({ ok: false, reason: "no-message" });
 
-  // Resolve an API key: prefer the creator's BYOK Google key, else the platform key.
-  let apiKey = "";
-  try {
-    const byok = await getUserAiKeyForGeneration({ userId: session.id, provider: "GOOGLE" });
-    apiKey = byok?.apiKey ?? "";
-  } catch {
-    /* fall through to platform key */
-  }
-  if (!apiKey) apiKey = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
-  if (!apiKey) return NextResponse.json({ ok: false, reason: "no-key" });
+  // Deterministic title: no hidden provider call or extra charge after sending.
+  const title = firstMessage.replace(/\s+/g, ' ').split(' ').slice(0, 8).join(' ').slice(0, 80);
 
-  const prompt =
-    "Generate a concise chat title (3–6 words, Title Case) summarizing this first message. " +
-    "Reply with ONLY the title — no quotes, no punctuation at the end, no preamble.\n\n" +
-    `Message: ${firstMessage.slice(0, 500)}`;
-
-  let title = "";
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 24 },
-      }),
-    });
-    if (!res.ok) return NextResponse.json({ ok: false, reason: "upstream" });
-    const data = await res.json();
-    title = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
-  } catch {
-    return NextResponse.json({ ok: false, reason: "fetch-failed" });
-  }
-
-  // Sanitize: strip wrapping quotes, collapse whitespace, clamp length.
-  title = title.replace(/^["'`]+|["'`]+$/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
-  // Fallback: first few words of the message if the model returned nothing usable.
-  if (!title) title = firstMessage.split(/\s+/).slice(0, 6).join(" ").slice(0, 80);
-  if (!title) return NextResponse.json({ ok: false, reason: "empty" });
 
   const updated = await dbPrisma.aiConversation.update({
     where: { id: sessionId },

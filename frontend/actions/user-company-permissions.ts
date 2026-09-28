@@ -2,6 +2,8 @@
 
 import { dbPrisma } from '@/lib/db';
 import { Prisma } from '@/generated/prisma/browser';
+import { auth } from '@/auth';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 type PermissionsResult = { 
   success: true; 
@@ -15,9 +17,9 @@ type PermissionsResult = {
 
 export async function fetchUserEmployeePermissions(clientUser: any, companyId: string): Promise<PermissionsResult> {
     try {
-      // Validate inputs
-      if (!clientUser?.id) { 
-        return { success: false, error: 'Missing user ID', permissions: null };
+      const session = await auth();
+      if (!session?.user?.id || session.user.id !== clientUser?.id || isDemoUserId(session.user.id)) {
+        return { success: false, error: 'Not authorized', permissions: null };
       }
       if (!companyId) {
         return { success: false, error: 'Missing company ID', permissions: null };
@@ -25,7 +27,7 @@ export async function fetchUserEmployeePermissions(clientUser: any, companyId: s
 
       const employee = await dbPrisma.employee.findFirst({
         where: {
-            userId: clientUser.id,
+            userId: session.user.id,
             companyId: companyId,
         },
       });

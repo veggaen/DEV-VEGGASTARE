@@ -2,6 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { OrderDtoSchema } from '@/lib/types/orders';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!session?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const limit = await checkRateLimit(getClientIdentifier(request, session.id), 'read');
+    if (!limit.success) return rateLimitedResponse(limit);
 
     const { id } = await context.params;
   
@@ -34,6 +37,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         },
         include: {
           Payment: true,
+          CheckoutAttempt: { select: { environment: true, state: true, captureId: true } },
+          OrderItem: { select: { id: true, title: true, quantity: true, priceAtTime: true } },
           User: { select: { id: true } },
         },
       });
@@ -66,6 +71,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         id: order.id,
         userId: order.userId,
         totalAmount: order.totalAmount,
+        currency: order.currency ?? null,
+        fulfilmentStatus: order.fulfilmentStatus,
+        checkout: order.CheckoutAttempt ?? null,
+        items: order.OrderItem,
         status: order.status,
         transactionId: order.transactionId ?? null,
         commentOrder: order.commentOrder ?? null,
@@ -98,7 +107,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         );
       }
 
-      return NextResponse.json(parsed.data);
+      return NextResponse.json(parsed.data, { headers: { 'Cache-Control': 'private, no-store' } });
     } catch (error) {
       console.error('Error fetching order:', error);
       return NextResponse.json({ error: 'Error fetching order' }, { status: 500 });

@@ -85,8 +85,8 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
     currentUser?.id === senderId || isPlatformAdmin;
 
   // ── Fetch vibes ──────────────────────────────────────────────────────
-  const fetchVibes = useCallback(async () => {
-    setLoading(true);
+  const fetchVibes = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     setError(null);
     try {
       const res = await fetch(
@@ -124,6 +124,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
 
   // ── Real-time via Pusher ─────────────────────────────────────────────
   const channelName = `ConversationChannel_${pulseId}`;
+  usePusher(channelName, 'conversation-updated', useCallback(() => { void fetchVibes(true); }, [fetchVibes]));
 
   usePusher<{ message: Message }>(
     channelName,
@@ -375,7 +376,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
           const renderVibe = (message: Message, depth: number) => (
             <div key={message.id} className={depth > 0 ? 'ml-6 border-l-2 border-border/50 pl-3' : ''}>
               <div
-                className={`group/vibe flex gap-3 rounded-xl bg-muted/50 p-3 transition-colors hover:bg-muted ${
+                className={`group/vibe flex gap-3 rounded-xl bg-foreground/[0.06] p-3 transition-colors hover:bg-muted ${
                   deletingMessageId === message.id ? 'opacity-50' : ''
                 }`}
               >
@@ -422,7 +423,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                     {/* Three-dot menu — visible for ALL users */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded opacity-0 group-hover/vibe:opacity-100 hover:bg-muted transition-all">
+                        <button className="p-1 rounded opacity-0 group-hover/vibe:opacity-100 hover:bg-muted transition">
                           <FiMoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
@@ -526,7 +527,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                       type="button"
                       disabled={!currentUser || pulsingVibeId === message.id}
                       onClick={() => void handleVibeHeartbeat(message.id)}
-                      className={`flex items-center gap-1 text-xs transition-all hover:text-red-500 ${
+                      className={`flex items-center gap-1 text-xs transition hover:text-red-500 ${
                         message.hasHeartbeated ? 'text-red-500' : 'text-muted-foreground'
                       }`}
                     >
@@ -545,8 +546,8 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                       type="button"
                       disabled={!currentUser}
                       onClick={() => setReplyingToId(replyingToId === message.id ? null : message.id)}
-                      className={`flex items-center gap-1 text-xs transition-all hover:text-emerald-500 ${
-                        replyingToId === message.id ? 'text-emerald-500' : 'text-muted-foreground'
+                      className={`flex items-center gap-1 text-xs transition hover:text-brand-accent ${
+                        replyingToId === message.id ? 'text-brand-accent' : 'text-muted-foreground'
                       }`}
                     >
                       <FiCornerDownRight className="h-3.5 w-3.5" />
@@ -560,7 +561,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
                       type="button"
                       disabled={!currentUser || repulsingVibeId === message.id}
                       onClick={() => void handleVibeRepulse(message.id)}
-                      className={`flex items-center gap-1 text-xs transition-all hover:text-cyan-500 ${
+                      className={`flex items-center gap-1 text-xs transition hover:text-cyan-500 ${
                         message.hasRepulsed ? 'text-cyan-500' : 'text-muted-foreground'
                       }`}
                     >
@@ -624,7 +625,7 @@ export function PulseVibesSection({ pulseId }: PulseVibesSectionProps) {
       )}
 
       {/* Message input */}
-      <div className="mt-4 rounded-xl bg-muted/30 p-3">
+      <div className="mt-4 rounded-xl bg-foreground/[0.04] p-3">
         {currentUser ? (
           <MessageInput
             conversationId={pulseId}

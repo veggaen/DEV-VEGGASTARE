@@ -196,11 +196,11 @@ export function DragToMatch({
                 ref={(el) => { leftRefs.current[pair.id] = el; }}
                 className={cn(
                   "relative p-4 rounded-2xl cursor-grab active:cursor-grabbing",
-                  "bg-white/80 dark:bg-white/5 backdrop-blur-xl",
-                  "border-2 transition-all duration-200",
+                  "bg-surface-1/80 backdrop-blur-xl",
+                  "border-2 transition duration-200",
                   matched
-                    ? "border-emerald-500/50 bg-emerald-500/10"
-                    : "border-white/20 dark:border-white/10 hover:border-primary/50",
+                    ? "border-brand-accent/50 bg-brand-accent/10"
+                    : "border-border hover:border-primary/50",
                   activeItem === pair.id && "scale-105 shadow-xl z-20"
                 )}
                 initial={{ opacity: 0, x: -20 }}
@@ -227,11 +227,11 @@ export function DragToMatch({
                 </div>
                 {matched && (
                   <motion.div
-                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center"
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-brand-accent flex items-center justify-center"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                   >
-                    <Check className="w-4 h-4 text-white" />
+                    <Check className="w-4 h-4 text-foreground" />
                   </motion.div>
                 )}
               </motion.div>
@@ -253,13 +253,13 @@ export function DragToMatch({
                 key={`right-${item.id}`}
                 ref={(el) => { rightRefs.current[item.id] = el; }}
                 className={cn(
-                  "relative p-4 rounded-2xl transition-all duration-200",
+                  "relative p-4 rounded-2xl transition duration-200",
                   "border-2 border-dashed",
                   matched
-                    ? "bg-emerald-500/10 border-emerald-500/50"
+                    ? "bg-brand-accent/10 border-brand-accent/50"
                     : isHovered
                     ? "bg-primary/10 border-primary scale-105"
-                    : "bg-muted/30 border-muted-foreground/30 hover:border-primary/50"
+                    : "bg-foreground/[0.04] border-muted-foreground/30 hover:border-primary/50"
                 )}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -303,7 +303,7 @@ export function DragToMatch({
             key={pair.id}
             className={cn(
               "w-3 h-3 rounded-full transition-colors",
-              value[pair.id] ? "bg-emerald-500" : "bg-muted"
+              value[pair.id] ? "bg-brand-accent" : "bg-muted"
             )}
             animate={{ scale: value[pair.id] ? 1.2 : 1 }}
           />

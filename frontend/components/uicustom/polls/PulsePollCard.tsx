@@ -89,8 +89,8 @@ const TYPE_CONFIG = {
   FEEDBACK: {
     label: "Feedback",
     icon: Users,
-    color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-    bgGlow: "from-emerald-500/5",
+    color: "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light border-brand-accent/30",
+    bgGlow: "from-brand-accent/5",
   },
   REACH_ASSESSMENT: {
     label: "Innovation Poll",
@@ -143,7 +143,7 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
       className={cn(
         "group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer",
         "bg-card",
-        "hover:border-border hover:shadow-md transition-all duration-200"
+        "hover:border-border hover:shadow-md transition duration-200"
       )}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.995 }}
@@ -261,7 +261,7 @@ export function PulsePollCard({ poll, onClick, isAdmin, isOwner, onEdit, onDelet
           </div>
         ) : isCompleted ? (
           <div className="flex items-center justify-between pt-1">
-            <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px]">
+            <Badge variant="secondary" className="gap-1 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light text-[11px]">
               <Sparkles className="h-3 w-3" />
               Completed
             </Badge>

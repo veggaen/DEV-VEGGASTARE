@@ -17,15 +17,18 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import { ChatComposer } from '@/components/uicustom/ai/ChatComposer';
+import { readChatStream } from '@/lib/ai-chat/read-stream';
+import dynamic from 'next/dynamic';
+// Own Suspense boundary: never let a lazy chunk suspend the whole landing page.
+const MessageContent = dynamic(() => import('@/components/uicustom/ai/MessageContent').then(m => m.MessageContent), { loading: () => null });
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { CreditModelPicker, AiCreditStatus } from '@/components/uicustom/ai/CreditModelPicker';
+import { useAiCreditConfig, type AiCreditConfig } from '@/hooks/use-ai-credit-config';
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   type AiProvider,
-  type AiModelOption,
-  type AiModelCapability,
-  AI_PROVIDERS,
-  CAPABILITY_BADGES,
   getProviderDef,
   getDefaultModel,
   inferProviderFromApiKey,
@@ -163,639 +166,27 @@ function genId() {
 // (Anon chat history is intentionally not persisted — the landing chat starts
 // fresh on every page load.)
 
-// ─── Capability Badge component ───────────────────────────────────────────────
-
-function CapBadge({ cap }: { cap: AiModelCapability }) {
-  const b = CAPABILITY_BADGES[cap];
-  if (!b) return null;
-  // Only "flagship" gets a colored highlight; everything else is a quiet chip.
-  // Borders on 9px pills just add visual noise (border overuse), so the muted
-  // chips drop the border and lean on a faint fill; flagship uses the brand
-  // accent instead of off-brand violet.
-  const isHot = cap === "flagship";
-  return (
-    <span
-      className={`inline-flex items-center text-[9px] leading-none px-1.5 py-0.5 rounded-full ${
-        isHot
-          ? "bg-brand-accent/12 text-brand-accent"
-          : "bg-foreground/[0.04] text-muted-foreground/60"
-      }`}
-      title={b.tip}
-    >
-      {b.label}
-    </span>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Model Selector Popover ───────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
-
-interface ModelSelectorProps {
-  provider: AiProvider;
-  model: string;
-  byokActive: boolean;
-  detectedByokProvider: AiProvider | null;
-  isLoggedIn: boolean;
-  onSelectModel: (provider: AiProvider, model: string) => void;
-  onOpenByok: () => void;
-  compact?: boolean;
-}
-
-const DROPDOWN_W = 320; // matches w-80 = 20rem = 320px
-
-function calcDropdownPos(triggerEl: HTMLElement) {
-  const rect = triggerEl.getBoundingClientRect();
-  let left = rect.right - DROPDOWN_W;
-  if (left < 8) left = 8;
-  if (left + DROPDOWN_W > window.innerWidth - 8)
-    left = window.innerWidth - DROPDOWN_W - 8;
-  return { top: rect.bottom + 6, left };
-}
-
-function ModelSelector({
-  provider, model, byokActive, detectedByokProvider, isLoggedIn,
-  onSelectModel, onOpenByok, compact = false,
-}: ModelSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [expandedLegacy, setExpandedLegacy] = useState<AiProvider | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  // Toggle + compute position synchronously (batched with setOpen — no flash)
-  const handleToggle = useCallback(() => {
-    if (!open && triggerRef.current) {
-      setPos(calcDropdownPos(triggerRef.current));
-    }
-    setOpen((prev) => !prev);
-  }, [open]);
-
-  const requestSignIn = useCallback(() => {
-    setOpen(false);
-    window.location.assign("/auth/login?callbackUrl=%2F");
-  }, []);
-
-  // Close on click outside (checks both trigger and portal dropdown)
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: MouseEvent) {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (dropdownRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", handle);
-    return () => document.removeEventListener("keydown", handle);
-  }, [open]);
-
-  // Re-anchor dropdown on scroll / resize so it stays pinned to the trigger
-  useEffect(() => {
-    if (!open) return;
-    function reanchor() {
-      if (triggerRef.current) setPos(calcDropdownPos(triggerRef.current));
-    }
-    window.addEventListener("scroll", reanchor, true); // capture phase for nested scrollers
-    window.addEventListener("resize", reanchor);
-    return () => {
-      window.removeEventListener("scroll", reanchor, true);
-      window.removeEventListener("resize", reanchor);
-    };
-  }, [open]);
-
-  const activeProviderDef = getProviderDef(
-    byokActive && detectedByokProvider ? detectedByokProvider : provider
-  );
-  const activeModel =
-    activeProviderDef?.models.find((m) => m.value === model) ??
-    activeProviderDef?.models.find((m) => m.isDefault) ??
-    activeProviderDef?.models[0];
-
-  // Separate providers by tier
-  const freeProviders = AI_PROVIDERS.filter((p) => p.tier === "free");
-  const premiumProviders = AI_PROVIDERS.filter((p) => p.tier === "premium");
-  const byokProviders = AI_PROVIDERS.filter((p) => p.tier === "byok-only");
-
-  // Filter by search
-  const matchesSearch = (text: string) =>
-    !search || text.toLowerCase().includes(search.toLowerCase());
-
-  return (
-    <>
-      {/* Trigger pill */}
-      <button
-        ref={triggerRef}
-        onClick={handleToggle}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className={`flex cursor-pointer items-center gap-1.5 text-[11px] rounded-lg border transition-all hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:bg-sky-500/5 dark:hover:bg-emerald-500/5 ${
-          byokActive
-            ? "border-sky-500/30 dark:border-emerald-500/30 bg-sky-500/10 dark:bg-emerald-500/10 text-sky-400 dark:text-emerald-400"
-            : "border-black/12 dark:border-white/10 text-muted-foreground"
-        } px-2 py-1`}
-        title={isLoggedIn ? "Choose AI model" : "Browse AI models"}
-      >
-        <span>{activeProviderDef?.emoji}</span>
-        <span className="font-medium truncate max-w-30">
-          {compact
-            ? (activeModel?.label ?? "Model")
-            : (activeModel?.label ?? activeProviderDef?.label ?? "Model")}
-        </span>
-        {byokActive && (
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0"
-            title="Using your API key"
-          />
-        )}
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="shrink-0 opacity-60"
-        >
-          <path d={open ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-        </svg>
-      </button>
-
-      {/* Dropdown — rendered via portal to escape overflow:hidden ancestors */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <AnimatePresence>
-            {open && (
-              <motion.div
-                ref={dropdownRef}
-                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                transition={{ duration: 0.12 }}
-                className="fixed z-[200] w-80 max-h-[min(420px,70vh)] overflow-hidden rounded-xl border border-white/10 bg-[#0f0f14]/98 backdrop-blur-xl shadow-2xl shadow-black/40 flex flex-col"
-                style={{ top: pos.top, left: pos.left }}
-              >
-            {!isLoggedIn && (
-              <div className="mx-3 mt-3 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
-                Vercel AI Gateway is available as a free preview.{" "}
-                <button
-                  type="button"
-                  onClick={requestSignIn}
-                  className="font-semibold text-sky-300 underline underline-offset-2 hover:text-white"
-                >
-                  Sign in
-                </button>{" "}
-                to choose other models or add your own API key.
-              </div>
-            )}
-            {/* Search */}
-            <div className="px-3 pt-3 pb-2">
-              <div className="relative">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search models…"
-                  className="w-full h-8 bg-white/5 border border-white/8 rounded-lg text-xs pl-8 pr-3 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-sky-500/30 dark:focus:border-emerald-500/30"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            {/* Scrollable model list */}
-            <div
-              className="flex-1 overflow-y-auto px-2 pb-2 space-y-1"
-              style={{ scrollbarWidth: "thin" }}
-            >
-              {/* ── Free tier providers ── */}
-              {freeProviders.map((prov) => {
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/20 dark:border-emerald-500/20">
-                        {isLoggedIn ? "FREE" : "FREE PREVIEW"}
-                      </span>
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)}
-                        onClick={() => {
-                          if (!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)) {
-                            requestSignIn();
-                          } else {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)}
-                          onClick={() => {
-                            if (!isLoggedIn && !(prov.value === "VERCEL" && m.value === model)) {
-                              requestSignIn();
-                            } else {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-
-              {/* ── Premium providers (credits or BYOK) ── */}
-              {premiumProviders.map((prov) => {
-                const isUnlocked =
-                  byokActive && detectedByokProvider === prov.value;
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      {isUnlocked ? (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
-                          YOUR KEY
-                        </span>
-                      ) : (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                          PREMIUM
-                        </span>
-                      )}
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isLoggedIn}
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            requestSignIn();
-                          } else {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isLoggedIn}
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              requestSignIn();
-                            } else {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-
-              {/* ── BYOK-only providers ── */}
-              {byokProviders.map((prov) => {
-                const isUnlocked =
-                  byokActive && detectedByokProvider === prov.value;
-                const recommended = prov.models.filter(
-                  (m) =>
-                    m.group !== "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                const legacy = prov.models.filter(
-                  (m) =>
-                    m.group === "legacy" &&
-                    matchesSearch(
-                      m.label + (m.description ?? "") + prov.label
-                    )
-                );
-                if (recommended.length === 0 && legacy.length === 0)
-                  return null;
-                return (
-                  <div key={prov.value}>
-                    <div className="flex items-center justify-between px-2 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                        {prov.emoji} {prov.label}
-                      </span>
-                      {isUnlocked ? (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
-                          CONNECTED
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              requestSignIn();
-                            } else {
-                              onOpenByok();
-                              setOpen(false);
-                            }
-                          }}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-1"
-                          title={`Add your ${prov.label} API key`}
-                        >
-                          🔑 Add key
-                        </button>
-                      )}
-                    </div>
-                    {recommended.map((m) => (
-                      <ModelRow
-                        key={m.value}
-                        model={m}
-                        providerEmoji={prov.emoji}
-                        isActive={prov.value === provider && m.value === model}
-                        locked={!isUnlocked}
-                        onClick={() => {
-                          if (isUnlocked) {
-                            onSelectModel(prov.value, m.value);
-                            setOpen(false);
-                            setSearch("");
-                          } else {
-                            onOpenByok();
-                            setOpen(false);
-                          }
-                        }}
-                      />
-                    ))}
-                    {legacy.length > 0 && (
-                      <LegacyToggle
-                        count={legacy.length}
-                        expanded={expandedLegacy === prov.value}
-                        onToggle={() =>
-                          setExpandedLegacy(
-                            expandedLegacy === prov.value ? null : prov.value
-                          )
-                        }
-                      />
-                    )}
-                    {expandedLegacy === prov.value &&
-                      legacy.map((m) => (
-                        <ModelRow
-                          key={m.value}
-                          model={m}
-                          providerEmoji={prov.emoji}
-                          isActive={
-                            prov.value === provider && m.value === model
-                          }
-                          locked={!isUnlocked}
-                          onClick={() => {
-                            if (isUnlocked) {
-                              onSelectModel(prov.value, m.value);
-                              setOpen(false);
-                              setSearch("");
-                            } else {
-                              onOpenByok();
-                              setOpen(false);
-                            }
-                          }}
-                        />
-                      ))}
-                  </div>
-                );
-              })}
-            </div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
-    </>
-  );
-}
-
-function ModelRow({
-  model,
-  providerEmoji,
-  isActive,
-  locked,
-  onClick,
-}: {
-  model: AiModelOption;
-  providerEmoji: string;
-  isActive: boolean;
-  locked?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors group ${
-        isActive
-          ? "bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20"
-          : "hover:bg-white/5 border border-transparent"
-      } ${locked ? "opacity-60" : ""}`}
-    >
-      {/* Active indicator */}
-      <div className="mt-1 shrink-0 w-3 flex justify-center">
-        {isActive ? (
-          <span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400" />
-        ) : locked ? (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-muted-foreground/40"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        ) : null}
-      </div>
-      {/* Model info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium text-foreground truncate">
-            {model.label}
-          </span>
-          {model.contextSize && (
-            <span
-              className="text-[9px] text-muted-foreground/50"
-              title="Context window"
-            >
-              {model.contextSize}
-            </span>
-          )}
-          {model.isDefault && (
-            <span className="text-[9px] text-sky-400/70 dark:text-emerald-400/70">★</span>
-          )}
-        </div>
-        {model.description && (
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5 leading-snug">
-            {model.description}
-          </p>
-        )}
-        {model.capabilities && model.capabilities.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {model.capabilities.map((c) => (
-              <CapBadge key={c} cap={c} />
-            ))}
-          </div>
-        )}
-      </div>
-    </button>
-  );
-}
-
-function LegacyToggle({
-  count,
-  expanded,
-  onToggle,
-}: {
-  count: number;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors"
-    >
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d={expanded ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-      </svg>
-      {expanded ? "Hide" : `${count} legacy model${count > 1 ? "s" : ""}`}
-    </button>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Main Component ───────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
 
 interface LandingChatWidgetProps {
   isLoggedIn: boolean;
   userId: string | null;
+  /** Start with the inline panel open (default: collapsed to the "Ask AI" bar so
+   *  the hero title stays the only focal point). */
+  defaultOpen?: boolean;
 }
 
 export default function LandingChatWidget({
   isLoggedIn,
   userId: _userId,
+  defaultOpen = false,
 }: LandingChatWidgetProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
 
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
-  const [provider, setProvider] = useState<AiProvider>("VERCEL");
-  const [model, setModel] = useState<string>("inclusionai/ling-3.0-flash-fin-free");
+  const { config: creditConfig, error: creditError } = useAiCreditConfig();
+  const [provider, setProvider] = useState<AiProvider>("GOOGLE");
+  const [model, setModel] = useState<string>("gemini-2.5-flash-lite");
   const [viewMode, setViewMode] = useState<ViewMode>("widget");
   const [showLongMsgGate, setShowLongMsgGate] = useState(false);
   const [sensitiveBanner, setSensitiveBanner] = useState<string[] | null>(null);
@@ -841,6 +232,7 @@ export default function LandingChatWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const expandTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // The landing chat intentionally starts fresh on every page load — we do NOT
   // restore previous messages from localStorage. Clear any history left over
@@ -849,8 +241,9 @@ export default function LandingChatWidget({
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
-  // Scroll to bottom
+  // Follow replies, not an empty panel: its welcome heading must stay visible.
   useEffect(() => {
+    if (state.messages.length === 0) return;
     const el = messagesEndRef.current;
     if (!el) return;
     const container = el.closest(".overflow-y-auto");
@@ -880,8 +273,9 @@ export default function LandingChatWidget({
     }
   }, [viewMode]);
 
-  const handleExpand = useCallback(() => {
+  const handleExpand = useCallback((trigger?: HTMLButtonElement) => {
     if (viewMode === "widget") {
+      expandTriggerRef.current = trigger ?? null;
       setViewMode("expanded");
     } else {
       // From expanded → go to full chat route
@@ -925,8 +319,8 @@ export default function LandingChatWidget({
           body: JSON.stringify({
             userMessage: userContent,
             assistantMessage: aiContent,
-            providerUsed: providerUsed ?? "VERCEL",
-            modelUsed: modelUsed ?? "inclusionai/ling-3.0-flash-fin-free",
+            providerUsed: providerUsed ?? "GOOGLE",
+            modelUsed: modelUsed ?? "gemini-2.5-flash-lite",
           }),
         });
       } catch {
@@ -985,6 +379,7 @@ export default function LandingChatWidget({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: apiMessages,
+          requestId: crypto.randomUUID(),
           sessionId,
           provider: activeProvider,
           model,
@@ -1050,35 +445,10 @@ export default function LandingChatWidget({
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.text) {
-              fullAiContent += parsed.text;
-              dispatch({
-                type: "APPEND_CHUNK",
-                id: assistantId,
-                text: parsed.text,
-              });
-            }
-          } catch {
-            /* skip malformed chunks */
-          }
-        }
-      }
+      fullAiContent = await readChatStream(res, text => {
+        fullAiContent += text;
+        dispatch({ type: 'APPEND_CHUNK', id: assistantId, text });
+      });
 
       dispatch({ type: "STREAM_DONE" });
 
@@ -1095,6 +465,9 @@ export default function LandingChatWidget({
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       dispatch({ type: "SET_ERROR", error: "Connection lost. Try again." });
+    } finally {
+      dispatch({ type: 'STREAM_DONE' });
+      window.dispatchEvent(new Event('ai-credit:refresh'));
     }
   }, [
     state.input,
@@ -1112,11 +485,13 @@ export default function LandingChatWidget({
     saveMessagePair,
   ]);
 
-  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [desktopOpen, setDesktopOpen] = useState(defaultOpen);
 
   // Shared props for ChatPanelInner
   const panelProps = {
     state,
+    creditConfig,
+    creditError,
     dispatch,
     provider,
     model,
@@ -1155,99 +530,27 @@ export default function LandingChatWidget({
   return (
     <>
       {/* ═══════ EXPANDED MODAL OVERLAY ═══════ */}
-      <AnimatePresence>
-        {viewMode === "expanded" && (
-          <motion.div
-            key="expanded-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) handleClose();
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{
-                duration: 0.22,
-                ease: [0.25, 0.46, 0.45, 0.94],
-              }}
-              className="w-full max-w-4xl h-[85vh] flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
-              role="dialog"
-              aria-label="AI chat expanded"
-            >
-              <ChatPanelInner {...panelProps} desktopMode />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ═══════ MOBILE (< md landscape) ═══════ */}
-      <div className="portrait:hidden md:hidden">
-        <AnimatePresence>
-          {state.panel === "collapsed" && viewMode === "widget" && (
-            <motion.button
-              key="chat-bubble"
-              initial={{ opacity: 0, scale: 0.8, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 16 }}
-              transition={{
-                duration: reduceMotion ? 0 : 0.2,
-                ease: "easeOut",
-              }}
-              onClick={handleOpen}
-              aria-label="Open AI chat"
-              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full glass-panel shadow-lg shadow-sky-500/10 dark:shadow-emerald-500/10 text-sm font-medium text-foreground hover:border-sky-400/60 dark:hover:border-emerald-400/60 hover:shadow-sky-400/20 dark:hover:shadow-emerald-400/20 transition-colors"
-            >
-              <span className="text-sky-400 dark:text-emerald-400 text-base">✦</span>
-              <span>Ask AI</span>
-              {state.messages.length > 0 && (
-                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
-                  {state.messages.filter((m) => m.role === "user").length}
-                </span>
-              )}
-            </motion.button>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {state.panel === "lite" && viewMode === "widget" && (
-            <motion.div
-              key="chat-panel-mobile"
-              initial={{ opacity: 0, y: 24, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 24, scale: 0.97 }}
-              transition={{
-                duration: reduceMotion ? 0 : 0.22,
-                ease: [0.25, 0.46, 0.45, 0.94],
-              }}
-              className="fixed bottom-6 right-6 z-50 flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/30"
-              style={{
-                width: "min(360px, calc(100vw - 32px))",
-                height: "min(520px, calc(100dvh - 160px))",
-              }}
-              role="dialog"
-              aria-label="AI chat"
-            >
-              <ChatPanelInner {...panelProps} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <Dialog open={viewMode === "expanded"} onOpenChange={open => { if (!open) handleClose(); }}>
+        <DialogContent accessibleTitle="AI chat expanded" aria-describedby={undefined} hideCloseButton
+          className="flex h-[85dvh] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl p-0 motion-reduce:animate-none"
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            requestAnimationFrame(() => {
+              // The inline panel remounts after the dialog closes, so the
+              // original trigger can be detached. Focus its visible successor.
+              const trigger = expandTriggerRef.current?.isConnected ? expandTriggerRef.current :
+                Array.from(document.querySelectorAll<HTMLButtonElement>('[data-landing-chat-expand]')).find(button => button.getClientRects().length > 0);
+              trigger?.focus({ preventScroll: true });
+            });
+          }}>
+          <ChatPanelInner {...panelProps} desktopMode />
+        </DialogContent>
+      </Dialog>
 
       {/* ═══════ DESKTOP / PORTRAIT ═══════ */}
       {viewMode === "widget" && (
-        <div className="hidden portrait:flex md:landscape:flex flex-col items-center w-full px-4 pb-6 pt-4">
-          <div className="mb-3 text-center">
-            <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground/50">
-              Ask AI
-            </span>
-          </div>
-          <AnimatePresence mode="wait">
+        <div className="flex flex-col items-center w-full px-4 pb-6 pt-4">
+          <AnimatePresence mode="wait" initial={false}>
             {desktopOpen ? (
               <motion.div
                 key="desktop-panel"
@@ -1255,11 +558,11 @@ export default function LandingChatWidget({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
                 transition={{
-                  duration: reduceMotion ? 0 : 0.25,
+                  duration: reduceMotion ? 0 : 0.2,
                   ease: [0.25, 0.46, 0.45, 0.94],
                 }}
                 className="w-full max-w-2xl flex flex-col glass-panel rounded-2xl shadow-2xl shadow-black/20 chat-desktop-panel"
-                style={{ height: "clamp(320px, 42vh, 480px)" }}
+                style={{ height: state.messages.length ? "clamp(360px, 48dvh, 560px)" : "auto" }}
                 role="complementary"
                 aria-label="AI chat"
               >
@@ -1273,9 +576,9 @@ export default function LandingChatWidget({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: reduceMotion ? 0 : 0.18 }}
                 onClick={() => setDesktopOpen(true)}
-                className="flex items-center gap-3 px-5 py-3.5 rounded-2xl glass-panel hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:shadow-sky-500/10 dark:hover:shadow-emerald-500/10 shadow-lg transition-all group max-w-2xl w-full"
+                className="group flex w-full max-w-xl items-center gap-3 rounded-full border border-border/60 bg-surface-1/75 px-5 py-3 text-left shadow-e1 backdrop-blur-xl transition-[border-color,box-shadow,transform,background-color] duration-300 ease-out hover:border-brand-accent/40 hover:bg-surface-1/90 hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.5)] motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <span className="text-sky-400 dark:text-emerald-400 text-lg group-hover:scale-110 transition-transform">
+                <span className="text-lg text-brand-accent transition-transform duration-300 motion-safe:group-hover:scale-110">
                   ✦
                 </span>
                 <div className="flex-1 text-left">
@@ -1287,7 +590,7 @@ export default function LandingChatWidget({
                   </span>
                 </div>
                 {state.messages.length > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 dark:bg-emerald-500 text-[10px] font-bold text-black">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-accent text-[10px] font-bold text-brand-accent-foreground">
                     {state.messages.filter((m) => m.role === "user").length}
                   </span>
                 )}
@@ -1298,7 +601,7 @@ export default function LandingChatWidget({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className="text-muted-foreground"
+                  className="text-muted-foreground transition-transform duration-300 motion-safe:group-hover:translate-y-0.5"
                 >
                   <path d="M6 9l6 6 6-6" />
                 </svg>
@@ -1317,6 +620,8 @@ export default function LandingChatWidget({
 
 interface ChatPanelInnerProps {
   state: WidgetState;
+  creditConfig: AiCreditConfig | null;
+  creditError: boolean;
   dispatch: React.Dispatch<WidgetAction>;
   provider: AiProvider;
   model: string;
@@ -1330,7 +635,7 @@ interface ChatPanelInnerProps {
   reduceMotion: boolean;
   onSend: () => void;
   onClose: () => void;
-  onExpand: () => void;
+  onExpand: (trigger?: HTMLButtonElement) => void;
   onSuggest: (text: string) => void;
   desktopMode?: boolean;
   // BYOK
@@ -1352,6 +657,8 @@ interface ChatPanelInnerProps {
 
 function ChatPanelInner({
   state,
+  creditConfig,
+  creditError,
   dispatch,
   provider,
   model,
@@ -1404,39 +711,28 @@ function ChatPanelInner({
   return (
     <>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/8 dark:border-white/10 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-border/60 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-sky-400 dark:text-emerald-400">✦</span>
+          <span className="text-brand-accent">✦</span>
           <span className="text-sm font-semibold">Ask AI</span>
           {!isLoggedIn && (
             <span
-              className="text-[10px] text-muted-foreground bg-white/5 rounded px-1.5 py-0.5"
-              title="Free preview powered by Vercel AI Gateway. Sign in for all models."
+              className="text-[10px] text-muted-foreground bg-foreground/[0.05] rounded px-1.5 py-0.5"
+              title="Bounded free AI preview. Sign in for more models."
             >
               Free preview
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          {/* Model selector */}
-          <ModelSelector
-            provider={provider}
-            model={model}
-            byokActive={byokActive}
-            detectedByokProvider={detectedByokProvider}
-            isLoggedIn={isLoggedIn}
-            onSelectModel={onSelectModel}
-            onOpenByok={() => setShowByokPanel(true)}
-            compact={!desktopMode}
-          />
+        <div className="flex min-w-0 items-center gap-1">
           {/* BYOK toggle */}
-          {isLoggedIn && (
+          {isLoggedIn && !creditConfig?.demo && (
             <button
               onClick={() => setShowByokPanel(!showByokPanel)}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`grid size-11 shrink-0 place-items-center rounded-lg transition-colors ${
                 byokActive
-                  ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 border border-sky-500/30 dark:border-emerald-500/30"
-                  : "hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                  ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/30"
+                  : "hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground"
               }`}
               title={
                 byokActive
@@ -1459,8 +755,8 @@ function ChatPanelInner({
           )}
           {/* Expand */}
           <button
-            onClick={onExpand}
-            className="p-1.5 rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={event => onExpand(event.currentTarget)}
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground transition-colors"
             title={
               viewMode === "widget"
                 ? "Expand to larger view"
@@ -1469,6 +765,7 @@ function ChatPanelInner({
             aria-label={
               viewMode === "widget" ? "Expand chat" : "Go to full chat"
             }
+            data-landing-chat-expand={viewMode === "widget" ? '' : undefined}
           >
             <svg
               width="13"
@@ -1491,7 +788,7 @@ function ChatPanelInner({
           {/* Close */}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-black/6 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-foreground/[0.07] text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close chat"
             title={
               viewMode === "expanded" ? "Back to widget" : "Close chat"
@@ -1521,13 +818,13 @@ function ChatPanelInner({
             transition={{ duration: 0.15 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="px-4 py-3 border-b border-black/8 dark:border-white/10 bg-black/2 dark:bg-white/2 space-y-2.5">
+            <div className="px-4 py-3 border-b border-border/60 bg-foreground/[0.03] space-y-2.5">
               {/* Title row */}
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                   {byokActive ? (
                     <>
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 animate-pulse" />
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-accent animate-pulse" />
                       {providerDef?.emoji} {providerDef?.label ?? activeProvider}{" "}
                       connected
                     </>
@@ -1560,14 +857,14 @@ function ChatPanelInner({
                   onChange={(e) => setByokKey(e.target.value)}
                   type="password"
                   placeholder="Paste your API key…"
-                  className="w-full h-8 bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-sky-500/40 dark:focus:border-emerald-500/40 transition-colors"
+                  className="w-full h-8 bg-foreground/[0.05] border border-border rounded-lg text-xs font-mono placeholder:font-sans px-2.5 pr-8 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand-accent/40 transition-colors"
                   autoComplete="off"
                 />
                 {byokKey.trim() && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     {byokActive ? (
                       <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-500/20 dark:bg-emerald-500/20"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-accent/20"
                         title="Valid key detected"
                       >
                         <svg
@@ -1577,7 +874,7 @@ function ChatPanelInner({
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
-                          className="text-sky-400 dark:text-emerald-400"
+                          className="text-brand-accent"
                         >
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
@@ -1607,7 +904,7 @@ function ChatPanelInner({
               {/* Detection hint */}
               {byokKey.trim() && detectedByokProvider && (
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] text-sky-400 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-500/10 border border-sky-500/20 dark:border-emerald-500/20 rounded-full px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-brand-accent bg-brand-accent/10 border border-brand-accent/20 rounded-full px-2 py-0.5">
                     ✓ {providerDef?.emoji} {providerDef?.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground/50">
@@ -1644,8 +941,8 @@ function ChatPanelInner({
                       disabled={!byokKey.trim()}
                       className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-colors ${
                         byokKey.trim()
-                          ? "bg-sky-500/15 dark:bg-emerald-500/15 text-sky-400 dark:text-emerald-400 hover:bg-sky-500/25 dark:hover:bg-emerald-500/25"
-                          : "bg-black/4 dark:bg-white/5 text-muted-foreground cursor-not-allowed"
+                          ? "bg-brand-accent/15 text-brand-accent hover:bg-brand-accent/25"
+                          : "bg-foreground/[0.05] text-muted-foreground cursor-not-allowed"
                       }`}
                     >
                       Connect
@@ -1659,7 +956,7 @@ function ChatPanelInner({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] text-sky-400/70 dark:text-emerald-400/70 hover:text-sky-300 dark:hover:text-emerald-300 transition-colors"
+                    className="text-[10px] text-brand-accent/70 hover:text-brand-accent-light transition-colors"
                     title={`Get an API key from ${providerDef?.label ?? provider}`}
                   >
                     Get a key ↗
@@ -1673,7 +970,7 @@ function ChatPanelInner({
                     type="checkbox"
                     checked={byokRemember}
                     onChange={(e) => setByokRemember(e.target.checked)}
-                    className="h-3 w-3 rounded border-black/20 dark:border-white/20 accent-sky-500 dark:accent-emerald-500"
+                    className="h-3 w-3 rounded border-border accent-brand-accent"
                   />
                   <span className="text-[10px] text-muted-foreground">
                     Save key
@@ -1713,49 +1010,10 @@ function ChatPanelInner({
       </AnimatePresence>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3 min-h-0">
         {state.messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-            <div
-              className={`text-sky-400 dark:text-emerald-400 ${desktopMode ? "text-4xl" : "text-3xl"}`}
-            >
-              ✦
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium text-foreground">
-                {isLoggedIn
-                  ? byokActive
-                    ? `Chat with ${providerDef?.label ?? activeProvider} (your key)`
-                    : `Chat with ${getProviderDef(provider)?.label ?? provider}`
-                  : "Ask anything about Freedom Store™"}
-              </p>
-              <p className="text-xs text-muted-foreground max-w-60 mx-auto">
-                {isLoggedIn
-                  ? "Pick a model above or bring your own key to unlock all providers."
-                  : "Free preview powered by Vercel AI Gateway. Sign in to choose from 20+ AI models."}
-              </p>
-            </div>
-            <div
-              className={`flex flex-wrap gap-2 justify-center ${desktopMode ? "max-w-lg" : "max-w-70"}`}
-            >
-              {SUGGESTED_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => onSuggest(prompt)}
-                  className="text-[11px] px-3 py-1.5 rounded-full bg-black/4 dark:bg-white/5 border border-black/10 dark:border-white/10 text-muted-foreground hover:bg-sky-500/10 dark:hover:bg-emerald-500/10 hover:border-sky-500/30 dark:hover:border-emerald-500/30 hover:text-sky-600 dark:hover:text-emerald-300 transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-            {!isLoggedIn && (
-              <a
-                href="/auth/login"
-                className="text-[11px] text-sky-400 dark:text-emerald-400 hover:text-sky-300 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors"
-              >
-                Sign in for full access
-              </a>
-            )}
+          <div className="flex min-h-24 items-center justify-center py-6 text-center">
+            <h2 className="text-xl font-medium tracking-tight sm:text-2xl">What’s on your mind?</h2>
           </div>
         ) : (
           <>
@@ -1776,10 +1034,10 @@ function ChatPanelInner({
               state.messages[state.messages.length - 1]?.content === "" && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400 shrink-0">
+                    <div className="h-5 w-5 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
                       ✦
                     </div>
-                    <div className="bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 rounded-2xl px-3 py-2">
+                    <div className="bg-foreground/[0.05] border border-border/60 rounded-2xl px-3 py-2">
                       <TypingIndicator />
                     </div>
                   </div>
@@ -1787,7 +1045,7 @@ function ChatPanelInner({
               )}
           </>
         )}
-        <div ref={messagesEndRef} />
+        {state.messages.length > 0 && <div ref={messagesEndRef} />}
       </div>
 
       {/* ── Error banner ── */}
@@ -1825,20 +1083,20 @@ function ChatPanelInner({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="flex flex-col gap-2 px-4 py-3 bg-sky-500/10 dark:bg-emerald-500/10 border-t border-sky-500/20 dark:border-emerald-500/20 text-xs">
-              <span className="text-sky-300 dark:text-emerald-300">
+            <div className="flex flex-col gap-2 px-4 py-3 bg-brand-accent/10 border-t border-brand-accent/20 text-xs">
+              <span className="text-brand-accent-light">
                 Longer messages need an account — free, takes 10 seconds.
               </span>
               <div className="flex gap-2">
                 <a
                   href="/auth/login"
-                  className="flex-1 text-center py-1.5 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black text-xs font-semibold hover:bg-sky-400 dark:hover:bg-emerald-400 transition-colors"
+                  className="flex-1 text-center py-1.5 rounded-lg bg-brand-accent text-brand-accent-foreground text-xs font-semibold hover:bg-brand-accent transition-colors"
                 >
                   Sign in
                 </a>
                 <button
                   onClick={() => setShowLongMsgGate(false)}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 text-muted-foreground hover:bg-white/15 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-foreground/[0.09] transition-colors"
                 >
                   Dismiss
                 </button>
@@ -1848,78 +1106,12 @@ function ChatPanelInner({
         )}
       </AnimatePresence>
 
-      {/* ── Input area ── */}
-      <div className="px-3 py-3 border-t border-black/8 dark:border-white/10 shrink-0 chat-input-area">
-        {/* Model indicator bar */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
-            <span>{providerDef?.emoji ?? "✦"}</span>
-            <span>
-              {getProviderDef(activeProvider)?.models.find(
-                (m) => m.value === model
-              )?.label ?? model}
-            </span>
-            {byokActive && (
-              <span className="text-sky-400/60 dark:text-emerald-400/60">• your key</span>
-            )}
-            {!byokActive && lastCostTier === "premium" && (
-              <span className="text-amber-400/70">• premium credits</span>
-            )}
-            {!byokActive && lastCostTier === "free" && (
-              <span className="text-sky-400/40 dark:text-emerald-400/40">• free</span>
-            )}
-          </div>
-          {!isLoggedIn &&
-            state.input.length > ANON_MAX_LENGTH * 0.7 && (
-              <span
-                className={`text-[10px] ${state.input.length > ANON_MAX_LENGTH ? "text-red-400" : "text-muted-foreground/40"}`}
-              >
-                {state.input.length}/{ANON_MAX_LENGTH}
-              </span>
-            )}
-        </div>
-        <div className="flex items-end gap-2 rounded-xl bg-black/4 dark:bg-white/5 px-3 py-2 border border-black/10 dark:border-white/10 chat-input-wrapper">
-          <textarea
-            ref={inputRef}
-            value={state.input}
-            onChange={(e) => {
-              dispatch({ type: "SET_INPUT", value: e.target.value });
-              if (
-                showLongMsgGate &&
-                e.target.value.length <= ANON_MAX_LENGTH
-              )
-                setShowLongMsgGate(false);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask anything…"
-            rows={1}
-            disabled={state.isStreaming}
-            className="field-size-content flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none max-h-32 disabled:opacity-50"
-            style={{ lineHeight: "1.4", scrollbarWidth: "none" }}
-            aria-label="Chat message"
-          />
-          <button
-            onClick={onSend}
-            disabled={!state.input.trim() || state.isStreaming}
-            className="shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-sky-500 dark:bg-emerald-500 text-black hover:bg-sky-400 dark:hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
-            aria-label="Send"
-          >
-            {state.isStreaming ? (
-              <span className="h-3 w-3 rounded-full border-2 border-black/50 border-t-transparent animate-spin" />
-            ) : (
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            )}
-          </button>
-        </div>
+      <div className="shrink-0 px-3 pb-3">
+        <ChatComposer value={state.input} onChange={value => { dispatch({ type: 'SET_INPUT', value }); if (value.length <= ANON_MAX_LENGTH) setShowLongMsgGate(false); }}
+          onSend={onSend} busy={state.isStreaming}
+          toolbar={<CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError}
+            byokProvider={byokActive && !creditConfig?.demo ? detectedByokProvider : null} onSelect={onSelectModel} disabled={state.isStreaming} />}
+          guidance={!isLoggedIn ? 'Free preview · sign in for more models' : <span>{byokActive ? 'Your key' : `${creditConfig?.models.find(item => item.provider === provider && item.model === model)?.credits ?? '…'} credits / message`}</span>} />
       </div>
     </>
   );
@@ -1943,18 +1135,18 @@ function MessageBubble({
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-sky-500/20 dark:bg-emerald-500/20 border border-sky-500/30 dark:border-emerald-500/30 flex items-center justify-center text-[10px] text-sky-400 dark:text-emerald-400">
+        <div className="mr-2 mt-1 shrink-0 h-5 w-5 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent">
           ✦
         </div>
       )}
       <div
-        className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word ${
+        className={`min-w-0 rounded-2xl px-3 py-2 text-base leading-7 [overflow-wrap:anywhere] ${
           isUser
-            ? "bg-sky-500/15 dark:bg-emerald-500/15 border border-sky-500/20 dark:border-emerald-500/20 text-foreground rounded-tr-sm"
-            : "bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/8 text-foreground rounded-tl-sm"
+            ? "max-w-[85%] bg-muted whitespace-pre-wrap text-foreground"
+            : "flex-1 text-foreground"
         }`}
       >
-        {msg.content}
+        {isUser ? msg.content : <MessageContent content={msg.content} />}
       </div>
     </motion.div>
   );

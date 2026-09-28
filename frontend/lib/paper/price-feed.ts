@@ -40,6 +40,14 @@ const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
   DOGE: "dogecoin",
   SHIB: "shiba-inu",
   PEPE: "pepe",
+  // Listed in the paper terminal's market list; without an id they priced at 0.
+  XRP: "ripple",
+  ADA: "cardano",
+  WLD: "worldcoin-wld",
+  INJ: "injective-protocol",
+  TIA: "celestia",
+  SEI: "sei-network",
+  RENDER: "render-token",
 };
 
 // ── Cache ───────────────────────────────────────────────────────────────────

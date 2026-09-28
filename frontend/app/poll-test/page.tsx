@@ -53,7 +53,7 @@ const TOOLTIP_CONTENT = {
     description: `Each question is a building block for our future. The more questions you answer, 
     the more your perspective shapes VeggaStare's evolution. This isn't just a survey — 
     it's collaborative innovation.`,
-    icon: <Target className="w-4 h-4 text-emerald-400" />
+    icon: <Target className="w-4 h-4 text-brand-accent" />
   },
   sections: {
     title: "Journey Through Innovation",
@@ -147,14 +147,14 @@ function InfoTooltip({
       </TooltipTrigger>
       <TooltipContent 
         side={side} 
-        className="max-w-xs bg-neutral-900 border-neutral-700 p-3"
+        className="max-w-xs bg-surface-3 border-border p-3"
       >
         <div className="space-y-2">
-          <div className="flex items-center gap-2 font-semibold text-white">
+          <div className="flex items-center gap-2 font-semibold text-foreground">
             {icon}
             <span>{title}</span>
           </div>
-          <p className="text-xs text-neutral-300 leading-relaxed">{description}</p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{description}</p>
         </div>
       </TooltipContent>
     </Tooltip>
@@ -202,7 +202,7 @@ function QuestionRenderer({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-5 rounded-xl border border-neutral-800 bg-neutral-900/50 space-y-4"
+      className="p-5 rounded-xl border border-border bg-surface-3/50 space-y-4"
     >
       {/* Question Header */}
       <div className="flex items-start justify-between gap-4">
@@ -211,7 +211,7 @@ function QuestionRenderer({
             {question.pillarContext?.icon && (
               <span className="text-xl">{question.pillarContext.icon}</span>
             )}
-            <h3 className="font-medium text-white">{question.question}</h3>
+            <h3 className="font-medium text-foreground">{question.question}</h3>
             {question.required && (
               <InfoTooltip
                 title="Required Question"
@@ -223,7 +223,7 @@ function QuestionRenderer({
             )}
           </div>
           {question.description && (
-            <p className="text-sm text-neutral-400">{question.description}</p>
+            <p className="text-sm text-muted-foreground">{question.description}</p>
           )}
           {question.pillarContext && (
             <InfoTooltip
@@ -232,7 +232,7 @@ function QuestionRenderer({
                 <div className="space-y-2">
                   <p>This pillar <strong>currently</strong> accounts for {question.pillarContext.currentWeight}% of your Reach score in our system.</p>
                   <p className="text-amber-300">Your vote on this question helps us decide if this weight should change!</p>
-                  <p className="text-neutral-400 text-xs">Example: If most users think {question.pillarContext.currentWeight}% is too high, we may reduce it in a future update.</p>
+                  <p className="text-muted-foreground text-xs">Example: If most users think {question.pillarContext.currentWeight}% is too high, we may reduce it in a future update.</p>
                 </div>
               }
               icon={<Target className="w-3 h-3 text-amber-400" />}
@@ -249,7 +249,7 @@ function QuestionRenderer({
         <InfoTooltip
           title={TOOLTIP_CONTENT.comment.title}
           description={TOOLTIP_CONTENT.comment.description}
-          icon={<Sparkles className="w-3 h-3 text-emerald-400" />}
+          icon={<Sparkles className="w-3 h-3 text-brand-accent" />}
           side="left"
         >
           <Button
@@ -258,7 +258,7 @@ function QuestionRenderer({
             onClick={onToggleComment}
             className={cn(
               "shrink-0 transition-colors",
-              showComment ? "text-emerald-400 bg-emerald-900/30" : "text-neutral-500 hover:text-neutral-300"
+              showComment ? "text-brand-accent bg-brand-accent/30" : "text-muted-foreground hover:text-foreground/80"
             )}
           >
             <MessageSquarePlus className="w-4 h-4" />
@@ -311,7 +311,7 @@ function QuestionRenderer({
             value={(answer?.value as string) ?? ""}
             onChange={(e) => handleValueChange(e.target.value)}
             maxLength={question.maxLength ?? 500}
-            className="bg-neutral-800 border-neutral-700 min-h-[100px]"
+            className="bg-muted border-border min-h-[100px]"
           />
         )}
       </div>
@@ -325,8 +325,8 @@ function QuestionRenderer({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="pt-3 border-t border-neutral-800">
-              <label className="text-xs text-neutral-400 mb-1.5 flex items-center gap-1.5">
+            <div className="pt-3 border-t border-border">
+              <label className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3" />
                 Add your feedback or suggestion for this question
               </label>
@@ -334,7 +334,7 @@ function QuestionRenderer({
                 placeholder="Your thoughts on this question, suggestions for improvement, or any context you'd like to share..."
                 value={answer?.comment ?? ""}
                 onChange={(e) => handleCommentChange(e.target.value)}
-                className="bg-neutral-800/50 border-neutral-700 text-sm min-h-[80px]"
+                className="bg-foreground/[0.06] border-border text-sm min-h-[80px]"
               />
             </div>
           </motion.div>
@@ -343,10 +343,10 @@ function QuestionRenderer({
 
       {/* Answer indicator */}
       {answer?.value !== undefined && (
-        <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+        <div className="flex items-center gap-1.5 text-xs text-brand-accent">
           <Check className="w-3 h-3" />
           Answered
-          {answer?.comment && <span className="text-neutral-400">+ comment</span>}
+          {answer?.comment && <span className="text-muted-foreground">+ comment</span>}
         </div>
       )}
     </motion.div>
@@ -418,17 +418,17 @@ export default function PollTestPage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-black text-white p-8">
+      <div className="min-h-screen bg-background text-foreground p-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <Rocket className="w-8 h-8 text-emerald-400" />
-              <h1 className="text-3xl font-bold bg-linear-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+              <Rocket className="w-8 h-8 text-brand-accent" />
+              <h1 className="text-3xl font-bold bg-linear-to-r from-brand-accent to-blue-400 bg-clip-text text-transparent">
                 {REACH_AUDIT_POLL_CONFIG.title}
               </h1>
             </div>
-            <p className="text-neutral-400">{REACH_AUDIT_POLL_CONFIG.subtitle}</p>
+            <p className="text-muted-foreground">{REACH_AUDIT_POLL_CONFIG.subtitle}</p>
           </div>
           
           {/* Stats bar with rich tooltips */}
@@ -438,7 +438,7 @@ export default function PollTestPage() {
               description={TOOLTIP_CONTENT.questions.description}
               icon={TOOLTIP_CONTENT.questions.icon}
             >
-              <Badge variant="outline" className="border-emerald-500 text-emerald-500 cursor-help">
+              <Badge variant="outline" className="border-brand-accent text-brand-accent cursor-help">
                 <Target className="w-3 h-3 mr-1" />
                 {TOTAL_QUESTIONS} Questions
               </Badge>
@@ -504,19 +504,19 @@ export default function PollTestPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6 bg-neutral-900 border border-neutral-800 flex-wrap h-auto p-1 gap-1">
+            <TabsList className="mb-6 bg-surface-3 border border-border flex-wrap h-auto p-1 gap-1">
               <InfoTooltip
                 title="🚀 Full Innovation Poll"
                 description={
                   <div className="space-y-2">
                     <p>The complete {TOTAL_QUESTIONS}-question journey across all 8 sections.</p>
-                    <p className="text-emerald-400">Your comprehensive input shapes VeggaStare&apos;s future!</p>
-                    <p className="text-xs text-neutral-400">Includes: Pillar evaluation, Velocity feedback, Auth preferences, UI/UX, and more.</p>
+                    <p className="text-brand-accent">Your comprehensive input shapes VeggaStare&apos;s future!</p>
+                    <p className="text-xs text-muted-foreground">Includes: Pillar evaluation, Velocity feedback, Auth preferences, UI/UX, and more.</p>
                   </div>
                 }
-                icon={<Rocket className="w-3 h-3 text-emerald-400" />}
+                icon={<Rocket className="w-3 h-3 text-brand-accent" />}
               >
-                <TabsTrigger value="audit" className="data-[state=active]:bg-emerald-900/50 gap-1.5">
+                <TabsTrigger value="audit" className="data-[state=active]:bg-brand-accent/50 gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   Full Poll
                 </TabsTrigger>
@@ -528,7 +528,7 @@ export default function PollTestPage() {
                   <div className="space-y-2">
                     <p>Test our A→G scale slider component.</p>
                     <p className="text-blue-400">Click, drag, or use keyboard arrows to adjust!</p>
-                    <p className="text-xs text-neutral-400">Supports: Touch gestures, keyboard nav, smooth animations.</p>
+                    <p className="text-xs text-muted-foreground">Supports: Touch gestures, keyboard nav, smooth animations.</p>
                   </div>
                 }
                 icon={<Zap className="w-3 h-3 text-blue-400" />}
@@ -545,7 +545,7 @@ export default function PollTestPage() {
                   <div className="space-y-2">
                     <p>Test single and multi-choice question components.</p>
                     <p className="text-purple-400">Card-style options with descriptions and icons!</p>
-                    <p className="text-xs text-neutral-400">Supports: Single select, multi-select with limits, emoji icons.</p>
+                    <p className="text-xs text-muted-foreground">Supports: Single select, multi-select with limits, emoji icons.</p>
                   </div>
                 }
                 icon={<Check className="w-3 h-3 text-purple-400" />}
@@ -562,7 +562,7 @@ export default function PollTestPage() {
                   <div className="space-y-2">
                     <p>Test our screenshot capture component.</p>
                     <p className="text-amber-400">Press Ctrl+V or drag & drop images!</p>
-                    <p className="text-xs text-neutral-400">Pro tip: Take a screenshot (Win+Shift+S) then paste directly.</p>
+                    <p className="text-xs text-muted-foreground">Pro tip: Take a screenshot (Win+Shift+S) then paste directly.</p>
                   </div>
                 }
                 icon={<ImageIcon className="w-3 h-3 text-amber-400" />}
@@ -580,30 +580,30 @@ export default function PollTestPage() {
             <InfoTooltip
               title={TOOLTIP_CONTENT.overallProgress.title}
               description={TOOLTIP_CONTENT.overallProgress.description(answeredCount, TOTAL_QUESTIONS, progressPct)}
-              icon={<TrendingUp className="w-3 h-3 text-emerald-400" />}
+              icon={<TrendingUp className="w-3 h-3 text-brand-accent" />}
               side="bottom"
             >
-              <div className="bg-neutral-900 rounded-lg p-4 border border-neutral-800 cursor-help">
+              <div className="bg-surface-3 rounded-lg p-4 border border-border cursor-help">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-neutral-400 flex items-center gap-1.5">
-                    <Rocket className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Rocket className="w-4 h-4 text-brand-accent" />
                     Innovation Progress
                   </span>
                   <span className="text-sm font-medium">
                     {answeredCount}/{TOTAL_QUESTIONS} 
-                    <span className="text-emerald-400 ml-1">({progressPct}%)</span>
+                    <span className="text-brand-accent ml-1">({progressPct}%)</span>
                   </span>
                 </div>
-                <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <motion.div 
-                    className="h-full bg-linear-to-r from-emerald-500 to-emerald-400"
+                    className="h-full bg-linear-to-r from-brand-accent to-brand-accent-hover"
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPct}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
                 {progressPct > 0 && progressPct < 100 && (
-                  <p className="text-xs text-neutral-500 mt-2 flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     {progressPct < 25 ? "Great start! Every answer matters." : 
                      progressPct < 50 ? "Building momentum! Keep going." :
@@ -616,20 +616,20 @@ export default function PollTestPage() {
 
             {/* View Mode Toggle with tooltips */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-neutral-400 flex items-center gap-1">
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <HelpCircle className="w-3 h-3" />
                 View Mode:
               </span>
               <InfoTooltip
                 title={TOOLTIP_CONTENT.viewMode.all.title}
                 description={TOOLTIP_CONTENT.viewMode.all.description}
-                icon={<Layers className="w-3 h-3 text-emerald-400" />}
+                icon={<Layers className="w-3 h-3 text-brand-accent" />}
               >
                 <Button
                   variant={viewMode === 'all' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('all')}
-                  className={viewMode === 'all' ? 'bg-emerald-600' : 'border-neutral-700'}
+                  className={viewMode === 'all' ? 'bg-brand-accent-hover' : 'border-border'}
                 >
                   <Layers className="w-3 h-3 mr-1" />
                   Full Context
@@ -644,7 +644,7 @@ export default function PollTestPage() {
                   variant={viewMode === 'single' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('single')}
-                  className={viewMode === 'single' ? 'bg-emerald-600' : 'border-neutral-700'}
+                  className={viewMode === 'single' ? 'bg-brand-accent-hover' : 'border-border'}
                 >
                   <Target className="w-3 h-3 mr-1" />
                   Focused Flow
@@ -666,7 +666,7 @@ export default function PollTestPage() {
                     description={
                       <div className="space-y-1">
                         <p>{s.description}</p>
-                        <p className="text-emerald-400 font-medium">
+                        <p className="text-brand-accent font-medium">
                           {sectionAnswers}/{s.questions.length} answered ({sectionPct}%)
                         </p>
                         {isComplete && <p className="text-amber-400">✨ Section complete!</p>}
@@ -683,8 +683,8 @@ export default function PollTestPage() {
                         setCurrentQuestionIndex(0);
                       }}
                       className={cn(
-                        i === currentSection ? "bg-emerald-600 hover:bg-emerald-700" : "border-neutral-700",
-                        isComplete && i !== currentSection && "border-emerald-600/50 text-emerald-400"
+                        i === currentSection ? "bg-brand-accent-hover hover:bg-brand-accent-hover" : "border-border",
+                        isComplete && i !== currentSection && "border-brand-accent/50 text-brand-accent"
                       )}
                     >
                       {isComplete && <Check className="w-3 h-3 mr-1" />}
@@ -703,26 +703,26 @@ export default function PollTestPage() {
               <InfoTooltip
                 title={TOOLTIP_CONTENT.sectionProgress.title}
                 description={TOOLTIP_CONTENT.sectionProgress.description(sectionAnsweredCount, sectionQuestions.length)}
-                icon={<Target className="w-3 h-3 text-emerald-400" />}
+                icon={<Target className="w-3 h-3 text-brand-accent" />}
                 side="bottom"
               >
-                <div className="bg-linear-to-r from-emerald-900/30 to-transparent rounded-lg p-4 border border-emerald-800/50 cursor-help">
+                <div className="bg-linear-to-r from-brand-accent/30 to-transparent rounded-lg p-4 border border-brand-accent/50 cursor-help">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
+                    <div className="w-8 h-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent font-bold">
                       {currentSection + 1}
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-emerald-300">{section.title}</h2>
-                      <p className="text-sm text-neutral-400">{section.description}</p>
+                      <h2 className="text-xl font-semibold text-brand-accent-light">{section.title}</h2>
+                      <p className="text-sm text-muted-foreground">{section.description}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 mt-3">
-                    <span className="text-xs text-neutral-500">
+                    <span className="text-xs text-muted-foreground">
                       Section Progress: {sectionAnsweredCount}/{sectionQuestions.length} ({sectionProgressPct}%)
                     </span>
-                    <div className="flex-1 h-1.5 bg-neutral-800 rounded-full overflow-hidden max-w-xs">
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-xs">
                       <motion.div 
-                        className="h-full bg-emerald-500"
+                        className="h-full bg-brand-accent"
                         initial={{ width: 0 }}
                         animate={{ width: `${sectionProgressPct}%` }}
                         transition={{ duration: 0.3 }}
@@ -753,7 +753,7 @@ export default function PollTestPage() {
             {/* Single Question View */}
             {section && viewMode === 'single' && currentQuestion && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm text-neutral-400">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Question {currentQuestionIndex + 1} of {sectionQuestions.length}</span>
                   <div className="flex gap-1">
                     {sectionQuestions.map((q, i) => (
@@ -761,12 +761,12 @@ export default function PollTestPage() {
                         key={q.id}
                         onClick={() => setCurrentQuestionIndex(i)}
                         className={cn(
-                          "w-2.5 h-2.5 rounded-full transition-all",
+                          "w-2.5 h-2.5 rounded-full transition",
                           i === currentQuestionIndex
-                            ? "bg-emerald-500 scale-125"
+                            ? "bg-brand-accent scale-125"
                             : answers[q.id]?.value !== undefined
-                            ? "bg-emerald-500/50"
-                            : "bg-neutral-700 hover:bg-neutral-600"
+                            ? "bg-brand-accent/50"
+                            : "bg-muted hover:bg-muted"
                         )}
                       />
                     ))}
@@ -788,7 +788,7 @@ export default function PollTestPage() {
                     variant="outline"
                     onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
                     disabled={currentQuestionIndex === 0}
-                    className="border-neutral-700"
+                    className="border-border"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Previous
@@ -802,7 +802,7 @@ export default function PollTestPage() {
                         setCurrentQuestionIndex(0);
                       }
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-brand-accent-hover hover:bg-brand-accent-hover"
                   >
                     {currentQuestionIndex < sectionQuestions.length - 1 ? (
                       <>Next <ChevronRight className="w-4 h-4 ml-1" /></>
@@ -817,7 +817,7 @@ export default function PollTestPage() {
             )}
 
             {/* Section navigation buttons */}
-            <div className="flex justify-between pt-4 border-t border-neutral-800">
+            <div className="flex justify-between pt-4 border-t border-border">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -825,7 +825,7 @@ export default function PollTestPage() {
                   setCurrentQuestionIndex(0);
                 }}
                 disabled={currentSection === 0}
-                className="border-neutral-700"
+                className="border-border"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Previous Section
@@ -837,7 +837,7 @@ export default function PollTestPage() {
                   setCurrentQuestionIndex(0);
                 }}
                 disabled={currentSection === REACH_AUDIT_POLL_SECTIONS.length - 1}
-                className="border-neutral-700"
+                className="border-border"
               >
                 Next Section
                 <ChevronRight className="w-4 h-4 ml-1" />
@@ -848,7 +848,7 @@ export default function PollTestPage() {
           {/* Slider Component Test */}
           <TabsContent value="slider">
             <div className="space-y-8">
-              <div className="p-6 border border-neutral-800 rounded-lg bg-neutral-900">
+              <div className="p-6 border border-border rounded-lg bg-surface-3">
                 <h2 className="text-xl font-semibold mb-4">Default Slider (A→G Scale)</h2>
                 <SliderQuestion
                   questionId="test-slider-1"
@@ -862,13 +862,13 @@ export default function PollTestPage() {
                   value={sliderValue}
                   onChange={setSliderValue}
                 />
-                <div className="mt-4 p-3 bg-neutral-800/50 rounded text-sm">
-                  Current: <span className="text-emerald-400 font-mono">{sliderValue ?? 'Not set'}</span>
-                  {sliderValue && <span className="text-neutral-400 ml-2">({['A','B','C','D','E','F','G'][sliderValue - 1]})</span>}
+                <div className="mt-4 p-3 bg-foreground/[0.06] rounded text-sm">
+                  Current: <span className="text-brand-accent font-mono">{sliderValue ?? 'Not set'}</span>
+                  {sliderValue && <span className="text-muted-foreground ml-2">({['A','B','C','D','E','F','G'][sliderValue - 1]})</span>}
                 </div>
               </div>
 
-              <div className="p-6 border border-neutral-800 rounded-lg bg-neutral-900">
+              <div className="p-6 border border-border rounded-lg bg-surface-3">
                 <h2 className="text-xl font-semibold mb-4">Pillar Importance Ratings</h2>
                 <div className="space-y-6">
                   <SliderQuestion
@@ -916,7 +916,7 @@ export default function PollTestPage() {
           {/* Choice Component Test */}
           <TabsContent value="choice">
             <div className="space-y-8">
-              <div className="p-6 border border-neutral-800 rounded-lg bg-neutral-900">
+              <div className="p-6 border border-border rounded-lg bg-surface-3">
                 <h2 className="text-xl font-semibold mb-4">Single Choice</h2>
                 <ChoiceQuestion
                   questionId="test-choice-1"
@@ -933,7 +933,7 @@ export default function PollTestPage() {
                 />
               </div>
 
-              <div className="p-6 border border-neutral-800 rounded-lg bg-neutral-900">
+              <div className="p-6 border border-border rounded-lg bg-surface-3">
                 <h2 className="text-xl font-semibold mb-4">Multi Choice (max 3)</h2>
                 <ChoiceQuestion
                   questionId="test-choice-2"
@@ -953,8 +953,8 @@ export default function PollTestPage() {
                   maxSelections={3}
                   variant="card"
                 />
-                <div className="mt-4 p-3 bg-neutral-800/50 rounded text-sm">
-                  Selected: <span className="text-emerald-400">{multiChoiceValue.join(', ') || 'None'}</span>
+                <div className="mt-4 p-3 bg-foreground/[0.06] rounded text-sm">
+                  Selected: <span className="text-brand-accent">{multiChoiceValue.join(', ') || 'None'}</span>
                 </div>
               </div>
             </div>
@@ -962,9 +962,9 @@ export default function PollTestPage() {
 
           {/* Image Paste Test */}
           <TabsContent value="images">
-            <div className="p-6 border border-neutral-800 rounded-lg bg-neutral-900">
+            <div className="p-6 border border-border rounded-lg bg-surface-3">
               <h2 className="text-xl font-semibold mb-4">Image Paste Input</h2>
-              <p className="text-sm text-neutral-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Try pressing Ctrl+V with an image in your clipboard, or drag and drop!
               </p>
               <ImagePasteInput
@@ -980,16 +980,16 @@ export default function PollTestPage() {
         </Tabs>
 
         {/* Footer info */}
-        <div className="mt-8 pt-6 border-t border-neutral-800 text-center text-sm text-neutral-500">
+        <div className="mt-8 pt-6 border-t border-border text-center text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Rocket className="w-4 h-4 text-emerald-400" />
-            <p className="text-neutral-300">VeggaStare Innovation Poll System</p>
+            <Rocket className="w-4 h-4 text-brand-accent" />
+            <p className="text-foreground/80">VeggaStare Innovation Poll System</p>
           </div>
           <p className="text-xs">
             Building the future of social metrics, together.
           </p>
           <p className="mt-2">
-            <code className="bg-neutral-800 px-2 py-1 rounded text-xs">/lib/data/reach-audit-poll-questions.ts</code>
+            <code className="bg-muted px-2 py-1 rounded text-xs">/lib/data/reach-audit-poll-questions.ts</code>
           </p>
         </div>
       </div>

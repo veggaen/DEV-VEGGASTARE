@@ -2,38 +2,21 @@ import { fetchProductById } from '@/actions/fetch-product-by-id';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { ProductDetailsResponseSchema } from '@/lib/types/products';
-import { auth } from '@/auth';
-import { dbPrisma } from '@/lib/db';
+import { productRequestActor, withProductAccess, ProductLifecycleError } from '@/lib/product-lifecycle';
+import { publicProductSpecifications } from '@/lib/product-specifications';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+function detailResponse(body: unknown, status = 200) {
+  // Some results are owner/employee-only. Never retain them in a browser or
+  // shared CDN cache, including error responses and authorization misses.
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+}
 
 function toIsoString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'string' && value) return value;
   return new Date(String(value)).toISOString();
-}
-
-function normalizeSpecifications(value: unknown): Array<{ key: string; value: string }> | null {
-  let raw = value;
-  if (typeof raw === 'string') {
-    try {
-      raw = JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
-
-  if (!Array.isArray(raw)) return null;
-  const normalized: Array<{ key: string; value: string }> = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const key = (item as any).key;
-    const val = (item as any).value;
-    if (typeof key === 'string' && typeof val === 'string') {
-      normalized.push({ key, value: val });
-    }
-  }
-  return normalized;
 }
 
 function normalizeFeatures(value: unknown): Array<{ text: string; key?: string; icon?: string }> | null {
@@ -70,35 +53,19 @@ const paramsSchema = z.object({
 });
 
 async function canViewNonPublicProduct(product: any): Promise<boolean> {
-  const session = await auth();
-  const sessionUserId = session?.user?.id;
-  if (!sessionUserId) return false;
-
-  const role = session?.user?.role;
-  if (role === 'ADMIN' || role === 'OWNER') return true;
-  if (product.userId === sessionUserId) return true;
-  if (product.Company?.ownerId === sessionUserId) return true;
-
-  if (!product.companyId) return false;
-
-  const employee = await dbPrisma.employee.findFirst({
-    where: { userId: sessionUserId, companyId: product.companyId },
-    select: { permissions: true },
-  });
-
-  const permissions: any = employee?.permissions ?? {};
-  return (
-    permissions.CAN_EDIT_PRODUCT_POSITION_PERMISSION === true ||
-    permissions.CAN_DELETE_PRODUCT === true ||
-    permissions.CAN_MANAGE_PRODUCT_VISIBILITY === true
-  );
+  try {
+    return await withProductAccess(await productRequestActor(false), product.id, 'read', async (_tx, _product, access) => Object.values(access).some(Boolean));
+  } catch (error) {
+    if (error instanceof ProductLifecycleError) return false;
+    throw error;
+  }
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string[] }> }) {
   const rawParams = await context.params;
   const parsed = paramsSchema.safeParse(rawParams);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid product id' }, { status: 400 });
+    return detailResponse({ error: 'Invalid product id' }, 400);
   }
 
   const id = parsed.data.id[0];
@@ -107,14 +74,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const product = await fetchProductById(id);
 
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      return detailResponse({ error: 'Product not found' }, 404);
     }
 
     const visibility = (product as any).visibility ?? 'PUBLIC';
     if (visibility !== 'PUBLIC') {
       const canView = await canViewNonPublicProduct(product);
       if (!canView) {
-        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        return detailResponse({ error: 'Product not found' }, 404);
       }
     }
 
@@ -159,7 +126,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       downloadsEnabled: (product as any).downloadsEnabled !== false,
       condition: (product as any).condition,
       image: Array.isArray((product as any).image) ? (product as any).image : [],
-      specifications: normalizeSpecifications((product as any).specifications),
+      specifications: publicProductSpecifications(product.specifications),
       features: normalizeFeatures((product as any).features),
       userId: (product as any).userId,
       companyId: (product as any).companyId ?? null,
@@ -186,15 +153,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const parsedDto = ProductDetailsResponseSchema.safeParse(dto);
     if (!parsedDto.success) {
       console.error('[api/products/[...id]] Invalid GET DTO:', parsedDto.error);
-      return NextResponse.json(
+      return detailResponse(
         { error: 'Internal Server Error', ...(isDev ? { issues: parsedDto.error.issues } : {}) },
-        { status: 500 }
+        500
       );
     }
 
-    return NextResponse.json(parsedDto.data);
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return detailResponse(parsedDto.data);
+  } catch {
+    console.error('[api/products/detail] Product read unavailable');
+    return detailResponse({ error: 'Product temporarily unavailable. Please try again.' }, 503);
   }
 }

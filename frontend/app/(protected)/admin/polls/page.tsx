@@ -94,13 +94,13 @@ export default function AdminPollsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => router.push("/admin")}
-            className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-4"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/85 transition-colors mb-4"
           >
             <FiArrowLeft className="h-4 w-4" /> Back to Admin
           </button>
@@ -109,8 +109,8 @@ export default function AdminPollsPage() {
               <FiCpu className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">AI & Polls</h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <h1 className="text-2xl font-bold text-foreground">AI & Polls</h1>
+              <p className="text-sm text-muted-foreground">
                 Review generated polls and manage scheduled templates
               </p>
             </div>
@@ -118,7 +118,7 @@ export default function AdminPollsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg mb-6 w-fit">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg mb-6 w-fit">
           <TabButton active={tab === "review"} onClick={() => setTab("review")} icon={FiCheck} label="Pending Review" />
           <TabButton active={tab === "scheduled"} onClick={() => setTab("scheduled")} icon={FiCalendar} label="Scheduled Templates" />
         </div>
@@ -147,10 +147,10 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+        "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition",
         active
-          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
-          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+          ? "bg-card text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground/85"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -222,7 +222,7 @@ function PendingReviewTab() {
               "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               statusFilter === s
                 ? "bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/30"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                : "bg-muted text-muted-foreground hover:text-foreground/85"
             )}
           >
             {s.replace("_", " ")}
@@ -234,11 +234,11 @@ function PendingReviewTab() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
       ) : polls.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+        <div className="text-center py-12 text-muted-foreground">
           <FiCheck className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">No polls matching this filter.</p>
         </div>
@@ -248,20 +248,20 @@ function PendingReviewTab() {
             <motion.div
               key={poll.id}
               layout
-              className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800"
+              className="p-4 bg-card rounded-xl border border-border"
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{poll.title}</h3>
+                    <h3 className="font-medium text-foreground truncate">{poll.title}</h3>
                     <StatusBadge status={poll.reviewStatus} />
                   </div>
                   {poll.description && (
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                       {poll.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-4 text-xs text-zinc-400 dark:text-zinc-500">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground/80">
                     <span>{poll.type}</span>
                     <span>{poll.questionCount} Q{poll.questionCount !== 1 ? "s" : ""}</span>
                     <span>{poll.responseCount} response{poll.responseCount !== 1 ? "s" : ""}</span>
@@ -281,7 +281,7 @@ function PendingReviewTab() {
                     <button
                       onClick={() => handleAction(poll.id, "APPROVE")}
                       disabled={actionLoading === poll.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light border border-brand-accent/20 hover:bg-brand-accent/20 transition-colors disabled:opacity-50"
                     >
                       {actionLoading === poll.id ? <FiLoader className="h-3.5 w-3.5 animate-spin" /> : <FiCheck className="h-3.5 w-3.5" />}
                       Approve
@@ -308,17 +308,17 @@ function PendingReviewTab() {
           <button
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
-            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 disabled:opacity-30 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            className="p-2 rounded-lg bg-muted disabled:opacity-30 hover:bg-muted transition-colors"
           >
             <FiChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+          <span className="text-sm text-muted-foreground">
             Page {pagination.page} of {pagination.totalPages}
           </span>
           <button
             onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
             disabled={page === pagination.totalPages}
-            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 disabled:opacity-30 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            className="p-2 rounded-lg bg-muted disabled:opacity-30 hover:bg-muted transition-colors"
           >
             <FiChevronRight className="h-4 w-4" />
           </button>
@@ -333,10 +333,10 @@ function PendingReviewTab() {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     PENDING_REVIEW: { label: "Pending", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" },
-    APPROVED: { label: "Approved", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+    APPROVED: { label: "Approved", cls: "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light border-brand-accent/20" },
     REJECTED: { label: "Rejected", cls: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" },
   };
-  const { label, cls } = map[status] ?? { label: status, cls: "bg-zinc-100 text-zinc-500" };
+  const { label, cls } = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
   return (
     <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border", cls)}>
       {label}
@@ -434,11 +434,11 @@ function ScheduledPollsTab() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden mb-6"
           >
-            <div className="p-5 bg-white dark:bg-zinc-900 rounded-xl border border-teal-500/20 space-y-4">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Create Scheduled Template</h3>
+            <div className="p-5 bg-card rounded-xl border border-teal-500/20 space-y-4">
+              <h3 className="font-semibold text-foreground">Create Scheduled Template</h3>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Cron Expression
                 </label>
                 <input
@@ -446,13 +446,13 @@ function ScheduledPollsTab() {
                   value={newCron}
                   onChange={(e) => setNewCron(e.target.value)}
                   placeholder="0 8 * * *"
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-foreground/[0.05] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                 />
-                <p className="text-[10px] text-zinc-400 mt-1">Default: 0 8 * * * = 8 AM UTC daily</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Default: 0 8 * * * = 8 AM UTC daily</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Prompt Template
                 </label>
                 <textarea
@@ -460,7 +460,7 @@ function ScheduledPollsTab() {
                   onChange={(e) => setNewPrompt(e.target.value)}
                   placeholder="Generate a challenging quiz about Norwegian history with 5 questions..."
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/30 resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-foreground/[0.05] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30 resize-none"
                 />
               </div>
 
@@ -468,7 +468,7 @@ function ScheduledPollsTab() {
                 <button
                   type="button"
                   onClick={() => setNewAutoPublish(!newAutoPublish)}
-                  className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  className="text-muted-foreground hover:text-foreground/85"
                 >
                   {newAutoPublish ? (
                     <FiToggleRight className="h-5 w-5 text-teal-500" />
@@ -476,7 +476,7 @@ function ScheduledPollsTab() {
                     <FiToggleLeft className="h-5 w-5" />
                   )}
                 </button>
-                <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                <span className="text-sm text-foreground/80">
                   Auto-publish (skip review)
                 </span>
               </div>
@@ -492,7 +492,7 @@ function ScheduledPollsTab() {
                 </button>
                 <button
                   onClick={() => setShowCreate(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground/85"
                 >
                   Cancel
                 </button>
@@ -506,11 +506,11 @@ function ScheduledPollsTab() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+            <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
       ) : templates.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+        <div className="text-center py-12 text-muted-foreground">
           <FiCalendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">No scheduled templates yet.</p>
           <p className="text-xs mt-1 opacity-60">Create one to auto-generate polls on a schedule.</p>
@@ -520,23 +520,23 @@ function ScheduledPollsTab() {
           {templates.map((t) => (
             <div
               key={t.id}
-              className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800"
+              className="p-4 bg-card rounded-xl border border-border"
             >
               <div className="flex items-start gap-4">
                 <div className={cn(
                   "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
                   t.isActive
                     ? "bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
+                    : "bg-muted text-muted-foreground/80"
                 )}>
                   <FiClock className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2">
+                  <p className="text-sm font-medium text-foreground line-clamp-2">
                     {t.promptTemplate}
                   </p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/80">
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
                       {t.cronExpression}
                     </span>
                     <span>{t.isActive ? "Active" : "Paused"}</span>
@@ -549,7 +549,7 @@ function ScheduledPollsTab() {
                 <button
                   onClick={() => handleDelete(t.id)}
                   disabled={deleting === t.id}
-                  className="p-2 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  className="p-2 rounded-lg text-muted-foreground/80 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   title="Delete template"
                 >
                   {deleting === t.id ? (

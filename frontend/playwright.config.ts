@@ -65,7 +65,7 @@ export default defineConfig({
   use: {
     /* Global device baseline */
     ...DESKTOP_CHROME,
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
 
     /* Selectors: prefer data-testid for stable locators */
     testIdAttribute: "data-testid",
@@ -124,8 +124,8 @@ export default defineConfig({
       : []),
   ],
 
-  webServer: {
-    command: "npm run dev",
+  webServer: process.env.E2E_BASE_URL ? undefined : {
+    command: process.env.E2E_PRODUCTION_BUILD === '1' ? "npm run start -- -p 3000" : "npm run dev -- --webpack -p 3000",
     url: "http://localhost:3000",
     reuseExistingServer: !IS_CI,
     timeout: 120_000,

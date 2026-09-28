@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import { useWallet as useSolWallet } from "@solana/wallet-adapter-react";
 import type { WalletName } from "@solana/wallet-adapter-base";
@@ -57,14 +58,17 @@ export function WalletRuntimeProvider({ children }: { children: React.ReactNode 
   const { select: solSelect, wallet: solWallet, publicKey, disconnect: solDisconnectAsync, wallets: solWallets } = useSolWallet();
 
   // Brands (persist)
-  const [evmBrand, setEvmBrand] = useState<EvmBrand>(() => {
-    if (typeof window === "undefined") return null;
-    return (localStorage.getItem("evm.brand") as EvmBrand) || null;
-  });
-  const [solBrand, setSolBrand] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("sol.brand") || null;
-  });
+  const [evmBrand, setEvmBrand] = useState<EvmBrand>(null);
+  const [solBrand, setSolBrand] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setEvmBrand((localStorage.getItem('evm.brand') as EvmBrand) || null);
+        setSolBrand(localStorage.getItem('sol.brand') || null);
+      } catch { /* Keep first render consistent when browser storage is blocked. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Busy flags
   const busyRef = useRef<{ evm: boolean; sol: boolean }>({ evm: false, sol: false });

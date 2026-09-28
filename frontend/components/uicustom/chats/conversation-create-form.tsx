@@ -76,6 +76,7 @@ export default function ConversationCreateForm() {
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const createAttempt = useRef<{ signature: string; image: File | null; requestId: string; uploaded?: string } | null>(null);
 
   // Initial message state (required for DM/Group)
   const [initialMessage, setInitialMessage] = useState('');
@@ -198,13 +199,15 @@ export default function ConversationCreateForm() {
   }, []);
 
   // Image handling for initial message
+  const allowImages = visibility === 'PUBLIC' && conversationType !== 'PRIVATE_DM';
   const handleImageDrop = useCallback((acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
     }
-  }, []);
+  }, [allowImages]);
 
   const handleRemoveImage = useCallback(() => {
     if (imagePreview) {
@@ -216,6 +219,7 @@ export default function ConversationCreateForm() {
 
   // Handle paste for Ctrl+V image paste
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (!allowImages) return;
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -230,10 +234,11 @@ export default function ConversationCreateForm() {
         break;
       }
     }
-  }, []);
+  }, [allowImages]);
 
   // Dropzone configuration
   const { getRootProps, getInputProps, isDragActive, open: openFilePicker } = useDropzone({
+    disabled: !allowImages,
     onDrop: handleImageDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -274,6 +279,10 @@ export default function ConversationCreateForm() {
 
   const handleSubmit = async () => {
     setError('');
+    if (image && !allowImages) {
+      setError('Remove the image to start a private conversation. Private image uploads are temporarily unavailable.');
+      return;
+    }
 
     // For DM and Group, require at least 1 participant (besides self)
     if ((conversationType === 'PRIVATE_DM' || conversationType === 'GROUP') && participants.length < 1) {
@@ -292,13 +301,22 @@ export default function ConversationCreateForm() {
 
     setIsSubmitting(true);
     try {
+      const input = { title: finalTitle, description: description.trim() || undefined, participants: participants.map(p => p.id),
+        type: conversationType, visibility, replyPermission, tags, initialMessage: initialMessage.trim() || undefined,
+        pollQuestion: includePoll && pollQuestion.trim() ? pollQuestion.trim() : undefined };
+      const signature = JSON.stringify(input);
+      if (createAttempt.current?.signature !== signature || createAttempt.current.image !== image) {
+        createAttempt.current = { signature, image, requestId: crypto.randomUUID() };
+      }
+      const attempt = createAttempt.current;
       // Upload image if present
-      let uploadedImageUrl: string | undefined;
-      if (image) {
+      let uploadedImageUrl = attempt.uploaded;
+      if (image && !uploadedImageUrl) {
         setIsUploadingImage(true);
         try {
           const res = await edgestore.myPublicImages.upload({ file: image });
           uploadedImageUrl = res.url;
+          attempt.uploaded = res.url;
         } catch (uploadErr) {
           console.error('Image upload failed:', uploadErr);
           setError('Failed to upload image. Please try again.');
@@ -313,6 +331,7 @@ export default function ConversationCreateForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          requestId: attempt.requestId,
           title: finalTitle,
           description: description.trim() || undefined,
           participants: participants.map(p => p.id),
@@ -564,7 +583,7 @@ export default function ConversationCreateForm() {
               value={initialMessage}
               onChange={e => setInitialMessage(e.target.value)}
               onPaste={handlePaste}
-              placeholder="Write your first message... (paste or drag an image)"
+              placeholder={allowImages ? 'Write your first message... (paste or drag an image)' : 'Write your first message...'}
               className="w-full min-h-[100px] p-3 rounded-md bg-transparent resize-y text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               maxLength={2000}
             />
@@ -599,6 +618,8 @@ export default function ConversationCreateForm() {
                 variant="ghost"
                 size="sm"
                 onClick={openFilePicker}
+                disabled={!allowImages}
+                title={allowImages ? 'Add image' : 'Private image uploads are temporarily unavailable'}
                 className="h-8 px-2 text-muted-foreground hover:text-foreground"
               >
                 <FiImage className="h-4 w-4 mr-1" />

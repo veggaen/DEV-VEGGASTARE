@@ -42,7 +42,7 @@ export function CopyChip({
         type="button"
         onClick={() => copy(text)}
         className={`shrink-0 ${padSize} rounded-md transition-colors
-          hover:bg-zinc-200 dark:hover:bg-zinc-700
+          hover:bg-muted
           active:scale-95 ${className ?? ""}`}
         title={label}
         aria-label={label}
@@ -57,7 +57,7 @@ export function CopyChip({
               transition={{ duration: 0.15 }}
             >
               <FiCheck
-                className={`${iconSize} text-sky-500 dark:text-emerald-500`}
+                className={`${iconSize} text-brand-accent`}
               />
             </motion.span>
           ) : (
@@ -68,7 +68,7 @@ export function CopyChip({
               exit={{ scale: 0.5, opacity: 0 }}
               transition={{ duration: 0.15 }}
             >
-              <FiCopy className={`${iconSize} text-zinc-400`} />
+              <FiCopy className={`${iconSize} text-muted-foreground`} />
             </motion.span>
           )}
         </AnimatePresence>
@@ -83,8 +83,8 @@ export function CopyChip({
             exit={{ opacity: 0, y: -4, scale: 0.9 }}
             transition={{ duration: 0.2 }}
             className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap
-              rounded-md bg-zinc-900 dark:bg-zinc-100 px-2 py-0.5
-              text-[10px] font-medium text-white dark:text-zinc-900
+              rounded-md bg-primary px-2 py-0.5
+              text-[10px] font-medium text-primary-foreground
               shadow-lg pointer-events-none z-50"
           >
             Copied ✓

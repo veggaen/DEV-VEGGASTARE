@@ -103,7 +103,7 @@ export default function PremiumYouTubePlayer({
     default: 'rounded-2xl shadow-2xl',
     hero: 'rounded-none md:rounded-3xl shadow-2xl',
     minimal: 'rounded-lg shadow-lg',
-    card: 'rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800',
+    card: 'rounded-xl shadow-xl border border-border',
   };
 
   // Custom poster or YouTube default
@@ -114,7 +114,7 @@ export default function PremiumYouTubePlayer({
       {/* Video Container */}
       <div
         className={cn(
-          'group relative overflow-hidden bg-black',
+          'group relative overflow-hidden bg-background',
           getAspectClass(),
           variantStyles[variant]
         )}
@@ -122,7 +122,7 @@ export default function PremiumYouTubePlayer({
         {/* Custom Overlay - Shows before interaction */}
         {!hasInteracted && (
           <div
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center cursor-pointer transition duration-300"
             onClick={handlePlay}
             role="button"
             tabIndex={0}
@@ -136,14 +136,14 @@ export default function PremiumYouTubePlayer({
             />
 
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-background/80 via-background/30 to-transparent" />
 
             {/* Play Button */}
             <button
               className={cn(
                 'relative z-10 flex items-center justify-center rounded-full',
                 'bg-red-600 text-white shadow-2xl',
-                'transition-all duration-300 ease-out',
+                'transition duration-300 ease-out',
                 'hover:scale-110 hover:bg-red-500 hover:shadow-red-500/30',
                 'active:scale-95',
                 'focus:outline-none focus:ring-4 focus:ring-red-500/50',
@@ -158,14 +158,14 @@ export default function PremiumYouTubePlayer({
               <div className="relative z-10 mt-6 px-8 text-center max-w-2xl">
                 {title && (
                   <h3 className={cn(
-                    'font-bold text-white drop-shadow-lg',
+                    'font-bold text-foreground drop-shadow-lg',
                     variant === 'hero' ? 'text-2xl md:text-4xl' : 'text-xl md:text-2xl'
                   )}>
                     {title}
                   </h3>
                 )}
                 {description && (
-                  <p className="mt-2 text-sm md:text-base text-white/80 line-clamp-2">
+                  <p className="mt-2 text-sm md:text-base text-foreground/80 line-clamp-2">
                     {description}
                   </p>
                 )}
@@ -187,11 +187,11 @@ export default function PremiumYouTubePlayer({
             onClick={handleReplay}
           >
             <button
-              className="flex items-center justify-center h-20 w-20 rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-110"
+              className="flex items-center justify-center h-20 w-20 rounded-full bg-foreground/[0.05] text-foreground backdrop-blur-sm transition hover:bg-foreground/[0.07] hover:scale-110"
             >
               <FiRotateCcw className="h-8 w-8" />
             </button>
-            <p className="mt-4 text-white font-medium">Watch Again</p>
+            <p className="mt-4 text-foreground font-medium">Watch Again</p>
           </div>
         )}
 
@@ -210,11 +210,11 @@ export default function PremiumYouTubePlayer({
       {chapters.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-foreground/85 flex items-center gap-2">
               <FiClock className="h-4 w-4" />
               Chapters
             </h4>
-            <span className="text-xs text-zinc-500 dark:text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               {chapters.length} sections
             </span>
           </div>
@@ -225,16 +225,16 @@ export default function PremiumYouTubePlayer({
                 onClick={() => goToChapter(chapter.time)}
                 className={cn(
                   'group/chip flex items-center gap-2 rounded-full px-4 py-2',
-                  'bg-zinc-100 dark:bg-zinc-800',
-                  'text-sm text-zinc-700 dark:text-zinc-300',
-                  'transition-all duration-200',
-                  'hover:bg-zinc-200 dark:hover:bg-zinc-700',
+                  'bg-muted',
+                  'text-sm text-foreground/85',
+                  'transition duration-200',
+                  'hover:bg-muted',
                   'hover:shadow-md',
-                  'focus:outline-none focus:ring-2 focus:ring-emerald-500/50',
-                  currentTime === chapter.time && 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+                  'focus:outline-none focus:ring-2 focus:ring-brand-accent/50',
+                  currentTime === chapter.time && 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                 )}
               >
-                <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400 group-hover/chip:text-emerald-600 dark:group-hover/chip:text-emerald-400">
+                <span className="font-mono text-xs text-muted-foreground group-hover/chip:text-brand-accent-hover dark:text-brand-accent-light dark:group-hover/chip:text-brand-accent">
                   {formatTime(chapter.time)}
                 </span>
                 <span className="font-medium">{chapter.label}</span>

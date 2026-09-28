@@ -1,7 +1,8 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { computeReach, REACH_CONFIG, type WalletSignal } from '@/lib/reach/reach-engine';
+import { REACH_CONFIG } from '@/lib/reach/reach-engine';
+import { readVerificationEvidence } from '@/lib/verification-evidence';
 
 type RouteContext = { params: Promise<{ userId: string }> };
 
@@ -27,20 +28,6 @@ export async function GET(
       select: {
         reachLifetime: true,
         reachMomentum: true,
-        trueReach: true,
-        riskScore: true,
-        verificationTier: true,
-        // trust inputs
-        bankidVerified: true,
-        vippsVerified: true,
-        phoneVerified: true,
-        emailVerified: true,
-        emailRisk: true,
-        hasGoogleAuth: true,
-        hasGithubAuth: true,
-        hasDiscordAuth: true,
-        hasWeb2Payment: true,
-        hasWeb3Payment: true,
         _count: {
           select: {
             Conversation: true,
@@ -54,48 +41,21 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Wallet provenance signals
-    let walletSignals: WalletSignal[] = [];
-    try {
-      const wallets = await dbPrisma.wallet.findMany({
-        where: { ownerUserId: userId },
-        select: { verifiedAt: true, riskTier: true, donationTotalUsd: true },
-      });
-      walletSignals = wallets.map((w) => ({
-        verified: w.verifiedAt != null,
-        riskTier: (w.riskTier as WalletSignal['riskTier']) ?? 'neutral',
-        hasHistory: (w.donationTotalUsd ?? 0) > 0 || w.riskTier === 'kyc',
-      }));
-    } catch { /* pre-migration safety */ }
-
-    // Recompute the True Reach breakdown LIVE (always honest, never stale).
-    const reach = computeReach({
-      bankidVerified: user.bankidVerified != null,
-      vippsVerified: user.vippsVerified != null,
-      phoneVerified: user.phoneVerified != null,
-      hasCardPayment: !!user.hasWeb2Payment,
-      hasWeb3Spend: !!user.hasWeb3Payment,
-      hasGoogle: !!user.hasGoogleAuth,
-      hasGithub: !!user.hasGithubAuth,
-      hasDiscord: !!user.hasDiscordAuth,
-      emailVerified: user.emailVerified != null && user.emailRisk !== 'unverified',
-      wallets: walletSignals,
-      emailDisposable: user.emailRisk === 'disposable',
-      emailPresentButUnverified: user.emailRisk === 'unverified',
-      behaviorReach: user.reachLifetime ?? 0,
-    });
+    const evidence = await readVerificationEvidence(userId);
+    if (!evidence) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const { reach, flags } = evidence;
 
     const trueReach = {
       score: reach.trueReach,
       riskScore: reach.riskScore,
-      verificationTier: user.verificationTier,
+      verificationTier: evidence.tier,
       // class breakdown for the chart (each /cap → 0..1 ring)
       classes: [
-        { key: 'governmentEid', label: 'Government eID', value: reach.trust.governmentEid, cap: REACH_CONFIG.classCaps.governmentEid, verified: user.bankidVerified != null },
-        { key: 'bankPhone', label: 'Bank / Phone', value: reach.trust.bankPhone, cap: REACH_CONFIG.classCaps.bankPhone, verified: user.vippsVerified != null || user.phoneVerified != null },
-        { key: 'payment', label: 'Payment', value: reach.trust.payment, cap: REACH_CONFIG.classCaps.payment, verified: !!user.hasWeb2Payment || !!user.hasWeb3Payment },
-        { key: 'social', label: 'Social / Email', value: reach.trust.social, cap: REACH_CONFIG.classCaps.social, verified: !!user.hasGoogleAuth || !!user.hasGithubAuth || !!user.hasDiscordAuth },
-        { key: 'walletProvenance', label: 'Wallet', value: reach.trust.walletProvenance, cap: REACH_CONFIG.classCaps.walletProvenance, verified: walletSignals.some((w) => w.verified) },
+        { key: 'governmentEid', label: 'Government eID', value: reach.trust.governmentEid, cap: REACH_CONFIG.classCaps.governmentEid, verified: evidence.user.bankidVerified != null },
+        { key: 'bankPhone', label: 'Bank / Phone', value: reach.trust.bankPhone, cap: REACH_CONFIG.classCaps.bankPhone, verified: evidence.user.vippsVerified != null || flags.phoneVerified },
+        { key: 'payment', label: 'Payment', value: reach.trust.payment, cap: REACH_CONFIG.classCaps.payment, verified: flags.hasWeb2Payment || flags.hasWeb3Payment },
+        { key: 'social', label: 'Social / Email', value: reach.trust.social, cap: REACH_CONFIG.classCaps.social, verified: flags.hasGoogleAuth || flags.hasGithubAuth || flags.hasDiscordAuth || flags.emailVerified },
+        { key: 'walletProvenance', label: 'Wallet', value: reach.trust.walletProvenance, cap: REACH_CONFIG.classCaps.walletProvenance, verified: flags.hasVerifiedWallet },
       ],
       trustTotal: reach.trust.total,
       trustCeiling: REACH_CONFIG.trueReach.trustNorm,
@@ -146,7 +106,7 @@ export async function GET(
       momentumTrend,
       badges,
       trueReach,
-    }, { status: 200 });
+    }, { status: 200, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('[api/users/reach] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch reach data' }, { status: 500 });

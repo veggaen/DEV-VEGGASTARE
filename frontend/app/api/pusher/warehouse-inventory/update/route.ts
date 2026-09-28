@@ -2,7 +2,7 @@ import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { parseJsonOrError } from '@/lib/api-validate';
-import { pusherServer } from '@/lib/pusher';
+import { publishWarehouseInvalidation } from '@/lib/warehouse-events';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { WarehouseInventoryUpdateResponseSchema } from '@/lib/types/pusher-events';
 
@@ -75,16 +75,7 @@ export async function POST(req: Request) {
       return NextResponse.json(parsed.success ? parsed.data : dto, { status: 404 });
     }
 
-    await pusherServer.trigger(`WarehouseChannel_${warehouseId}`, 'inventory-update', {
-      warehouseId,
-      inventoryId,
-      stock: updatedInventory.stock,
-      version: updatedInventory.version,
-      product: {
-        id: updatedInventory.Product.id,
-        title: updatedInventory.Product.title,
-      },
-    });
+    await publishWarehouseInvalidation(warehouseId);
 
     const dto = { message: 'Inventory updated successfully' };
     const parsed = WarehouseInventoryUpdateResponseSchema.safeParse(dto);

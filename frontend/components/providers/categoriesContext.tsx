@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 
 // Define the Seller interface (with count)
 export interface Seller {
@@ -26,7 +27,7 @@ interface CategoriesContextType {
   setCategories: React.Dispatch<React.SetStateAction<string[]>>;
   selectedCategories: string[];
   setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
-  // Price filters
+  // Price bounds are canonical USD; controls convert through the global display preference.
   minPrice: number | null;
   setMinPrice: React.Dispatch<React.SetStateAction<number | null>>;
   maxPrice: number | null;
@@ -55,6 +56,9 @@ const CategoriesContext = createContext<CategoriesContextType | undefined>(undef
 
 // Provider component
 export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Keep filter state mounted across product navigation, but only the catalog
+  // needs these requests. Detail/create/offer routes have no filter controls.
+  const catalogActive = usePathname() === '/products';
   // Categories with counts (new)
   const [categoriesWithCounts, setCategoriesWithCounts] = useState<CategoryWithCount[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -74,16 +78,19 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Fetch initial data
   useEffect(() => {
+    if (!catalogActive) return;
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setCategoriesLoading(true);
         setSellersLoading(true);
 
         const [fetchedCategoriesWithCounts, fetchedPriceRange, fetchedSellers] = await Promise.all([
-          fetch('/api/categories-with-counts').then((res) => (res.ok ? res.json() : [])),
-          fetch('/api/price-range').then((res) => (res.ok ? res.json() : null)),
-          fetch('/api/products/sellers').then((res) => (res.ok ? res.json() : [])),
+          fetch('/api/categories-with-counts', { signal: controller.signal }).then((res) => (res.ok ? res.json() : [])),
+          fetch('/api/price-range', { signal: controller.signal }).then((res) => (res.ok ? res.json() : null)),
+          fetch('/api/products/sellers', { signal: controller.signal }).then((res) => (res.ok ? res.json() : [])),
         ]);
+        if (controller.signal.aborted) return;
 
         // Set categories with counts
         if (Array.isArray(fetchedCategoriesWithCounts)) {
@@ -101,25 +108,28 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           typeof fetchedPriceRange.max === 'number'
         ) {
           setInitialPriceRange({ min: fetchedPriceRange.min, max: fetchedPriceRange.max });
-          if (minPrice === null) setMinPrice(fetchedPriceRange.min);
-          if (maxPrice === null) setMaxPrice(fetchedPriceRange.max);
+          // Range metadata is not a user filter. Setting these after first paint
+          // triggered a second product request and empty-state → skeleton flicker.
         }
       } catch (error) {
-        console.error('Failed to fetch filter data:', error);
+        if (!controller.signal.aborted) console.error('Failed to fetch filter data:', error);
       } finally {
-        setCategoriesLoading(false);
-        setSellersLoading(false);
+        if (!controller.signal.aborted) {
+          setCategoriesLoading(false);
+          setSellersLoading(false);
+        }
       }
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => controller.abort();
+  }, [catalogActive]);
 
   // Fetch dynamic counts when filters change
   useEffect(() => {
     // Skip if we haven't loaded initial data yet
-    if (categoriesLoading || sellersLoading) return;
+    if (!catalogActive || categoriesLoading || sellersLoading) return;
+    const controller = new AbortController();
 
     const fetchDynamicCounts = async () => {
       try {
@@ -140,10 +150,11 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           params.set('searchTerm', searchTerm);
         }
 
-        const response = await fetch(`/api/filter-counts?${params}`);
+        const response = await fetch(`/api/filter-counts?${params}`, { signal: controller.signal });
         if (!response.ok) throw new Error('Failed to fetch counts');
 
         const data = await response.json();
+        if (controller.signal.aborted) return;
 
         // Update counts while preserving category/seller order
         if (data.categories) {
@@ -163,25 +174,20 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
           );
         }
       } catch (error) {
-        console.error('Failed to fetch dynamic filter counts:', error);
+        if (!controller.signal.aborted) console.error('Failed to fetch dynamic filter counts:', error);
       }
     };
 
     // Debounce to avoid too many requests
     const timeoutId = setTimeout(fetchDynamicCounts, 150);
-    return () => clearTimeout(timeoutId);
-  }, [selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, categoriesLoading, sellersLoading]);
+    return () => { clearTimeout(timeoutId); controller.abort(); };
+  }, [catalogActive, selectedCategories, selectedSellers, minPrice, maxPrice, searchTerm, categoriesLoading, sellersLoading]);
 
   // Reset functions
   const resetPriceFilters = useCallback(() => {
-    if (initialPriceRange) {
-      setMinPrice(initialPriceRange.min);
-      setMaxPrice(initialPriceRange.max);
-    } else {
-      setMinPrice(null);
-      setMaxPrice(null);
-    }
-  }, [initialPriceRange]);
+    setMinPrice(null);
+    setMaxPrice(null);
+  }, []);
 
   const resetCategoryFilters = useCallback(() => {
     setSelectedCategories([]);
@@ -203,7 +209,7 @@ export const CategoriesProvider: React.FC<{ children: ReactNode }> = ({ children
     selectedCategories.length +
     selectedSellers.length +
     (searchTerm ? 1 : 0) +
-    (initialPriceRange && (minPrice !== initialPriceRange.min || maxPrice !== initialPriceRange.max) ? 1 : 0);
+    (minPrice !== null || maxPrice !== null ? 1 : 0);
 
   return (
     <CategoriesContext.Provider

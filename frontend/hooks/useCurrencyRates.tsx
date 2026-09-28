@@ -1,260 +1,84 @@
 'use client';
+/** @fileOverview Shared reference rates with preserved provenance, bounded cache and safe retry. @stability stable */
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { CRYPTO_RATE_TTL, DISPLAY_RATE_CACHE_KEY, displayConversions, displayRateState, emptyDisplayRates, markDisplayRatesStale, mergeDisplayRates, readDisplayRateCache, readDisplayRateResponse, type DisplayRateSnapshot } from '@/lib/display-rate-cache';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-
-// Fallback fiat rates (used while loading or if API fails)
-const FALLBACK_FIAT_RATES: Record<string, number> = {
-  USD: 1,
-  NOK: 0.091,
-  EUR: 1.08,
-  GBP: 1.27,
-  SEK: 0.093,
-  DKK: 0.145,
-  CHF: 1.13,
-  JPY: 0.0067,
-  CAD: 0.74,
-  AUD: 0.65,
+type CurrencyRatesContextValue = ReturnType<typeof displayRateState> & ReturnType<typeof displayConversions> & {
+  isLoading: boolean; error: string | null; refreshRates: () => Promise<void>;
 };
-
-// Fallback crypto prices in USD
-const FALLBACK_CRYPTO_PRICES: Record<string, number> = {
-  ETH: 3300,
-  BTC: 97000,
-  SOL: 200,
-  PLS: 0.0002,
-  USDC: 1,
-  USDT: 1,
-};
-
-interface CurrencyRatesContextValue {
-  // Fiat rates
-  fiatRates: Record<string, number>;
-  // Crypto prices in USD
-  cryptoPrices: Record<string, number>;
-  isLoading: boolean;
-  error: string | null;
-  lastUpdated: Date | null;
-  isFiatStale: boolean;
-  isCryptoStale: boolean;
-  // Fiat conversions
-  convertToUSD: (amount: number, fromCurrency: string) => number;
-  convertFromUSD: (amountUSD: number, toCurrency: string) => number;
-  convertCurrency: (amount: number, from: string, to: string) => number;
-  // Crypto conversions
-  convertUSDToCrypto: (amountUSD: number, cryptoSymbol: string) => number;
-  convertCryptoToUSD: (amount: number, cryptoSymbol: string) => number;
-  convertFiatToCrypto: (amount: number, fiatCurrency: string, cryptoSymbol: string) => number;
-  // Refresh
-  refreshRates: () => Promise<void>;
-}
-
 const CurrencyRatesContext = createContext<CurrencyRatesContextValue | null>(null);
 
-const CACHE_KEY = 'veggastare_currency_rates';
-const FIAT_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-const CRYPTO_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-interface CachedData {
-  fiatRates: Record<string, number>;
-  cryptoPrices: Record<string, number>;
-  fiatTimestamp: number;
-  cryptoTimestamp: number;
-}
-
 export function CurrencyRatesProvider({ children }: { children: React.ReactNode }) {
-  const [fiatRates, setFiatRates] = useState<Record<string, number>>(FALLBACK_FIAT_RATES);
-  const [cryptoPrices, setCryptoPrices] = useState<Record<string, number>>(FALLBACK_CRYPTO_PRICES);
+  const [snapshot, setSnapshot] = useState<DisplayRateSnapshot>(emptyDisplayRates);
+  const snapshotRef = useRef(snapshot);
+  const [now, setNow] = useState(Date.now);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isFiatStale, setIsFiatStale] = useState(false);
-  const [isCryptoStale, setIsCryptoStale] = useState(false);
+  const active = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
 
-  const fetchRates = useCallback(async () => {
-    try {
-      const response = await fetch('/api/currency-rates');
-      if (!response.ok) throw new Error('Failed to fetch rates');
-      
-      const data = await response.json();
-      if (data.success) {
-        if (data.fiat?.rates) {
-          setFiatRates(data.fiat.rates);
-          setIsFiatStale(!data.fiat.fresh);
-        } else if (data.rates) {
-          // Legacy format
-          setFiatRates(data.rates);
-        }
-        
-        if (data.crypto?.prices) {
-          setCryptoPrices(data.crypto.prices);
-          setIsCryptoStale(!data.crypto.fresh);
-        }
-        
-        setLastUpdated(new Date());
-        setError(null);
-        
-        // Cache in localStorage
-        const cacheData: CachedData = {
-          fiatRates: data.fiat?.rates ?? data.rates ?? FALLBACK_FIAT_RATES,
-          cryptoPrices: data.crypto?.prices ?? FALLBACK_CRYPTO_PRICES,
-          fiatTimestamp: Date.now(),
-          cryptoTimestamp: Date.now(),
-        };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-      }
-    } catch (err) {
-      console.error('[CurrencyRatesProvider] Failed to fetch rates:', err);
-      setError('Failed to fetch live rates');
-      setIsFiatStale(true);
-      setIsCryptoStale(true);
-    } finally {
-      setIsLoading(false);
-    }
+  const save = useCallback((next: DisplayRateSnapshot) => {
+    snapshotRef.current = next; setSnapshot(next); setNow(Date.now());
+    // Storage denial must not invalidate an otherwise usable quote.
+    try { localStorage.setItem(DISPLAY_RATE_CACHE_KEY, JSON.stringify(next)); } catch { /* optional browser storage */ }
   }, []);
 
-  // Load cached rates on mount, then fetch fresh ones
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const data: CachedData = JSON.parse(cached);
-        const now = Date.now();
-        
-        const fiatAge = now - data.fiatTimestamp;
-        const cryptoAge = now - data.cryptoTimestamp;
-        
-        // Use cached data
-        if (data.fiatRates) {
-          setFiatRates(data.fiatRates);
-          setIsFiatStale(fiatAge >= FIAT_CACHE_DURATION);
-        }
-        if (data.cryptoPrices) {
-          setCryptoPrices(data.cryptoPrices);
-          setIsCryptoStale(cryptoAge >= CRYPTO_CACHE_DURATION);
-        }
-        setLastUpdated(new Date(Math.max(data.fiatTimestamp, data.cryptoTimestamp)));
-        
-        // If both are fresh, don't fetch
-        if (fiatAge < FIAT_CACHE_DURATION && cryptoAge < CRYPTO_CACHE_DURATION) {
-          setIsLoading(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[CurrencyRatesProvider] Could not load cached rates');
-    }
-
-    fetchRates();
-  }, [fetchRates]);
-
-  // Refresh crypto rates more frequently (every 5 min)
-  useEffect(() => {
-    const interval = setInterval(fetchRates, CRYPTO_CACHE_DURATION);
-    return () => clearInterval(interval);
-  }, [fetchRates]);
-
-  // Fiat conversions
-  const convertToUSD = useCallback((amount: number, fromCurrency: string): number => {
-    const rate = fiatRates[fromCurrency] ?? fiatRates[fromCurrency.toUpperCase()] ?? 1;
-    return amount * rate;
-  }, [fiatRates]);
-
-  const convertFromUSD = useCallback((amountUSD: number, toCurrency: string): number => {
-    const rate = fiatRates[toCurrency] ?? fiatRates[toCurrency.toUpperCase()] ?? 1;
-    return amountUSD / rate;
-  }, [fiatRates]);
-
-  const convertCurrency = useCallback((amount: number, from: string, to: string): number => {
-    if (from === to) return amount;
-    const usd = convertToUSD(amount, from);
-    return convertFromUSD(usd, to);
-  }, [convertToUSD, convertFromUSD]);
-
-  // Crypto conversions
-  const convertUSDToCrypto = useCallback((amountUSD: number, cryptoSymbol: string): number => {
-    const price = cryptoPrices[cryptoSymbol] ?? cryptoPrices[cryptoSymbol.toUpperCase()] ?? 1;
-    return amountUSD / price;
-  }, [cryptoPrices]);
-
-  const convertCryptoToUSD = useCallback((amount: number, cryptoSymbol: string): number => {
-    const price = cryptoPrices[cryptoSymbol] ?? cryptoPrices[cryptoSymbol.toUpperCase()] ?? 1;
-    return amount * price;
-  }, [cryptoPrices]);
-
-  const convertFiatToCrypto = useCallback((amount: number, fiatCurrency: string, cryptoSymbol: string): number => {
-    const usd = convertToUSD(amount, fiatCurrency);
-    return convertUSDToCrypto(usd, cryptoSymbol);
-  }, [convertToUSD, convertUSDToCrypto]);
-
-  const refreshRates = useCallback(async () => {
+  const refreshRates = useCallback((): Promise<void> => {
+    if (active.current) return active.current.promise;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort('timeout'), 12_000);
     setIsLoading(true);
-    await fetchRates();
-  }, [fetchRates]);
+    const promise = (async () => {
+      try {
+        const response = await fetch('/api/currency-rates', { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error('Rates unavailable');
+        const next = readDisplayRateResponse(await response.json());
+        if (!next) throw new Error('No verified reference rates');
+        if (controller.signal.aborted) return;
+        save(mergeDisplayRates(snapshotRef.current, next));
+        setError(!next.fiat || !next.crypto ? 'Some conversion rates are unavailable.' : null);
+      } catch {
+        if (controller.signal.aborted && controller.signal.reason !== 'timeout') return;
+        save(markDisplayRatesStale(snapshotRef.current));
+        setError('Conversion rates could not be refreshed.');
+      } finally {
+        window.clearTimeout(timeout);
+        if (active.current?.controller === controller) { active.current = null; setIsLoading(false); }
+      }
+    })();
+    active.current = { controller, promise };
+    return promise;
+  }, [save]);
 
-  return (
-    <CurrencyRatesContext.Provider
-      value={{
-        fiatRates,
-        cryptoPrices,
-        isLoading,
-        error,
-        lastUpdated,
-        isFiatStale,
-        isCryptoStale,
-        convertToUSD,
-        convertFromUSD,
-        convertCurrency,
-        convertUSDToCrypto,
-        convertCryptoToUSD,
-        convertFiatToCrypto,
-        refreshRates,
-      }}
-    >
-      {children}
-    </CurrencyRatesContext.Provider>
-  );
-}
-
-export function useCurrencyRates() {
-  const context = useContext(CurrencyRatesContext);
-  if (!context) {
-    // Return a fallback if used outside provider (for server components)
-    return {
-      fiatRates: FALLBACK_FIAT_RATES,
-      cryptoPrices: FALLBACK_CRYPTO_PRICES,
-      isLoading: false,
-      error: null,
-      lastUpdated: null,
-      isFiatStale: true,
-      isCryptoStale: true,
-      convertToUSD: (amount: number, fromCurrency: string) => {
-        const rate = FALLBACK_FIAT_RATES[fromCurrency] ?? 1;
-        return amount * rate;
-      },
-      convertFromUSD: (amountUSD: number, toCurrency: string) => {
-        const rate = FALLBACK_FIAT_RATES[toCurrency] ?? 1;
-        return amountUSD / rate;
-      },
-      convertCurrency: (amount: number, from: string, to: string) => {
-        if (from === to) return amount;
-        const usd = amount * (FALLBACK_FIAT_RATES[from] ?? 1);
-        return usd / (FALLBACK_FIAT_RATES[to] ?? 1);
-      },
-      convertUSDToCrypto: (amountUSD: number, cryptoSymbol: string) => {
-        const price = FALLBACK_CRYPTO_PRICES[cryptoSymbol] ?? 1;
-        return amountUSD / price;
-      },
-      convertCryptoToUSD: (amount: number, cryptoSymbol: string) => {
-        const price = FALLBACK_CRYPTO_PRICES[cryptoSymbol] ?? 1;
-        return amount * price;
-      },
-      convertFiatToCrypto: (amount: number, fiatCurrency: string, cryptoSymbol: string) => {
-        const usd = amount * (FALLBACK_FIAT_RATES[fiatCurrency] ?? 1);
-        const price = FALLBACK_CRYPTO_PRICES[cryptoSymbol] ?? 1;
-        return usd / price;
-      },
-      refreshRates: async () => {},
+  useEffect(() => {
+    let cached: DisplayRateSnapshot | null = null;
+    try { cached = readDisplayRateCache(JSON.parse(localStorage.getItem(DISPLAY_RATE_CACHE_KEY) ?? 'null')); } catch { /* malformed or disabled storage */ }
+    if (cached) { snapshotRef.current = cached; setSnapshot(cached); setNow(Date.now()); }
+    const state = displayRateState(cached ?? emptyDisplayRates());
+    if (!state.isFiatStale && !state.isCryptoStale) setIsLoading(false);
+    else void refreshRates();
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+      if (document.visibilityState === 'visible') void refreshRates();
+    }, CRYPTO_RATE_TTL);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      setNow(Date.now());
+      const latest = displayRateState(snapshotRef.current);
+      if (latest.isFiatStale || latest.isCryptoStale) void refreshRates();
     };
-  }
-  return context;
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisible);
+      active.current?.controller.abort(); active.current = null;
+    };
+  }, [refreshRates]);
+
+  const rates = useMemo(() => displayRateState(snapshot, now), [snapshot, now]);
+  const conversions = useMemo(() => displayConversions(rates.fiatRates, rates.cryptoPrices), [rates.fiatRates, rates.cryptoPrices]);
+  const value = useMemo(() => ({ ...rates, ...conversions, isLoading, error, refreshRates }), [rates, conversions, isLoading, error, refreshRates]);
+  return <CurrencyRatesContext.Provider value={value}>{children}</CurrencyRatesContext.Provider>;
 }
+
+const fallbackRates = displayRateState(emptyDisplayRates());
+const fallback: CurrencyRatesContextValue = { ...fallbackRates, ...displayConversions(fallbackRates.fiatRates, fallbackRates.cryptoPrices), isLoading: false, error: 'Conversion rates unavailable.', refreshRates: async () => {} };
+export function useCurrencyRates() { return useContext(CurrencyRatesContext) ?? fallback; }

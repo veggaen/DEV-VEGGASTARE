@@ -1,11 +1,7 @@
 /**
- * @fileOverview  Dashboard layout — dock-aware wrapper that positions the sidebar
- *                on any edge (left, right, top, bottom) based on user preference.
- * @stability     evolving
+ * @fileOverview Dashboard uses the persistent app navigation, not a second floating dock.
+ * @stability stable
  */
-
-import { DashboardDockProvider } from "@/contexts/dashboard-dock-context";
-import { DashboardShell } from "@/components/uicustom/dashboard-shell";
 
 export default function DashboardLayout({
   children,
@@ -13,8 +9,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardDockProvider>
-      <DashboardShell>{children}</DashboardShell>
-    </DashboardDockProvider>
+    <section className="min-h-full min-w-0 w-full">{children}</section>
   );
 }

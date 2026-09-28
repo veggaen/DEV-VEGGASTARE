@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams, redirect } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Spinner from '@/components/uicustom/spinner';
 import { FeedSkeleton } from '@/components/ui/skeleton';
+import PulseLoading from '@/app/pulse/loading';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { UseCurrentRole } from '@/hooks/use-current-role';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -47,16 +49,34 @@ import { PollDisplay } from '@/components/uicustom/chats/poll-display';
 import { DiscoverPeople } from '@/components/uicustom/social/DiscoverPeople';
 import RichTextContent from '@/components/uicustom/pulse/RichTextContent';
 import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
-import { PollBuilder } from '@/components/uicustom/polls/PollBuilder';
 import { PulsePollCard, type PulsePollData } from '@/components/uicustom/polls/PulsePollCard';
-import { PollTakerModal } from '@/components/uicustom/polls/PollTakerModal';
 import { ReachPollV3 } from '@/components/uicustom/polls/ReachPollV3';
 import { UserPicker } from '@/components/uicustom/social/UserPicker';
 import { Zap, Target, Rocket, PlayCircle, Copy, FileUp, Download, Sparkles, Check } from 'lucide-react';
-import { PollImportModal } from '@/components/uicustom/polls/PollImportModal';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
+
+const PollBuilder = dynamic(() => import('@/components/uicustom/polls/PollBuilder').then(module => module.PollBuilder), {
+  loading: () => <div role="status" className="p-8 text-sm text-muted-foreground">Loading poll editor…</div>,
+});
+const PollTakerModal = dynamic(() => import('@/components/uicustom/polls/PollTakerModal').then(module => module.PollTakerModal));
+const PollImportModal = dynamic(() => import('@/components/uicustom/polls/PollImportModal').then(module => module.PollImportModal));
+
+/** Keep optional dialog loading inside its own boundary, never the entire feed. */
+function PollDialogLoading({ title, onClose }: { title: string; onClose: () => void }) {
+  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+    <DialogContent hideCloseButton className="w-[calc(100%_-_2rem)] max-w-md max-h-[calc(100dvh_-_2rem)] overflow-y-auto overscroll-contain data-[state=open]:animate-none data-[state=closed]:animate-none transition-none">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription role="status">Preparing the editor. Your feed will stay in place.</DialogDescription>
+      </DialogHeader>
+      <Button variant="secondary" className="min-h-11" onClick={onClose}>Cancel loading</Button>
+    </DialogContent>
+  </Dialog>;
+}
 
 interface User {
   id: string;
@@ -229,9 +249,22 @@ const FeedPage: React.FC = () => {
   // Feed state
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const feedRequestRef = useRef<AbortController | null>(null);
   const [filter, setFilter] = useState<ContentFilter>('all');
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Reset the actual app scroller before a shorter result list can clamp the
+  // old offset to its footer. Preserve gestures made on SSR content before
+  // hydration; the initial selection is not a user-requested filter change.
+  const previousSelection = useRef({ filter, sortBy, tagFilter });
+  useLayoutEffect(() => {
+    const previous = previousSelection.current;
+    previousSelection.current = { filter, sortBy, tagFilter };
+    if (previous.filter === filter && previous.sortBy === sortBy && previous.tagFilter === tagFilter) return;
+    document.querySelector<HTMLElement>('[data-site-scroll="true"]')?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [filter, sortBy, tagFilter]);
   
   // Cursor-based pagination state
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -248,17 +281,17 @@ const FeedPage: React.FC = () => {
   // Sync filter/sort/poll state with URL for shareable links
   // (Pulse modal is now handled by parallel route @modal slot — no ?pulse= param needed)
   useEffect(() => {
+    // An intercepted post has its own URL, but must not reset the feed behind it.
+    if (pathname !== '/pulse' && pathname !== '/feed') return;
     // Check for filter param (?filter=polls or ?filter=pulses makes link shareable)
     const filterParam = searchParams.get('filter') as ContentFilter | null;
-    if (filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam)) {
-      setFilter(filterParam);
-    }
+    setFilter(filterParam && ['all', 'pulses', 'polls', 'trending'].includes(filterParam) ? filterParam : 'all');
     
     // Check for sort param
     const sortParam = searchParams.get('sort') as SortType | null;
-    if (sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam)) {
-      setSortBy(sortParam);
-    }
+    setSortBy(sortParam && ['recent', 'popular', 'discussed', 'reach'].includes(sortParam) ? sortParam : 'recent');
+
+    setTagFilter(searchParams.get('tag')?.trim() || null);
     
     // Check for open param (?open=ID auto-opens pulse modal from standalone page)
     const openParam = searchParams.get('open');
@@ -275,13 +308,15 @@ const FeedPage: React.FC = () => {
       lastOpenedPollId.current = pollParam; // Track for mouse nav
       // Don't change filter - user should stay on whatever feed they were viewing
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, pathname]);
 
   // Handle browser back/forward navigation (popstate) to sync filter state with URL
   // This is needed because searchParams doesn't react to pushState/popstate
   useEffect(() => {
     const handlePopState = () => {
       const url = new URL(window.location.href);
+      if (url.pathname !== '/pulse' && url.pathname !== '/feed') return;
+      setTagFilter(url.searchParams.get('tag')?.trim() || null);
       
       // Sync filter
       const filterParam = url.searchParams.get('filter') as ContentFilter | null;
@@ -342,6 +377,23 @@ const FeedPage: React.FC = () => {
     } else {
       url.searchParams.set('sort', newSort);
     }
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const changeTag = (tag: string | null) => {
+    setTagFilter(tag);
+    const url = new URL(window.location.href);
+    if (tag) url.searchParams.set('tag', tag);
+    else url.searchParams.delete('tag');
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const clearFilters = () => {
+    setFilter('all');
+    setSortBy('recent');
+    setTagFilter(null);
+    const url = new URL(window.location.href);
+    for (const key of ['filter', 'sort', 'tag']) url.searchParams.delete(key);
     window.history.pushState({}, '', url.toString());
   };
 
@@ -465,7 +517,7 @@ const FeedPage: React.FC = () => {
   // Open pulse — navigate to /pulse/[id] (intercepted by @modal parallel slot)
   const openPulse = useCallback((pulseId: string) => {
     lastOpenedPulseId.current = pulseId;
-    router.replace(`/pulse/${pulseId}`, { scroll: false });
+    router.push(`/pulse/${pulseId}`, { scroll: false });
   }, [router]);
 
   // Open poll modal
@@ -564,9 +616,17 @@ const FeedPage: React.FC = () => {
   // additional server pages until we have enough client-visible items, because
   // the server doesn't know about the poll/pulse distinction.
   const fetchFeed = useCallback(async (resetNewCount = true, cursor?: string) => {
+    feedRequestRef.current?.abort();
+    const request = new AbortController();
+    feedRequestRef.current = request;
+    setFeedError(null);
     const isFirstPage = !cursor;
     if (isFirstPage) {
       setLoading(true);
+      setItems([]);
+      setNextCursor(null);
+      setHasMore(true);
+      setIsFetchingMore(false);
     } else {
       setIsFetchingMore(true);
     }
@@ -596,8 +656,10 @@ const FeedPage: React.FC = () => {
           url += `&cursor=${encodeURIComponent(currentCursor)}`;
         }
         
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: request.signal });
+        if (!res.ok) throw new Error('Feed unavailable');
         const data = await res.json();
+        if (!Array.isArray(data.conversations)) throw new Error('Invalid feed response');
         let feedItems = (data.conversations || []) as FeedItem[];
         const serverCursor = data.nextCursor || null;
         
@@ -624,6 +686,7 @@ const FeedPage: React.FC = () => {
         }
       }
       
+      if (request.signal.aborted) return;
       if (isFirstPage) {
         setItems(collectedItems);
       } else {
@@ -643,20 +706,24 @@ const FeedPage: React.FC = () => {
       if (resetNewCount) {
         setNewPulsesCount(0);
       }
-    } catch (error) {
-      console.error('Failed to fetch feed:', error);
+    } catch {
+      if (!request.signal.aborted) setFeedError(isFirstPage
+        ? 'Pulse could not load. Please try again.'
+        : 'More posts could not load. Your place in the feed is saved.');
     } finally {
-      setLoading(false);
-      setIsFetchingMore(false);
-      setIsLoadingNew(false);
+      if (!request.signal.aborted) {
+        setLoading(false);
+        setIsFetchingMore(false);
+        setIsLoadingNew(false);
+      }
     }
   }, [filter, sortBy, tagFilter]);
 
   // Load more items (next page)
   const loadMore = useCallback(() => {
-    if (isFetchingMore || !hasMore || !nextCursor) return;
+    if (loading || feedError || isFetchingMore || !hasMore || !nextCursor) return;
     fetchFeed(false, nextCursor);
-  }, [fetchFeed, isFetchingMore, hasMore, nextCursor]);
+  }, [fetchFeed, loading, feedError, isFetchingMore, hasMore, nextCursor]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -669,7 +736,7 @@ const FeedPage: React.FC = () => {
           loadMore();
         }
       },
-      { rootMargin: '400px' } // Pre-fetch 400px before visible
+      { root: document.querySelector('[data-site-scroll="true"]'), rootMargin: '400px' }
     );
 
     observer.observe(sentinel);
@@ -678,6 +745,7 @@ const FeedPage: React.FC = () => {
 
   useEffect(() => {
     fetchFeed();
+    return () => feedRequestRef.current?.abort();
   }, [fetchFeed]);
   
   // Subscribe to real-time new pulse events
@@ -699,7 +767,9 @@ const FeedPage: React.FC = () => {
     setHasMore(true);
     await fetchFeed(true);
     // Scroll to top smoothly
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector<HTMLElement>('[data-site-scroll="true"]')?.scrollTo({
+      top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
   }, [fetchFeed]);
 
   const trendingTags = useMemo(() => {
@@ -837,74 +907,82 @@ const FeedPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+      <PageHeader
+        eyebrow="Community"
+        title="Pulse"
+        description="Posts, polls and live updates from the people building on Veggat."
+        actions={<Badge variant="outline" className="shrink-0 text-muted-foreground">Experimental</Badge>}
+        className="mb-0 border-b-0 pb-4 pt-4"
+      />
       {/* ─── Flow Sub-navbar (sticky — stays while the feed scrolls) ───
            The page scrolls inside an inner overflow-auto container that begins
            below the app header, so we stick at top-0 of THAT container — not at
            var(--app-header-offset), which would push the bar a full header
            height too low and overlap the composer below it. */}
-      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-3 h-11 px-3 sm:px-6 lg:px-8">
+      <div data-pulse-toolbar className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 mb-5 border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="flex min-w-0 items-center gap-2 h-[60px] px-4 sm:gap-3 sm:px-6 lg:px-8">
           {/* Brand link - "Flow" goes to /pulse (shows all content) */}
           <Link
             href="/pulse"
-            onClick={() => {
-              changeFilter('all');
-              changeSort('recent');
-            }}
-            className="text-sm font-bold bg-linear-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent hover:from-emerald-400 hover:to-cyan-400 transition-all shrink-0 flex items-center gap-1.5"
+            onClick={clearFilters}
+            aria-label="All Pulse posts"
+            className="hidden min-h-11 shrink-0 items-center gap-1.5 rounded text-sm font-semibold text-brand-accent focus-visible:outline focus-visible:outline-2 sm:flex"
           >
-            <Zap className="h-4 w-4 text-emerald-500" />
-            Flow
+            <Zap className="h-4 w-4 text-brand-accent" />
+            All
           </Link>
           
-          <div className="h-4 w-px bg-border/60" />
+          <div className="hidden h-4 w-px bg-border/60 sm:block" />
           
           {/* Content Type Filters */}
-          <div className="flex items-center gap-1">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1 sm:flex sm:flex-none">
             <Button
               variant={filter === 'pulses' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('pulses')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'pulses'}
               title="Only regular pulses (no polls)"
             >
-              <PulseHeart className="h-4 w-4 mr-1" /> Pulse
+              <PulseHeart aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Pulse
             </Button>
             <Button
               variant={filter === 'polls' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('polls')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'polls'}
               title="Only polls and surveys"
             >
-              <FiBarChart2 className="h-4 w-4 mr-1" /> Polls
+              <FiBarChart2 aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Polls
             </Button>
             <Button
               variant={filter === 'trending' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => changeFilter('trending')}
-              className="h-8"
+              className="h-11 min-w-0 px-2 text-xs sm:px-3 sm:text-sm"
+              aria-pressed={filter === 'trending'}
               title="Trending content"
             >
-              <FiTrendingUp className="h-4 w-4 mr-1" /> Trending
+              <FiTrendingUp aria-hidden="true" className="mr-1 hidden h-4 w-4 sm:block" /> Trending
             </Button>
           </div>
 
-          <div className="h-4 w-px bg-border/60" />
+          <div className="hidden h-4 w-px bg-border/60 sm:block" />
           
           {/* Filters dropdown with sort and additional options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
-                <FiFilter className="h-4 w-4" />
+              <Button variant="ghost" size="sm" aria-label="Feed filters" className="h-11 w-11 shrink-0 gap-1.5 p-0 sm:w-auto sm:px-3">
+                <FiFilter aria-hidden="true" className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
                 {sortBy !== 'recent' && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  <Badge variant="secondary" className="ml-1 hidden h-5 px-1.5 text-xs xl:inline-flex">
                     {SORT_OPTIONS.find(s => s.value === sortBy)?.label}
                   </Badge>
                 )}
-                <FiChevronDown className="h-3 w-3" />
+                <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
@@ -974,11 +1052,7 @@ const FeedPage: React.FC = () => {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => {
-                      changeFilter('all');
-                      changeSort('recent');
-                      setTagFilter(null);
-                    }}
+                    onClick={clearFilters}
                     className="text-muted-foreground cursor-pointer"
                   >
                     <FiX className="h-4 w-4 mr-2" />
@@ -990,13 +1064,13 @@ const FeedPage: React.FC = () => {
           </DropdownMenu>
 
           {/* Active filter badges */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="ml-auto hidden min-w-0 items-center gap-2 xl:flex">
             {filter !== 'all' && (
               <Badge variant="outline" className="flex items-center gap-1 text-xs">
                 {filter === 'pulses' && <><PulseHeart className="h-3 w-3" /> Pulses</>}
                 {filter === 'polls' && <><FiBarChart2 className="h-3 w-3" /> Polls</>}
                 {filter === 'trending' && <><FiTrendingUp className="h-3 w-3" /> Trending</>}
-                <button onClick={() => changeFilter('all')} className="ml-1 hover:text-destructive">
+                <button aria-label="Clear content filter" onClick={() => changeFilter('all')} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
                   <FiX className="h-3 w-3" />
                 </button>
               </Badge>
@@ -1005,15 +1079,7 @@ const FeedPage: React.FC = () => {
               <Badge variant="outline" className="flex items-center gap-1 text-xs">
                 {SORT_OPTIONS.find(s => s.value === sortBy)?.icon}
                 <span className="ml-1">{SORT_OPTIONS.find(s => s.value === sortBy)?.label}</span>
-                <button onClick={() => changeSort('recent')} className="ml-1 hover:text-destructive">
-                  <FiX className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-            {tagFilter && (
-              <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                #{tagFilter}
-                <button onClick={() => setTagFilter(null)} className="ml-1 hover:text-destructive">
+                <button aria-label="Reset sorting" onClick={() => changeSort('recent')} className="ml-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded hover:text-destructive">
                   <FiX className="h-3 w-3" />
                 </button>
               </Badge>
@@ -1021,6 +1087,16 @@ const FeedPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {tagFilter && (
+        <div className="mb-4 flex min-w-0 items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tag</span>
+          <button type="button" aria-label="Clear tag filter" onClick={() => changeTag(null)}
+            className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border border-border bg-foreground/[0.05] px-3 text-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            <span className="truncate">#{tagFilter}</span><FiX aria-hidden="true" className="h-4 w-4 shrink-0" />
+          </button>
+        </div>
+      )}
 
       {/* New pulses banner */}
       <AnimatePresence>
@@ -1034,7 +1110,7 @@ const FeedPage: React.FC = () => {
             <Button
               onClick={loadNewPulses}
               disabled={isLoadingNew}
-              className="rounded-full shadow-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 flex items-center gap-2"
+              className="rounded-full shadow-lg bg-brand-accent hover:bg-brand-accent-hover text-brand-accent-foreground px-4 py-2 flex items-center gap-2"
             >
               {isLoadingNew ? (
                 <FiRefreshCw className="h-4 w-4 animate-spin" />
@@ -1052,22 +1128,22 @@ const FeedPage: React.FC = () => {
         <div className="min-w-0 space-y-4">
           {/* Compose Box - changes based on filter */}
           {!currentUser && (
-            <div
-              onClick={() => router.push('/auth/login')}
-              className="group rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
+            <Link
+              href="/auth/login"
+              className="group block rounded-2xl border border-border/50 bg-card/70 dark:bg-surface-3/70 backdrop-blur-xl p-4 cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-brand-accent/50 hover:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.08)]"
             >
               <div className="flex gap-3 items-center">
                 <div className="h-10 w-10 shrink-0 rounded-full bg-brand-accent/10 text-brand-accent flex items-center justify-center transition-colors group-hover:bg-brand-accent/15">
                   <FiMessageCircle className="h-5 w-5" />
                 </div>
-                <div className="flex-1 py-2.5 px-4 rounded-full bg-muted/60 text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
+                <div className="flex-1 py-2.5 px-4 rounded-full bg-foreground/[0.07] text-muted-foreground text-sm transition-colors group-hover:text-foreground/80">
                   Sign in to pulse your thoughts…
                 </div>
               </div>
-            </div>
+            </Link>
           )}
           {currentUser && (
-            <div className="rounded-[22px] border border-black/8 dark:border-white/10 bg-card/80 dark:bg-zinc-900/70 backdrop-blur-xl shadow-sm transition-all duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
+            <div className="rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -1102,7 +1178,7 @@ const FeedPage: React.FC = () => {
                               value={composeText}
                               onChange={(e) => setComposeText(e.target.value)}
                               placeholder="Add a message with your advanced poll (optional)..."
-                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-muted-foreground/80"
                               rows={1}
                             />
                           </div>
@@ -1156,7 +1232,7 @@ const FeedPage: React.FC = () => {
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           onClick={() => setIncludePoll(true)}
-                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-sm"
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition hover:border-primary/30 hover:bg-primary/[0.03] hover:shadow-sm"
                         >
                           <div className="rounded-lg bg-blue-500/10 p-2 transition-colors group-hover:bg-blue-500/15">
                             <FiBarChart2 className="h-5 w-5 text-blue-500" />
@@ -1166,7 +1242,7 @@ const FeedPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => setShowPollBuilder(true)}
-                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-amber-500/30 hover:bg-amber-500/[0.03] hover:shadow-sm"
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition hover:border-amber-500/30 hover:bg-amber-500/[0.03] hover:shadow-sm"
                         >
                           <div className="rounded-lg bg-amber-500/10 p-2 transition-colors group-hover:bg-amber-500/15">
                             <Zap className="h-5 w-5 text-amber-500" />
@@ -1176,7 +1252,7 @@ const FeedPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => { setShowPollBuilder(true); setAiGenerateOpen(true); }}
-                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition-all hover:border-violet-500/30 hover:bg-violet-500/[0.03] hover:shadow-sm"
+                          className="group relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-4 text-center transition hover:border-violet-500/30 hover:bg-violet-500/[0.03] hover:shadow-sm"
                         >
                           <div className="rounded-lg bg-violet-500/10 p-2 transition-colors group-hover:bg-violet-500/15">
                             <Sparkles className="h-5 w-5 text-violet-500" />
@@ -1211,12 +1287,12 @@ const FeedPage: React.FC = () => {
                               value={composeText}
                               onChange={(e) => setComposeText(e.target.value)}
                               placeholder="Add a message with your poll (optional)..."
-                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                              className="min-h-[50px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 text-base placeholder:text-muted-foreground/80"
                               rows={1}
                             />
                           </div>
                         </div>
-                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                        <div className="space-y-2 p-3 rounded-lg border bg-foreground/[0.04]">
                           <Input
                             value={pollQuestion}
                             onChange={(e) => setPollQuestion(e.target.value)}
@@ -1271,20 +1347,25 @@ const FeedPage: React.FC = () => {
                 </div>
               ) : (
                 // Regular compose
-                <div className="px-4 pt-4 pb-2.5 space-y-2.5">
+                <div className="space-y-2.5 px-4 pb-2.5 pt-3.5">
+                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <span>New pulse</span>
+                    {composeText.length > 0 && <span className="tabular-nums normal-case tracking-normal">{composeText.length} characters</span>}
+                  </div>
                   {/* User avatar + textarea */}
                   <div className="flex gap-3">
-                    <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                    <Avatar className="mt-0.5 size-9 shrink-0 ring-1 ring-border/60">
                       <AvatarImage src={currentUser.image || undefined} />
                       <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0 space-y-2">
                       <Textarea
                         ref={textareaRef}
+                        aria-label="Write a Pulse"
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
-                        placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
-                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-[15px] leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                        placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "What’s happening on your side of Veggat?"}
+                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-base leading-relaxed placeholder:text-muted-foreground/80"
                         rows={1}
                       />
 
@@ -1293,7 +1374,7 @@ const FeedPage: React.FC = () => {
                         <p className="text-sm text-muted-foreground italic flex items-center gap-1.5">
                           <span className={cn(
                             "inline-block h-1.5 w-1.5 rounded-full animate-pulse",
-                            dictation.transcribing ? "bg-emerald-400" : "bg-red-500",
+                            dictation.transcribing ? "bg-brand-accent-light" : "bg-red-500",
                           )} />
                           {dictation.interim || (dictation.transcribing ? `Transcribing ${selectedPulseMicLabel}...` : `Listening on ${selectedPulseMicLabel}...`)}
                         </p>
@@ -1304,7 +1385,7 @@ const FeedPage: React.FC = () => {
 
                       {/* Poll input (if enabled) */}
                       {includePoll && (
-                        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+                        <div className="space-y-2 p-3 rounded-lg border bg-foreground/[0.04]">
                           <Input
                             value={pollQuestion}
                             onChange={(e) => setPollQuestion(e.target.value)}
@@ -1386,7 +1467,7 @@ const FeedPage: React.FC = () => {
                         {tags.map(tag => (
                           <Badge key={tag} variant="secondary" className="text-xs">
                             #{tag}
-                            <button onClick={() => removeTag(tag)} className="ml-1">
+                            <button aria-label={`Remove ${tag} tag`} onClick={() => removeTag(tag)} className="ml-1 inline-flex size-6 items-center justify-center rounded">
                               <FiX className="h-3 w-3" />
                             </button>
                           </Badge>
@@ -1398,10 +1479,11 @@ const FeedPage: React.FC = () => {
                       <div className="flex gap-2">
                         <Input
                           value={tagInput}
+                          aria-label="New Pulse tag"
                           onChange={(e) => setTagInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                           placeholder="Add tag..."
-                          className="flex-1 h-8 text-sm"
+                          className="min-w-0 flex-1 text-base"
                         />
                         <Button type="button" size="sm" variant="ghost" onClick={addTag}>
                           Add
@@ -1414,8 +1496,8 @@ const FeedPage: React.FC = () => {
                 {/* Action bar — ghost icon controls, matching the chat composer.
                     Divider is inset to line up under the textarea (not the avatar),
                     so the seam reads intentional rather than floating. */}
-                <div className="flex items-center justify-between gap-2 ml-12 border-t border-black/5 dark:border-white/8 pt-2 mt-0.5">
-                  <div className="flex items-center gap-0.5">
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 sm:ml-12">
+                  <HoverChaser className="flex items-center gap-0.5" boxClassName="rounded-full">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1423,15 +1505,17 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          data-chase
                           className={cn(
-                            'h-9 rounded-full gap-1 px-2.5 transition-colors',
+                            'h-11 w-11 rounded-full gap-1 p-0 transition-colors sm:w-auto sm:px-2.5',
                             includePoll
-                              ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-                              : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                              ? 'text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10'
+                              : 'text-muted-foreground hover:bg-foreground/[0.06]',
                           )}
                         >
-                          <FiBarChart2 className="h-4 w-4" />
-                          <FiChevronDown className="h-3 w-3" />
+                          <span className="sr-only">Poll options</span>
+                          <FiBarChart2 aria-hidden="true" className="h-4 w-4" />
+                          <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72 p-1.5 rounded-2xl">
@@ -1442,20 +1526,20 @@ const FeedPage: React.FC = () => {
                           onClick={() => setIncludePoll(!includePoll)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <FiBarChart2 className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium">Quick Poll</div>
                             <div className="text-xs text-muted-foreground truncate">Yes/no or multiple choice</div>
                           </div>
-                          {includePoll && <span className="text-sky-500 dark:text-emerald-400 shrink-0">✓</span>}
+                          {includePoll && <span className="text-brand-accent shrink-0">✓</span>}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setShowPollBuilder(true)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <Zap className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1467,7 +1551,7 @@ const FeedPage: React.FC = () => {
                           onClick={() => { setShowPollBuilder(true); setAiGenerateOpen(true); }}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-sky-500/10 dark:bg-emerald-400/10 text-sky-600 dark:text-emerald-400">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light">
                             <Sparkles className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1479,7 +1563,7 @@ const FeedPage: React.FC = () => {
                           onClick={() => setShowPollImport(true)}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <FileUp className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1516,7 +1600,7 @@ const FeedPage: React.FC = () => {
                           }}
                           className="flex items-center gap-3 rounded-xl px-2 py-2 cursor-pointer"
                         >
-                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-black/5 dark:bg-white/8 text-muted-foreground">
+                          <span className="grid place-items-center h-8 w-8 shrink-0 rounded-lg bg-foreground/[0.06] text-muted-foreground">
                             <Copy className="h-4 w-4" />
                           </span>
                           <div className="flex-1 min-w-0">
@@ -1531,11 +1615,14 @@ const FeedPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowTagInput(!showTagInput)}
+                      data-chase
+                      aria-label="Add tags"
+                      aria-expanded={showTagInput}
                       className={cn(
-                        'grid place-items-center h-9 w-9 rounded-full transition-colors',
+                        'grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                         showTagInput
-                          ? 'text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-                          : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                          ? 'text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10'
+                          : 'text-muted-foreground hover:bg-foreground/[0.06]',
                       )}
                     >
                       <FiHash className="h-4 w-4" />
@@ -1548,10 +1635,12 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-9 rounded-full gap-1 px-2.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
+                          data-chase
+                          aria-label="Post visibility and replies"
+                          className="h-11 w-11 rounded-full gap-1 p-0 text-muted-foreground hover:bg-foreground/[0.05] sm:w-auto sm:px-2.5"
                         >
                           {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon}
-                          <FiChevronDown className="h-3 w-3" />
+                          <FiChevronDown aria-hidden="true" className="hidden h-3 w-3 sm:block" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-64">
@@ -1620,14 +1709,15 @@ const FeedPage: React.FC = () => {
                             dictation.stop();
                           }
                         }}
+                        data-chase
                         aria-pressed={dictation.listening}
                         aria-label={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
                         title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type. Right-click to choose microphone.'}
                         className={cn(
-                          'relative grid place-items-center h-9 w-9 rounded-full transition-colors',
+                          'relative grid place-items-center h-11 w-11 rounded-full p-0 transition-colors',
                           dictation.listening
                             ? 'text-red-500 bg-red-500/10'
-                            : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10',
+                            : 'text-muted-foreground hover:bg-foreground/[0.06]',
                         )}
                       >
                         <FiMic className="h-4 w-4" />
@@ -1636,7 +1726,7 @@ const FeedPage: React.FC = () => {
                         )}
                       </Button>
                     )}
-                  </div>
+                  </HoverChaser>
 
                   <AnimatePresence>
                     {micMenu && (
@@ -1645,16 +1735,16 @@ const FeedPage: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 6, scale: 0.98 }}
                         transition={{ duration: 0.14 }}
-                        className="fixed z-50 w-72 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl"
+                        className="fixed z-50 w-72 overflow-hidden rounded-xl border border-border bg-surface-1/95 shadow-2xl shadow-black/40 backdrop-blur-xl"
                         style={{
                           left: Math.min(micMenu.x, window.innerWidth - 300),
                           top: Math.min(micMenu.y, window.innerHeight - 260),
                         }}
                         onPointerDown={(event) => event.stopPropagation()}
                       >
-                        <div className="border-b border-white/10 px-3 py-2">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Pulse microphone</p>
-                          <p className="mt-0.5 truncate text-xs text-zinc-300">{selectedPulseMicLabel}</p>
+                        <div className="border-b border-border px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Pulse microphone</p>
+                          <p className="mt-0.5 truncate text-xs text-foreground/80">{selectedPulseMicLabel}</p>
                         </div>
                         <button
                           type="button"
@@ -1663,8 +1753,8 @@ const FeedPage: React.FC = () => {
                             setMicMenu(null);
                           }}
                           className={cn(
-                            "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/10",
-                            !voicePrefs.micDeviceId ? "text-emerald-300" : "text-zinc-100",
+                            "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-foreground/[0.05]",
+                            !voicePrefs.micDeviceId ? "text-brand-accent-light" : "text-foreground",
                           )}
                         >
                           <span>System default mic</span>
@@ -1680,8 +1770,8 @@ const FeedPage: React.FC = () => {
                                 setMicMenu(null);
                               }}
                               className={cn(
-                                "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/10",
-                                voicePrefs.micDeviceId === device.deviceId ? "text-emerald-300" : "text-zinc-100",
+                                "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-foreground/[0.05]",
+                                voicePrefs.micDeviceId === device.deviceId ? "text-brand-accent-light" : "text-foreground",
                               )}
                             >
                               <span className="min-w-0 truncate">{device.label || `Microphone ${index + 1}`}</span>
@@ -1689,7 +1779,7 @@ const FeedPage: React.FC = () => {
                             </button>
                           ))}
                           {!pulseMics.length && (
-                            <p className="px-3 py-3 text-xs leading-relaxed text-zinc-400">
+                            <p className="px-3 py-3 text-xs leading-relaxed text-muted-foreground">
                               Allow microphone access once to reveal device names.
                             </p>
                           )}
@@ -1697,7 +1787,7 @@ const FeedPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => void loadPulseMics()}
-                          className="flex w-full items-center justify-center gap-2 border-t border-white/10 px-3 py-2.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10"
+                          className="flex w-full items-center justify-center gap-2 border-t border-border px-3 py-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.05]"
                         >
                           <FiRefreshCw className="h-3.5 w-3.5" />
                           Refresh devices
@@ -1718,10 +1808,10 @@ const FeedPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
                     {/* Show current settings as badges if not default */}
                     {(visibility !== 'PUBLIC' || replyPermission !== 'EVERYONE') && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground">
                         {visibility !== 'PUBLIC' && (
                           <Badge variant="outline" className="text-xs py-0">
                             {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
@@ -1739,7 +1829,8 @@ const FeedPage: React.FC = () => {
                       onClick={handlePost}
                       disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
                       size="sm"
-                      className="rounded-full px-5 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 transition-all active:scale-[0.97] disabled:opacity-40"
+                      variant="vegaEmeraldBtn"
+                      className="h-10 rounded-full px-4 disabled:opacity-40"
                     >
                       {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>
@@ -1750,10 +1841,23 @@ const FeedPage: React.FC = () => {
             </div>
           )}
 
+          {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl lg:hidden">
+            <summary className="min-h-11 cursor-pointer rounded-2xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">Find people</summary>
+            <div className="[&_section]:border-0 [&_section]:bg-transparent [&_section]:pt-1 [&_h2]:sr-only"><DiscoverPeople /></div>
+          </details>}
+
           {/* Feed - unified feed for all content types */}
-          <div className="space-y-3">
+          <div role="feed" aria-label="Pulse feed" aria-busy={loading}
+            data-feed-footer-pending={loading || hasMore || isFetchingMore || !!feedError} className="space-y-3">
             {loading ? (
               <FeedSkeleton count={5} />
+            ) : items.length === 0 && (feedError || hasMore) ? (
+              !feedError && <div className="rounded-xl border border-border p-6 text-center">
+                <p className="mb-4 text-sm text-muted-foreground">No matching posts in this batch. There are more posts to check.</p>
+                <Button variant="outline" className="min-h-11" disabled={isFetchingMore} onClick={loadMore}>
+                  {isFetchingMore ? 'Loading more posts…' : 'Check more posts'}
+                </Button>
+              </div>
             ) : items.length === 0 ? (
               <div className="text-center py-12">
                 {filter === 'polls' ? (
@@ -1786,7 +1890,7 @@ const FeedPage: React.FC = () => {
                   <FeedCard
                     key={item.id}
                     item={item}
-                    onTagClick={(tag) => setTagFilter(tag)}
+                    onTagClick={changeTag}
                     onClick={() => openPulse(item.id)}
                     onRefresh={fetchFeed}
                     onOpenPoll={openPoll}
@@ -1794,10 +1898,10 @@ const FeedPage: React.FC = () => {
                 ))}
 
                 {/* Infinite scroll sentinel */}
-                <div ref={loadMoreRef} className="h-1" />
+                {hasMore && !feedError && <div ref={loadMoreRef} className="h-1" />}
                 {isFetchingMore && (
-                  <div className="flex justify-center py-6">
-                    <Spinner />
+                  <div role="status" className="flex items-center justify-center gap-3 py-6 text-sm text-muted-foreground">
+                    <Spinner /><span>Loading more posts…</span>
                   </div>
                 )}
                 {!hasMore && items.length > 0 && (
@@ -1806,6 +1910,13 @@ const FeedPage: React.FC = () => {
                   </p>
                 )}
               </>
+            )}
+            {feedError && !loading && (
+              <div role="alert" className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-center">
+                <p className="mb-3 text-sm text-muted-foreground">{feedError}</p>
+                <Button variant="outline" className="min-h-11"
+                  onClick={() => fetchFeed(false, nextCursor || undefined)}>Retry loading posts</Button>
+              </div>
             )}
           </div>
 
@@ -1976,6 +2087,7 @@ const FeedPage: React.FC = () => {
 
           {/* Poll Taker Modal - for taking advanced polls */}
           {/* Use ReachPollV3 for REACH Assessment polls (interactive drag/drop experience), regular modal for others */}
+          {selectedAdvancedPollId && <Suspense fallback={<PollDialogLoading title="Loading poll…" onClose={closePoll} />}>
           {isReachAuditPoll ? (
             <ReachPollV3
               key={selectedAdvancedPollId ?? 'reach-none'}
@@ -2037,9 +2149,10 @@ const FeedPage: React.FC = () => {
               }}
             />
           )}
+          </Suspense>}
 
           {/* Poll Import Modal */}
-          <PollImportModal
+          {showPollImport && <Suspense fallback={<PollDialogLoading title="Loading poll import…" onClose={() => setShowPollImport(false)} />}><PollImportModal
             open={showPollImport}
             onOpenChange={setShowPollImport}
             onImport={async (importedPoll) => {
@@ -2103,14 +2216,14 @@ const FeedPage: React.FC = () => {
                 });
               }
             }}
-          />
+          /></Suspense>}
         </div>
 
         {/* Explore sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-4 space-y-4">
+        <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
+          <div data-pulse-explore-scroll tabIndex={0} aria-label="Explore Pulse panels" className="sticky top-[76px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-92px)] space-y-4 overflow-y-auto overscroll-contain rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -2122,38 +2235,41 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <div className="font-semibold">Trending tags</div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold"><FiHash aria-hidden="true" className="size-4 text-brand-accent" />Trending tags</h3>
                 {tagFilter && (
-                  <Button size="sm" variant="ghost" onClick={() => setTagFilter(null)}>
+                  <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => changeTag(null)}>
                     Clear
                   </Button>
                 )}
               </div>
               {trendingTags.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No tags yet.</p>
+                <p className="mt-3 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground">No tags yet. Add #tags to a pulse and the most used ones land here.</p>
               ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <HoverChaser className="mt-3 flex flex-wrap gap-1.5" boxClassName="rounded-full">
                   {trendingTags.map(({ tag, count }) => (
                     <button
                       key={tag}
-                      onClick={() => setTagFilter(tag)}
-                      className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-sm text-foreground/90 transition hover:bg-background/50"
+                      type="button"
+                      data-chase
+                      aria-pressed={tagFilter === tag}
+                      onClick={() => changeTag(tag)}
+                      className={cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', tagFilter === tag ? 'border-brand-accent/60 bg-brand-accent/10 text-foreground' : 'border-border/60 bg-background/30 text-foreground/90')}
                     >
-                      <span className="font-medium">#{tag}</span>
-                      <span className="text-xs text-muted-foreground">{count}</span>
+                      <span>#{tag}</span>
+                      <span className="tabular-nums text-muted-foreground">{count}</span>
                     </button>
                   ))}
-                </div>
+                </HoverChaser>
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-zinc-100/80 dark:bg-card/20 p-4 transition-colors hover:bg-zinc-200/80 dark:hover:bg-card/30">
-              <div className="font-semibold">Top heartbeats</div>
-              <div className="mt-3 space-y-2">
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
+              <h3 className="flex items-center gap-2 text-sm font-semibold"><PulseHeart aria-hidden="true" className="size-4 text-brand-accent" />Top heartbeats</h3>
+              <HoverChaser className="mt-3 space-y-1" boxClassName="rounded-xl">
                 {topPosts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nothing yet.</p>
+                  <p className="rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground">Nothing yet. The most viewed pulses of the moment land here.</p>
                 ) : (
                   topPosts.map((post) => {
                     const headline =
@@ -2166,7 +2282,8 @@ const FeedPage: React.FC = () => {
                     return (
                       <div
                         key={post.id}
-                        className="w-full rounded-xl border border-border/50 bg-background/20 px-3 py-2 text-left transition hover:bg-background/40"
+                        data-chase
+                        className="w-full rounded-xl px-3 py-2 text-left"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -2191,7 +2308,7 @@ const FeedPage: React.FC = () => {
                               {headline}
                             </button>
                           </div>
-                          <div className="shrink-0 text-xs text-muted-foreground">
+                          <div className="shrink-0 text-xs tabular-nums text-muted-foreground">
                             {(post.viewCount || 0) > 0 ? `${post.viewCount} views` : `${post.messageCount} msgs`}
                           </div>
                         </div>
@@ -2199,7 +2316,7 @@ const FeedPage: React.FC = () => {
                     );
                   })
                 )}
-              </div>
+              </HoverChaser>
             </div>
 
             {/* Discover People - Find and follow users */}
@@ -2280,6 +2397,10 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
   });
 
   // Real-time heartbeat updates from other users
+  usePusher(`ConversationChannel_${item.id}`, 'conversation-updated', onRefresh);
+
+  useEffect(() => { setLocalMessageCount(item.messageCount || 0); }, [item.messageCount]);
+
   usePusher<{ conversationId: string; positivePulseCount: number; negativePulseCount: number }>(
     `ConversationChannel_${item.id}`,
     'pulse-stats-update',
@@ -2688,6 +2809,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
   // Handle click - ignore if user is selecting text
   const handleCardClick = (e: React.MouseEvent) => {
+    // Links and controls keep their native action; they must not also open the card.
+    if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('a, button, input, textarea, select, [contenteditable="true"]'))) return;
     // Check if user has selected any text
     const selection = window.getSelection();
     if (selection && selection.toString().trim().length > 0) {
@@ -2701,7 +2824,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
     <article
       ref={viewTrackingRef}
       className={cn(
-        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 backdrop-blur-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:shadow-md hover:-translate-y-px",
+        "group relative cursor-pointer rounded-2xl border p-4 sm:p-5 transition-[border-color,box-shadow,background-color] duration-200 hover:shadow-md motion-reduce:transition-none",
         isPinnedToFeed
           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/30"
           : "border-border/50 bg-card/60 dark:bg-card/40 hover:border-brand-accent/30 hover:bg-card/80 dark:hover:bg-card/60"
@@ -2724,8 +2847,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           side="right"
           align="start"
         >
-          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
-            <AvatarImage src={item.user?.image || undefined} />
+          <Avatar className="h-10 w-10 shrink-0 ring-2 ring-transparent hover:ring-primary/30 transition-shadow motion-reduce:transition-none">
+            <AvatarImage src={item.user?.image || undefined} alt={`${item.user?.name || 'Anonymous'} profile`} />
             <AvatarFallback>{item.user?.name?.[0] || '?'}</AvatarFallback>
           </Avatar>
         </UserHoverCard>
@@ -2757,8 +2880,8 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
             <div className="ml-auto flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <FiChevronDown className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Pulse options for ${item.user?.name || 'Anonymous'}`}>
+                    <FiChevronDown className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -3017,14 +3140,9 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 
           {/* Quote embed */}
           {isQuote && item.repostOfConversation && (
-            <div
-              className="mt-2 rounded-xl border border-border/60 bg-background/30 p-3 text-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.location.href = `/conversations/${item.repostOfConversation?.id}`;
-              }}
-              role="button"
-              tabIndex={0}
+            <Link
+              href={`/conversations/${item.repostOfConversation.id}`}
+              className="mt-2 block rounded-xl border border-border/60 bg-background/30 p-3 text-sm hover:border-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -3039,12 +3157,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 </div>
                 <div className="shrink-0 text-xs text-muted-foreground">Open</div>
               </div>
-            </div>
+            </Link>
           )}
 
           {/* ─── Content Warning Overlay (for flagged content) ──────── */}
           {hasContentWarning && !showFlaggedContent ? (
-            <div className="relative mt-3 rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+            <div className="relative mt-3 rounded-2xl overflow-hidden border border-border/50 bg-foreground/[0.05]">
               {/* Blurred content behind — with guaranteed min height */}
               <div className="blur-md pointer-events-none select-none opacity-20 min-h-[100px] overflow-hidden px-4 py-3" aria-hidden="true">
                 {rawPreviewText && (
@@ -3068,7 +3186,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   ))}
                 </div>
                 <button
-                  className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-white/60 ring-1 ring-inset ring-white/10 hover:ring-white/20 hover:text-white/80 hover:bg-white/[0.04] transition-all duration-200"
+                  className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-foreground/60 ring-1 ring-inset ring-border hover:ring-border hover:text-foreground/80 hover:bg-foreground/[0.05] transition duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowFlaggedContent(true);
@@ -3126,7 +3244,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                   {item.advancedPoll ? (
                     // Advanced Poll - clickable card opens poll directly
                     <button
-                      className="w-full p-4 rounded-xl border border-primary/30 bg-linear-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition-all text-left group"
+                      className="w-full p-4 rounded-xl border border-primary/30 bg-linear-to-br from-primary/5 to-primary/10 hover:border-primary/50 hover:from-primary/10 hover:to-primary/20 transition text-left group"
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenPoll?.(item.advancedPoll!.id);
@@ -3175,14 +3293,15 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
           {item.tags && item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {item.tags.map(tag => (
-                <Badge
+                <button
                   key={tag}
-                  variant="secondary"
-                  className="text-xs cursor-pointer hover:bg-primary/20"
+                  type="button"
+                  aria-label={`Filter by #${tag}`}
+                  className={cn(badgeVariants({ variant: 'secondary' }), 'min-h-11 min-w-11 hover:bg-primary/20')}
                   onClick={(e) => { e.stopPropagation(); onTagClick(tag); }}
                 >
                   #{tag}
-                </Badge>
+                </button>
               ))}
             </div>
           )}
@@ -3195,9 +3314,13 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    disabled={!currentUser || isPulsing}
+                    aria-label={`Heartbeat pulse by ${item.user?.name || 'Anonymous'}`}
+                    aria-pressed={localPulse === 'POSITIVE'}
+                    aria-busy={isPulsing}
+                    aria-disabled={!currentUser || isPulsing}
+                    disabled={!currentUser}
                     onClick={() => void handlePulse('POSITIVE')}
-                    className={`group/act -ml-1.5 flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 ${
+                    className={`group/act -ml-1.5 flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
                       localPulse === 'POSITIVE' ? 'text-red-500' : ''
                     } ${!currentUser ? 'opacity-60' : ''}`}
                   >
@@ -3216,10 +3339,12 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`group/act flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-sky-500/10 hover:text-sky-500 ${!currentUser ? 'opacity-60' : ''}`}>
+                  <Link href={`/pulse/${item.id}`} scroll={false} data-pulse-open={item.id}
+                    aria-label={`Open pulse by ${item.user?.name || 'Anonymous'}`}
+                    className="group/act inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-brand-accent/10 hover:text-brand-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                     <FiMessageCircle className="h-4 w-4 transition-transform duration-200 group-hover/act:scale-110" />
                     {replyCount}
-                  </span>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {!currentUser ? 'Sign in to comment' : replyCount === 1 ? '1 vibe' : `${replyCount} vibes`}
@@ -3241,7 +3366,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
               {(localViewCount > 0 || (item.uniqueViewCount !== undefined && item.uniqueViewCount > 0)) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-muted/60">
+                    <span className="flex items-center gap-1.5 rounded-full px-1.5 py-1 cursor-default transition-colors hover:bg-foreground/[0.07]">
                       <FiEye className="h-4 w-4" />
                       {Math.max(localViewCount, item.uniqueViewCount || 0)}
                     </span>
@@ -3417,7 +3542,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ item, onTagClick, onClick, onRefres
 // Wrap with Suspense for useSearchParams
 function FeedPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex justify-center py-12"><Spinner /></div>}>
+    <Suspense fallback={<PulseLoading />}>
       <FeedPage />
     </Suspense>
   );

@@ -32,6 +32,7 @@ import { AddressInput, type AddressData } from '../../../uicustom/address-input'
 import { CryptoTokenSelector, type AcceptedTokenEntry } from './crypto-token-selector';
 import EvmWalletVerify from '@/components/crypto-related/EvmWalletVerify';
 import { createLogger } from '@/lib/logger';
+import { listingPriceInputValue, parseListingPriceInput } from '@/lib/listing-price';
 
 const log = createLogger('ProductForm');
 
@@ -72,11 +73,12 @@ const shortAddress = (address?: string | null) => {
 
 const productCreationErrorMessage = (error: unknown) => {
   const raw = error instanceof Error ? error.message : String(error ?? '');
-  if (!raw) return 'Failed to create product.';
   if (/not allowed/i.test(raw) && /accepted types/i.test(raw)) {
-    return `Digital file upload blocked: ${raw.replace(/^EdgeStoreApiClientError:\s*/i, '')}`;
+    return 'This file type is not supported. Choose one of the listed formats and try again.';
   }
-  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+  if (/upload.*context|upload session/i.test(raw)) return 'Your upload session changed. Please try again; your draft is kept.';
+  // Provider errors may contain signed URLs or other internal details.
+  return 'We could not finish publishing. Your draft is kept; please try again.';
 };
 
 type RepoAccessMode = 'COLLABORATOR' | 'TEAM';
@@ -171,7 +173,7 @@ export const MyProductCreationForm = () => {
   
   // General States
   const { user: clientUser, status: sessionStatus, isLoading: isSessionLoading } = useCurrentUserWithStatus();
-  const { edgestore } = useEdgeStore();
+  const { edgestore, reset: resetStorage, state: storageState } = useEdgeStore();
   const [uId, setUId] = useState<string | undefined>(clientUser?.id); // role admin to modify input value
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -234,7 +236,7 @@ export const MyProductCreationForm = () => {
   const [prefilledCompanyContext, setPrefilledCompanyContext] = useState<ProductCompanyContext | null>(null);
   const [isPrefilledCompanyLoading, setIsPrefilledCompanyLoading] = useState(false);
   const [canManageCompanyWarehouse, setCanManageCompanyWarehouse] = useState(false);
-  const [availableFiatMethods, setAvailableFiatMethods] = useState<Array<{ type: string; displayName: string; icon: string }>>([]);
+  const [reviewerCheckoutStatus, setReviewerCheckoutStatus] = useState('');
   const [isPaymentMethodsLoading, setIsPaymentMethodsLoading] = useState(false);
   const companiesFetched = useRef(false);
   
@@ -255,17 +257,13 @@ export const MyProductCreationForm = () => {
   // we only toggle which step's panel is visible. Navigation is free — users can
   // jump to any step — and validation is soft until the final Publish.
   const [activeStep, setActiveStep] = useState<number>(0);
+  const stepPanelsRef = useRef<HTMLDivElement>(null);
+  const reviewIssuesRef = useRef<HTMLDivElement>(null);
+  const stepFocusPending = useRef(false);
 
-  // ── Price display unit ────────────────────────────────────────────────────
-  // The Currency dropdown lets sellers express the price in a fiat OR a crypto
-  // unit (incl. a custom token). The stored `priceCurrency` always stays a valid
-  // fiat so cart/checkout USD-conversion keeps working today; the chosen crypto
-  // unit is captured here as a display preference until the crypto-pricing
-  // pipeline is wired end-to-end. `__CRYPTO__` / `__CUSTOM__` are UI-only values.
-  const [priceUnit, setPriceUnit] = useState<string>('USD');
-  const [customPriceToken, setCustomPriceToken] = useState({ symbol: '', chain: 'EVM', address: '' });
-  const CRYPTO_PRICE_UNITS = ['ETH', 'USDC', 'HEX', 'PLS', 'SOL'] as const;
-  const isCryptoPriceUnit = (CRYPTO_PRICE_UNITS as readonly string[]).includes(priceUnit) || priceUnit === '__CUSTOM__';
+  // Currency has one source of truth: the stored form field. The price buffer
+  // keeps intermediate decimals ("12.") while the form receives a number.
+  const [priceInput, setPriceInput] = useState('0');
   const form = useForm<z.infer<typeof MyProductCreateSchema>>({
     resolver: zodResolver(MyProductCreateSchema),
     mode: 'onChange',
@@ -295,7 +293,11 @@ export const MyProductCreationForm = () => {
   });
 
   const priceCurrency = form.watch('priceCurrency');
-  const priceCurrencyMeta = FIAT_CURRENCY_META[(priceCurrency ?? 'USD') as FiatCurrencyType];
+  const priceCurrencyMeta = FIAT_CURRENCY_META[priceCurrency] ?? FIAT_CURRENCY_META.USD;
+  const numericPrice = form.watch('price');
+  useEffect(() => {
+    setPriceInput(current => Object.is(parseListingPriceInput(current), numericPrice) ? current : listingPriceInputValue(numericPrice));
+  }, [numericPrice]);
 
   const sourceParam = searchParams.get('source') ?? '';
   const prefilledCompanyId = (searchParams.get('companyId') ?? '').trim();
@@ -308,7 +310,6 @@ export const MyProductCreationForm = () => {
     !isPrefilledCompanyLoading &&
     warehouseLocations.length === 0;
   const isDigitalOnlyLiteMode = isWarehouseMissingForSelectedCompany;
-  const isTestModeEnabled = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
   const hasEvmTokens = acceptedTokens.some((token) => token.family === 'EVM');
   const hasSolanaTokens = acceptedTokens.some((token) => token.family === 'SOLANA');
   const verifiedEvmWallets = useMemo(
@@ -397,7 +398,7 @@ export const MyProductCreationForm = () => {
 
   // ── Fetch seller payment info (wallets + PayPal status) ─────────────────
   useEffect(() => {
-    if (!clientUser?.id) return;
+    if (!clientUser?.id || clientUser.isDemo) return;
     let cancelled = false;
     (async () => {
       try {
@@ -572,14 +573,13 @@ export const MyProductCreationForm = () => {
       .then((response) => (response.ok ? response.json() : { methods: [] }))
       .then((payload) => {
         if (cancelled) return;
-        const methods = Array.isArray(payload?.methods) ? payload.methods : [];
-        setAvailableFiatMethods(
-          methods.filter((entry: { type?: string }) => entry?.type !== 'crypto')
-        );
+        const reviewer = payload?.reviewerCheckout;
+        setReviewerCheckoutStatus(reviewer?.environment === 'LIVE' ? 'Veggat Studio products use PayPal Live.'
+          : reviewer?.environment === 'SANDBOX' ? 'Veggat Studio products use PayPal Sandbox test money.' : 'Veggat Studio payment status is unavailable.');
       })
       .catch(() => {
         if (cancelled) return;
-        setAvailableFiatMethods([]);
+        setReviewerCheckoutStatus('Reviewer payment status is unavailable.');
       })
       .finally(() => {
         if (!cancelled) setIsPaymentMethodsLoading(false);
@@ -771,7 +771,7 @@ export const MyProductCreationForm = () => {
 				});
         uploadedUrls.push(uploadResult.url);
       } catch (error) {
-        log.error('Image upload failed', error);
+        log.error('Image upload failed');
 				setIsUploadingImages(false);
         throw error;
       }
@@ -823,7 +823,7 @@ export const MyProductCreationForm = () => {
       setIsUploadingDigitalFile(false);
       return assetData.id;
     } catch (error) {
-      log.error('Digital file upload failed', error);
+      log.error('Digital file upload failed');
       setIsUploadingDigitalFile(false);
       throw error;
     }
@@ -1048,6 +1048,13 @@ export const MyProductCreationForm = () => {
       }
 
       // Handle digital file upload
+      // A late guest initialization after sign-in can leave a stale storage
+      // cookie. Refresh using the current authenticated session before bytes
+      // are sent; the server still independently checks identity/ownership.
+      if ((digitalFile && !digitalAssetId) || images.length > 0) {
+        if (storageState.loading) throw new Error('Upload session is initializing');
+        await resetStorage();
+      }
       if (digitalFile && !digitalAssetId) {
         const assetId = await digitalFileHandler();
         if (assetId) {
@@ -1147,7 +1154,7 @@ export const MyProductCreationForm = () => {
         router.push(`/products/${data.productId}`);
       }
     } catch (e) {
-      log.error('Create product failed', e);
+      log.error('Create product failed');
       setError(productCreationErrorMessage(e));
     } finally {
       setIsSubmitting(false);
@@ -1345,13 +1352,13 @@ export const MyProductCreationForm = () => {
     labelHint: 'text-xs text-muted-foreground/70 mt-0.5 font-normal',
     // NOTE: shadcn Input/SelectTrigger/Textarea components come with their own border/bg.
     // These classes intentionally override that so everything looks consistent.
-    input: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
-    selectTrigger: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150`,
-    textarea: `w-full rounded-lg px-3 py-2 text-sm !border !border-input !bg-background/75 hover:!bg-muted/30 text-foreground placeholder:text-muted-foreground/70 !outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-500/40 focus-visible:!ring-offset-0 transition-colors duration-150 resize-none`,
+    input: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
+    selectTrigger: `min-h-11 w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150`,
+    textarea: `w-full rounded-lg px-3 py-2 text-base !border !border-input !bg-background/75 hover:!bg-foreground/[0.04] text-foreground placeholder:text-muted-foreground !outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-0 transition-colors duration-150 resize-y`,
     selectContent: `border border-border bg-popover text-popover-foreground shadow-lg`,
-    selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-emerald-500/15 data-[state=checked]:text-foreground`,
-    inputCheckbox: `rounded border border-input bg-background text-emerald-600 focus:ring-emerald-500/30 focus:ring-offset-0`,
-    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-muted/30 transition-colors duration-150`,
+    selectItem: `text-popover-foreground focus:bg-muted focus:text-foreground data-[state=checked]:bg-brand-accent/15 data-[state=checked]:text-foreground`,
+    inputCheckbox: `rounded border border-input bg-background text-brand-accent-hover dark:text-brand-accent-light focus:ring-brand-accent/30 focus:ring-offset-0`,
+    toggle: `hover:cursor-pointer flex gap-3 items-center py-2 px-3 w-full rounded-lg border border-border/80 bg-transparent hover:bg-foreground/[0.04] transition-colors duration-150`,
   };
 
   // Debug: get validation errors
@@ -1506,11 +1513,21 @@ export const MyProductCreationForm = () => {
   const safeActiveStep = Math.min(activeStep, visibleSteps.length - 1);
   const currentStep = visibleSteps[safeActiveStep];
   const goToStep = (idx: number) => {
-    setActiveStep(Math.max(0, Math.min(idx, visibleSteps.length - 1)));
-    // Scroll the content column back to top on step change for a clean read.
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    const next = Math.max(0, Math.min(idx, visibleSteps.length - 1));
+    if (visibleSteps[next]?.id === 'review') void form.trigger(undefined, { shouldFocus: false });
+    stepFocusPending.current = next !== safeActiveStep;
+    setActiveStep(next);
   };
   const isStepActive = (id: string) => currentStep?.id === id;
+  useEffect(() => {
+    if (!stepFocusPending.current) return;
+    stepFocusPending.current = false;
+    const panel = stepPanelsRef.current?.querySelector<HTMLElement>(`[data-listing-step="${currentStep.id}"]`);
+    const heading = panel?.querySelector<HTMLElement>('h3');
+    const focusTarget = heading ?? panel;
+    if (focusTarget) { focusTarget.tabIndex = -1; focusTarget.focus({ preventScroll: true }); }
+    panel?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [safeActiveStep, currentStep.id]);
 
   // Throttled form-state debug log — only fires once per 5 s to avoid console spam
   const lastFormLogRef = useRef(0);
@@ -1529,7 +1546,7 @@ export const MyProductCreationForm = () => {
   }
 
   // Only disable button during actual submission or image upload
-  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile;
+  const isSubmitDisabled = isSubmitting || isUploadingImages || isUploadingDigitalFile || storageState.loading || !!clientUser?.isDemo;
   const submitLabel = isUploadingImages 
     ? 'Uploading images...'
     : isUploadingDigitalFile
@@ -1597,6 +1614,14 @@ export const MyProductCreationForm = () => {
     // Sync productType to form state so validation sees the correct value
     form.setValue('productType', productType, { shouldValidate: false });
 
+    // Validate every step together before uploads/writes. The summary stays on
+    // Review and offers explicit recovery links instead of focusing hidden inputs.
+    const isValid = await form.trigger(undefined, { shouldFocus: false });
+    if (!isValid || imagePreviews.length === 0 || !hasRequiredShippingSpecs || !hasRequiredDigitalFile) {
+      requestAnimationFrame(() => { reviewIssuesRef.current?.focus(); reviewIssuesRef.current?.scrollIntoView({ block: 'center' }); });
+      return;
+    }
+
     // Check shipping specs for physical products
     if (needsShippingSpecs && !hasRequiredShippingSpecs) {
       setError('Physical products require Weight, Height, Length, and Width specifications');
@@ -1610,7 +1635,6 @@ export const MyProductCreationForm = () => {
     }
 
     // Trigger form validation and submit if valid
-    const isValid = await form.trigger();
     if (isValid) {
       form.handleSubmit(onSubmit)();
     }
@@ -1636,7 +1660,7 @@ export const MyProductCreationForm = () => {
   };
 
   return (
-    <div className='w-full flex flex-col'>
+    <div className='flex h-full min-h-0 w-full flex-col'>
       {/* File Re-selection Notice — quiet inline line shown after login redirect */}
       {showFileReselectionNotice && (
         <div className="mb-6 flex items-start gap-2 border-l-2 border-amber-500/50 pl-3 text-xs text-muted-foreground">
@@ -1658,10 +1682,10 @@ export const MyProductCreationForm = () => {
       <Form {...form}>
         <form
           onSubmit={handleFormSubmit}
-          className='grid w-full grid-cols-1 gap-10 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-14'
+          className='grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-3 lg:grid-cols-[200px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-10'
         >
           {/* ── Left rail: text-only step nav ─────────────────────────────── */}
-          <nav aria-label="Listing steps" className="lg:sticky lg:top-6 lg:self-start">
+          <nav aria-label="Listing steps" className="shrink-0 lg:self-start">
             <ol className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
               {visibleSteps.map((s, idx) => {
                 const active = idx === safeActiveStep;
@@ -1670,7 +1694,8 @@ export const MyProductCreationForm = () => {
                     <button
                       type="button"
                       onClick={() => goToStep(idx)}
-                      className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition-all duration-200 lg:whitespace-normal ${
+                      aria-current={active ? 'step' : undefined}
+                      className={`group relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-2 py-2 text-left text-sm transition duration-200 lg:whitespace-normal ${
                         active
                           ? 'text-foreground'
                           : 'text-muted-foreground hover:text-foreground hover:translate-x-0.5'
@@ -1678,9 +1703,9 @@ export const MyProductCreationForm = () => {
                     >
                       {/* active marker — a quiet accent bar, not a pill */}
                       <span
-                        className={`hidden h-5 w-px shrink-0 rounded-full transition-all duration-200 lg:block ${
+                        className={`hidden h-5 w-px shrink-0 rounded-full transition duration-200 lg:block ${
                           active
-                            ? 'bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_8px] shadow-emerald-500/40'
+                            ? 'bg-brand-accent shadow-[0_0_8px] shadow-brand-accent/40'
                             : 'bg-border group-hover:bg-foreground/40'
                         }`}
                       />
@@ -1696,7 +1721,7 @@ export const MyProductCreationForm = () => {
                       </span>
                       {/* soft "done" dot */}
                       {s.done && !active && (
-                        <span className="ml-auto hidden h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60 lg:block" />
+                        <span className="ml-auto hidden h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent/60 lg:block" />
                       )}
                     </button>
                   </li>
@@ -1705,11 +1730,12 @@ export const MyProductCreationForm = () => {
             </ol>
           </nav>
 
-          {/* ── Right column: step panels ─────────────────────────────────── */}
-          <div className="min-w-0">
+          {/* ── Right column: the active step scrolls inside; Back / Continue stay put ── */}
+          <div className="flex min-h-0 min-w-0 flex-col" ref={stepPanelsRef}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 lg:pr-3">
 
           {/* Images Section — belongs to step 1 "Type & photos" */}
-          <div hidden={!isStepActive('type')} className="w-full pb-2">
+          <div hidden={!isStepActive('type')} data-listing-step="type" className="w-full scroll-mt-4 pb-2">
             <FormField control={form.control} name='image' render={() => (
               <FormItem className="hidden">
                 <FormMessage />
@@ -1720,7 +1746,7 @@ export const MyProductCreationForm = () => {
               // EMPTY STATE — big, inviting single drop target (fixed aspect)
               <div
                 {...getRootProps()}
-                className="relative mx-auto flex aspect-[4/5] w-full max-w-[380px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:bg-muted/20"
+                className="relative mx-auto flex aspect-[16/10] w-full max-w-[520px] cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:border-brand-accent/50 hover:bg-foreground/[0.03]"
               >
                 <input {...getInputProps()} />
                 <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border/70 bg-muted/35">
@@ -1773,11 +1799,11 @@ export const MyProductCreationForm = () => {
                         setDragImageIndex(null);
                         setDragOverImageIndex(null);
                       }}
-                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-muted/30 transition-all duration-200 active:cursor-grabbing ${
+                      className={`group/tile relative aspect-[4/5] cursor-grab overflow-hidden rounded-lg border bg-foreground/[0.04] transition duration-200 active:cursor-grabbing ${
                         isDragging
-                          ? 'border-emerald-500/60 opacity-40'
+                          ? 'border-brand-accent/60 opacity-40'
                           : isDropTarget
-                            ? 'border-emerald-500 ring-2 ring-emerald-500/40 -translate-y-0.5'
+                            ? 'border-brand-accent ring-2 ring-brand-accent/40 -translate-y-0.5'
                             : 'border-border hover:-translate-y-0.5 hover:shadow-md'
                       }`}
                     >
@@ -1796,14 +1822,14 @@ export const MyProductCreationForm = () => {
                         onClick={(e) => removeImage(e, index)}
                         title="Remove image"
                       >
-                        <RxCrossCircled className="h-4 w-4 text-white/90 transition-colors duration-150 group-hover/remove:text-red-400" />
+                        <RxCrossCircled className="h-4 w-4 text-foreground/90 transition-colors duration-150 group-hover/remove:text-red-400" />
                       </button>
 
                       {/* Upload progress */}
                       {(isUploadingImages || isSubmitting) && images.length > 0 && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
                           <div
-                            className="h-full bg-emerald-400 transition-[width] duration-100"
+                            className="h-full bg-brand-accent-light transition-[width] duration-100"
                             style={{ width: `${Math.max(0, Math.min(100, uploadProgress[index] ?? 0))}%` }}
                           />
                         </div>
@@ -1811,7 +1837,7 @@ export const MyProductCreationForm = () => {
 
                       {/* Cover badge (first tile) */}
                       {index === 0 && (
-                        <div className="absolute left-1 top-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        <div className="absolute left-1 top-1 rounded bg-brand-accent px-1.5 py-0.5 text-[9px] font-semibold text-brand-accent-foreground">
                           Cover
                         </div>
                       )}
@@ -1823,7 +1849,7 @@ export const MyProductCreationForm = () => {
                   {imagePreviews.length < MAX_IMAGES && (
                     <div
                       {...getRootProps()}
-                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/20 hover:text-foreground"
+                      className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-foreground/[0.03] hover:text-foreground"
                     >
                       <input {...getInputProps()} />
                       <span className="text-2xl leading-none">+</span>
@@ -1840,7 +1866,7 @@ export const MyProductCreationForm = () => {
             {/* Column 1: Basic info + Pricing */}
             <div className='contents'>
               {/* Basic info section */}
-              <div hidden={!isStepActive('details')} className={`${customStyles.section} order-2`}>
+              <div hidden={!isStepActive('details')} data-listing-step="details" className={`${customStyles.section} scroll-mt-4 order-2`}>
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold tracking-tight text-foreground">Describe your product</h3>
                   <p className="text-sm text-muted-foreground">
@@ -1887,15 +1913,15 @@ export const MyProductCreationForm = () => {
                     <FormField control={form.control} name='condition' render={({ field }) => (
                       <FormItem className={customStyles.item}>
                         <FormLabel className={customStyles.label}>Condition</FormLabel>
-                        <FormControl>
                           <Select
                             value={field.value}
                             onValueChange={field.onChange}
                             disabled={isSubmitting}
+                            name={field.name}
                           >
-                            <SelectTrigger className={customStyles.selectTrigger}>
+                            <FormControl><SelectTrigger className={customStyles.selectTrigger}>
                               <SelectValue placeholder="Select condition" />
-                            </SelectTrigger>
+                            </SelectTrigger></FormControl>
                             <SelectContent className={customStyles.selectContent}>
                               {CONDITION_OPTIONS.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value} className={customStyles.selectItem}>
@@ -1904,7 +1930,6 @@ export const MyProductCreationForm = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </FormControl>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {CONDITION_OPTIONS.find((opt) => opt.value === field.value)?.description}
                         </div>
@@ -1926,43 +1951,41 @@ export const MyProductCreationForm = () => {
               </div>
 
               {/* Pricing - compact */}
-              <div hidden={!isStepActive('pricing')} className={`${customStyles.sectionAlt} order-3`}>
+              <div hidden={!isStepActive('pricing')} data-listing-step="pricing" className={`${customStyles.sectionAlt} scroll-mt-4 order-3`}>
                 <div className="space-y-1">
                   <h3 className="text-base font-semibold tracking-tight text-foreground">Set your price</h3>
                   <p className="text-sm text-muted-foreground">
-                    Price in any currency. Decimals are fine — e.g. 0.1 ETH or 49.99 NOK.
+                    Set the listing price in a fiat currency, for example 49.99 NOK. Crypto-denominated pricing is not available yet.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr,150px]">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_150px]">
                   <FormField control={form.control} name='price' render={({ field }) => (
                     <FormItem className={customStyles.item}>
                       <FormLabel className={customStyles.label}>Price</FormLabel>
-                      <FormControl>
-                        <div className='relative'>
-                          <span className='pointer-events-none absolute left-3 top-1/2 max-w-[3rem] -translate-y-1/2 truncate text-sm font-medium text-muted-foreground'>
-                            {isCryptoPriceUnit
-                              ? (priceUnit === '__CUSTOM__' ? (customPriceToken.symbol || '◈') : priceUnit)
-                              : priceCurrencyMeta.prefix}
+                        <div className='relative w-full'>
+                          <span aria-hidden className='pointer-events-none absolute left-3 top-1/2 max-w-[3rem] -translate-y-1/2 truncate text-sm font-medium text-muted-foreground'>
+                            {priceCurrencyMeta.prefix}
                           </span>
+                          <FormControl>
                           <Input
                             {...field}
+                            value={priceInput}
                             disabled={isSubmitting}
                             placeholder='0.00'
                             type='text'
                             inputMode='decimal'
-                            className={`${customStyles.input} ${isCryptoPriceUnit ? 'pl-16' : 'pl-8'}`}
+                            autoComplete="off"
+                            className={`${customStyles.input} pl-8`}
                             spellCheck='false'
                             onChange={e => {
-                              // Allow decimals: keep digits + a single dot while typing.
-                              const raw = e.target.value.replace(/[^0-9.]/g, '');
-                              const cleaned = raw.replace(/(\..*)\./g, '$1'); // only first dot
-                              e.target.value = cleaned;
-                              form.setValue('price', cleaned ? parseFloat(cleaned) : 0, { shouldValidate: true });
+                              setPriceInput(e.target.value);
+                              field.onChange(parseListingPriceInput(e.target.value));
                             }}
+                            onBlur={() => { field.onBlur(); const amount = parseListingPriceInput(priceInput); if (Number.isFinite(amount)) setPriceInput(listingPriceInputValue(amount)); }}
                           />
+                          </FormControl>
                         </div>
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -1970,18 +1993,13 @@ export const MyProductCreationForm = () => {
                   <FormField control={form.control} name='priceCurrency' render={({ field }) => (
                     <FormItem className={customStyles.item}>
                       <FormLabel className={customStyles.label}>Currency</FormLabel>
-                      <FormControl>
                         <Select
                           disabled={isSubmitting}
-                          value={priceUnit}
+                          value={field.value}
+                          name={field.name}
                           onValueChange={(value) => {
-                            setPriceUnit(value);
-                            // Keep the stored fiat currency valid for checkout. For a
-                            // crypto/custom unit we settle/display in USD until the
-                            // crypto-pricing pipeline is wired.
-                            const fiat: FiatCurrencyType = (FiatCurrencyValues as readonly string[]).includes(value)
-                              ? (value as FiatCurrencyType)
-                              : 'USD';
+                            if (!(FiatCurrencyValues as readonly string[]).includes(value)) return;
+                            const fiat = value as FiatCurrencyType;
                             field.onChange(fiat);
                             const currentAccepted = form.getValues('acceptedFiatCurrencies') ?? [];
                             if (!currentAccepted.includes(fiat)) {
@@ -1989,9 +2007,9 @@ export const MyProductCreationForm = () => {
                             }
                           }}
                         >
-                          <SelectTrigger className={customStyles.selectTrigger}>
+                          <FormControl><SelectTrigger className={customStyles.selectTrigger}>
                             <SelectValue placeholder="Currency" />
-                          </SelectTrigger>
+                          </SelectTrigger></FormControl>
                           <SelectContent className={customStyles.selectContent}>
                             <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Fiat</div>
                             {FiatCurrencyValues.map((code) => (
@@ -1999,71 +2017,23 @@ export const MyProductCreationForm = () => {
                                 {code}
                               </SelectItem>
                             ))}
-                            <div className="mt-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Crypto</div>
-                            {CRYPTO_PRICE_UNITS.map((sym) => (
-                              <SelectItem key={sym} value={sym} className={customStyles.selectItem}>
-                                {sym}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value="__CUSTOM__" className={customStyles.selectItem}>
-                              Custom token…
-                            </SelectItem>
                           </SelectContent>
                         </Select>
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
 
-                {/* Custom price-token picker — shown when "Custom token…" is chosen */}
-                {priceUnit === '__CUSTOM__' && (
-                  <div className="space-y-2 border-l-2 border-emerald-500/30 pl-4">
-                    <p className="text-xs text-muted-foreground">Price in a token of your choice — pick its chain and paste the contract / mint address.</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <Input
-                        value={customPriceToken.symbol}
-                        onChange={(e) => setCustomPriceToken((p) => ({ ...p, symbol: e.target.value.toUpperCase() }))}
-                        placeholder="Symbol (e.g. PEPE)"
-                        className={`${customStyles.input} text-sm`}
-                      />
-                      <Select
-                        value={customPriceToken.chain}
-                        onValueChange={(v) => setCustomPriceToken((p) => ({ ...p, chain: v }))}
-                      >
-                        <SelectTrigger className={customStyles.selectTrigger}><SelectValue /></SelectTrigger>
-                        <SelectContent className={customStyles.selectContent}>
-                          <SelectItem value="EVM" className={customStyles.selectItem}>EVM (Ethereum, PulseChain, Base…)</SelectItem>
-                          <SelectItem value="SOLANA" className={customStyles.selectItem}>Solana</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        value={customPriceToken.address}
-                        onChange={(e) => setCustomPriceToken((p) => ({ ...p, address: e.target.value }))}
-                        placeholder={customPriceToken.chain === 'EVM' ? 'Contract 0x…' : 'Mint address'}
-                        className={`${customStyles.input} font-mono text-sm`}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Crypto-pricing note — keeps the seller informed while the
-                    settlement pipeline is being wired (UI ships first). */}
-                {isCryptoPriceUnit && (
-                  <p className="border-l-2 border-sky-500/50 pl-3 text-xs text-muted-foreground">
-                    Listed in <span className="font-medium text-foreground">{priceUnit === '__CUSTOM__' ? (customPriceToken.symbol || 'your token') : priceUnit}</span>.
-                    Buyers are charged the equivalent at the live rate; settlement is shown in USD for now.
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">Changing the listing currency does not convert the amount. The header currency only changes how buyers view prices.</p>
 
                 <FormField control={form.control} name='acceptedFiatCurrencies' render={({ field }) => {
                   const selected = field.value ?? [];
 
                   return (
                     <FormItem className={customStyles.item}>
-                      <FormLabel className={customStyles.label}>Accepted fiat currencies</FormLabel>
+                      <FormLabel className={customStyles.label}>Fiat currency preferences</FormLabel>
                       <FormControl>
-                        <div className="flex flex-wrap gap-2">
+                        <div role="group" aria-label="Fiat currency preferences" className="flex flex-wrap gap-2">
                           {FiatCurrencyValues.map((code) => {
                             const isSelected = selected.includes(code);
                             const isLocked = code === (form.getValues('priceCurrency') ?? 'USD');
@@ -2072,6 +2042,7 @@ export const MyProductCreationForm = () => {
                               <button
                                 key={code}
                                 type="button"
+                                aria-pressed={isSelected}
                                 disabled={isSubmitting}
                                 title={isLocked ? `${code} is the listing currency and must stay enabled.` : undefined}
                                 onClick={() => {
@@ -2081,11 +2052,11 @@ export const MyProductCreationForm = () => {
                                     : [...selected, code];
                                   field.onChange(next);
                                 }}
-                                className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                                className={`min-h-11 min-w-11 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                                   isSelected
-                                    ? 'border-emerald-500/60 bg-emerald-500/10 text-foreground'
-                                    : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                                } ${isLocked ? 'ring-1 ring-emerald-500/30' : ''}`}
+                                    ? 'border-brand-accent/60 bg-brand-accent/10 text-foreground'
+                                    : 'border-border bg-foreground/[0.04] text-muted-foreground hover:bg-foreground/[0.06]'
+                                } ${isLocked ? 'ring-1 ring-brand-accent/30' : ''}`}
                               >
                                 {code}
                               </button>
@@ -2094,7 +2065,7 @@ export const MyProductCreationForm = () => {
                         </div>
                       </FormControl>
                       <div className="text-xs text-muted-foreground">
-                        Buyers can pay in enabled fiat options during checkout; your listing currency stays required.
+                        Saved as listing preferences, not active payment methods. The listing currency stays required.
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -2102,32 +2073,27 @@ export const MyProductCreationForm = () => {
                 }} />
 
                 <div className="space-y-1 border-l-2 border-border pl-3 text-xs">
-                  <div className="font-medium text-foreground">Payment readiness</div>
-                  <div className="text-muted-foreground">
-                    Environment: {isTestModeEnabled ? 'Test mode (sandbox)' : 'Live mode'}
-                  </div>
+                  <div className="font-medium text-foreground">General listing checkout is not open yet.</div>
                   <div className="text-muted-foreground">
                     {isPaymentMethodsLoading
-                      ? 'Loading enabled checkout providers…'
-                      : availableFiatMethods.length > 0
-                        ? `Enabled fiat providers: ${availableFiatMethods.map((method) => method.displayName).join(', ')}`
-                        : 'No fiat providers enabled here. Crypto checkout can still be used.'}
+                      ? 'Checking reviewer payment status…'
+                      : reviewerCheckoutStatus}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* ─── Seller Payment Status & Wallet Picker ─────────────────── */}
-            <div hidden={!isStepActive('delivery')} className={`${customStyles.sectionAlt} order-4`}>
+            <div hidden={!isStepActive('delivery')} data-listing-step="delivery" className={`${customStyles.sectionAlt} scroll-mt-4 order-4`}>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receiving Payment Methods</h4>
               
               {/* PayPal status indicator */}
               <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
                 sellerPaypalEmail && sellerPaypalVerified
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  ? 'border-brand-accent/30 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                   : sellerPaypalEmail
                     ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                    : 'border-zinc-200 dark:border-white/10 bg-muted/20 text-muted-foreground'
+                    : 'border-border bg-foreground/[0.03] text-muted-foreground'
               }`}>
                 <span className="shrink-0">{sellerPaypalEmail && sellerPaypalVerified ? '✅' : sellerPaypalEmail ? '⏳' : '—'}</span>
                 <span>
@@ -2167,7 +2133,7 @@ export const MyProductCreationForm = () => {
                     ))}
                   </select>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-white/10 p-3 text-xs text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
                     No verified wallet yet. You can verify one below without leaving this listing.
                   </div>
                 )}
@@ -2197,7 +2163,7 @@ export const MyProductCreationForm = () => {
                           <p className="text-sm font-medium text-foreground">EVM receiving wallet</p>
                           <p className="text-xs text-muted-foreground">Used by ETH, USDC, HEX, PLS, and custom EVM tokens.</p>
                         </div>
-                        <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-emerald-500 hover:underline">
+                        <a href="/settings?section=wallet" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-brand-accent hover:underline">
                           Manage wallets
                         </a>
                       </div>
@@ -2335,7 +2301,7 @@ export const MyProductCreationForm = () => {
                     >
                       Open Wallet Settings ↗
                     </a>
-                    <div className="mt-2 rounded-lg bg-black/10 p-2 dark:bg-black/20">
+                    <div className="mt-2 rounded-lg bg-muted p-2">
                       <EvmWalletVerify
                         enabled={true}
                         onVerified={() => {
@@ -2348,8 +2314,8 @@ export const MyProductCreationForm = () => {
               )}
               <p className="text-xs text-muted-foreground">
                 {acceptedTokens.length > 0
-                  ? `${acceptedTokens.length} token${acceptedTokens.length !== 1 ? 's' : ''} selected. Buyers can still pay with fiat if enabled at checkout.`
-                  : 'No tokens selected yet — buyers can still use whatever checkout methods are enabled (fiat and/or native crypto).'}
+                  ? `${acceptedTokens.length} token preference${acceptedTokens.length !== 1 ? 's' : ''} saved in this draft. Verified Web3 checkout is not released.`
+                  : 'Token preferences are optional. Selecting a token or wallet does not enable checkout.'}
               </p>
             </div>
 
@@ -2525,7 +2491,7 @@ export const MyProductCreationForm = () => {
             {/* Column 2: Options + Specifications */}
             <div className='contents'>
               {/* Product Type Selection */}
-              <div hidden={!isStepActive('type')} className={`${customStyles.section} order-1 mt-8 border-t border-border/70 pt-8`}>
+              <div hidden={!isStepActive('type')} className={`${customStyles.section} order-1 mt-5 border-t border-border/70 pt-5`}>
                 <h3 className={customStyles.sectionTitle}>Product Type</h3>
 
                 {isDigitalOnlyLiteMode && (
@@ -2562,19 +2528,19 @@ export const MyProductCreationForm = () => {
                     <label
                       key={option.value}
                       title={optionBlockedByWarehouse ? 'Disabled: Add a warehouse address in Company Settings to list physical or hybrid products.' : undefined}
-                      className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition-all duration-200 ${
-                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-muted/30'
+                      className={`group relative flex cursor-pointer flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left transition duration-200 ${
+                        optionBlockedByWarehouse ? 'opacity-45 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:bg-foreground/[0.04]'
                       } ${
                         productType === option.value
-                          ? 'bg-emerald-500/[0.07] dark:bg-emerald-400/[0.06]'
+                          ? 'bg-brand-accent/[0.07]'
                           : ''
                       }`}
                     >
                       {/* selected marker — a quiet accent rail, not a filled box */}
                       <span
-                        className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full transition-all duration-200 ${
+                        className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full transition duration-200 ${
                           productType === option.value
-                            ? 'bg-emerald-500 dark:bg-emerald-400'
+                            ? 'bg-brand-accent'
                             : 'bg-transparent group-hover:bg-border'
                         }`}
                       />
@@ -2611,7 +2577,7 @@ export const MyProductCreationForm = () => {
                       <span
                         className={`text-sm font-medium transition-colors ${
                           productType === option.value
-                            ? 'text-emerald-700 dark:text-emerald-300'
+                            ? 'text-brand-accent-hover dark:text-brand-accent-light'
                             : 'text-foreground'
                         }`}
                       >
@@ -2627,10 +2593,10 @@ export const MyProductCreationForm = () => {
 
               {/* Digital File Upload - shown for DIGITAL and HYBRID */}
               {(productType === 'DIGITAL' || productType === 'HYBRID') && (
-                <div hidden={!isStepActive('digital')} className={`${customStyles.section} order-6`}>
+                <div hidden={!isStepActive('digital')} data-listing-step="digital" className={`${customStyles.section} scroll-mt-4 order-6`}>
                   <h3 className={customStyles.sectionTitle}>
                     Digital File
-                    <span className="font-normal text-emerald-400/70 ml-1 normal-case tracking-normal">— required</span>
+                    <span className="font-normal text-brand-accent/70 ml-1 normal-case tracking-normal">— required</span>
                   </h3>
                   
                   {!digitalFile ? (
@@ -2688,8 +2654,10 @@ export const MyProductCreationForm = () => {
                     
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={customStyles.label}>Max Downloads</label>
+                        <label htmlFor="listing-max-downloads" className={customStyles.label}>Max Downloads</label>
                         <Input
+                          id="listing-max-downloads"
+                          name="maxDownloads"
                           type="number"
                           min="1"
                           placeholder="Unlimited"
@@ -2704,8 +2672,10 @@ export const MyProductCreationForm = () => {
                       </div>
                       
                       <div>
-                        <label className={customStyles.label}>Expiry (days)</label>
+                        <label htmlFor="listing-download-expiry" className={customStyles.label}>Expiry (days)</label>
                         <Input
+                          id="listing-download-expiry"
+                          name="downloadExpiryDays"
                           type="number"
                           min="1"
                           placeholder="Never"
@@ -2730,7 +2700,7 @@ export const MyProductCreationForm = () => {
                 {/* Company product toggle */}
                 <div className="space-y-2">
                   {cameFromCompanyHub ? (
-                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs">
+                    <div className="rounded-md border border-brand-accent/30 bg-brand-accent/10 px-3 py-2 text-xs">
                       <div className="text-foreground font-medium">Posting on behalf of business</div>
                       <div className="text-muted-foreground mt-1">
                         {isPrefilledCompanyLoading
@@ -2755,7 +2725,7 @@ export const MyProductCreationForm = () => {
                       </label>
 
                       {isCompanyProduct && (
-                        <div className="pl-4 ml-2 border-l border-emerald-500/20">
+                        <div className="pl-4 ml-2 border-l border-brand-accent/20">
                           <UserCompanyPermission permissionTag="CAN_POST_PRODUCT_POSITION_PERMISSION" onCompanySelect={handleCompanySelect} />
                         </div>
                       )}
@@ -2785,7 +2755,7 @@ export const MyProductCreationForm = () => {
                             <label
                               key={index}
                               className={`${customStyles.toggle} !py-2 !px-3 !w-auto cursor-pointer ${
-                                postalCodes.includes(location.postalCode) ? 'ring-1 ring-emerald-500/40 bg-emerald-500/10' : ''
+                                postalCodes.includes(location.postalCode) ? 'ring-1 ring-brand-accent/40 bg-brand-accent/10' : ''
                               }`}
                             >
                               <input
@@ -2920,7 +2890,7 @@ export const MyProductCreationForm = () => {
                     <button
                       type="button"
                       onClick={() => addFeature()}
-                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                     >
                       + Add feature
                     </button>
@@ -2937,7 +2907,7 @@ export const MyProductCreationForm = () => {
                           setFeatures(prev => [...prev, ...lines.map(t => ({ text: t, key: '' }))]);
                         }
                       }}
-                      className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                     >
                       + Paste multiple
                     </button>
@@ -2972,7 +2942,7 @@ export const MyProductCreationForm = () => {
                         {specifications.map((spec, index) => (
                           <div key={index} className="flex gap-2 items-center">
                             {isPhysicalProduct && SHIPPING_SPEC_KEYS.includes(spec.key) ? (
-                              <div className="w-28 shrink-0 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm font-medium text-foreground sm:w-32">
+                              <div className="w-28 shrink-0 rounded-lg border border-border/70 bg-foreground/[0.03] px-3 py-2 text-sm font-medium text-foreground sm:w-32">
                                 {spec.key}
                               </div>
                             ) : spec.key === 'Custom' || !examplePlaceholders.includes(spec.key) ? (
@@ -3044,7 +3014,7 @@ export const MyProductCreationForm = () => {
                           <button
                             type="button"
                             onClick={addSpecification}
-                            className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                            className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                           >
                             + Add preset spec
                           </button>
@@ -3052,7 +3022,7 @@ export const MyProductCreationForm = () => {
                           <button
                             type="button"
                             onClick={() => setSpecifications([...specifications, { key: 'Custom', value: '', type: 'text' }])}
-                            className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                            className="text-xs text-muted-foreground hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
                           >
                             + Add custom spec
                           </button>
@@ -3078,7 +3048,7 @@ export const MyProductCreationForm = () => {
           </div>
 
           {/* ════════════ FINAL STEP — Review & publish ════════════ */}
-          <div hidden={!isStepActive('review')} className={`${customStyles.section} border-t-0 pt-0`}>
+          <div hidden={!isStepActive('review')} data-listing-step="review" className={`${customStyles.section} scroll-mt-4 border-t-0 pt-0`}>
             <h3 className={customStyles.sectionTitle}>Review &amp; Publish</h3>
             <p className="text-xs text-muted-foreground">
               A quick look at how your listing reads. Jump back to any step on the left to make changes.
@@ -3087,7 +3057,7 @@ export const MyProductCreationForm = () => {
             {/* Listing preview — text-on-background, mirrors how buyers see it */}
             <div className="mt-4 flex flex-col gap-5 sm:flex-row">
               {/* Cover */}
-              <div className="relative aspect-[4/5] w-full max-w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted/30">
+              <div className="relative aspect-[4/5] w-full max-w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-foreground/[0.04]">
                 {imagePreviews[0] ? (
                   <Image
                     src={imagePreviews[0]}
@@ -3108,7 +3078,7 @@ export const MyProductCreationForm = () => {
                 <div className="text-xl font-semibold tracking-tight text-foreground">
                   {watchedTitle?.trim() || <span className="text-muted-foreground">Untitled listing</span>}
                 </div>
-                <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                <div className="text-lg font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                   {Number(watchedPrice) > 0
                     ? `${priceCurrencyMeta.prefix}${Number(watchedPrice).toLocaleString()} ${priceCurrencyMeta.label}`
                     : <span className="text-muted-foreground text-base font-normal">No price set</span>}
@@ -3137,14 +3107,14 @@ export const MyProductCreationForm = () => {
             {/* Login prompt — quiet inline line */}
             {sessionStatus === 'unauthenticated' && (
               <p className="mt-5 text-sm text-muted-foreground">
-                <ShieldCheck className="mr-1.5 inline h-4 w-4 text-sky-500 align-text-bottom" />
+                <ShieldCheck className="mr-1.5 inline h-4 w-4 text-brand-accent align-text-bottom" />
                 You&apos;ll need to log in to publish — your draft is saved automatically.
               </p>
             )}
 
             {/* Validation summary — only on the final step, where it can be acted on */}
             {hasValidationIssues && !success && (
-              <div className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 text-sm">
+              <div ref={reviewIssuesRef} tabIndex={-1} aria-label="Listing issues" aria-live="polite" className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                 <p className="font-medium text-foreground">
                   Finish {missingItems.length} item{missingItems.length !== 1 ? 's' : ''} before publishing
                 </p>
@@ -3159,10 +3129,10 @@ export const MyProductCreationForm = () => {
                           const targetIndex = visibleSteps.findIndex((step) => step.id === targetStep);
                           goToStep(targetIndex >= 0 ? targetIndex : safeActiveStep);
                         }}
-                        className="flex w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-foreground"
+                        className="flex min-h-11 w-full items-start justify-between gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand-accent/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span>{item}</span>
-                        <span className="shrink-0 text-emerald-500">Fix</span>
+                        <span className="shrink-0 text-brand-accent">Fix</span>
                       </button>
                     );
                   })}
@@ -3176,13 +3146,15 @@ export const MyProductCreationForm = () => {
             </div>
           </div>
 
+          </div>{/* /scrolling step area */}
+
           {/* ── Step footer: Back / Continue / Publish ────────────────────── */}
-          <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 flex shrink-0 flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => goToStep(safeActiveStep - 1)}
               disabled={safeActiveStep === 0}
-              className="text-sm font-medium text-muted-foreground transition-all duration-200 hover:-translate-x-0.5 hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
+              className="text-sm font-medium text-muted-foreground transition duration-200 hover:-translate-x-0.5 hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
             >
               ← Back
             </button>
@@ -3206,7 +3178,7 @@ export const MyProductCreationForm = () => {
                 <Button
                   type='submit'
                   disabled={isSubmitDisabled}
-                  className='group h-11 px-6 text-sm font-medium bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all duration-200 hover:bg-emerald-500 hover:shadow-md hover:shadow-emerald-500/30 disabled:opacity-60 disabled:hover:bg-emerald-600 disabled:hover:shadow-none'
+                  className='group h-11 px-6 text-sm font-medium bg-brand-accent-hover text-brand-accent-foreground shadow-sm shadow-brand-accent/20 transition duration-200 hover:bg-brand-accent hover:shadow-md hover:shadow-brand-accent/30 disabled:opacity-60 disabled:hover:bg-brand-accent-hover disabled:hover:shadow-none'
                 >
                   {submitLabel}
                 </Button>
@@ -3215,7 +3187,7 @@ export const MyProductCreationForm = () => {
               <button
                 type="button"
                 onClick={() => goToStep(safeActiveStep + 1)}
-                className="group inline-flex items-center gap-2 self-start rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-all duration-200 hover:gap-3 hover:shadow-md sm:self-auto"
+                className="group inline-flex items-center gap-2 self-start rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition duration-200 hover:gap-3 hover:shadow-md sm:self-auto"
               >
                 Continue
                 <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>

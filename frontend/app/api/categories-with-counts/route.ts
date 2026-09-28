@@ -1,6 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { CategoriesWithCountsResponseSchema } from '@/lib/types/categories';
+import { publicCatalogWhere } from '@/lib/public-catalog';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -14,6 +15,7 @@ export async function GET() {
     // Group products by category and count them
     const categoryCounts = await dbPrisma.product.groupBy({
       by: ['category'],
+      where: publicCatalogWhere(),
       _count: {
         id: true,
       },

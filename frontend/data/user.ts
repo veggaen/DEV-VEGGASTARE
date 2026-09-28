@@ -3,7 +3,8 @@ import { dbPrisma } from "@/lib/db";
 export const getUserByEmail = async(email: string) => {
     if(!email) return null;
     try {
-        const user = await dbPrisma.user.findUnique({ where: { email }});
+        const user = await dbPrisma.user.findUnique({ where: { email }}) ??
+          await dbPrisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
         return user
     } catch {
         return null;

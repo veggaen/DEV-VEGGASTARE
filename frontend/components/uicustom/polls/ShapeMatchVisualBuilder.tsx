@@ -62,13 +62,13 @@ interface ShapeMatchVisualBuilderProps {
 // Color palette
 const COLORS: { value: ColorType; label: string; bg: string; ring: string }[] = [
   { value: "red", label: "Red", bg: "bg-red-500", ring: "ring-red-500" },
-  { value: "green", label: "Green", bg: "bg-emerald-500", ring: "ring-emerald-500" },
+  { value: "green", label: "Green", bg: "bg-brand-accent", ring: "ring-brand-accent" },
   { value: "blue", label: "Blue", bg: "bg-blue-500", ring: "ring-blue-500" },
   { value: "yellow", label: "Yellow", bg: "bg-yellow-400", ring: "ring-yellow-400" },
   { value: "purple", label: "Purple", bg: "bg-purple-500", ring: "ring-purple-500" },
   { value: "orange", label: "Orange", bg: "bg-orange-500", ring: "ring-orange-500" },
-  { value: "black", label: "Black", bg: "bg-neutral-800", ring: "ring-neutral-800" },
-  { value: "white", label: "White", bg: "bg-white", ring: "ring-neutral-300" },
+  { value: "black", label: "Black", bg: "bg-muted", ring: "ring-border" },
+  { value: "white", label: "White", bg: "bg-card", ring: "ring-border" },
 ];
 
 // Shape options
@@ -320,14 +320,14 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden"
+        className="bg-surface-3 border border-border rounded-xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden"
       >
         {/* ─── HEADER ─── */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <Shapes className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-zinc-100">Shape Match Visual Builder</h2>
-            <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">
+            <h2 className="text-lg font-semibold text-foreground">Shape Match Visual Builder</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               {config.draggableItems.length} shapes · {config.dropZones.length} zones
             </span>
           </div>
@@ -341,7 +341,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
               <Eye className="w-4 h-4" />
               {previewMode ? "Exit Preview" : "Preview"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-zinc-400">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -351,18 +351,18 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT SIDEBAR: Library + Settings */}
           {!previewMode && (
-            <div className="w-64 border-r border-zinc-800 flex flex-col overflow-y-auto shrink-0">
+            <div className="w-64 border-r border-border flex flex-col overflow-y-auto shrink-0">
               {/* Mode Selection */}
-              <div className="p-3 border-b border-zinc-800 space-y-2">
-                <Label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Match Mode</Label>
+              <div className="p-3 border-b border-border space-y-2">
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Match Mode</Label>
                 <Select
                   value={config.mode}
                   onValueChange={(v) => setConfig(prev => ({ ...prev, mode: v as ShapeMatchBuilderConfig["mode"] }))}
                 >
-                  <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-8 text-xs">
+                  <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 z-250">
+                  <SelectContent className="bg-surface-3 border-border z-250">
                     {MODE_OPTIONS.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className="text-xs">{opt.label}</span>
@@ -370,42 +370,42 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-muted-foreground">
                   {MODE_OPTIONS.find(o => o.value === config.mode)?.desc}
                 </p>
               </div>
 
               {/* Shape Library */}
-              <div className="p-3 border-b border-zinc-800 space-y-2">
-                <Label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Add Shape (Draggable)</Label>
+              <div className="p-3 border-b border-border space-y-2">
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Add Shape (Draggable)</Label>
                 <div className="grid grid-cols-3 gap-1">
                   {SHAPES.map(s => (
                     <button
                       key={s.value}
                       onClick={() => addShape(s.value, "blue")}
-                      className="flex flex-col items-center gap-1 p-2 rounded hover:bg-zinc-800 transition-colors"
+                      className="flex flex-col items-center gap-1 p-2 rounded hover:bg-muted transition-colors"
                       title={`Add ${s.label}`}
                     >
                       <CanvasShape shape={s.value} color="blue" size={28} />
-                      <span className="text-[9px] text-zinc-500">{s.label}</span>
+                      <span className="text-[9px] text-muted-foreground">{s.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Drop Zone Library */}
-              <div className="p-3 border-b border-zinc-800 space-y-2">
-                <Label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Add Drop Zone</Label>
+              <div className="p-3 border-b border-border space-y-2">
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Add Drop Zone</Label>
                 <div className="grid grid-cols-3 gap-1">
                   {SHAPES.map(s => (
                     <button
                       key={s.value}
                       onClick={() => addDropZone(s.value, "blue")}
-                      className="flex flex-col items-center gap-1 p-2 rounded hover:bg-zinc-800 transition-colors"
+                      className="flex flex-col items-center gap-1 p-2 rounded hover:bg-muted transition-colors"
                       title={`Add ${s.label} zone`}
                     >
                       <CanvasDropZone shape={s.value} color="blue" width={28} height={28} />
-                      <span className="text-[9px] text-zinc-500">{s.label}</span>
+                      <span className="text-[9px] text-muted-foreground">{s.label}</span>
                     </button>
                   ))}
                 </div>
@@ -413,17 +413,17 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
               {/* Settings */}
               <div className="p-3 space-y-3">
-                <Label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Settings</Label>
+                <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Settings</Label>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="snap-grid"
                     checked={config.snapToGrid}
                     onCheckedChange={(v) => setConfig(prev => ({ ...prev, snapToGrid: v }))}
                   />
-                  <Label htmlFor="snap-grid" className="text-xs text-zinc-400">Snap to grid</Label>
+                  <Label htmlFor="snap-grid" className="text-xs text-muted-foreground">Snap to grid</Label>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-500">Time Limit (seconds)</Label>
+                  <Label className="text-[10px] text-muted-foreground">Time Limit (seconds)</Label>
                   <Input
                     type="number"
                     min={0}
@@ -434,16 +434,16 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       timeLimit: e.target.value ? parseInt(e.target.value) : undefined,
                     }))}
                     placeholder="No limit"
-                    className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-500">Instructions</Label>
+                  <Label className="text-[10px] text-muted-foreground">Instructions</Label>
                   <Input
                     value={config.instructions || ""}
                     onChange={(e) => setConfig(prev => ({ ...prev, instructions: e.target.value }))}
                     placeholder="Drag each shape..."
-                    className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
 
@@ -466,23 +466,23 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Canvas toolbar */}
             {!previewMode && (
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 text-xs shrink-0">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border text-xs shrink-0">
                 {linkingFrom ? (
                   <div className="flex items-center gap-2 text-primary">
                     <Link2 className="w-3.5 h-3.5 animate-pulse" />
                     <span>Click a drop zone to link shape → zone</span>
-                    <Button variant="ghost" size="sm" onClick={() => setLinkingFrom(null)} className="h-6 text-xs text-zinc-400">
+                    <Button variant="ghost" size="sm" onClick={() => setLinkingFrom(null)} className="h-6 text-xs text-muted-foreground">
                       Cancel
                     </Button>
                   </div>
                 ) : (
                   <>
-                    <span className="text-zinc-500">Click an item to select · Drag to reposition · </span>
+                    <span className="text-muted-foreground">Click an item to select · Drag to reposition · </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setConfig(defaultConfig())}
-                      className="h-6 text-xs text-zinc-500 hover:text-zinc-300"
+                      className="h-6 text-xs text-muted-foreground hover:text-foreground/80"
                     >
                       <RotateCcw className="w-3 h-3 mr-1" />
                       Reset
@@ -499,7 +499,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                 className={cn(
                   "relative w-full h-full rounded-xl border-2 border-dashed overflow-hidden",
                   config.snapToGrid && "bg-[radial-gradient(circle,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:5%_5%]",
-                  previewMode ? "border-zinc-700 bg-zinc-950" : "border-zinc-700/50 bg-zinc-950/80"
+                  previewMode ? "border-border bg-surface-1" : "border-border/50 bg-surface-1/80"
                 )}
               >
                 {/* Drop Zones (rendered behind shapes) */}
@@ -513,7 +513,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       key={zone.id}
                       className={cn(
                         "absolute cursor-pointer flex flex-col items-center justify-center",
-                        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-zinc-950 rounded-lg",
+                        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg",
                         linkingFrom && "cursor-crosshair hover:ring-2 hover:ring-primary/50 rounded-lg"
                       )}
                       style={{
@@ -538,10 +538,10 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                     >
                       <CanvasDropZone shape={zone.shape} color={zone.color} width={zone.width} height={zone.height} />
                       {zone.label && (
-                        <span className="absolute -bottom-5 text-[9px] text-zinc-500 whitespace-nowrap">{zone.label}</span>
+                        <span className="absolute -bottom-5 text-[9px] text-muted-foreground whitespace-nowrap">{zone.label}</span>
                       )}
                       {isLinked && !previewMode && (
-                        <span className="absolute -top-3 right-0 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <span className="absolute -top-3 right-0 w-4 h-4 bg-brand-accent rounded-full flex items-center justify-center">
                           <Link2 className="w-2.5 h-2.5 text-white" />
                         </span>
                       )}
@@ -561,7 +561,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       key={shape.id}
                       className={cn(
                         "absolute cursor-grab active:cursor-grabbing z-10 flex flex-col items-center",
-                        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-zinc-950 rounded-full",
+                        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-full",
                         isLinking && "ring-2 ring-primary animate-pulse rounded-full"
                       )}
                       style={{
@@ -583,10 +583,10 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                     >
                       <CanvasShape shape={shape.shape} color={shape.color} size={48} />
                       {shape.label && (
-                        <span className="absolute -bottom-5 text-[9px] text-zinc-400 whitespace-nowrap">{shape.label}</span>
+                        <span className="absolute -bottom-5 text-[9px] text-muted-foreground whitespace-nowrap">{shape.label}</span>
                       )}
                       {isLinked && !previewMode && (
-                        <span className="absolute -top-2 -right-2 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <span className="absolute -top-2 -right-2 w-4 h-4 bg-brand-accent rounded-full flex items-center justify-center">
                           <Link2 className="w-2.5 h-2.5 text-white" />
                         </span>
                       )}
@@ -619,7 +619,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
                 {/* Empty state */}
                 {config.draggableItems.length === 0 && config.dropZones.length === 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-600">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
                     <Target className="w-12 h-12 mb-3 opacity-30" />
                     <p className="text-sm font-medium">Empty Canvas</p>
                     <p className="text-xs mt-1">Add shapes and drop zones from the left panel</p>
@@ -631,17 +631,17 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
           {/* RIGHT SIDEBAR: Properties */}
           {!previewMode && (selectedShape || selectedZone) && (
-            <div className="w-56 border-l border-zinc-800 overflow-y-auto shrink-0">
+            <div className="w-56 border-l border-border overflow-y-auto shrink-0">
               <div className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
+                  <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
                     {selectedShape ? "Shape Properties" : "Zone Properties"}
                   </Label>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setSelectedItem(null)}
-                    className="h-5 w-5 p-0 text-zinc-500"
+                    className="h-5 w-5 p-0 text-muted-foreground"
                   >
                     <X className="w-3 h-3" />
                   </Button>
@@ -649,7 +649,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
                 {/* Shape type */}
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-500">Shape</Label>
+                  <Label className="text-[10px] text-muted-foreground">Shape</Label>
                   <Select
                     value={selectedShape?.shape || selectedZone?.shape || "circle"}
                     onValueChange={(v) => {
@@ -657,10 +657,10 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       if (selectedZone) updateZoneProps(selectedZone.id, { shape: v as ShapeType });
                     }}
                   >
-                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs">
+                    <SelectTrigger className="bg-foreground/[0.06] border-border/50 h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-700 z-250">
+                    <SelectContent className="bg-surface-3 border-border z-250">
                       {SHAPES.map(s => (
                         <SelectItem key={s.value} value={s.value}>
                           <span className="text-xs">{s.label}</span>
@@ -672,7 +672,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
                 {/* Color */}
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-500">Color</Label>
+                  <Label className="text-[10px] text-muted-foreground">Color</Label>
                   <div className="flex flex-wrap gap-1">
                     {COLORS.map(c => {
                       const isActive = (selectedShape?.color || selectedZone?.color) === c.value;
@@ -684,9 +684,9 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                             if (selectedZone) updateZoneProps(selectedZone.id, { color: c.value });
                           }}
                           className={cn(
-                            "w-6 h-6 rounded-full border-2 transition-all",
+                            "w-6 h-6 rounded-full border-2 transition",
                             c.bg,
-                            isActive ? `${c.ring} ring-2 ring-offset-1 ring-offset-zinc-900 border-white` : "border-zinc-700 hover:border-zinc-500"
+                            isActive ? `${c.ring} ring-2 ring-offset-1 ring-offset-background border-background` : "border-border hover:border-border"
                           )}
                           title={c.label}
                         />
@@ -697,7 +697,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
                 {/* Label */}
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-500">Label (optional)</Label>
+                  <Label className="text-[10px] text-muted-foreground">Label (optional)</Label>
                   <Input
                     value={selectedShape?.label || selectedZone?.label || ""}
                     onChange={(e) => {
@@ -705,35 +705,35 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                       if (selectedZone) updateZoneProps(selectedZone.id, { label: e.target.value || undefined });
                     }}
                     placeholder="e.g. Red circle"
-                    className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs"
+                    className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                   />
                 </div>
 
                 {/* Zone size */}
                 {selectedZone && (
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-zinc-500">Size</Label>
+                    <Label className="text-[10px] text-muted-foreground">Size</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-[9px] text-zinc-600">W</Label>
+                        <Label className="text-[9px] text-muted-foreground">W</Label>
                         <Input
                           type="number"
                           min={40}
                           max={200}
                           value={selectedZone.width}
                           onChange={(e) => updateZoneProps(selectedZone.id, { width: parseInt(e.target.value) || 100 })}
-                          className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs"
+                          className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                         />
                       </div>
                       <div>
-                        <Label className="text-[9px] text-zinc-600">H</Label>
+                        <Label className="text-[9px] text-muted-foreground">H</Label>
                         <Input
                           type="number"
                           min={40}
                           max={200}
                           value={selectedZone.height}
                           onChange={(e) => updateZoneProps(selectedZone.id, { height: parseInt(e.target.value) || 100 })}
-                          className="bg-zinc-800/50 border-zinc-700/50 h-7 text-xs"
+                          className="bg-foreground/[0.06] border-border/50 h-7 text-xs"
                         />
                       </div>
                     </div>
@@ -742,11 +742,11 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
 
                 {/* Linking */}
                 {selectedShape && (
-                  <div className="space-y-1.5 pt-2 border-t border-zinc-800">
-                    <Label className="text-[10px] text-zinc-500">Correct Match</Label>
+                  <div className="space-y-1.5 pt-2 border-t border-border">
+                    <Label className="text-[10px] text-muted-foreground">Correct Match</Label>
                     {config.correctMatches[selectedShape.id] ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-emerald-400 flex items-center gap-1">
+                        <span className="text-xs text-brand-accent flex items-center gap-1">
                           <Link2 className="w-3 h-3" />
                           Linked to {config.dropZones.find(z => z.id === config.correctMatches[selectedShape.id])?.label || "zone"}
                         </span>
@@ -754,7 +754,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                           variant="ghost"
                           size="sm"
                           onClick={() => removeLink(selectedShape.id)}
-                          className="h-5 text-[10px] text-zinc-500 hover:text-destructive"
+                          className="h-5 text-[10px] text-muted-foreground hover:text-destructive"
                         >
                           <Unlink2 className="w-3 h-3" />
                         </Button>
@@ -774,7 +774,7 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
                 )}
 
                 {/* Delete */}
-                <div className="pt-2 border-t border-zinc-800">
+                <div className="pt-2 border-t border-border">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -791,15 +791,15 @@ export function ShapeMatchVisualBuilder({ config: initialConfig, onSave, onClose
         </div>
 
         {/* ─── FOOTER ─── */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800 shrink-0">
-          <div className="flex items-center gap-3 text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border shrink-0">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {validationIssues.length > 0 && (
               <span className="text-amber-400">{validationIssues.length} issue(s)</span>
             )}
             <span>{Object.keys(config.correctMatches).length} link(s) set</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={onClose} className="text-zinc-400">
+            <Button variant="ghost" onClick={onClose} className="text-muted-foreground">
               Cancel
             </Button>
             <Button

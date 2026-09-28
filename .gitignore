@@ -3,7 +3,10 @@
 
 # Probe / audit artifacts + secrets (screenshots, reports, tokens) — never commit
 scripts/_probe/
+**/.private-showcase/
 **/.vercel_token
+# Machine-specific agent permissions/commands can contain credentials.
+.claude/settings.local.json
 
 # Python bytecode cache
 **/__pycache__/
@@ -38,3 +41,6 @@ Thumbs.db
 # Database backups (contain sensitive user data)
 **/database-backups/
 .vercel
+
+# Windows cache directory accidentally created under the workspace (not source).
+**/%SystemDrive%/

@@ -437,15 +437,6 @@ export function getAvailablePaymentMethods(): {
   const providers = getPaymentProviders();
   const methods = [];
 
-  // Always show crypto as available
-  methods.push({
-    type: 'crypto' as PaymentProviderType,
-    name: 'crypto',
-    displayName: 'Crypto (ETH/SOL/PLS)',
-    icon: '⛓️',
-    currencies: ['USD', 'ETH', 'SOL', 'PLS'],
-  });
-
   for (const [, provider] of providers) {
     methods.push({
       type: provider.type,

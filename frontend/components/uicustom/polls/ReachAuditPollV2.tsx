@@ -583,7 +583,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring" }}
       >
-        <div className="w-24 h-24 rounded-3xl bg-linear-to-br from-emerald-500 via-cyan-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+        <div className="w-24 h-24 rounded-3xl bg-linear-to-br from-brand-accent via-cyan-500 to-blue-500 flex items-center justify-center shadow-2xl shadow-brand-accent/20">
           <Target className="w-12 h-12 text-white" />
         </div>
         <motion.div
@@ -592,7 +592,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
           animate={{ scale: 1 }}
           transition={{ delay: 0.5, type: "spring" }}
         >
-          <Sparkles className="w-4 h-4 text-white" />
+          <Sparkles className="w-4 h-4 text-foreground" />
         </motion.div>
       </motion.div>
 
@@ -635,7 +635,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         </div>
         <div className="w-px bg-border" />
         <div className="text-center">
-          <div className="text-2xl font-bold text-emerald-500">100%</div>
+          <div className="text-2xl font-bold text-brand-accent">100%</div>
           <div className="text-xs text-muted-foreground">Your voice</div>
         </div>
       </motion.div>
@@ -654,7 +654,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
               key={phase.id}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
-                "bg-muted/50 text-muted-foreground border border-border/50"
+                "bg-foreground/[0.06] text-muted-foreground border border-border/50"
               )}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -676,7 +676,7 @@ function WelcomeScreen({ onStart, phases }: { onStart: () => void; phases: Phase
         <Button
           size="lg"
           onClick={onStart}
-          className="bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-8 py-6 text-lg rounded-2xl shadow-xl shadow-emerald-500/20 group"
+          className="bg-linear-to-r from-brand-accent to-cyan-500 hover:from-brand-accent hover:to-cyan-600 text-white px-8 py-6 text-lg rounded-2xl shadow-xl shadow-brand-accent/20 group"
         >
           Let&apos;s Begin
           <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -739,10 +739,10 @@ function PhaseSelector({
               key={phase.id}
               onClick={() => onSelectPhase(index)}
               className={cn(
-                "relative p-4 rounded-2xl border-2 text-left transition-all",
+                "relative p-4 rounded-2xl border-2 text-left transition",
                 "hover:scale-[1.02] active:scale-[0.98]",
                 isCompleted
-                  ? "border-emerald-500/50 bg-emerald-500/10"
+                  ? "border-brand-accent/50 bg-brand-accent/10"
                   : isCurrent
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/30"
@@ -752,7 +752,7 @@ function PhaseSelector({
             >
               {isCompleted && (
                 <div className="absolute top-2 right-2">
-                  <Check className="w-4 h-4 text-emerald-500" />
+                  <Check className="w-4 h-4 text-brand-accent" />
                 </div>
               )}
               
@@ -771,7 +771,7 @@ function PhaseSelector({
                 <motion.div
                   className={cn(
                     "h-full rounded-full",
-                    isCompleted ? "bg-emerald-500" : "bg-primary"
+                    isCompleted ? "bg-brand-accent" : "bg-primary"
                   )}
                   initial={{ width: 0 }}
                   animate={{ width: `${phaseProgress}%` }}
@@ -813,7 +813,7 @@ function YesNoQuestion({
             onClick={() => onAnswer({ value })}
             className={cn(
               "relative flex flex-col items-center gap-2 p-6 rounded-2xl border-2 min-w-[120px]",
-              "transition-all",
+              "transition",
               selected === value
                 ? `border-${color}-500 bg-${color}-500/10 shadow-lg shadow-${color}-500/10`
                 : "border-border hover:border-muted-foreground/50"
@@ -834,7 +834,7 @@ function YesNoQuestion({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
               >
-                <Check className="w-4 h-4 text-white" />
+                <Check className="w-4 h-4 text-foreground" />
               </motion.div>
             )}
           </motion.button>
@@ -867,7 +867,7 @@ function RatingQuestion({
             onClick={() => onAnswer({ value })}
             className={cn(
               "w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-bold",
-              "transition-all",
+              "transition",
               selected !== undefined && value <= selected
                 ? "border-amber-500 bg-amber-500 text-white"
                 : "border-border hover:border-amber-500/50 text-muted-foreground"
@@ -916,7 +916,7 @@ function SliderQuestionV2({
       {/* Custom slider track */}
       <div className="relative h-3 bg-muted rounded-full">
         <motion.div
-          className="absolute h-full bg-linear-to-r from-emerald-500 to-cyan-500 rounded-full"
+          className="absolute h-full bg-linear-to-r from-brand-accent to-cyan-500 rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
         />
@@ -931,7 +931,7 @@ function SliderQuestionV2({
         />
         {/* Thumb indicator */}
         <motion.div
-          className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-lg border-2 border-primary"
+          className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-card shadow-lg border-2 border-primary"
           style={{ left: `calc(${percentage}% - 12px)` }}
           initial={false}
           animate={{ left: `calc(${percentage}% - 12px)` }}
@@ -992,7 +992,7 @@ function ChoiceQuestionV2({
               onClick={() => handleSelect(option.id)}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full border-2 text-sm font-medium",
-                "transition-all",
+                "transition",
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border hover:border-primary/50"
@@ -1021,7 +1021,7 @@ function ChoiceQuestionV2({
               onClick={() => handleSelect(option.id)}
               className={cn(
                 "w-full flex items-center gap-3 p-3 rounded-xl border text-left",
-                "transition-all",
+                "transition",
                 isSelected
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/30"
@@ -1057,7 +1057,7 @@ function ChoiceQuestionV2({
             onClick={() => handleSelect(option.id)}
             className={cn(
               "relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 text-center",
-              "transition-all",
+              "transition",
               isSelected
                 ? "border-primary bg-primary/5 shadow-lg"
                 : "border-border hover:border-primary/30"
@@ -1071,7 +1071,7 @@ function ChoiceQuestionV2({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
               >
-                <Check className="w-4 h-4 text-white" />
+                <Check className="w-4 h-4 text-foreground" />
               </motion.div>
             )}
             {option.icon && <span className="text-3xl">{option.icon}</span>}
@@ -1156,7 +1156,7 @@ function DragRankQuestion({
             <span className={cn(
               "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
               index === 0 ? "bg-amber-500 text-white" :
-              index === 1 ? "bg-zinc-400 text-white" :
+              index === 1 ? "bg-muted text-white" :
               index === 2 ? "bg-amber-700 text-white" :
               "bg-muted text-muted-foreground"
             )}>
@@ -1304,7 +1304,7 @@ function CompletionScreen({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", delay: 0.2 }}
-        className="w-24 h-24 rounded-full bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-6"
+        className="w-24 h-24 rounded-full bg-linear-to-br from-brand-accent to-cyan-500 flex items-center justify-center mb-6"
       >
         <Trophy className="w-12 h-12 text-white" />
       </motion.div>
@@ -1385,7 +1385,7 @@ function CompletionScreen({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting || answeredCount === 0}
-          className="bg-linear-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white px-6"
+          className="bg-linear-to-r from-brand-accent to-cyan-500 hover:from-brand-accent hover:to-cyan-600 text-white px-6"
         >
           {isSubmitting ? "Submitting..." : "Submit Feedback"}
           {!isSubmitting && <Sparkles className="ml-2 w-4 h-4" />}
@@ -1549,7 +1549,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
               <div className="flex items-center gap-2">
                 <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-linear-to-r from-emerald-500 to-cyan-500"
+                    className="h-full bg-linear-to-r from-brand-accent to-cyan-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${overallProgress}%` }}
                   />
@@ -1574,7 +1574,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center min-h-[60vh] p-8"
               >
-                <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-4 animate-pulse">
+                <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-brand-accent to-cyan-500 flex items-center justify-center mb-4 animate-pulse">
                   <Target className="w-8 h-8 text-white" />
                 </div>
                 <p className="text-muted-foreground">Loading poll...</p>
@@ -1646,7 +1646,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
 
         {/* Bottom navigation for questions */}
         {screen === "question" && (
-          <div className="flex items-center justify-between p-4 border-t border-border/50 bg-muted/30">
+          <div className="flex items-center justify-between p-4 border-t border-border/50 bg-foreground/[0.04]">
             <Button
               variant="ghost"
               onClick={goPrev}
@@ -1665,7 +1665,7 @@ export function ReachAuditPollV2({ pollId, onClose, onComplete }: ReachAuditPoll
                     idx === currentQuestion
                       ? "bg-primary"
                       : answers[phase.questions[idx].id]?.value !== undefined
-                      ? "bg-emerald-500"
+                      ? "bg-brand-accent"
                       : "bg-muted-foreground/30"
                   )}
                   animate={{ scale: idx === currentQuestion ? 1.2 : 1 }}

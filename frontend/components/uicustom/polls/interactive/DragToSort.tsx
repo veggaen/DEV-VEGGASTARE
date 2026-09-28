@@ -39,7 +39,7 @@ function SortableItem({
   const getMedalIcon = (idx: number) => {
     if (!showMedals) return null;
     if (idx === 0) return <Trophy className="w-5 h-5 text-amber-500" />;
-    if (idx === 1) return <Medal className="w-5 h-5 text-zinc-400" />;
+    if (idx === 1) return <Medal className="w-5 h-5 text-muted-foreground" />;
     if (idx === 2) return <Award className="w-5 h-5 text-amber-700" />;
     return (
       <span className="w-5 h-5 flex items-center justify-center text-xs font-bold text-muted-foreground">
@@ -72,7 +72,7 @@ function SortableItem({
       // Styling
       className={cn(
         "relative flex items-center gap-3 p-4 rounded-2xl select-none",
-        "bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl",
+        "bg-surface-1/90 backdrop-blur-xl",
         "border-2 transition-colors duration-200",
         isDragging 
           ? "border-primary/50 cursor-grabbing z-50" 
@@ -122,7 +122,7 @@ function SortableItem({
           "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
           index === 0 
             ? "bg-linear-to-br from-amber-400/20 to-amber-600/20" 
-            : "bg-muted/50"
+            : "bg-foreground/[0.06]"
         )}
         layout
       >

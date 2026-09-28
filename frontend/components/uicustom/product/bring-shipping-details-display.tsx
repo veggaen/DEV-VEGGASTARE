@@ -162,7 +162,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
   if (!options && allProducts.length === 0 && !showLocalPickup) {
     return (
       <div className="text-center py-6">
-        <div className="h-12 w-12 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-3">
+        <div className="h-12 w-12 mx-auto rounded-full bg-foreground/[0.06] flex items-center justify-center mb-3">
           <FiPackage className="h-6 w-6 text-muted-foreground" />
         </div>
         <p className="text-sm text-muted-foreground">No shipping options available</p>
@@ -182,18 +182,18 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             key={idx}
             onClick={() => setSelectedIndex(idx)}
             className={cn(
-              'w-full flex items-center justify-between gap-4 p-3 rounded-lg border transition-all duration-200',
+              'w-full flex items-center justify-between gap-4 p-3 rounded-lg border transition duration-200',
               selectedIndex === idx
-                ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/20'
-                : 'border-border hover:border-emerald-500/50 bg-surface-2/50 dark:bg-white/[0.02]'
+                ? 'border-brand-accent bg-brand-accent/5 ring-1 ring-brand-accent/20'
+                : 'border-border hover:border-brand-accent/50 bg-surface-2/50 dark:bg-foreground/[0.05]'
             )}
           >
             <div className="flex items-center gap-3">
               <div className={cn(
                 'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
                 selectedIndex === idx
-                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-muted/50 text-muted-foreground'
+                  ? 'bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light'
+                  : 'bg-foreground/[0.06] text-muted-foreground'
               )}>
                 <FiTruck className="h-4 w-4" />
               </div>
@@ -212,14 +212,14 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
 
             <div className="flex items-center gap-2">
               {opt?.price?.amount != null && opt?.price?.currency ? (
-                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                <div className="text-sm font-bold text-brand-accent-hover dark:text-brand-accent-light">
                   {opt.price.amount} {opt.price.currency}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">Quote on request</div>
               )}
               {selectedIndex === idx && (
-                <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                <div className="h-5 w-5 rounded-full bg-brand-accent flex items-center justify-center">
                   <FiCheck className="h-3 w-3 text-white" />
                 </div>
               )}
@@ -259,10 +259,10 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             <button
               onClick={() => setSelectedIndex(idx)}
               className={cn(
-                'w-full text-left rounded-xl border transition-all duration-200 overflow-hidden',
+                'w-full text-left rounded-xl border transition duration-200 overflow-hidden',
                 isSelected
-                  ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-sm'
-                  : 'border-border hover:border-emerald-500/50'
+                  ? 'border-brand-accent ring-1 ring-brand-accent/20 shadow-sm'
+                  : 'border-border hover:border-brand-accent/50'
               )}
             >
               {/* Main content */}
@@ -270,7 +270,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                 <div className="flex items-start gap-3">
                   {/* Logo */}
                   {guiInfo.logoUrl ? (
-                    <div className="h-12 w-12 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center overflow-hidden p-2 shrink-0 border border-border/50">
+                    <div className="h-12 w-12 rounded-xl bg-card flex items-center justify-center overflow-hidden p-2 shrink-0 border border-border/50">
                       <Image
                         src={guiInfo.logoUrl}
                         alt={guiInfo.displayName || 'Carrier'}
@@ -280,7 +280,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                       />
                     </div>
                   ) : (
-                    <div className="h-12 w-12 rounded-xl bg-surface-2 dark:bg-white/10 flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 rounded-xl bg-surface-2 dark:bg-foreground/[0.05] flex items-center justify-center shrink-0">
                       <FiPackage className="h-5 w-5 text-muted-foreground" />
                     </div>
                   )}
@@ -300,7 +300,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                             </span>
                           )}
                           {guiInfo.trackable && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light uppercase">
                               Trackable
                             </span>
                           )}
@@ -311,7 +311,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                       <div className="text-right shrink-0">
                         {price != null ? (
                           <>
-                            <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                            <div className="font-bold text-brand-accent-hover dark:text-brand-accent-light">
                               {price} {currency}
                             </div>
                             <div className="text-[10px] text-muted-foreground">incl. VAT</div>
@@ -332,12 +332,12 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
 
                   {/* Selection indicator */}
                   <div className={cn(
-                    'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                    'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition',
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-500'
+                      ? 'border-brand-accent bg-brand-accent'
                       : 'border-muted-foreground/30'
                   )}>
-                    {isSelected && <FiCheck className="h-3.5 w-3.5 text-white" />}
+                    {isSelected && <FiCheck className="h-3.5 w-3.5 text-foreground" />}
                   </div>
                 </div>
               </div>
@@ -352,7 +352,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="border-t border-border dark:border-white/5"
+                      className="border-t border-border dark:border-border/50"
                     >
                       <div className="px-4 py-3 bg-blue-500/5 dark:bg-blue-500/10">
                         <div className="flex items-start gap-2">
@@ -391,17 +391,17 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
           <button
             onClick={() => setSelectedIndex(-1)} // Use -1 to indicate local pickup
             className={cn(
-              'w-full text-left rounded-xl border transition-all duration-200 overflow-hidden',
+              'w-full text-left rounded-xl border transition duration-200 overflow-hidden',
               selectedIndex === -1
-                ? 'border-emerald-500 ring-1 ring-emerald-500/20 shadow-sm'
-                : 'border-border hover:border-emerald-500/50'
+                ? 'border-brand-accent ring-1 ring-brand-accent/20 shadow-sm'
+                : 'border-border hover:border-brand-accent/50'
             )}
           >
             <div className="p-4">
               <div className="flex items-start gap-3">
                 {/* Icon */}
-                <div className="h-12 w-12 rounded-xl bg-linear-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
-                  <FiMapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="h-12 w-12 rounded-xl bg-linear-to-br from-brand-accent/20 to-teal-500/20 dark:from-brand-accent/30 dark:to-teal-500/30 flex items-center justify-center shrink-0">
+                  <FiMapPin className="h-5 w-5 text-brand-accent-hover dark:text-brand-accent-light" />
                 </div>
 
                 {/* Info */}
@@ -412,7 +412,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
                         Pickup at Warehouse
                       </h4>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light uppercase">
                           Free
                         </span>
                         {typeof userDistanceKm === 'number' && (
@@ -426,7 +426,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
 
                     {/* Price - FREE */}
                     <div className="text-right shrink-0">
-                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="font-bold text-brand-accent-hover dark:text-brand-accent-light">
                         FREE
                       </div>
                       <div className="text-[10px] text-muted-foreground">Save shipping</div>
@@ -441,12 +441,12 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
 
                 {/* Selection indicator */}
                 <div className={cn(
-                  'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                  'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition',
                   selectedIndex === -1
-                    ? 'border-emerald-500 bg-emerald-500'
+                    ? 'border-brand-accent bg-brand-accent'
                     : 'border-muted-foreground/30'
                 )}>
-                  {selectedIndex === -1 && <FiCheck className="h-3.5 w-3.5 text-white" />}
+                  {selectedIndex === -1 && <FiCheck className="h-3.5 w-3.5 text-foreground" />}
                 </div>
               </div>
             </div>
@@ -482,7 +482,7 @@ const MyShippingDetailsDisplay = ({ shippingResponse, toPostalCode, warehouse, u
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="rounded-lg bg-surface-2/50 dark:bg-white/[0.02] border border-border dark:border-white/5 p-3"
+            className="rounded-lg bg-surface-2/50 dark:bg-foreground/[0.05] border border-border dark:border-border/50 p-3"
           >
             <div className="grid grid-cols-2 gap-3 text-xs">
               {allProducts[selectedIndex].product.guiInformation?.maxWeightInKgs && (

@@ -1,0 +1,17 @@
+# Local credentials, browser sessions, and generated test/build artifacts.
+**/.env
+**/.env.*
+**/.auth/**
+**/.next/**
+**/.next-*/**
+**/node_modules/**
+backend/dist/**
+backend/src/generated/**
+**/playwright-report/**
+**/test-results/**
+**/test-results-*/**
+**/%SystemDrive%/**
+**/database-backups/**
+**/.private-showcase/**
+**/*.tsbuildinfo
+.git

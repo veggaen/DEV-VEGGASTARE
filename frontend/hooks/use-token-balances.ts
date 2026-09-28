@@ -5,6 +5,27 @@ import { useAccount, useChainId, useBalance } from "wagmi";
 import { formatUnits } from "viem";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { TOKEN_LOGO_FALLBACKS } from "@/lib/token-icons";
+import { rpcUrlFor } from "@/lib/evm-rpc";
+import { BLOCKSCOUT_HOSTS, mergeTokenCandidates, type DiscoveredToken, type TokenCandidate } from "@/lib/wallet-tokens";
+import { GECKO_NETWORKS } from "@/lib/token-prices";
+import { assessToken, valueCounts, type GoPlusSecurity, type HoneypotVerdict, type TokenRisk } from "@/lib/token-risk";
+import { TRUSTED_TOKENS_EVENT, readFlaggedTokens, readTrustedTokens, trustedTokenKey } from "@/lib/trusted-tokens";
+
+/** The verdict for one inventory token given the user's current flags. */
+function assessInventoryToken(t: InventoryToken, flagged: Set<string>): TokenRisk {
+  return assessToken({
+    isNative: t.isNative,
+    isKnown: t.known,
+    flaggedByUser: flagged.has(trustedTokenKey(t.chainId, t.address)),
+    goplus: t.security ?? null,
+    honeypot: t.honeypot ?? null,
+    liquidityUsd: t.liquidityUsd,
+    volume24hUsd: t.volume24hUsd,
+    hasPrice: t.usdPrice !== undefined,
+  });
+}
+const HONEYPOT_CHAINS = new Set([1, 56, 8453]);
+const HONEYPOT_TTL = 6 * 60 * 60_000;
 
 /** Chain icon data URIs — simple coloured circles with chain abbreviation */
 export const CHAIN_LOGOS: Record<number, string> = {
@@ -27,15 +48,15 @@ export const CHAIN_LOGOS: Record<number, string> = {
  * before falling back to generated letter icons.
  */
 function resolveTokenLogo(_symbol: string, providedLogo?: string): string | undefined {
-  // Only honour pre-resolved data URIs (e.g. from API responses)
-  if (providedLogo?.startsWith("data:")) return providedLogo;
+  // Honour pre-resolved data URIs and the indexer's https logos (CoinGecko-backed)
+  if (providedLogo?.startsWith("data:") || providedLogo?.startsWith("https://")) return providedLogo;
   // Return undefined — let TokenIcon cascade:
   //   Trust Wallet CDN → inline SVG fallback → generated letter
   return undefined;
 }
 
 // Well-known ERC-20 tokens per chain
-const KNOWN_TOKENS: Record<number, TokenMeta[]> = {
+export const KNOWN_TOKENS: Record<number, TokenMeta[]> = {
   // Ethereum Mainnet
   1: [
     { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6 },
@@ -114,7 +135,26 @@ export interface InventoryToken {
   rawBalance: bigint;
   displayBalance: string;
   isNative: boolean;
+  /** USD per whole token when a price is known (indexer); native coins are priced by the caller. */
+  usdPrice?: number;
+  /** DEX reserve and 24 h volume in USD (GeckoTerminal), when known. */
+  liquidityUsd?: number;
+  volume24hUsd?: number;
+  /** Contract red flags from GoPlus, when the chain is covered. */
+  security?: GoPlusSecurity;
+  /** Honeypot.is sale simulation, when the chain is covered and the token was worth checking. */
+  honeypot?: HoneypotVerdict;
+  /** On the chain's known list (USDC, HEX, …). */
+  known?: boolean;
+  /** The risk verdict built from the above. */
+  risk?: TokenRisk;
+  /** False when the price must not count toward totals (risky token the user has not trusted). */
+  valueVerified?: boolean;
 }
+
+/** What makes a published list "different": a new stack, a new balance, a new price, or a new verdict. */
+const signatureOf = (list: InventoryToken[]) =>
+  list.map((t) => `${t.id}:${t.rawBalance}:${t.usdPrice ?? ""}:${t.risk?.level ?? ""}:${t.valueVerified === false ? 0 : 1}`).join("|");
 
 /**
  * Fetches native + ERC-20 token balances for the connected wallet.
@@ -126,17 +166,78 @@ export interface InventoryToken {
  * Polls every 12 seconds for balance updates.
  */
 const POLL_INTERVAL = 12_000;
+const DISCOVERY_TTL = 60_000;
+const SECURITY_TTL = 15 * 60_000;
 
 export function useTokenBalances() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const wagmiChainId = useChainId();
   const { override } = useActiveWalletOverride();
-  const [tokens, setTokens] = useState<InventoryToken[]>([]);
+  const [tokens, setTokensState] = useState<InventoryToken[]>([]);
+  /** True until the first read for this wallet/chain completes. */
   const [loading, setLoading] = useState(false);
+  /** True while a background poll is in flight; the list stays as it is meanwhile. */
+  const [refreshing, setRefreshing] = useState(false);
+  // Same content → same array. A poll that finds nothing new must not rebuild
+  // the inventory (split stacks, drags in progress and the trade grid all key
+  // off the token array's identity).
+  const signatureRef = useRef<string>("");
+  // Stacks keep their positions: existing ids stay in their previous order and
+  // only new ids are appended, so a price tick updates numbers in place instead
+  // of re-sorting the grid (which remounts every cell that moved).
+  const orderRef = useRef<Map<string, number>>(new Map());
+  const setTokens = useCallback((next: InventoryToken[]) => {
+    const order = orderRef.current;
+    const stable = order.size === 0 ? next : [...next].sort((a, b) => {
+      const ia = order.get(a.id), ib = order.get(b.id);
+      if (ia !== undefined && ib !== undefined) return ia - ib;
+      if (ia !== undefined) return -1;
+      if (ib !== undefined) return 1;
+      return 0;
+    });
+    const signature = signatureOf(stable);
+    if (signature === signatureRef.current) return;
+    signatureRef.current = signature;
+    orderRef.current = new Map(stable.map((t, i) => [t.id, i]));
+    setTokensState(stable);
+  }, []);
   const [error, setError] = useState<string | null>(null);
+  /** Flagged tokens the user chose to count anyway (localStorage); changes apply without a refetch. */
+  const trustedRef = useRef<Set<string>>(new Set());
+  const flaggedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const apply = () => {
+      trustedRef.current = readTrustedTokens();
+      flaggedRef.current = readFlaggedTokens();
+      setTokensState((prev) => {
+        const next = prev.map((t) => {
+          const risk = assessInventoryToken(t, flaggedRef.current);
+          return { ...t, risk, valueVerified: valueCounts(risk.level, trustedRef.current.has(trustedTokenKey(t.chainId, t.address))) };
+        });
+        signatureRef.current = signatureOf(next);
+        return next;
+      });
+    };
+    trustedRef.current = readTrustedTokens();
+    flaggedRef.current = readFlaggedTokens();
+    window.addEventListener(TRUSTED_TOKENS_EVENT, apply);
+    return () => window.removeEventListener(TRUSTED_TOKENS_EVENT, apply);
+  }, []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Version counter to prevent stale async results from overwriting newer ones
   const fetchVersionRef = useRef(0);
+  // Consecutive complete failures. One slow indexer + one RPC hiccup is "still
+  // reading", not a failure the user has to act on.
+  const failStreakRef = useRef(0);
+  // Discovery is indexed data that lags anyway; ask the indexer at most once a
+  // minute per wallet/chain and reuse the list between the 12 s balance polls.
+  const discoveryRef = useRef<{ key: string; ts: number; tokens: DiscoveredToken[] } | null>(null);
+  // DEX prices (GeckoTerminal via our route) for stacks the indexer left unpriced; a minute is plenty.
+  const pricesRef = useRef<{ key: string; ts: number; asked: Set<string>; prices: Record<string, number>; liquidity: Record<string, number>; volume: Record<string, number>; native: number | null } | null>(null);
+  // GoPlus contract flags; a quarter of an hour is plenty, they rarely change.
+  const securityRef = useRef<{ key: string; ts: number; asked: Set<string>; tokens: Record<string, GoPlusSecurity> } | null>(null);
+  // Honeypot.is sale simulations; six hours, only for tokens that could inflate the total.
+  const honeypotRef = useRef<{ key: string; ts: number; asked: Set<string>; tokens: Record<string, HoneypotVerdict> } | null>(null);
 
   // Determine effective address / chain / connection status
   const isLocalOverride = Boolean(override?.address);
@@ -150,13 +251,17 @@ export function useTokenBalances() {
     query: { enabled: !isLocalOverride && wagmiConnected },
   });
 
+  const walletKeyRef = useRef("");
   const fetchBalances = useCallback(async () => {
     if (!address || !isConnected || !chainId) return;
+    const walletKey = `${chainId}:${address.toLowerCase()}`;
+    if (walletKeyRef.current !== walletKey) { walletKeyRef.current = walletKey; signatureRef.current = ""; orderRef.current = new Map(); }
 
     // Increment version — any older in-flight fetch becomes stale
     const version = ++fetchVersionRef.current;
 
-    setLoading(true);
+    if (!signatureRef.current) setLoading(true);
+    setRefreshing(true);
     setError(null);
 
     try {
@@ -215,89 +320,233 @@ export function useTokenBalances() {
         }
       }
 
-      // ── Fetch ERC-20 balances via multicall ──────────────
-      // Wrapped in its own try/catch so a multicall failure
-      // doesn't prevent native token from showing.
-      if (knownTokens.length > 0) {
+      // ── ERC-20s, two passes ──────────────────────────────
+      // 1. The known list is read over RPC first: fast, so the common
+      //    tokens show immediately.
+      // 2. Blockscout (keyless) then reports everything else the wallet
+      //    holds; those are confirmed over RPC too, with the indexed value
+      //    as the per-token fallback. A failed read is reported, not "0".
+      let rpcFailed = false;
+      const readBalances = async (candidates: TokenCandidate[]) => {
+        const confirmed = new Map<string, bigint>();
+        if (candidates.length === 0) return confirmed;
         try {
           const { createPublicClient, http, erc20Abi } = await import("viem");
-          const { mainnet, sepolia, base, baseSepolia, arbitrum, polygon, optimism } = await import("viem/chains");
-
-          const chainMap: Record<number, Parameters<typeof createPublicClient>[0]["chain"]> = {
-            1: mainnet,
-            42161: arbitrum,
-            137: polygon,
-            10: optimism,
-            11155111: sepolia,
-            8453: base,
-            84532: baseSepolia,
-            369: {
-              id: 369,
-              name: "PulseChain",
-              nativeCurrency: { name: "Pulse", symbol: "PLS", decimals: 18 },
-              rpcUrls: { default: { http: ["https://rpc.pulsechain.com"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
-            31337: {
-              id: 31337,
-              name: "Anvil Local",
-              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              rpcUrls: { default: { http: ["http://127.0.0.1:8545"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
-            1337: {
-              id: 1337,
-              name: "Ganache Local",
-              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              rpcUrls: { default: { http: ["http://127.0.0.1:7545"] } },
-            } as Parameters<typeof createPublicClient>[0]["chain"],
+          const { mainnet, sepolia, base, baseSepolia, arbitrum, polygon, optimism, pulsechain } = await import("viem/chains");
+          type ChainDef = Parameters<typeof createPublicClient>[0]["chain"];
+          const local = (id: number, name: string, url: string) => ({
+            id, name, nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [url] } },
+          }) as ChainDef;
+          const chainMap: Record<number, ChainDef> = {
+            1: mainnet, 42161: arbitrum, 137: polygon, 10: optimism, 11155111: sepolia, 8453: base, 84532: baseSepolia,
+            369: pulsechain,
+            31337: local(31337, "Anvil Local", "http://127.0.0.1:8545"),
+            1337: local(1337, "Ganache Local", "http://127.0.0.1:7545"),
           };
-
           const chain = chainMap[chainId];
-          if (chain) {
-            // Bail early if a newer fetch already started
-            if (version !== fetchVersionRef.current) return;
-
-            const client = createPublicClient({ chain, transport: http() });
-
-            const calls = knownTokens.map((t) => ({
-              address: t.address as `0x${string}`,
-              abi: erc20Abi,
-              functionName: "balanceOf" as const,
-              args: [address] as const,
-            }));
-
-            const balances = await client.multicall({ contracts: calls });
-
-            for (let i = 0; i < knownTokens.length; i++) {
-              const result = balances[i];
-              if (result.status === "success" && typeof result.result === "bigint" && result.result > BigInt(0)) {
-                const token = knownTokens[i];
-                results.push({
-                  id: `${chainId}:${token.address}`,
-                  address: token.address,
-                  symbol: token.symbol,
-                  decimals: token.decimals,
-                  logo: resolveTokenLogo(token.symbol, token.logo),
-                  chainId,
-                  rawBalance: result.result,
-                  displayBalance: formatBalance(formatUnits(result.result, token.decimals)),
-                  isNative: false,
-                });
-              }
+          if (!chain) return confirmed;
+          const client = createPublicClient({ chain, transport: http(rpcUrlFor(chainId)) });
+          const contracts = candidates.map((t) => ({
+            address: t.address as `0x${string}`,
+            abi: erc20Abi,
+            functionName: "balanceOf" as const,
+            args: [address] as const,
+          }));
+          // Local dev chains have no Multicall3; read one by one there.
+          const results = chain.contracts?.multicall3
+            ? await client.multicall({ contracts })
+            : await Promise.all(contracts.map((c) => client.readContract(c).then(
+                (result) => ({ status: "success" as const, result }),
+                (error: unknown) => ({ status: "failure" as const, error }),
+              )));
+          for (let i = 0; i < candidates.length; i++) {
+            const result = results[i];
+            if (result.status === "success" && typeof result.result === "bigint") {
+              confirmed.set(candidates[i].address.toLowerCase(), result.result);
             }
           }
         } catch (erc20Err) {
-          console.warn("[useTokenBalances] ERC-20 multicall failed (native balance still shown):", erc20Err);
+          rpcFailed = true;
+          console.warn("[useTokenBalances] ERC-20 multicall failed (indexed balances still shown):", erc20Err);
         }
+        return confirmed;
+      };
+      const pushConfirmed = (candidates: TokenCandidate[], confirmed: Map<string, bigint>) => {
+        for (const token of candidates) {
+          const raw = confirmed.get(token.address.toLowerCase()) ?? token.indexedBalance ?? BigInt(0);
+          if (raw <= BigInt(0)) continue;
+          results.push({
+            id: `${chainId}:${token.address}`,
+            address: token.address,
+            symbol: token.symbol,
+            decimals: token.decimals,
+            logo: resolveTokenLogo(token.symbol, token.logo),
+            chainId,
+            rawBalance: raw,
+            displayBalance: formatBalance(formatUnits(raw, token.decimals)),
+            isNative: false,
+            usdPrice: token.indexedUsdRate,
+          });
+        }
+      };
+      // Native first, then by USD value (priced stacks before unpriced), then by raw amount.
+      const usdOf = (t: InventoryToken) => (t.usdPrice ? Number(formatUnits(t.rawBalance, t.decimals)) * t.usdPrice : -1);
+      const byValue = (a: InventoryToken, b: InventoryToken) => {
+        if (a.isNative !== b.isNative) return a.isNative ? -1 : 1;
+        const ua = usdOf(a), ub = usdOf(b);
+        if (ua !== ub) return ub - ua;
+        return b.rawBalance > a.rawBalance ? 1 : b.rawBalance < a.rawBalance ? -1 : 0;
+      };
+
+      // Pass 1: the known list, shown as soon as it is read. Only on the first
+      // read for this wallet: on later polls the short list would replace the
+      // full one for a moment and every cell would remount.
+      const known = mergeTokenCandidates(knownTokens, []);
+      pushConfirmed(known, await readBalances(known));
+      if (version !== fetchVersionRef.current) return;
+      if (!signatureRef.current) setTokens([...results].sort(byValue));
+
+      // Pass 2: what the indexer knows beyond the list.
+      let indexerFailed = false;
+      if (!isLocalOverride && BLOCKSCOUT_HOSTS[chainId]) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const cached = discoveryRef.current;
+          let discovered: DiscoveredToken[];
+          if (cached && cached.key === cacheKey && Date.now() - cached.ts < DISCOVERY_TTL) {
+            discovered = cached.tokens;
+          } else {
+            const res = await fetch(`/api/wallets/evm/tokens?chainId=${chainId}&address=${address}`, { signal: AbortSignal.timeout(25_000) });
+            if (!res.ok) throw new Error(`indexer ${res.status}`);
+            const data = (await res.json()) as { tokens?: DiscoveredToken[] };
+            discovered = data.tokens ?? [];
+            discoveryRef.current = { key: cacheKey, ts: Date.now(), tokens: discovered };
+          }
+          const seen = new Set(known.map((t) => t.address.toLowerCase()));
+          const merged = mergeTokenCandidates(knownTokens, discovered);
+          // The known list was read before discovery: give those stacks the indexer's price now.
+          const priceOf = new Map(merged.filter((t) => t.indexedUsdRate).map((t) => [t.address.toLowerCase(), t.indexedUsdRate as number]));
+          for (const token of results) {
+            if (!token.isNative && token.usdPrice === undefined) {
+              const price = priceOf.get(token.address.toLowerCase());
+              if (price) token.usdPrice = price;
+            }
+          }
+          const extra = merged.filter((t) => !seen.has(t.address.toLowerCase()));
+          if (version !== fetchVersionRef.current) return;
+          pushConfirmed(extra, await readBalances(extra));
+        } catch (indexErr) {
+          indexerFailed = true;
+          console.warn("[useTokenBalances] token discovery unavailable (known list only):", indexErr);
+        }
+      }
+      // Pass 3: DEX prices for whatever is still unpriced, native coin included.
+      // PulseChain and most long-tail tokens have no indexer rate, so without
+      // this the inventory shows amounts but no values there.
+      if (!isLocalOverride && GECKO_NETWORKS[chainId]) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const unpriced = results.filter((t) => !t.isNative && t.usdPrice === undefined).map((t) => t.address.toLowerCase());
+          const cached = pricesRef.current;
+          let quotes = cached && cached.key === cacheKey && Date.now() - cached.ts < DISCOVERY_TTL ? cached : null;
+          if (!quotes || unpriced.some((a) => !quotes!.asked.has(a))) {
+            const res = await fetch(`/api/wallets/evm/prices?chainId=${chainId}&addresses=${unpriced.slice(0, 90).join(",")}`, { signal: AbortSignal.timeout(15_000) });
+            if (!res.ok) throw new Error(`prices ${res.status}`);
+            const data = (await res.json()) as { prices?: Record<string, number>; liquidity?: Record<string, number>; volume24h?: Record<string, number>; native?: number | null };
+            quotes = {
+              key: cacheKey,
+              ts: Date.now(),
+              asked: new Set([...(quotes?.asked ?? []), ...unpriced]),
+              prices: { ...(quotes?.prices ?? {}), ...(data.prices ?? {}) },
+              liquidity: { ...(quotes?.liquidity ?? {}), ...(data.liquidity ?? {}) },
+              volume: { ...(quotes?.volume ?? {}), ...(data.volume24h ?? {}) },
+              native: data.native ?? quotes?.native ?? null,
+            };
+            pricesRef.current = quotes;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) {
+            if (token.isNative) { if (quotes.native) token.usdPrice = quotes.native; continue; }
+            const key = token.address.toLowerCase();
+            if (token.usdPrice === undefined) { const p = quotes.prices[key]; if (p) token.usdPrice = p; }
+            if (key in quotes.liquidity) token.liquidityUsd = quotes.liquidity[key];
+            if (key in quotes.volume) token.volume24hUsd = quotes.volume[key];
+          }
+        } catch (priceErr) {
+          console.warn("[useTokenBalances] DEX prices unavailable:", priceErr);
+        }
+      }
+
+      // Pass 4: contract red flags (GoPlus) on the chains it covers.
+      if (!isLocalOverride) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const erc20s = results.filter((t) => !t.isNative).map((t) => t.address.toLowerCase());
+          const cached = securityRef.current;
+          let sec = cached && cached.key === cacheKey && Date.now() - cached.ts < SECURITY_TTL ? cached : null;
+          if (erc20s.length && (!sec || erc20s.some((a) => !sec!.asked.has(a)))) {
+            const res = await fetch(`/api/wallets/evm/security?chainId=${chainId}&addresses=${erc20s.slice(0, 120).join(",")}`, { signal: AbortSignal.timeout(15_000) });
+            if (!res.ok) throw new Error(`security ${res.status}`);
+            const data = (await res.json()) as { tokens?: Record<string, GoPlusSecurity> };
+            sec = { key: cacheKey, ts: Date.now(), asked: new Set([...(sec?.asked ?? []), ...erc20s]), tokens: { ...(sec?.tokens ?? {}), ...(data.tokens ?? {}) } };
+            securityRef.current = sec;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) if (!token.isNative) token.security = sec?.tokens[token.address.toLowerCase()] ?? token.security;
+        } catch (secErr) {
+          console.warn("[useTokenBalances] token security unavailable:", secErr);
+        }
+      }
+
+      const knownAddrs = new Set(knownTokens.map((t) => t.address.toLowerCase()));
+      for (const token of results) token.known = knownAddrs.has(token.address.toLowerCase());
+
+      // Pass 5: Honeypot.is sale simulation for priced, unknown tokens (the ones that could inflate the total).
+      if (!isLocalOverride && HONEYPOT_CHAINS.has(chainId)) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const suspects = results.filter((t) => !t.isNative && !t.known && (t.usdPrice ?? 0) > 0 && t.security?.trust_list !== "1").map((t) => t.address.toLowerCase());
+          const cached = honeypotRef.current;
+          let hp = cached && cached.key === cacheKey && Date.now() - cached.ts < HONEYPOT_TTL ? cached : null;
+          const fresh = suspects.filter((a) => !hp?.asked.has(a));
+          if (fresh.length) {
+            const res = await fetch(`/api/wallets/evm/honeypot?chainId=${chainId}&addresses=${fresh.slice(0, 40).join(",")}`, { signal: AbortSignal.timeout(30_000) });
+            if (!res.ok) throw new Error(`honeypot ${res.status}`);
+            const data = (await res.json()) as { tokens?: Record<string, HoneypotVerdict>; pending?: string[] };
+            const pending = new Set((data.pending ?? []).map((a) => a.toLowerCase()));
+            hp = { key: cacheKey, ts: hp?.ts ?? Date.now(), asked: new Set([...(hp?.asked ?? []), ...fresh.filter((a) => !pending.has(a))]), tokens: { ...(hp?.tokens ?? {}), ...(data.tokens ?? {}) } };
+            honeypotRef.current = hp;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) if (!token.isNative) token.honeypot = hp?.tokens[token.address.toLowerCase()] ?? token.honeypot;
+        } catch (hpErr) {
+          console.warn("[useTokenBalances] honeypot check unavailable:", hpErr);
+        }
+      }
+
+      // The verdict, and whether the price counts: "ok" always, anything else only when the user trusted it.
+      for (const token of results) {
+        token.risk = assessInventoryToken(token, flaggedRef.current);
+        token.valueVerified = valueCounts(token.risk.level, trustedRef.current.has(trustedTokenKey(token.chainId, token.address)));
+      }
+
+      const totalFailure = rpcFailed && (indexerFailed || !BLOCKSCOUT_HOSTS[chainId]) && !isLocalOverride;
+      failStreakRef.current = totalFailure ? failStreakRef.current + 1 : 0;
+      if (totalFailure && failStreakRef.current >= 2) {
+        setError("Balances could not load. Check your connection and retry.");
       }
 
       // Bail if a newer fetch was started while we were awaiting
       if (version !== fetchVersionRef.current) return;
 
-      // Sort: native first, then by display value descending
+      // Sort: native first, then stacks whose value counts, then by value, then by amount.
       results.sort((a, b) => {
-        if (a.isNative && !b.isNative) return -1;
-        if (!a.isNative && b.isNative) return 1;
-        return Number(b.rawBalance - a.rawBalance);
+        if (a.isNative !== b.isNative) return a.isNative ? -1 : 1;
+        const va = a.valueVerified === false ? 1 : 0, vb = b.valueVerified === false ? 1 : 0;
+        if (va !== vb) return va - vb;
+        const ua = usdOf(a), ub = usdOf(b);
+        if (ua !== ub) return ub - ua;
+        return b.rawBalance > a.rawBalance ? 1 : b.rawBalance < a.rawBalance ? -1 : 0;
       });
 
       setTokens(results);
@@ -307,9 +556,10 @@ export function useTokenBalances() {
     } finally {
       if (version === fetchVersionRef.current) {
         setLoading(false);
+        setRefreshing(false);
       }
     }
-  }, [address, isConnected, chainId, nativeBalance, isLocalOverride, override?.rpcUrl]);
+  }, [address, isConnected, chainId, nativeBalance, isLocalOverride, override?.rpcUrl, setTokens]);
 
   // Initial fetch + poll for balance changes
   useEffect(() => {
@@ -346,13 +596,16 @@ export function useTokenBalances() {
     };
   }, [fetchBalances, isLocalOverride, refetchNative]);
 
-  return { tokens, loading, error, refetch: fetchBalances, chainId };
+  return { tokens, loading, refreshing, error, refetch: fetchBalances, chainId };
 }
 
 /** Format large numbers in compact form: 1.5M, 255.5K, etc. */
 function formatBalance(value: string): string {
   const num = parseFloat(value);
   if (isNaN(num)) return "0";
+  // Airdropped junk comes in stacks of 1e50; toFixed would print the whole exponent form.
+  if (num >= 1e15) return num.toExponential(1).replace("e+", "e");
+  if (num >= 1e12) return `${(num / 1e12).toFixed(1)}T`;
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;

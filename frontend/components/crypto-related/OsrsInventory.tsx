@@ -19,9 +19,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAccount, useChainId, useChains, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
 import { useTokenBalances, CHAIN_LOGOS, type InventoryToken } from "@/hooks/use-token-balances";
+import { useCurrencyRates } from "@/hooks/useCurrencyRates";
+import { formatUsd, formatUsdCompact, stackUsd, sumStacksUsd } from "@/lib/stack-value";
 import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
+import { SendStackDialog } from "@/components/crypto-related/SendStackDialog";
+import { RISK_LABEL, type RiskLevel } from "@/lib/token-risk";
+import { isTokenFlagged, isTokenTrusted, setTokenFlagged, setTokenTrusted } from "@/lib/trusted-tokens";
 import { toast } from "sonner";
+import { consumeInventoryDropAck } from "@/lib/trade-drag-ack";
 import {
   FiChevronDown,
   FiRefreshCw,
@@ -34,6 +40,9 @@ import {
   FiSearch,
   FiTarget,
   FiExternalLink,
+  FiArrowRight,
+  FiShield,
+  FiSlash,
 } from "react-icons/fi";
 
 // ────────────────────────────────────────────────────────────
@@ -128,7 +137,8 @@ export function OsrsInventory({
   const chains = useChains();
   const { switchChain, status: switchStatus } = useSwitchChain();
   const { override } = useActiveWalletOverride();
-  const { tokens, loading, refetch } = useTokenBalances();
+  const { tokens, loading, refreshing, error: balancesError, refetch } = useTokenBalances();
+  const { cryptoPrices } = useCurrencyRates();
   const { nfts, loading: nftsLoading, refetch: refetchNfts } = useNftBalances();
 
   /** Active tab: "tokens" (ERC-20 + native) or "nfts" (ERC-721/1155) */
@@ -155,6 +165,8 @@ export function OsrsInventory({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   /** Expanded detail panel — shows token info below grid without layout shift */
   const [detailSlotId, setDetailSlotId] = useState<string | null>(null);
+  /** Stack being sent through the wallet (Send dialog). */
+  const [sendSlotId, setSendSlotId] = useState<string | null>(null);
   const inventoryRef = useRef<HTMLDivElement>(null);
   const pointerIntentRef = useRef<{
     slotId: string;
@@ -172,42 +184,46 @@ export function OsrsInventory({
   const dragConsumedRef = useRef(false);
   const lastDragPayloadRef = useRef<DragPayload | null>(null);
 
-  const activeChain = chains.find((c) => c.id === chainId);
+  // A local dev-chain override defines the chain, not the injected wallet.
+  const effectiveChainId = override?.chainId ?? chainId;
+  const activeChain = chains.find((c) => c.id === effectiveChainId) ?? (override ? { id: override.chainId, name: override.label ?? `Chain ${override.chainId}` } : undefined);
 
-  // Track whether we just finished a floating-item operation so the grid
-  // sync below doesn't immediately overwrite user-modified grid state.
-  const wasFloatingRef = useRef(false);
-
-  // Track previous tradeMode so we can re-sync grid when trade closes
-  const prevTradeModeRef = useRef(tradeMode);
-
-  // ── Re-sync inventory when trade window closes ────────
-  // Items dragged to trade are removed from gridState via handleDragEnd.
-  // Closing the trade loses those items — force a rebuild from real tokens.
-  const [tradeCloseRevision, setTradeCloseRevision] = useState(0);
+  // ── Reservations: what the open trade window already holds ───────────
+  // Keyed by chain + token address so a split stack still counts against its
+  // source. The window publishes its offer; the balance poll can then never
+  // "give back" an amount that is sitting in the offer grid.
+  const [reserved, setReserved] = useState<Map<string, bigint>>(new Map());
   useEffect(() => {
-    const wasTrade = prevTradeModeRef.current;
-    prevTradeModeRef.current = tradeMode;
-    if (wasTrade && !tradeMode) {
-      // Trade just closed — bump revision so the token-sync below re-runs
-      setTradeCloseRevision((r) => r + 1);
-    }
-  }, [tradeMode]);
-
+    const handler = (event: Event) => {
+      const items = ((event as CustomEvent<Array<{ chainId: number; address: string; rawAmount: string }>>).detail ?? []);
+      const next = new Map<string, bigint>();
+      for (const item of items) {
+        const key = `${item.chainId}:${item.address.toLowerCase()}`;
+        let raw = BigInt(0);
+        try { raw = BigInt(item.rawAmount); } catch { /* ignore malformed */ }
+        next.set(key, (next.get(key) ?? BigInt(0)) + raw);
+      }
+      setReserved(next);
+    };
+    window.addEventListener("veggat:offerChanged", handler);
+    return () => window.removeEventListener("veggat:offerChanged", handler);
+  }, []);
   // ── Build dynamic grid from fetched tokens ─────────────
   // Skip refresh while a floating item (split ghost) is active — otherwise
   // the token poll resets the source back to its full balance, duplicating
   // the ghost amount.  Also skip the FIRST cycle after the ghost is placed
   // so the split/merge result isn't wiped out.
-  useEffect(() => {
-    if (floatingItem) {
-      wasFloatingRef.current = true;
-      return;
-    }
-    if (wasFloatingRef.current) {
-      wasFloatingRef.current = false;
-      return;
-    }
+  const [gridSource, setGridSource] = useState({ tokens: null as typeof tokens | null, chainId, floatingItem, tradeMode, reserved });
+  const gridSourceChanged = gridSource.tokens !== tokens || gridSource.chainId !== chainId ||
+    gridSource.floatingItem !== floatingItem || gridSource.tradeMode !== tradeMode || gridSource.reserved !== reserved;
+  if (gridSourceChanged) {
+    setGridSource({ tokens, chainId, floatingItem, tradeMode, reserved });
+  }
+  // Reconcile before paint, not in a cascading effect. Preserve split results
+  // when the ghost is placed; opening a trade alone must not rebuild the grid.
+  if (gridSourceChanged && !floatingItem && !gridSource.floatingItem &&
+    (gridSource.tokens !== tokens || gridSource.chainId !== chainId || gridSource.reserved !== reserved ||
+      (gridSource.tradeMode && !tradeMode))) {
 
     // Deduplicate tokens by id (prevents duplicate keys from race conditions)
     const seenIds = new Set<string>();
@@ -217,13 +233,18 @@ export function OsrsInventory({
       return true;
     });
 
-    const mapped = uniqueTokens.map((token, i) => ({
-      id: token.id,
-      token,
-      amount: token.displayBalance,
-      rawAmount: token.rawBalance.toString(),
-      order: i,
-    } satisfies InventorySlot));
+    const mapped = uniqueTokens.flatMap((token, i) => {
+      const held = reserved.get(`${token.chainId}:${token.address.toLowerCase()}`) ?? BigInt(0);
+      const remaining = token.rawBalance - held;
+      if (remaining <= BigInt(0)) return [];
+      return [{
+        id: token.id,
+        token,
+        amount: held > BigInt(0) ? formatCompactBalance(remaining, token.decimals) : token.displayBalance,
+        rawAmount: remaining.toString(),
+        order: i,
+      } satisfies InventorySlot];
+    });
 
     // Grow grid if we have more items than MIN_SLOTS (28), always pad to row-aligned size
     const neededSlots = Math.max(MIN_SLOTS, mapped.length + COLS); // +COLS for one extra row
@@ -233,12 +254,17 @@ export function OsrsInventory({
     while (nextGrid.length < gridSize) nextGrid.push(null);
 
     setGridState(nextGrid);
-  }, [tokens, chainId, floatingItem, tradeCloseRevision]);
+  }
 
   const inventorySlots = useMemo(
     () => gridState.filter((slot): slot is InventorySlot => slot !== null),
     [gridState],
   );
+
+  // What the visible stacks are worth (same helper as the cells and the trade window).
+  const portfolio = useMemo(() => sumStacksUsd(inventorySlots, cryptoPrices), [inventorySlots, cryptoPrices]);
+  const portfolioLabel = portfolio.priced > 0 ? formatUsd(portfolio.usd) : null;
+  const stackValueLabel = (slot: InventorySlot) => { const usd = stackUsd(slot.token, slot.rawAmount, cryptoPrices); return usd === null ? null : formatUsdCompact(usd); };
 
   // ── Stablecoin symbols for filter ─────────────────────────
   const STABLECOINS = useMemo(() => new Set(["USDC", "USDT", "DAI", "BUSD", "TUSD", "FRAX", "LUSD", "GUSD", "PYUSD", "USDP", "USDD", "RAI"]), []);
@@ -344,10 +370,53 @@ export function OsrsInventory({
     setFloatingItem(ghost);
     setSplitDialog(null);
     toast.success(
-      `${splitAmount} ${sourceSlot.token.symbol} split — click a slot to place it`,
+      onAddToTrade
+        ? `${splitAmount} ${sourceSlot.token.symbol} split — click the trade grid or an inventory slot to place it`
+        : `${splitAmount} ${sourceSlot.token.symbol} split — click a slot to place it`,
       { duration: 4000 },
     );
-  }, [splitDialog, splitAmount, inventorySlots]);
+  }, [splitDialog, splitAmount, inventorySlots, onAddToTrade]);
+
+  /** Split an amount off a stack and hand it straight to the open trade window. */
+  const confirmSplitToTrade = useCallback(() => {
+    if (!splitDialog || !splitAmount || !onAddToTrade) return;
+    const sourceSlot = inventorySlots.find((s) => s.id === splitDialog);
+    if (!sourceSlot) return;
+    const splitRaw = BigInt(Math.floor(parseFloat(splitAmount) * 10 ** sourceSlot.token.decimals));
+    const sourceRaw = BigInt(sourceSlot.rawAmount);
+    if (splitRaw <= BigInt(0) || splitRaw > sourceRaw) { toast.error("Invalid split amount"); return; }
+    const newSlotId = `${sourceSlot.id}:trade-${Date.now()}`;
+    onAddToTrade({
+      id: newSlotId,
+      token: { ...sourceSlot.token, id: newSlotId },
+      amount: formatCompactBalance(splitRaw, sourceSlot.token.decimals),
+      rawAmount: splitRaw.toString(),
+      order: -1,
+    });
+    setSplitDialog(null);
+    toast.success(`${splitAmount} ${sourceSlot.token.symbol} added to the trade`);
+  }, [splitDialog, splitAmount, inventorySlots, onAddToTrade]);
+
+  // ── Ghost ↔ trade window ───────────────────────────────────
+  // While a split ghost follows the cursor the trade window highlights its
+  // own offer grid; a click there hands the ghost over instead of forcing a
+  // detour through an inventory slot first.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("veggat:ghostActive", { detail: { active: Boolean(floatingItem) && Boolean(onAddToTrade) } }));
+  }, [floatingItem, onAddToTrade]);
+  useEffect(() => {
+    if (!floatingItem || !onAddToTrade) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target?.closest("[data-offer-grid='mine']")) return;
+      e.preventDefault(); e.stopPropagation();
+      onAddToTrade(floatingItem);
+      setFloatingItem(null);
+      toast.success(`${floatingItem.amount} ${floatingItem.token.symbol} placed in the trade`);
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [floatingItem, onAddToTrade]);
 
   // ── Mouse tracking for floating ghost ──────────────────────
   useEffect(() => {
@@ -710,7 +779,7 @@ export function OsrsInventory({
 
       // Create a small drag image so the browser doesn't use the full slot rendering
       const dragEl = document.createElement("div");
-      dragEl.style.cssText = "width:40px;height:40px;background:rgba(16,185,129,0.25);border-radius:8px;border:2px solid rgba(16,185,129,0.6);position:absolute;top:-9999px;";
+      dragEl.style.cssText = "width:40px;height:40px;background:hsl(var(--brand-accent)/0.25);border-radius:8px;border:2px solid hsl(var(--brand-accent)/0.6);position:absolute;top:-9999px;";
       document.body.appendChild(dragEl);
       e.dataTransfer.setDragImage(dragEl, 20, 20);
       requestAnimationFrame(() => dragEl.remove());
@@ -874,9 +943,12 @@ export function OsrsInventory({
     setDraggedSlotId(null);
     setDragOverIndex(null);
 
-    // If the drop was NOT handled by our own inventory drop handler, the item
-    // was dropped outside (e.g. into the trade window).  Remove / reduce it.
-    if (!dragConsumedRef.current && e.dataTransfer.dropEffect === "move" && payload) {
+    // Only remove/reduce the item when a drop target explicitly took it
+    // (lib/trade-drag-ack). `dropEffect === "move"` alone was not enough: the
+    // trade window sets it on every dragover, so releasing over its chrome or
+    // a full/locked offer made the item vanish with nowhere to go.
+    void e;
+    if (!dragConsumedRef.current && payload && consumeInventoryDropAck(payload.slot.id)) {
       const movedRaw = payload.movedRawAmount ? BigInt(payload.movedRawAmount) : null;
 
       setGridState((prev) => {
@@ -914,14 +986,15 @@ export function OsrsInventory({
   // Not connected
   // ────────────────────────────────────────────────────────────
 
-  if (!isConnected) {
+  // An activated local dev-chain account (override) is a wallet here too.
+  if (!effectiveConnected) {
     return (
       <div
         className={`flex flex-col items-center justify-center py-12 text-center ${className}`}
       >
-        <FiPackage className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mb-3" />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Connect a wallet to view your inventory
+        <FiPackage className="h-12 w-12 text-muted-foreground/70 mb-3" />
+        <p className="text-sm text-muted-foreground">
+          Connect a wallet, or activate a local dev-chain account, to see your inventory
         </p>
       </div>
     );
@@ -929,29 +1002,33 @@ export function OsrsInventory({
 
   return (
     <div
-      className={`flex flex-col bg-zinc-950/80 rounded-xl border border-zinc-800 overflow-hidden ${className}`}
+      className={`flex flex-col bg-surface-1/80 rounded-xl border border-border overflow-hidden ${className}`}
       ref={inventoryRef}
     >
       {/* ── Header: Chain Selector + Actions ───────────────── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface-3/60">
         {/* Chain Selector */}
         <div className="flex items-center gap-2">
           <div className="relative">
             <select
-              className="appearance-none bg-zinc-800 border border-zinc-700 rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-zinc-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-              value={chainId}
+              className="appearance-none bg-muted border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-foreground/80 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent transition"
+              value={effectiveChainId}
               onChange={(e) =>
                 switchChain({ chainId: Number(e.target.value) })
               }
-              disabled={switchStatus === "pending"}
+              disabled={switchStatus === "pending" || Boolean(override)}
+              aria-label="Inventory chain"
             >
+              {override && !chains.some((c) => c.id === override.chainId) && (
+                <option value={override.chainId}>{override.label ?? `Chain ${override.chainId}`}</option>
+              )}
               {chains.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
-            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500 pointer-events-none" />
+            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
           </div>
           {switchStatus === "pending" && (
             <motion.div
@@ -971,14 +1048,14 @@ export function OsrsInventory({
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg pl-7 pr-2 py-1 text-xs text-zinc-300 placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500/50 focus:w-36 transition-all"
+              className="w-24 bg-muted border border-border rounded-lg pl-7 pr-2 py-1 text-xs text-foreground/80 placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-accent/50 focus:w-36 transition"
             />
-            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           </div>
           <button
             type="button"
             onClick={handleMerge}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-emerald-400"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Merge all split stacks"
           >
             <FiLayers className="h-3.5 w-3.5" />
@@ -986,31 +1063,30 @@ export function OsrsInventory({
           <button
             type="button"
             onClick={() => {
-              wasFloatingRef.current = false;
               setFloatingItem(null);
-              setGridState([]);
+              setGridSource((previous) => ({ ...previous, tokens: null, floatingItem: null }));
               refetch();
             }}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-emerald-400"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Refresh balances (consolidates split stacks)"
           >
             <FiRefreshCw
-              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 ${loading || refreshing ? "animate-spin" : ""}`}
             />
           </button>
         </div>
       </div>
 
       {/* ── Tab Switcher: Tokens / NFTs ─────────────────────── */}
-      <div className="border-b border-zinc-800 bg-zinc-900/40">
+      <div className="border-b border-border bg-surface-3/40">
         <div className="flex items-center gap-0">
           <button
             type="button"
             onClick={() => setActiveTab("tokens")}
             className={`flex-1 text-center py-1.5 text-[10px] font-semibold transition-colors ${
               activeTab === "tokens"
-                ? "text-emerald-400 border-b-2 border-emerald-500"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "text-brand-accent border-b-2 border-brand-accent"
+                : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
             Tokens ({inventorySlots.length})
@@ -1021,7 +1097,7 @@ export function OsrsInventory({
             className={`flex-1 text-center py-1.5 text-[10px] font-semibold transition-colors ${
               activeTab === "nfts"
                 ? "text-purple-400 border-b-2 border-purple-500"
-                : "text-zinc-500 hover:text-zinc-300"
+                : "text-muted-foreground hover:text-foreground/80"
             }`}
           >
             NFTs ({nfts.length})
@@ -1042,11 +1118,11 @@ export function OsrsInventory({
                 onClick={() => setTokenFilter(key)}
                 className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-semibold transition-colors ${
                   tokenFilter === key
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                    : "text-zinc-500 hover:text-zinc-300 border border-transparent hover:border-zinc-700"
+                    ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/30"
+                    : "text-muted-foreground hover:text-foreground/80 border border-transparent hover:border-border"
                 }`}
               >
-                {label} {count > 0 && <span className="text-zinc-600 ml-0.5">{count}</span>}
+                {label} {count > 0 && <span className="text-muted-foreground ml-0.5">{count}</span>}
               </button>
             ))}
           </div>
@@ -1068,7 +1144,7 @@ export function OsrsInventory({
                 ease: "linear",
               }}
             >
-              <FiRefreshCw className="h-6 w-6 text-zinc-500" />
+              <FiRefreshCw className="h-6 w-6 text-muted-foreground" />
             </motion.div>
           </div>
         ) : (
@@ -1090,6 +1166,9 @@ export function OsrsInventory({
                 key={slot ? `${slot.id}@${idx}` : `empty-${idx}`}
                 slot={slot}
                 index={idx}
+                valueLabel={slot ? stackValueLabel(slot) : null}
+                risk={slot?.token.risk?.level}
+                verified={slot ? slot.token.valueVerified !== false : true}
                 isSelected={slot ? selectedSlot === slot.id : false}
                 isDragging={slot ? draggedSlotId === slot.id : false}
                 isDragOver={dragOverIndex === idx}
@@ -1144,14 +1223,14 @@ export function OsrsInventory({
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
                 >
-                  <FiRefreshCw className="h-6 w-6 text-zinc-500" />
+                  <FiRefreshCw className="h-6 w-6 text-muted-foreground" />
                 </motion.div>
               </div>
             ) : nfts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FiPackage className="h-8 w-8 text-zinc-600 mb-2" />
-                <p className="text-xs text-zinc-500">No NFTs found on this chain</p>
-                <p className="text-[10px] text-zinc-600 mt-1">ERC-721 and ERC-1155 tokens will appear here</p>
+                <FiPackage className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">No NFTs found on this chain</p>
+                <p className="text-[10px] text-muted-foreground mt-1">ERC-721 and ERC-1155 tokens will appear here</p>
               </div>
             ) : (
               <div
@@ -1165,7 +1244,7 @@ export function OsrsInventory({
                 {Array.from({ length: Math.max(0, COLS - (nfts.length % COLS)) % COLS }).map((_, i) => (
                   <div
                     key={`nft-empty-${i}`}
-                    className="aspect-square rounded-lg bg-zinc-900/60 border border-zinc-800/60"
+                    className="aspect-square rounded-lg bg-surface-3/60 border border-border/60"
                     style={{ boxShadow: "inset 0 1px 3px rgba(0,0,0,0.4), inset 0 -1px 1px rgba(255,255,255,0.03)" }}
                   />
                 ))}
@@ -1189,9 +1268,9 @@ export function OsrsInventory({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="overflow-hidden border-t border-zinc-800/60"
+              className="overflow-hidden border-t border-border/60"
             >
-              <div className="px-3 py-2.5 bg-zinc-900/80 space-y-2">
+              <div className="px-3 py-2.5 bg-surface-3/80 space-y-2">
                 {/* Header row: icon + name + close */}
                 <div className="flex items-center gap-2.5">
                   <TokenIcon
@@ -1200,38 +1279,38 @@ export function OsrsInventory({
                     symbol={detailSlot.token.symbol}
                     logo={detailSlot.token.logo}
                     size={28}
-                    className="ring-1 ring-zinc-700/60 shadow-lg"
+                    className="ring-1 ring-border/60 shadow-lg"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-zinc-100">{detailSlot.token.symbol}</span>
+                      <span className="text-sm font-semibold text-foreground">{detailSlot.token.symbol}</span>
                       {isNativeToken && (
-                        <span className="text-[8px] font-medium uppercase tracking-wider text-sky-400 bg-sky-400/10 px-1.5 py-px rounded">Native</span>
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-brand-accent bg-brand-accent/10 px-1.5 py-px rounded">Native</span>
                       )}
                       {!isNativeToken && STABLECOINS.has(detailSlot.token.symbol.toUpperCase()) && (
-                        <span className="text-[8px] font-medium uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-px rounded">Stable</span>
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-brand-accent bg-brand-accent/10 px-1.5 py-px rounded">Stable</span>
                       )}
                     </div>
-                    <span className="text-[11px] text-zinc-500 block truncate">
+                    <span className="text-[11px] text-muted-foreground block truncate">
                       {isNativeToken ? `Native · ${activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}` : `${detailSlot.token.address.slice(0, 10)}…${detailSlot.token.address.slice(-6)}`}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setDetailSlotId(null)}
-                    className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+                    className="text-muted-foreground hover:text-foreground/80 transition-colors p-1"
                   >
                     <FiChevronDown className="h-4 w-4 rotate-180" />
                   </button>
                 </div>
 
                 {/* Balance info */}
-                <div className="bg-zinc-950/60 rounded-md px-2.5 py-1.5 flex items-baseline justify-between">
+                <div className="bg-surface-1/60 rounded-md px-2.5 py-1.5 flex items-baseline justify-between">
                   <div>
-                    <span className="text-xs text-zinc-400">Balance</span>
-                    <div className="text-sm font-bold text-zinc-100">
+                    <span className="text-xs text-muted-foreground">Balance</span>
+                    <div className="text-sm font-bold text-foreground">
                       {formatFullBalance(BigInt(detailSlot.rawAmount), detailSlot.token.decimals)}
-                      <span className="text-zinc-500 font-normal ml-1 text-xs">{detailSlot.token.symbol}</span>
+                      <span className="text-muted-foreground font-normal ml-1 text-xs">{detailSlot.token.symbol}</span>
                     </div>
                   </div>
                   {/* Chain badge */}
@@ -1240,9 +1319,43 @@ export function OsrsInventory({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={CHAIN_LOGOS[detailSlot.token.chainId]} alt="" className="w-4 h-4 rounded-full" draggable={false} />
                     )}
-                    <span className="text-[10px] text-zinc-500">{activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}</span>
+                    <span className="text-[10px] text-muted-foreground">{activeChain?.name ?? `Chain ${detailSlot.token.chainId}`}</span>
                   </div>
                 </div>
+
+                {/* Risk verdict + the user's say: count it, or flag it */}
+                {detailSlot.token.risk && !isNativeToken && (() => {
+                  const r = detailSlot.token.risk;
+                  const { chainId: cid, address: addr, symbol } = detailSlot.token;
+                  const trusted = isTokenTrusted(cid, addr);
+                  const flagged = isTokenFlagged(cid, addr);
+                  const counted = detailSlot.token.valueVerified !== false;
+                  const tone = r.level === "danger" ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300" : r.level === "caution" ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200" : r.level === "unknown" ? "border-border/60 bg-foreground/[0.04] text-muted-foreground" : "border-brand-accent/30 bg-brand-accent/[0.06] text-foreground";
+                  const btn = "rounded-md border border-current/25 px-2 py-1 text-[10px] font-semibold transition-[background-color] duration-150 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+                  return (
+                    <div className={`space-y-1.5 rounded-md border px-2.5 py-2 ${tone}`} role="note">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider">{flagged ? "Flagged by you" : RISK_LABEL[r.level]}</span>
+                        <span className="text-[10px] tabular-nums opacity-80">{r.liquidityUsd !== undefined ? `liquidity ${formatUsdCompact(r.liquidityUsd)}` : ""}{r.sources.length ? ` · ${r.sources.filter((s) => s !== "you").join(", ")}` : ""}</span>
+                      </div>
+                      {(r.reasons.length > 0 || r.notes.length > 0) && (
+                        <ul className="space-y-0.5 text-[10px] leading-snug">
+                          {r.reasons.slice(0, 4).map((reason) => <li key={reason}>· {reason}</li>)}
+                          {r.notes.slice(0, 2).map((note) => <li key={note} className="opacity-75">· {note}</li>)}
+                        </ul>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/15 pt-1.5 text-[10px]">
+                        <span className="text-foreground/85">{counted ? (trusted ? "Counted in your total (your choice)" : "Counted in your total") : "Left out of your total"}</span>
+                        <span className="flex items-center gap-1.5">
+                          {!flagged && r.level !== "ok" && (
+                            <button type="button" className={btn} onClick={() => { setTokenTrusted(cid, addr, !trusted); toast.info(!trusted ? `${symbol} now counts toward your total` : `${symbol} no longer counts`); }}>{trusted ? "Stop counting" : "Count value"}</button>
+                          )}
+                          <button type="button" className={btn} onClick={() => { setTokenFlagged(cid, addr, !flagged); toast.info(!flagged ? `${symbol} flagged as scam; it no longer counts` : `Your flag on ${symbol} was removed`); }}>{flagged ? "Remove my flag" : "Flag as scam"}</button>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Action buttons */}
                 <div className="flex gap-1.5">
@@ -1251,7 +1364,7 @@ export function OsrsInventory({
                       href={explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                     >
                       <FiExternalLink className="h-3 w-3" />
                       Explorer
@@ -1264,7 +1377,7 @@ export function OsrsInventory({
                         navigator.clipboard.writeText(detailSlot.token.address);
                         toast.success("Contract address copied");
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                     >
                       <FiCopy className="h-3 w-3" />
                       Copy Address
@@ -1276,17 +1389,15 @@ export function OsrsInventory({
                       // Open context menu actions for split
                       if (detailSlot) handleSplit(detailSlot.id);
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                   >
                     <FiScissors className="h-3 w-3" />
                     Split
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      toast.info("Send coming soon");
-                    }}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700/60 hover:text-zinc-200 transition-colors"
+                    onClick={() => setSendSlotId(detailSlot.id)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-foreground/[0.07] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors"
                   >
                     <FiSend className="h-3 w-3" />
                     Send
@@ -1298,14 +1409,37 @@ export function OsrsInventory({
         })()}
       </AnimatePresence>
 
+      <SendStackDialog
+        open={Boolean(sendSlotId)}
+        onOpenChange={(next) => { if (!next) setSendSlotId(null); }}
+        target={(() => { const s = sendSlotId ? inventorySlots.find((x) => x.id === sendSlotId) : undefined; return s ? { token: s.token, rawAmount: s.rawAmount } : null; })()}
+        from={effectiveAddress}
+      />
+
       {/* ── Status Bar — chain + active wallet ──────────── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-zinc-800 bg-zinc-900/60">
-        <span className="text-[10px] text-zinc-500">
-          {activeTab === "tokens"
-            ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
-            : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}{" "}
-          · {activeChain?.name ?? `Chain ${chainId}`}
-        </span>
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-border bg-surface-3/60">
+        {activeTab === "tokens" && balancesError && !loading ? (
+          // A failed read is not "0 tokens": name it and offer the retry inline.
+          <button type="button" onClick={() => void refetch()} className="inline-flex min-h-8 items-center gap-1 rounded-md text-[10px] font-medium text-destructive transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <FiRefreshCw className="h-2.5 w-2.5" aria-hidden="true" />
+            Balances didn’t load · Retry
+          </button>
+        ) : activeTab === "tokens" && loading && inventorySlots.length === 0 ? (
+          <span role="status" className="text-[10px] text-muted-foreground">Reading balances… · {activeChain?.name ?? `Chain ${chainId}`}</span>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">
+            {activeTab === "tokens"
+              ? `${inventorySlots.length} token${inventorySlots.length !== 1 ? "s" : ""}`
+              : `${nfts.length} NFT${nfts.length !== 1 ? "s" : ""}`}
+            {activeTab === "tokens" && portfolioLabel && (
+              <span className="font-medium text-foreground/85" title={portfolio.unverified > 0 ? `${portfolio.unverified} flagged stack${portfolio.unverified > 1 ? "s" : ""} left out; open a stack to count it` : portfolio.priced < portfolio.total ? `${portfolio.priced} of ${portfolio.total} stacks have a price` : "All stacks priced"}>
+                {" "}· ≈ {portfolioLabel}{portfolio.priced + portfolio.unverified < portfolio.total ? "+" : ""}
+                {portfolio.unverified > 0 && <span className="text-amber-700 dark:text-amber-300"> · {portfolio.unverified} unverified</span>}
+              </span>
+            )}{" "}
+            · {activeChain?.name ?? `Chain ${chainId}`}
+          </span>
+        )}
         {effectiveConnected && effectiveAddress && (
           <button
             type="button"
@@ -1313,7 +1447,7 @@ export function OsrsInventory({
               navigator.clipboard.writeText(effectiveAddress);
               toast.success("Address copied");
             }}
-            className="flex items-center gap-1 text-[10px] font-mono text-emerald-500/80 hover:text-emerald-400 truncate max-w-36 transition-colors"
+            className="flex items-center gap-1 text-[10px] font-mono text-brand-accent/80 hover:text-brand-accent truncate max-w-36 transition-colors"
             title={effectiveAddress}
           >
             <FiTarget className="h-2.5 w-2.5 shrink-0" />
@@ -1335,6 +1469,7 @@ export function OsrsInventory({
               quickSplitCustomAmount(contextMenu.slotId, amount)
             }
             onCopy={() => handleCopyAddress(contextMenu.slotId)}
+            onSend={() => setSendSlotId(contextMenu.slotId)}
             onClose={closeContextMenu}
             tradeMode={tradeMode}
             onAddToTrade={onAddToTrade ? (slot) => {
@@ -1354,6 +1489,7 @@ export function OsrsInventory({
             onChange={setSplitAmount}
             onConfirm={confirmSplit}
             onCancel={() => setSplitDialog(null)}
+            onToTrade={tradeMode && onAddToTrade ? confirmSplitToTrade : undefined}
           />
         )}
       </AnimatePresence>
@@ -1388,7 +1524,7 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative aspect-square rounded-lg select-none transition-all duration-100 cursor-pointer border-2 border-zinc-700/80 bg-zinc-900/80 hover:border-purple-500/60 hover:bg-purple-500/5"
+      className="relative aspect-square rounded-lg select-none transition duration-100 cursor-pointer border-2 border-border/80 bg-surface-3/80 hover:border-purple-500/60 hover:bg-purple-500/5"
     >
       {/* NFT Image */}
       <div className="absolute inset-0 flex items-center justify-center p-1">
@@ -1402,7 +1538,7 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="w-full h-full rounded-md bg-linear-to-br from-purple-900/40 to-zinc-800 flex items-center justify-center">
+          <div className="w-full h-full rounded-md bg-linear-to-br from-purple-900/40 to-surface-3 flex items-center justify-center">
             <span className="text-[10px] font-bold text-purple-300">NFT</span>
           </div>
         )}
@@ -1425,8 +1561,8 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
       {nft.standard === "ERC-1155" && nft.balance > 1 && (
         <div className="absolute top-0.5 right-0.5 z-10 pointer-events-none">
           <span
-            className="text-[8px] font-bold text-amber-300 leading-none"
-            style={{ textShadow: "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000" }}
+            className="text-[8px] font-bold text-amber-700 dark:text-amber-300 leading-none"
+            style={{ textShadow: "var(--stack-outline)" }}
           >
             x{nft.balance}
           </span>
@@ -1441,20 +1577,20 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="absolute inset-0 z-20 rounded-lg backdrop-blur-md bg-zinc-950/85 flex flex-col items-center justify-center px-1.5 py-1 text-center overflow-hidden"
+            className="absolute inset-0 z-20 rounded-lg backdrop-blur-md bg-surface-1/85 flex flex-col items-center justify-center px-1.5 py-1 text-center overflow-hidden"
           >
             <span className="text-[10px] font-bold text-purple-300 leading-tight truncate max-w-full">
               {nft.name ?? `#${nft.tokenId}`}
             </span>
             {nft.collectionName && (
-              <span className="text-[8px] text-zinc-400 leading-tight truncate max-w-full mt-0.5">
+              <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-0.5">
                 {nft.collectionName}
               </span>
             )}
-            <span className="text-[8px] text-zinc-500 leading-tight truncate max-w-full mt-0.5">
+            <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-0.5">
               {nft.contractAddress.slice(0, 6)}…{nft.contractAddress.slice(-4)}
             </span>
-            <span className="text-[7px] text-zinc-600 mt-0.5">
+            <span className="text-[7px] text-muted-foreground mt-0.5">
               Token #{nft.tokenId.length > 8 ? `${nft.tokenId.slice(0, 6)}…` : nft.tokenId}
             </span>
           </motion.div>
@@ -1471,6 +1607,9 @@ function NftSlot({ nft }: { nft: InventoryNft }) {
 function OsrsSlot({
   slot,
   index,
+  valueLabel,
+  risk,
+  verified = true,
   isSelected,
   isDragging,
   isDragOver,
@@ -1488,6 +1627,11 @@ function OsrsSlot({
 }: {
   slot: InventorySlot | null;
   index: number;
+  /** "$1.2K" for this stack, null when unpriced. */
+  valueLabel?: string | null;
+  /** Risk verdict; anything but "ok" shows a warning badge, and an untrusted price greys the cell. */
+  risk?: RiskLevel;
+  verified?: boolean;
   isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
@@ -1522,26 +1666,26 @@ function OsrsSlot({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`
-        relative aspect-square select-none transition-all duration-150
+        relative aspect-square select-none transition duration-150
         ${isDragOver && !isDragging
-          ? "ring-2 ring-emerald-400/70 bg-emerald-500/10 border border-emerald-500/40 scale-[1.03] rounded-md"
+          ? "ring-2 ring-brand-accent/70 bg-brand-accent/10 border border-brand-accent/40 scale-[1.03] rounded-md"
           : isEmpty
-          ? `bg-zinc-900/40 border border-zinc-800/40 rounded-md ${onClick ? "cursor-pointer hover:border-emerald-700/30 hover:bg-emerald-500/5" : ""}`
+          ? `bg-surface-3/40 border border-border/40 rounded-md ${onClick ? "cursor-pointer hover:border-brand-accent/30 hover:bg-brand-accent/5" : ""}`
           : `cursor-grab active:cursor-grabbing border
              ${isSelected
-               ? "border-emerald-500/80 bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.25)] rounded-md"
-               : "border-zinc-700/50 bg-zinc-900/70 hover:border-zinc-500/70 hover:bg-zinc-800/60 rounded-md"
+               ? "border-brand-accent/80 bg-brand-accent/10 shadow-[0_0_8px_hsl(var(--brand-accent)/0.25)] rounded-md"
+               : "border-border/50 bg-surface-3/70 hover:border-border/70 hover:bg-foreground/[0.07] rounded-md"
              }
              ${tradeMode ? "ring-1 ring-amber-500/15" : ""}
              ${isDragging ? "opacity-30 scale-95" : ""}`}
       `}
       style={{
         boxShadow: isDragOver && !isDragging
-          ? "0 0 12px rgba(16,185,129,0.3), inset 0 0 6px rgba(16,185,129,0.1)"
+          ? "0 0 12px hsl(var(--brand-accent)/0.3), inset 0 0 6px hsl(var(--brand-accent)/0.1)"
           : isEmpty
-            ? "inset 0 1px 2px rgba(0,0,0,0.3)"
+            ? "inset 0 1px 2px hsl(var(--foreground)/0.08)"
             : isHovered && !isDragging
-              ? "0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)"
+              ? "0 2px 8px hsl(var(--foreground)/0.12), 0 0 0 1px hsl(var(--foreground)/0.05)"
               : undefined,
       }}
     >
@@ -1549,7 +1693,7 @@ function OsrsSlot({
         <>
           {/* Token Icon — larger, centered */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={`transition-transform duration-150 ${isHovered && !isDragging ? "scale-110" : ""}`}>
+            <div className={`transition-[transform,opacity,filter] duration-150 ${isHovered && !isDragging ? "scale-110" : ""} ${!verified ? "opacity-55 saturate-50" : ""}`}>
               <TokenIcon
                 address={slot.token.address}
                 chainId={slot.token.chainId}
@@ -1561,36 +1705,52 @@ function OsrsSlot({
             </div>
           </div>
 
+          {/* Risk badge — top-right, replaces the chain dot for flagged tokens */}
+          {risk && risk !== "ok" && (
+            <span
+              className={`absolute top-0.5 right-0.5 z-10 grid h-3 w-3 place-items-center rounded-full text-[8px] font-black leading-none pointer-events-none ${
+                risk === "danger" ? "bg-red-500/90 text-white" : risk === "caution" ? "bg-amber-400/90 text-black" : "bg-foreground/25 text-foreground"
+              }`}
+              aria-label={RISK_LABEL[risk]}
+              title={RISK_LABEL[risk]}
+            >
+              {risk === "unknown" ? "?" : "!"}
+            </span>
+          )}
+
           {/* Stack Size — top-left, OSRS style */}
           <div className="absolute top-0.5 left-1 z-10 pointer-events-none">
             <span
               className={`text-[9px] sm:text-[10px] font-bold leading-none tracking-tight ${getStackColor(slot.amount)}`}
-              style={{
-                textShadow:
-                  "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000",
-              }}
+              style={{ textShadow: "var(--stack-outline)" }}
             >
               {slot.amount}
             </span>
           </div>
 
-          {/* Symbol label — bottom center */}
-          <div className="absolute bottom-0 inset-x-0 text-center z-10 pointer-events-none">
+          {/* Bottom row: symbol left, value right */}
+          <div className="absolute bottom-0.5 inset-x-1 z-10 flex items-end justify-between gap-1 pointer-events-none">
             <span
-              className="text-[7px] sm:text-[8px] font-semibold text-zinc-400/90 leading-none uppercase tracking-wider"
-              style={{
-                textShadow: "0 1px 3px rgba(0,0,0,0.9)",
-              }}
+              className="min-w-0 truncate text-[7px] sm:text-[8px] font-semibold text-muted-foreground/90 leading-none uppercase tracking-wider"
+              style={{ textShadow: "var(--stack-text-shadow)" }}
             >
               {slot.token.symbol}
             </span>
+            {valueLabel && (
+              <span
+                className="shrink-0 text-[7px] sm:text-[8px] font-semibold leading-none tabular-nums text-foreground/85"
+                style={{ textShadow: "var(--stack-text-shadow)" }}
+              >
+                {valueLabel}
+              </span>
+            )}
           </div>
 
           {/* Chain badge — top-right mini indicator */}
-          {CHAIN_LOGOS[slot.token.chainId] && (
+          {CHAIN_LOGOS[slot.token.chainId] && (!risk || risk === "ok") && (
             <div className={`absolute top-0.5 right-0.5 z-10 pointer-events-none transition-opacity duration-150 ${isHovered ? "opacity-100" : "opacity-40"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={CHAIN_LOGOS[slot.token.chainId]} alt="" className="w-3 h-3 rounded-full ring-1 ring-black/40" draggable={false} />
+              <img src={CHAIN_LOGOS[slot.token.chainId]} alt="" className="w-3 h-3 rounded-full ring-1 ring-foreground/20" draggable={false} />
             </div>
           )}
 
@@ -1602,7 +1762,7 @@ function OsrsSlot({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12 }}
-                className="absolute inset-0 z-20 rounded-md backdrop-blur-sm bg-zinc-950/80 flex flex-col items-center justify-center px-1 py-0.5 overflow-hidden"
+                className="absolute inset-0 z-20 rounded-md backdrop-blur-sm bg-surface-1/80 flex flex-col items-center justify-center px-1 py-0.5 overflow-hidden"
               >
                 {/* Token icon at top (smaller) */}
                 <TokenIcon
@@ -1614,15 +1774,15 @@ function OsrsSlot({
                   className="mb-0.5 opacity-90"
                 />
                 {/* Symbol */}
-                <span className="text-[10px] font-bold text-zinc-100 leading-tight truncate max-w-full">
+                <span className="text-[10px] font-bold text-foreground leading-tight truncate max-w-full">
                   {slot.token.symbol}
                 </span>
                 {/* Full balance */}
-                <span className="text-[9px] text-emerald-400 font-semibold leading-tight truncate max-w-full">
+                <span className="text-[9px] text-brand-accent font-semibold leading-tight truncate max-w-full">
                   {formatFullBalance(BigInt(slot.rawAmount), slot.token.decimals)}
                 </span>
                 {/* Address or "Native" */}
-                <span className="text-[8px] text-zinc-500 leading-tight truncate max-w-full mt-px">
+                <span className="text-[8px] text-muted-foreground leading-tight truncate max-w-full mt-px">
                   {slot.token.address === "0x0000000000000000000000000000000000000000"
                     ? "Native"
                     : `${slot.token.address.slice(0, 6)}…${slot.token.address.slice(-4)}`}
@@ -1651,6 +1811,7 @@ function OsrsContextMenu({
   onClose,
   tradeMode,
   onAddToTrade,
+  onSend,
 }: {
   x: number;
   y: number;
@@ -1660,6 +1821,7 @@ function OsrsContextMenu({
   onQuickSplit: (amount: string) => void;
   onCopy: () => void;
   onClose: () => void;
+  onSend?: () => void;
   tradeMode: boolean;
   onAddToTrade?: (slot: InventorySlot) => void;
 }) {
@@ -1679,7 +1841,27 @@ function OsrsContextMenu({
           },
         }]
       : []),
-    { icon: FiSend, label: "Send", action: onClose },
+    { icon: FiSend, label: "Send…", action: () => { onSend?.(); onClose(); } },
+    ...(slot && slot.token.risk && slot.token.risk.level !== "ok" && !isTokenFlagged(slot.token.chainId, slot.token.address)
+      ? [{
+          icon: FiShield,
+          label: isTokenTrusted(slot.token.chainId, slot.token.address) ? "Stop counting value" : "Count value in total",
+          action: () => {
+            setTokenTrusted(slot.token.chainId, slot.token.address, !isTokenTrusted(slot.token.chainId, slot.token.address));
+            onClose();
+          },
+        }]
+      : []),
+    ...(slot && !slot.token.isNative
+      ? [{
+          icon: FiSlash,
+          label: isTokenFlagged(slot.token.chainId, slot.token.address) ? "Remove my scam flag" : "Flag as scam · don't count",
+          action: () => {
+            setTokenFlagged(slot.token.chainId, slot.token.address, !isTokenFlagged(slot.token.chainId, slot.token.address));
+            onClose();
+          },
+        }]
+      : []),
   ];
 
   const maxAmount = slot
@@ -1696,10 +1878,10 @@ function OsrsContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden min-w-48">
+      <div className="bg-surface-3 border border-border rounded-xl shadow-2xl overflow-hidden min-w-48">
         {/* Header */}
         {slot && (
-          <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-950 flex items-center gap-2">
+          <div className="px-3 py-2 border-b border-border bg-surface-1 flex items-center gap-2">
             <TokenIcon
               address={slot.token.address}
               chainId={slot.token.chainId}
@@ -1707,10 +1889,10 @@ function OsrsContextMenu({
               logo={slot.token.logo}
               size={16}
             />
-            <span className="text-xs font-semibold text-zinc-300">
+            <span className="text-xs font-semibold text-foreground/80">
               {slot.token.symbol}
             </span>
-            <span className="text-[10px] text-zinc-500 ml-auto">
+            <span className="text-[10px] text-muted-foreground ml-auto">
               {slot.amount}
             </span>
           </div>
@@ -1718,9 +1900,9 @@ function OsrsContextMenu({
 
         {/* Inline Quick-Split Input */}
         {slot && (
-          <div className="px-2 py-1.5 border-b border-zinc-800 bg-zinc-950/50">
+          <div className="px-2 py-1.5 border-b border-border bg-surface-1/50">
             <div className="relative">
-              <FiScissors className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+              <FiScissors className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <input
                 ref={inputRef}
                 type="number"
@@ -1739,7 +1921,7 @@ function OsrsContextMenu({
                   if (e.key === "Escape") onClose();
                 }}
                 autoFocus
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                className="w-full bg-muted border border-border rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-foreground/80 placeholder:text-muted-foreground focus:ring-1 focus:ring-brand-accent/50 focus:border-brand-accent/50 transition"
               />
             </div>
             {/* Quick split percentages */}
@@ -1756,7 +1938,7 @@ function OsrsContextMenu({
                     );
                     onQuickSplit(formatted);
                   }}
-                  className="flex-1 py-0.5 rounded text-[9px] font-medium border border-zinc-700/60 text-zinc-500 hover:bg-emerald-900/20 hover:text-emerald-400 hover:border-emerald-600/40 transition-colors"
+                  className="flex-1 py-0.5 rounded text-[9px] font-medium border border-border/60 text-muted-foreground hover:bg-brand-accent/20 hover:text-brand-accent hover:border-brand-accent/40 transition-colors"
                 >
                   {pct}%
                 </button>
@@ -1771,7 +1953,7 @@ function OsrsContextMenu({
             key={item.label}
             type="button"
             onClick={item.action}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:bg-emerald-900/30 hover:text-emerald-400 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground/80 hover:bg-brand-accent/30 hover:text-brand-accent transition-colors"
           >
             <item.icon className="h-3.5 w-3.5" />
             {item.label}
@@ -1792,7 +1974,7 @@ function OsrsContextMenu({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:bg-emerald-900/30 hover:text-emerald-400 transition-colors border-t border-zinc-800"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground/80 hover:bg-brand-accent/30 hover:text-brand-accent transition-colors border-t border-border"
               >
                 <FiExternalLink className="h-3.5 w-3.5" />
                 View on Explorer
@@ -1814,12 +1996,15 @@ function OsrsSplitDialog({
   onChange,
   onConfirm,
   onCancel,
+  onToTrade,
 }: {
   slot?: InventorySlot;
   value: string;
   onChange: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Present while a trade window is open: split and drop straight into it. */
+  onToTrade?: () => void;
 }) {
   if (!slot) return null;
 
@@ -1841,15 +2026,15 @@ function OsrsSplitDialog({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-zinc-900 rounded-2xl border border-zinc-700 shadow-2xl p-5 w-80"
+        className="bg-surface-3 rounded-2xl border border-border shadow-2xl p-5 w-80"
       >
         <div className="flex items-center gap-2 mb-1">
-          <FiScissors className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-semibold text-zinc-200">
+          <FiScissors className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-sm font-semibold text-foreground/80">
             Split {slot.token.symbol}
           </h3>
         </div>
-        <p className="text-[10px] text-zinc-500 mb-3">
+        <p className="text-[10px] text-muted-foreground mb-3">
           Stack: {slot.amount} {slot.token.symbol} &middot; Split attaches to
           your cursor
         </p>
@@ -1864,10 +2049,10 @@ function OsrsSplitDialog({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             autoFocus
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:ring-2 focus:ring-emerald-500/50 transition-all pr-14"
+            className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground/80 focus:ring-2 focus:ring-brand-accent/50 transition pr-14"
             onKeyDown={(e) => e.key === "Enter" && onConfirm()}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-zinc-500">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground">
             {slot.token.symbol}
           </span>
         </div>
@@ -1885,7 +2070,7 @@ function OsrsSplitDialog({
                   ),
                 );
               }}
-              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-zinc-700 text-zinc-400 hover:bg-emerald-900/20 hover:text-emerald-400 hover:border-emerald-700/50 transition-colors"
+              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-border text-muted-foreground hover:bg-brand-accent/20 hover:text-brand-accent hover:border-brand-accent/50 transition-colors"
             >
               {pct}%
             </button>
@@ -1896,19 +2081,29 @@ function OsrsSplitDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 text-xs py-2 rounded-xl border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors"
+            className="flex-1 text-xs py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 text-xs py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 transition-all font-semibold flex items-center justify-center gap-1.5"
+            className="flex-1 text-xs py-2 rounded-xl bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 transition font-semibold flex items-center justify-center gap-1.5"
           >
             <FiScissors className="h-3 w-3" />
             Split &amp; Grab
           </button>
         </div>
+        {onToTrade && (
+          <button
+            type="button"
+            onClick={onToTrade}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-brand-accent/40 bg-brand-accent/10 py-2 text-xs font-semibold text-brand-accent-hover transition-[background-color,border-color] duration-200 hover:border-brand-accent/60 hover:bg-brand-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-brand-accent-light"
+          >
+            <FiArrowRight className="h-3 w-3" />
+            Split straight into the trade
+          </button>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -1938,17 +2133,11 @@ function OsrsFloatingGhost({
       className="fixed pointer-events-none z-200"
       style={{ left: x - 28, top: y - 28 }}
     >
-      <motion.div
-        className="absolute inset-0 rounded-xl border-2 border-emerald-500"
-        animate={{
-          boxShadow: [
-            "0 0 0 0 rgba(16,185,129,0.4)",
-            "0 0 0 8px rgba(16,185,129,0)",
-          ],
-        }}
-        transition={{ duration: 1.2, repeat: Infinity }}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 rounded-xl border-2 border-brand-accent motion-safe:animate-[accent-ring_1.2s_ease-out_infinite]"
       />
-      <div className="relative w-14 h-14 rounded-xl border-2 border-emerald-500 bg-emerald-500/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/30">
+      <div className="relative w-14 h-14 rounded-xl border-2 border-brand-accent bg-brand-accent/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-brand-accent/30">
         <div className="w-5 h-5 flex items-center justify-center">
           <TokenIcon
             address={item.token.address}
@@ -1958,19 +2147,19 @@ function OsrsFloatingGhost({
             size={20}
           />
         </div>
-        <span className="text-[8px] font-bold text-emerald-400 mt-0.5">
+        <span className="text-[8px] font-bold text-brand-accent mt-0.5">
           {item.amount}
         </span>
-        <span className="text-[7px] text-emerald-500/80">
+        <span className="text-[7px] text-brand-accent/80">
           {item.token.symbol}
         </span>
         <motion.div
-          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-emerald-500 font-medium whitespace-nowrap"
+          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-brand-accent font-medium whitespace-nowrap"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           <FiTarget className="h-2.5 w-2.5" />
-          Click slot to place
+          Click a slot or the trade grid
         </motion.div>
       </div>
     </motion.div>
@@ -1981,26 +2170,31 @@ function OsrsFloatingGhost({
 // Helpers
 // ────────────────────────────────────────────────────────────
 
-/** OSRS-style stack colour: white < 100K, yellow 100K–9.99M, green ≥ 10M */
+/** OSRS-style stack colour: white < 100K, yellow 100K–9.99M, green ≥ 10M. Each tier has a light-mode pair. */
 function getStackColor(display: string): string {
-  const stripped = display.replace(/[^0-9.KMBkmb]/g, "");
+  const stripped = display.replace(/[^0-9.KMBTEkmbte]/g, "");
   const upper = stripped.toUpperCase();
+  const green = "text-brand-accent-hover dark:text-brand-accent";
+  const yellow = "text-amber-700 dark:text-amber-300";
 
-  if (upper.includes("B") || upper.includes("G")) return "text-emerald-400";
+  if (upper.includes("B") || upper.includes("T") || upper.includes("E")) return green;
   if (upper.includes("M")) {
     const num = parseFloat(upper.replace("M", ""));
-    return num >= 10 ? "text-emerald-400" : "text-white";
+    return num >= 10 ? green : "text-foreground";
   }
   if (upper.includes("K")) {
     const num = parseFloat(upper.replace("K", ""));
-    return num >= 100 ? "text-amber-300" : "text-white";
+    return num >= 100 ? yellow : "text-foreground";
   }
-  return "text-amber-100";
+  return "text-foreground/90 dark:text-amber-100";
 }
 
 function formatCompactBalance(raw: bigint, decimals: number): string {
   const value = formatUnits(raw, decimals);
   const num = parseFloat(value);
+  // Airdropped junk comes in stacks of 1e50; toFixed would print the whole exponent form.
+  if (num >= 1e15) return num.toExponential(1).replace("e+", "e");
+  if (num >= 1e12) return `${(num / 1e12).toFixed(1)}T`;
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;

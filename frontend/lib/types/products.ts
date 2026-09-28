@@ -52,6 +52,7 @@ export const ProductsListItemSchema = z
     // Product type
     productType: z.enum(['PHYSICAL', 'DIGITAL', 'HYBRID']).optional().default('PHYSICAL'),
     visibility: ProductVisibilitySchema.optional().default('PUBLIC'),
+    downloadsEnabled: z.boolean().optional(),
 
     // Web3 fields
     acceptedTokens: z.array(z.object({

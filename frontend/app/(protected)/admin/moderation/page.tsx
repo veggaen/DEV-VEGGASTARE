@@ -122,13 +122,13 @@ export default function ModerationPage() {
   if (status === "loading" || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-accent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -141,10 +141,10 @@ export default function ModerationPage() {
               <FiFlag className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h1 className="text-2xl font-bold text-foreground">
                 Innholdsmoderering
               </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 DSA-kompatibel moderering • {total} {statusFilter === 'pending' ? 'ventende' : 'totalt'}
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function ModerationPage() {
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   statusFilter === f
                     ? 'bg-foreground text-background'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    : 'bg-foreground/[0.06] text-muted-foreground hover:bg-muted'
                 }`}
               >
                 {f === 'pending' ? 'Ventende' : f === 'resolved' ? 'Behandlet' : 'Alle'}
@@ -173,12 +173,12 @@ export default function ModerationPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 rounded-xl bg-muted/30 animate-pulse" />
+              <div key={i} className="h-24 rounded-xl bg-foreground/[0.04] animate-pulse" />
             ))}
           </div>
         ) : reports.length === 0 ? (
           <div className="text-center py-16">
-            <FiShield className="h-12 w-12 mx-auto text-emerald-500 mb-4" />
+            <FiShield className="h-12 w-12 mx-auto text-brand-accent mb-4" />
             <h3 className="text-lg font-medium text-foreground">Ingen rapporter</h3>
             <p className="text-sm text-muted-foreground mt-1">
               {statusFilter === 'pending' ? 'Alle rapporter er behandlet!' : 'Ingen rapporter funnet.'}
@@ -236,7 +236,7 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
   const isActionable = report.status === 'PENDING' || report.status === 'IN_REVIEW';
   const severityColor = report.reason === 'CHILD_EXPLOITATION' || report.reason === 'ILLEGAL_CONTENT'
     ? 'border-red-500/30 bg-red-500/5'
-    : 'border-border dark:border-white/10';
+    : 'border-border';
 
   const handleResolve = () => {
     if (!selectedAction || reason.trim().length < 5) {
@@ -261,7 +261,7 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
   };
 
   return (
-    <div className={`rounded-xl border p-4 bg-white/70 dark:bg-white/5 transition-colors ${severityColor}`}>
+    <div className={`rounded-xl border p-4 bg-surface-1/70 transition-colors ${severityColor}`}>
       {/* Header row */}
       <button onClick={onToggle} className="w-full flex items-center gap-3 text-left">
         <div className="flex-1 min-w-0">
@@ -269,7 +269,7 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
             <Badge variant="outline" className="text-xs">
               {contentTypeLabels[report.contentType] || report.contentType}
             </Badge>
-            <span className="font-medium text-sm text-foreground dark:text-white/90">
+            <span className="font-medium text-sm text-foreground">
               {reasonLabels[report.reason] || report.reason}
             </span>
             {(report.reason === 'CHILD_EXPLOITATION' || report.reason === 'ILLEGAL_CONTENT') && (
@@ -295,30 +295,30 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="mt-4 pt-4 border-t border-border dark:border-white/10 space-y-4"
+          className="mt-4 pt-4 border-t border-border space-y-4"
         >
           {/* Report details */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Innholds-ID:</span>
-              <code className="ml-1 text-xs bg-muted/50 px-1.5 py-0.5 rounded">{report.contentId}</code>
+              <code className="ml-1 text-xs bg-foreground/[0.06] px-1.5 py-0.5 rounded">{report.contentId}</code>
             </div>
             <div>
               <span className="text-muted-foreground">Rapportør-ID:</span>
-              <code className="ml-1 text-xs bg-muted/50 px-1.5 py-0.5 rounded">{report.Reporter?.id}</code>
+              <code className="ml-1 text-xs bg-foreground/[0.06] px-1.5 py-0.5 rounded">{report.Reporter?.id}</code>
             </div>
           </div>
 
           {report.description && (
             <div>
               <Label className="text-xs text-muted-foreground">Beskrivelse fra rapportør:</Label>
-              <p className="text-sm mt-1 p-3 rounded-lg bg-muted/30">{report.description}</p>
+              <p className="text-sm mt-1 p-3 rounded-lg bg-foreground/[0.04]">{report.description}</p>
             </div>
           )}
 
           {/* Action panel (only for actionable reports) */}
           {isActionable && (
-            <div className="space-y-3 p-4 rounded-lg bg-muted/20 border border-border dark:border-white/10">
+            <div className="space-y-3 p-4 rounded-lg bg-foreground/[0.03] border border-border">
               <Label className="text-sm font-medium">Handling (DSA Art. 17 — begrunnelsesplikt):</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {actionOptions.map((opt) => (
@@ -331,8 +331,8 @@ function ReportCard({ report, isExpanded, onToggle, onResolved }: {
                           ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400'
                           : opt.severity === 'warning'
                           ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          : 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'border-border dark:border-white/10 hover:bg-muted/50'
+                          : 'border-brand-accent bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
+                        : 'border-border hover:bg-foreground/[0.06]'
                     }`}
                   >
                     {opt.label}
@@ -381,8 +381,8 @@ function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     PENDING: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
     IN_REVIEW: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    RESOLVED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    DISMISSED: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
+    RESOLVED: 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light border-brand-accent/20',
+    DISMISSED: 'bg-muted/10 text-muted-foreground border-border/20',
   };
   const labels: Record<string, string> = {
     PENDING: 'Venter',

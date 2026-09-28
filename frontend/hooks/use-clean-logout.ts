@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { signOut } from "next-auth/react";
+import { confirmedSignOut } from '@/lib/confirmed-signout-client';
 import { useDisconnect } from "wagmi";
 import { useWallet as useSolWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
@@ -80,17 +80,10 @@ export function useCleanLogout() {
       }
 
       // 4. Sign out via NextAuth (server redirect)
-      await signOut({ callbackUrl: "/auth/login" });
-    } catch (err) {
-      console.error("[cleanLogout] Error during logout:", err);
-      toast.error("Something went wrong during sign out");
-      // Force signOut even if wallet disconnect failed
-      try {
-        await signOut({ callbackUrl: "/auth/login" });
-      } catch {
-        // last resort
-        window.location.href = "/auth/login";
-      }
+      await confirmedSignOut('/auth/login');
+    } catch {
+      // Do not silently navigate away while the server still has a live grant.
+      toast.error('Sign-out could not be confirmed. Please try again.');
     } finally {
       busyRef.current = false;
       cleanLogoutInProgress = false;

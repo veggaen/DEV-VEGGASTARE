@@ -625,7 +625,7 @@ function PollPreview({ poll }: { poll: ImportedPoll }) {
   const hasSections = poll.sections && poll.sections.length > 0;
   
   return (
-    <div className="space-y-4 max-h-[300px] overflow-y-auto p-4 bg-muted/30 rounded-lg">
+    <div className="space-y-4 max-h-[300px] overflow-y-auto p-4 bg-foreground/[0.04] rounded-lg">
       <div>
         <h4 className="font-semibold text-lg">{poll.title}</h4>
         {poll.description && (
@@ -828,7 +828,7 @@ export function PollImportModal({ open, onOpenChange, onImport }: PollImportModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950 border-zinc-800">
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col bg-surface-1 border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileUp className="w-5 h-5" />
@@ -946,10 +946,10 @@ Range: 1-10
                   key={template.id}
                   onClick={() => handleTemplateSelect(template.id)}
                   className={cn(
-                    "p-4 rounded-xl border cursor-pointer transition-all",
+                    "p-4 rounded-xl border cursor-pointer transition",
                     selectedTemplate === template.id
                       ? "border-primary bg-primary/5"
-                      : "hover:border-primary/50 hover:bg-muted/50"
+                      : "hover:border-primary/50 hover:bg-foreground/[0.06]"
                   )}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}

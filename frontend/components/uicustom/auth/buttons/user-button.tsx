@@ -22,7 +22,7 @@ import { useTheme } from "next-themes";
 import { useCleanLogout } from "@/hooks/use-clean-logout";
 
 const itemClass =
-  "cursor-pointer rounded-xl px-2.5 py-2 focus:bg-black/5 dark:focus:bg-white/10";
+  "cursor-pointer rounded-xl px-2.5 py-2 focus:bg-foreground/[0.06]";
 
 export const MyUserButton = () => {
   const user = useCurrentUser();
@@ -47,7 +47,7 @@ export const MyUserButton = () => {
           type="button"
           variant="ghost"
           size="icon"
-          className="group h-[52px] w-[52px] rounded-full bg-transparent p-0 text-zinc-700 hover:bg-transparent hover:text-zinc-950 dark:text-zinc-200 dark:hover:bg-transparent dark:hover:text-zinc-50 focus-visible:ring-2 focus-visible:ring-ring transform-none hover:scale-100 active:scale-100"
+          className="group h-[52px] w-[52px] rounded-full bg-transparent p-0 text-foreground hover:bg-transparent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring transform-none hover:scale-100 active:scale-100"
           aria-label="Open user menu"
           title={user.name ?? "User menu"}
         >
@@ -63,13 +63,13 @@ export const MyUserButton = () => {
       <DropdownMenuContent
         align="end"
         sideOffset={10}
-        className="w-72 rounded-2xl border border-black/10 bg-white/85 p-2 shadow-e3 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/75"
+        className="w-72 rounded-2xl border border-border bg-surface-1/85 p-2 shadow-e3 backdrop-blur-xl dark:bg-surface-1/75"
       >
         <DropdownMenuLabel className="px-2 py-2">
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user.name}</span>
+            <span className="text-sm font-medium text-foreground">{user.name}</span>
             {user.email ? (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.email}</span>
+              <span className="text-xs text-muted-foreground truncate">{user.email}</span>
             ) : null}
           </div>
         </DropdownMenuLabel>

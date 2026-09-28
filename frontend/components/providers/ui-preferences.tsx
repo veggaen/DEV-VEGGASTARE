@@ -20,6 +20,20 @@ export type AnimationIntensity = "none" | "subtle" | "full";
 // Hover effect style
 export type HoverEffectStyle = "simple" | "colorful";
 
+// Accent colour preset. "default" = sky on light / emerald on dark; any other
+// value pins one hue for both themes (globals.css `html[data-accent]`).
+export type AccentPreset = "default" | "sky" | "emerald" | "violet" | "rose" | "amber" | "mono";
+export const ACCENT_PRESETS: { id: AccentPreset; label: string; hint: string; swatch: { light: string; dark: string } }[] = [
+  { id: "default", label: "Veggat", hint: "Sky by day, emerald by night", swatch: { light: "#0ea5e9", dark: "#10b981" } },
+  { id: "sky", label: "Sky", hint: "Blue in both themes", swatch: { light: "#0ea5e9", dark: "#38bdf8" } },
+  { id: "emerald", label: "Emerald", hint: "Green in both themes", swatch: { light: "#059669", dark: "#10b981" } },
+  { id: "violet", label: "Violet", hint: "Electric purple", swatch: { light: "#7c3aed", dark: "#a78bfa" } },
+  { id: "rose", label: "Rose", hint: "Warm pink-red", swatch: { light: "#e11d48", dark: "#fb7185" } },
+  { id: "amber", label: "Amber", hint: "Golden", swatch: { light: "#d97706", dark: "#fbbf24" } },
+  { id: "mono", label: "Ink", hint: "Monochrome, no colour", swatch: { light: "#171717", dark: "#fafafa" } },
+];
+const VALID_ACCENTS: AccentPreset[] = ACCENT_PRESETS.map((p) => p.id);
+
 export type UiPreferences = {
   productTitleAnimationMode: ProductTitleAnimationMode;
   rsvpWpm: number; // words per minute
@@ -36,6 +50,7 @@ export type UiPreferences = {
   enableExperimentalEffects: boolean; // Opt-in for experimental fancy features
   toneOfVoice: ToneId;                // Brand voice for product copy (see lib/voice/tone)
   aiChatLayout: AiChatLayout;         // /ai shell: persistent left rail vs overlay drawer
+  accent: AccentPreset;               // Accent hue preset applied via html[data-accent]
 };
 
 export type AiChatLayout = "persistent" | "overlay";
@@ -56,6 +71,7 @@ const DEFAULT_PREFS: UiPreferences = {
   enableExperimentalEffects: false,
   toneOfVoice: DEFAULT_TONE,
   aiChatLayout: "persistent",
+  accent: "default",
 };
 
 const VALID_FIAT: FiatCurrency[] = ["USD", "NOK", "EUR", "GBP", "SEK", "DKK"];
@@ -131,7 +147,12 @@ function normalize(p: Partial<UiPreferences> | null | undefined): UiPreferences 
   const aiChatLayout: AiChatLayout =
     VALID_AI_CHAT_LAYOUTS.includes(layout as AiChatLayout) ? (layout as AiChatLayout) : DEFAULT_PREFS.aiChatLayout;
 
+  const accentRaw = p?.accent;
+  const accent: AccentPreset =
+    VALID_ACCENTS.includes(accentRaw as AccentPreset) ? (accentRaw as AccentPreset) : DEFAULT_PREFS.accent;
+
   return {
+    accent,
     productTitleAnimationMode,
     rsvpWpm,
     preferredFiatCurrency,
@@ -157,35 +178,51 @@ type UiPreferencesContextValue = {
 const UiPreferencesContext = createContext<UiPreferencesContextValue | null>(null);
 
 export function UiPreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [prefs, setPrefsState] = useState<UiPreferences>(DEFAULT_PREFS);
+  // `loaded` gates persistence: until the stored preferences have been read,
+  // the defaults must never be written back. (Without the gate, React's
+  // StrictMode double effect pass persisted DEFAULT_PREFS between the first
+  // read and the second, silently resetting every saved preference in dev.)
+  const [state, setState] = useState<{ prefs: UiPreferences; loaded: boolean }>({ prefs: DEFAULT_PREFS, loaded: false });
+  const prefs = state.prefs;
 
-  // Load once on mount.
+  // Load once on mount (server and first client render both use the defaults).
   useEffect(() => {
     const existing = safeParse(globalThis.localStorage?.getItem(STORAGE_KEY) ?? null);
-    if (!existing) return;
     const timeoutId = window.setTimeout(() => {
-      setPrefsState(normalize(existing));
+      setState({ prefs: existing ? normalize(existing) : DEFAULT_PREFS, loaded: true });
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
 
-  // Persist.
+  // Persist — only after the initial read.
   useEffect(() => {
+    if (!state.loaded) return;
     try {
-      globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(state.prefs));
     } catch {
       // ignore
     }
-  }, [prefs]);
+  }, [state]);
+
+  // Accent preset lives on <html> (next to the theme class) so CSS tokens,
+  // canvases and the BrandMark all follow it. "default" = no attribute.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (prefs.accent === "default") delete root.dataset.accent;
+    else root.dataset.accent = prefs.accent;
+  }, [prefs.accent]);
 
   const setPrefs = useCallback(
     (next: Partial<UiPreferences> | ((prev: UiPreferences) => Partial<UiPreferences>)) => {
-      setPrefsState((prev) => normalize(typeof next === "function" ? next(prev) : next));
+      setState((s) => ({
+        ...s,
+        prefs: normalize({ ...s.prefs, ...(typeof next === "function" ? next(s.prefs) : next) }),
+      }));
     },
     []
   );
 
-  const resetPrefs = useCallback(() => setPrefsState(DEFAULT_PREFS), []);
+  const resetPrefs = useCallback(() => setState((s) => ({ ...s, prefs: DEFAULT_PREFS })), []);
 
   const value = useMemo<UiPreferencesContextValue>(() => ({ prefs, setPrefs, resetPrefs }), [prefs, setPrefs, resetPrefs]);
 
@@ -196,6 +233,16 @@ export function useUiPreferences(): UiPreferencesContextValue {
   const ctx = useContext(UiPreferencesContext);
   if (!ctx) throw new Error("useUiPreferences must be used within UiPreferencesProvider");
   return ctx;
+}
+
+/**
+ * Provider-tolerant read for shared chrome (BrandMark, AppRail) that may render
+ * in trees without the provider (global error boundary, isolated previews).
+ * Falls back to the defaults instead of throwing.
+ */
+export function useUiPreferencesOptional(): UiPreferences {
+  const ctx = useContext(UiPreferencesContext);
+  return ctx?.prefs ?? DEFAULT_PREFS;
 }
 
 /**

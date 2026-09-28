@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -213,14 +214,7 @@ export function ShippingEstimateCard({
   }, [localFreeShippingEnabled, onFreeShippingChange]);
 
   // Format price
-  const formatPrice = (price: number, curr: string) => {
-    return new Intl.NumberFormat('nb-NO', {
-      style: 'currency',
-      currency: curr,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const formatPrice = (price: number, curr: string) => <PriceAmount amount={price} currency={curr} />;
 
   // Get cheapest shipping option
   const cheapestOption = result?.products[0];
@@ -231,7 +225,7 @@ export function ShippingEstimateCard({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-foreground/[0.04] transition-colors"
         disabled={disabled}
       >
         <div className="flex items-center gap-2">
@@ -284,7 +278,7 @@ export function ShippingEstimateCard({
                 value={toCity}
                 readOnly
                 placeholder="City"
-                className="flex-1 text-sm bg-muted/20"
+                className="flex-1 text-sm bg-foreground/[0.03]"
               />
               <Button
                 type="button"
@@ -324,7 +318,7 @@ export function ShippingEstimateCard({
                 {result.products.slice(0, 5).map((product) => (
                   <div
                     key={product.id}
-                    className="flex items-center justify-between p-2 rounded-md bg-muted/20 hover:bg-muted/30"
+                    className="flex items-center justify-between p-2 rounded-md bg-foreground/[0.03] hover:bg-foreground/[0.04]"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{product.displayName}</p>
@@ -333,7 +327,7 @@ export function ShippingEstimateCard({
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-500">
+                      <p className="text-sm font-semibold text-brand-accent">
                         {formatPrice(product.price, product.currency)}
                       </p>
                     </div>
@@ -353,7 +347,7 @@ export function ShippingEstimateCard({
             <div className="pt-3 border-t border-border/50 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Gift className="h-4 w-4 text-emerald-500" />
+                  <Gift className="h-4 w-4 text-brand-accent" />
                   <span className="text-sm font-medium">Free Shipping Offer</span>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
@@ -373,7 +367,7 @@ export function ShippingEstimateCard({
                     onChange={handleFreeShippingToggle}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition peer-checked:bg-brand-accent"></div>
                 </label>
               </div>
               

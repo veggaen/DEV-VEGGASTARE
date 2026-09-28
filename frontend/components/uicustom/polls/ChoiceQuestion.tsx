@@ -119,7 +119,7 @@ export function ChoiceQuestion({
   // Variant styles
   const getOptionStyles = (isActive: boolean, index: number) => {
     const baseStyles =
-      "relative flex items-center gap-3 transition-all duration-200 cursor-pointer outline-none";
+      "relative flex items-center gap-3 transition duration-200 cursor-pointer outline-none";
 
     if (variant === "card") {
       return cn(
@@ -127,7 +127,7 @@ export function ChoiceQuestion({
         "p-4 rounded-xl border-2",
         isActive
           ? "border-primary bg-primary/10 shadow-md"
-          : "border-border hover:border-primary/50 hover:bg-muted/50",
+          : "border-border hover:border-primary/50 hover:bg-foreground/[0.06]",
         disabled && "opacity-50 cursor-not-allowed"
       );
     }
@@ -138,7 +138,7 @@ export function ChoiceQuestion({
         "px-4 py-2 rounded-lg",
         isActive
           ? "bg-primary text-primary-foreground"
-          : "bg-muted hover:bg-muted/80",
+          : "bg-muted hover:bg-foreground/[0.09]",
         disabled && "opacity-50 cursor-not-allowed"
       );
     }
@@ -149,7 +149,7 @@ export function ChoiceQuestion({
       "p-3 rounded-lg border",
       isActive
         ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-        : "border-border hover:border-primary/30 hover:bg-muted/30",
+        : "border-border hover:border-primary/30 hover:bg-foreground/[0.04]",
       disabled && "opacity-50 cursor-not-allowed"
     );
   };
@@ -287,7 +287,7 @@ export function ChoiceQuestion({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-3 bg-muted/50 rounded-lg">
+            <div className="p-3 bg-foreground/[0.06] rounded-lg">
               <span className="text-sm text-muted-foreground">Selected: </span>
               <span className="font-medium text-primary">
                 {selectedArray

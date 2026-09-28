@@ -10,12 +10,14 @@
 /coverage
 /playwright-report/
 /test-results/
+/test-results-*/
+/test-results.json
 /e2e/.auth/
 
 # next.js
 /.next/
 # Isolated build dir for the parallel test server (NEXT_DIST_DIR, see next.config.mjs)
-/.next-test/
+/.next-*/
 /out/
 
 # production
@@ -44,5 +46,13 @@ next-env.d.ts
 # prisma generated client
 /generated/
 
+# Full-resolution downloadable originals; provisioned to private storage, never public Git/CDN.
+/.private-showcase/
+
 # lint dump (transient)
 components-lint.txt
+
+.env*
+
+# Local screenshot/verification harness (never committed)
+/scripts/_probe/

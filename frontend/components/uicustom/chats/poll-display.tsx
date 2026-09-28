@@ -129,16 +129,16 @@ export const PollDisplay: React.FC<PollDisplayProps> = ({ conversationId }) => {
               key={option.id}
               onClick={() => canVote && handleVote(option.id)}
               disabled={!canVote || voting !== null}
-              className={`w-full relative overflow-hidden rounded-lg transition-all ${
+              className={`w-full relative overflow-hidden rounded-lg transition ${
                 isSelected 
                   ? 'bg-blue-500/15 dark:bg-blue-500/20' 
-                  : 'bg-muted/40 hover:bg-muted/60'
+                  : 'bg-foreground/[0.05] hover:bg-foreground/[0.07]'
               } ${!canVote ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {/* Progress background */}
               {hasVoted && (
                 <div 
-                  className={`absolute inset-0 ${isSelected ? 'bg-blue-500/25' : 'bg-muted/60'}`}
+                  className={`absolute inset-0 ${isSelected ? 'bg-blue-500/25' : 'bg-foreground/[0.07]'}`}
                   style={{ width: `${option.percentage}%` }}
                 />
               )}

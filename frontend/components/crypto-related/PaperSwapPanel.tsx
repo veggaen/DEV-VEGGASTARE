@@ -77,23 +77,23 @@ function TokenDropdown({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -4, scale: 0.98 }}
       transition={{ duration: 0.12 }}
-      className="absolute right-0 top-full mt-1 z-100 w-56 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
+      className="absolute right-0 top-full mt-1 z-100 w-56 rounded-xl border border-border bg-surface-3 shadow-2xl"
     >
       {/* Search input */}
-      <div className="sticky top-0 border-b border-zinc-800 bg-zinc-900 p-2">
+      <div className="sticky top-0 border-b border-border bg-surface-3 p-2">
         <input
           type="text"
           placeholder="Search tokens…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           autoFocus
-          className="w-full rounded-lg bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-emerald-500/50"
+          className="w-full rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-brand-accent/50"
         />
       </div>
       {/* Token list */}
       <div className="max-h-60 overflow-y-auto overscroll-contain">
         {filtered.length === 0 && (
-          <div className="py-4 text-center text-xs text-zinc-500">No tokens found</div>
+          <div className="py-4 text-center text-xs text-muted-foreground">No tokens found</div>
         )}
         {filtered.map((t) => (
           <button
@@ -103,20 +103,20 @@ function TokenDropdown({
               onSelect(t);
               onClose();
             }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-800 transition-colors ${
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted transition-colors ${
               t.symbol === selected
-                ? "text-emerald-400 bg-zinc-800/50"
-                : "text-zinc-300"
+                ? "text-brand-accent bg-foreground/[0.06]"
+                : "text-foreground/80"
             }`}
           >
             <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-foreground"
               style={{ backgroundColor: t.color }}
             >
               {t.symbol.charAt(0)}
             </span>
             <span className="font-semibold">{t.symbol}</span>
-            <span className="text-zinc-500 truncate">{t.name}</span>
+            <span className="text-muted-foreground truncate">{t.name}</span>
           </button>
         ))}
       </div>
@@ -133,7 +133,7 @@ interface PaperSwapPanelProps {
   positions: Array<{
     tokenSymbol: string;
     displayAmount: string;
-    currentPriceUsd: number;
+    currentPriceUsd: number | null;
   }>;
   onTradeComplete: () => void;
 }
@@ -293,9 +293,9 @@ export function PaperSwapPanel({
   }, [mode, sellToken, buyToken]);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-lg">
+    <div className="rounded-2xl border border-border bg-card shadow-lg">
       {/* Tab bar */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex border-b border-border">
         {(["buy", "sell", "swap"] as const).map((m) => (
           <button
             key={m}
@@ -307,11 +307,11 @@ export function PaperSwapPanel({
             className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
               mode === m
                 ? m === "buy"
-                  ? "text-emerald-500 border-b-2 border-emerald-500 bg-emerald-500/5"
+                  ? "text-brand-accent border-b-2 border-brand-accent bg-brand-accent/5"
                   : m === "sell"
                     ? "text-rose-500 border-b-2 border-rose-500 bg-rose-500/5"
-                    : "text-sky-500 border-b-2 border-sky-500 bg-sky-500/5"
-                : "text-zinc-400 hover:text-zinc-300"
+                    : "text-purple-600 border-b-2 border-purple-500 bg-purple-500/5 dark:text-purple-300"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {m === "buy" && <FiTrendingUp className="inline mr-1 h-3 w-3" />}
@@ -327,18 +327,18 @@ export function PaperSwapPanel({
         <div className="flex items-center gap-1.5 text-[10px] text-amber-500 dark:text-amber-400">
           <span>📝</span>
           <span className="font-medium">Paper Trade</span>
-          <span className="text-zinc-500">·</span>
-          <span className="text-zinc-400 dark:text-zinc-500">
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground/80">
             Cash: ${cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
         {/* Input section */}
         <div className="relative">
-          <label className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
             {mode === "buy" ? "Spend (USD)" : mode === "sell" ? `Sell (${sellToken.symbol})` : `You Pay (${sellToken.symbol})`}
           </label>
-          <div className="mt-1 flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5">
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-surface-1 px-3 py-2.5">
             <input
               type="number"
               value={amount}
@@ -346,17 +346,17 @@ export function PaperSwapPanel({
               placeholder="0.00"
               min="0"
               step="any"
-              className="flex-1 bg-transparent text-lg font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="flex-1 bg-transparent text-lg font-semibold text-foreground placeholder:text-muted-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             {mode !== "buy" && (
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowSellDropdown(!showSellDropdown)}
-                  className="flex items-center gap-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
                 >
                   {sellToken.symbol}
-                  <span className="text-[8px] text-zinc-400">▼</span>
+                  <span className="text-[8px] text-muted-foreground">▼</span>
                 </button>
                 <AnimatePresence>
                   {showSellDropdown && (
@@ -371,7 +371,7 @@ export function PaperSwapPanel({
               </div>
             )}
             {mode === "buy" && (
-              <div className="flex items-center gap-1 text-zinc-400">
+              <div className="flex items-center gap-1 text-muted-foreground">
                 <FiDollarSign className="h-4 w-4" />
                 <span className="text-xs font-medium">USD</span>
               </div>
@@ -381,7 +381,7 @@ export function PaperSwapPanel({
             <button
               type="button"
               onClick={() => setAmount(heldPosition.displayAmount)}
-              className="mt-1 text-[10px] text-zinc-500 hover:text-emerald-400 transition-colors"
+              className="mt-1 text-[10px] text-muted-foreground hover:text-brand-accent transition-colors"
             >
               Max: {parseFloat(heldPosition.displayAmount).toFixed(6)} {sellToken.symbol}
             </button>
@@ -394,9 +394,9 @@ export function PaperSwapPanel({
             <button
               type="button"
               onClick={swapTokens}
-              className="rounded-full p-1.5 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="rounded-full p-1.5 border border-border bg-card hover:bg-muted transition-colors"
             >
-              <FiArrowDown className="h-4 w-4 text-zinc-400" />
+              <FiArrowDown className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
         )}
@@ -404,11 +404,11 @@ export function PaperSwapPanel({
         {/* Token selector (for buy mode: what to buy / for swap: receive) */}
         {(mode === "buy" || mode === "swap") && (
           <div>
-            <label className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
               {mode === "buy" ? "Buy" : "You Receive"}
             </label>
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5">
-              <div className="flex-1 text-lg font-semibold text-zinc-500 dark:text-zinc-400">
+            <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-surface-1 px-3 py-2.5">
+              <div className="flex-1 text-lg font-semibold text-muted-foreground">
                 {estimatedOutput != null
                   ? mode === "buy"
                     ? `≈ ${estimatedOutput.toFixed(6)}`
@@ -422,10 +422,10 @@ export function PaperSwapPanel({
                     if (mode === "buy") setShowSellDropdown(!showSellDropdown);
                     else setShowBuyDropdown(!showBuyDropdown);
                   }}
-                  className="flex items-center gap-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
                 >
                   {mode === "buy" ? sellToken.symbol : buyToken.symbol}
-                  <span className="text-[8px] text-zinc-400">▼</span>
+                  <span className="text-[8px] text-muted-foreground">▼</span>
                 </button>
                 <AnimatePresence>
                   {(mode === "buy" ? showSellDropdown : showBuyDropdown) && (
@@ -451,11 +451,11 @@ export function PaperSwapPanel({
         {/* Sell output — USD received */}
         {mode === "sell" && (
           <div>
-            <label className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
               You Receive (USD)
             </label>
-            <div className="mt-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5">
-              <span className="text-lg font-semibold text-zinc-500 dark:text-zinc-400">
+            <div className="mt-1 rounded-xl border border-border bg-surface-1 px-3 py-2.5">
+              <span className="text-lg font-semibold text-muted-foreground">
                 {estimatedOutput != null
                   ? `≈ $${estimatedOutput.toFixed(2)}`
                   : "—"}
@@ -465,10 +465,10 @@ export function PaperSwapPanel({
         )}
 
         {/* Trade info */}
-        <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 px-3 py-2 space-y-1">
+        <div className="rounded-lg bg-foreground/[0.05] border border-border px-3 py-2 space-y-1">
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Price</span>
-            <span className="text-zinc-300 font-mono">
+            <span className="text-muted-foreground">Price</span>
+            <span className="text-foreground/80 font-mono">
               {sellPrice != null ? (
                 mode === "buy" || mode === "sell"
                   ? `1 ${sellToken.symbol} = $${sellPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
@@ -479,14 +479,14 @@ export function PaperSwapPanel({
             </span>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Fee (0.3%)</span>
-            <span className="text-zinc-400 font-mono">
+            <span className="text-muted-foreground">Fee (0.3%)</span>
+            <span className="text-muted-foreground font-mono">
               ≈ ${feeEstimate.toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Source</span>
-            <span className="text-zinc-400">CoinGecko (live)</span>
+            <span className="text-muted-foreground">Source</span>
+            <span className="text-muted-foreground">CoinGecko (live)</span>
           </div>
         </div>
 
@@ -495,18 +495,18 @@ export function PaperSwapPanel({
           type="button"
           onClick={handleExecute}
           disabled={isPending || numAmount <= 0}
-          className={`w-full rounded-xl py-3 text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+          className={`w-full rounded-xl py-3 text-sm font-bold transition disabled:opacity-40 disabled:cursor-not-allowed ${
             mode === "buy"
-              ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+              ? "bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground shadow-lg shadow-brand-accent/20"
               : mode === "sell"
                 ? "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
-                : "bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-500/20"
+                : "bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20"
           }`}
         >
           {isPending ? (
             <span className="flex items-center justify-center gap-2">
               <FiRefreshCw className="h-4 w-4 animate-spin" />
-              Executing...
+              Executing…
             </span>
           ) : (
             <>

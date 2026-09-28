@@ -1,6 +1,6 @@
 import { dbPrisma } from '@/lib/db';
-import { MyLibUserAuth } from '@/lib/user-auth';
-import { NextRequest, NextResponse } from 'next/server';
+import { companyPrivateJson, companyReadScope, companyReadViewer } from '@/lib/company-read-access';
+import { NextRequest } from 'next/server';
 
 type RouteContext = { params: Promise<{ companyId: string }> };
 
@@ -13,17 +13,14 @@ export async function GET(
   request: NextRequest,
   context: RouteContext
 ) {
-  const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { companyId } = await context.params;
-
   try {
+    const viewer = await companyReadViewer();
+    if (!viewer) return companyPrivateJson({ message: 'Sign in to view company analytics.' }, 401);
+    const { companyId } = await context.params;
+    if (!companyId) return companyPrivateJson({ message: 'Invalid request parameters' }, 400);
     // Fetch company with reach data + products + employees
-    const company = await dbPrisma.company.findUnique({
-      where: { id: companyId },
+    const company = await dbPrisma.company.findFirst({
+      where: { id: companyId, ...companyReadScope(viewer) },
       select: {
         id: true,
         name: true,
@@ -83,13 +80,8 @@ export async function GET(
     });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      return companyPrivateJson({ message: 'Company unavailable or access restricted.' }, 404);
     }
-
-    // Check membership (owner, creator, or employee)
-    const isMember = company.Employee.some(e => e.userId === session.id);
-    // Non-members get a limited view
-    const isFullAccess = isMember || session.role === 'ADMIN';
 
     // ─── Compute aggregate pillar breakdown from all public pulses ────
     const pulses = company.Conversation;
@@ -199,7 +191,7 @@ export async function GET(
     // ─── Badges / Perks ─────────────────────────────────────────────
     const badges = computeCompanyBadges(company.reachMomentum, company.reachLifetime, totalViews, pulseCount);
 
-    return NextResponse.json({
+    return companyPrivateJson({
       companyId: company.id,
       companyName: company.name,
       reachLifetime: company.reachLifetime,
@@ -211,14 +203,14 @@ export async function GET(
       pulseCount: pulses.length,
       productCount: company.Product.length,
       momentumTrend,
-      ...(isFullAccess ? { topEmployees } : {}),
+      topEmployees,
       topProducts,
       topPulses,
       badges,
-    }, { status: 200 });
-  } catch (error) {
-    console.error('[api/companies/reach] Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch reach analytics' }, { status: 500 });
+    });
+  } catch {
+    console.error('Company analytics read failed');
+    return companyPrivateJson({ message: 'Company analytics could not be loaded. Try again.' }, 500);
   }
 }
 

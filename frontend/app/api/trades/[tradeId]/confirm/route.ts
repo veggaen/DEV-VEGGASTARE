@@ -16,6 +16,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { createP2PTradeRecords } from "@/lib/trade-record";
+import { verifyTransfersOnChain } from "@/lib/onchain-verify";
 
 const confirmSchema = z.object({
   /** Wallet signature proving intent */
@@ -83,11 +84,54 @@ export async function POST(req: NextRequest, ctx: RouteParams) {
       return NextResponse.json({ error: "Already confirmed" }, { status: 400 });
     }
 
+    // ── Settlement proof: my offered stacks must already sit in my partner's wallet ──
+    const isInitiator = trade.initiatorId === me.id;
+    const myItems = trade.Items.filter((i) => i.side === (isInitiator ? "INITIATOR" : "RESPONDER"));
+    const initiatorItems = trade.Items.filter((i) => i.side === "INITIATOR");
+    const myWallet = body.data.walletAddress ?? existingMeta[isInitiator ? "initiatorWallet" : "responderWallet"];
+    const partnerWallet = existingMeta[isInitiator ? "responderWallet" : "initiatorWallet"];
+    const settleChainId = trade.chainId ?? myItems[0]?.chainId ?? 1;
+    const localChain = settleChainId === 31337 || settleChainId === 1337;
+    if (myItems.length > 0 && trade.environment !== "PAPER" && !localChain) {
+      if (typeof myWallet !== "string" || typeof partnerWallet !== "string") {
+        return NextResponse.json(
+          { error: "Both wallets must be known before settlement. Accept the trade again with a connected wallet." },
+          { status: 400 },
+        );
+      }
+      // The initiator sends first; the responder only after that leg is verified.
+      if (!isInitiator && initiatorItems.length > 0 && !confirmedBy.includes(trade.initiatorId)) {
+        return NextResponse.json(
+          { error: "Your partner sends first. Wait until their transfer is confirmed on-chain." },
+          { status: 409 },
+        );
+      }
+      const hashes = body.data.txHashes ?? [];
+      if (!hashes.length) {
+        return NextResponse.json(
+          { error: "Send your stacks from your wallet first; the transaction hashes are required." },
+          { status: 400 },
+        );
+      }
+      const verification = await verifyTransfersOnChain({
+        chainId: settleChainId,
+        from: myWallet,
+        to: partnerWallet,
+        items: myItems.map((i) => ({ tokenAddress: i.tokenAddress, amount: i.amount, symbol: i.tokenSymbol })),
+        hashes,
+      });
+      if (!verification.ok) {
+        return NextResponse.json(
+          { error: "Your transfer is not confirmed on-chain yet. Wait a moment and confirm again.", problems: verification.problems },
+          { status: 422 },
+        );
+      }
+    }
+
     confirmedBy.push(me.id);
     const bothConfirmed = confirmedBy.length >= 2;
 
     // Store this user's tx hashes + signature in metadata
-    const isInitiator = trade.initiatorId === me.id;
     const txKey = isInitiator ? "initiatorTxHashes" : "responderTxHashes";
     const sigKey = isInitiator ? "initiatorSignature" : "responderSignature";
     const newMeta = {

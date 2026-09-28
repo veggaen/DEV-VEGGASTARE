@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { dbPrisma as db } from "@/lib/db";
 import { z } from 'zod';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
+import { isDemoUserId } from '@/lib/demo-policy';
 
 const NotificationPatchSchema = z.object({
   isRead: z.boolean().optional(),
   isArchived: z.boolean().optional(),
-}).strict();
+}).strict().refine(value => value.isRead !== undefined || value.isArchived !== undefined);
 
 // GET /api/notifications/[id] - Get a single notification
 export async function GET(
@@ -19,21 +21,19 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const rl = await checkRateLimit(`notifications:read:${getClientIdentifier(request, session.user.id)}`, 'read');
+    if (!rl.success) return rateLimitedResponse(rl);
     const { id } = await params;
 
-    const notification = await db.notification.findUnique({
-      where: { id },
+    const notification = await db.notification.findFirst({
+      where: { id, userId: session.user.id },
     });
 
     if (!notification) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (notification.userId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return NextResponse.json(notification);
+    return NextResponse.json(notification, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error("[NOTIFICATION_GET]", error);
     return NextResponse.json(
@@ -54,8 +54,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (isDemoUserId(session.user.id)) return NextResponse.json({ error: 'Demo notifications are read-only' }, { status: 403 });
+    const rl = await checkRateLimit(`notifications:write:${getClientIdentifier(request, session.user.id)}`, 'write');
+    if (!rl.success) return rateLimitedResponse(rl);
     const { id } = await params;
-    const json = await request.json();
+    const json = await request.json().catch(() => null);
     const parsed = NotificationPatchSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload", issues: parsed.error.issues }, { status: 400 });
@@ -63,26 +66,20 @@ export async function PATCH(
     const { isRead, isArchived } = parsed.data;
 
     // Verify ownership
-    const existing = await db.notification.findUnique({
-      where: { id },
-      select: { userId: true },
+    const existing = await db.notification.findFirst({
+      where: { id, userId: session.user.id },
+      select: { isRead: true, readAt: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const updateData: any = {};
+    const updateData: { isRead?: boolean; isArchived?: boolean; readAt?: Date | null } = {};
     
     if (typeof isRead === "boolean") {
       updateData.isRead = isRead;
-      if (isRead) {
-        updateData.readAt = new Date();
-      }
+      updateData.readAt = isRead ? (existing.readAt ?? new Date()) : null;
     }
     
     if (typeof isArchived === "boolean") {
@@ -90,7 +87,7 @@ export async function PATCH(
     }
 
     const notification = await db.notification.update({
-      where: { id },
+      where: { id, userId: session.user.id },
       data: updateData,
     });
 
@@ -115,25 +112,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (isDemoUserId(session.user.id)) return NextResponse.json({ error: 'Demo notifications are read-only' }, { status: 403 });
+    const rl = await checkRateLimit(`notifications:write:${getClientIdentifier(request, session.user.id)}`, 'write');
+    if (!rl.success) return rateLimitedResponse(rl);
     const { id } = await params;
-
-    // Verify ownership
-    const existing = await db.notification.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    if (existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    await db.notification.delete({
-      where: { id },
-    });
+    const result = await db.notification.deleteMany({ where: { id, userId: session.user.id } });
+    if (!result.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (error) {

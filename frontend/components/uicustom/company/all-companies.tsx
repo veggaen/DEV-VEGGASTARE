@@ -1,298 +1,168 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+/** @fileOverview The company directory: your own companies first, then everyone else's storefronts, as trailing-box card grids. @stability evolving */
+
+import useSWR from 'swr';
 import Image from 'next/image';
 import Link from 'next/link';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { FiPlus, FiBriefcase, FiUsers, FiGlobe, FiHome } from 'react-icons/fi';
+import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { CompaniesPublicResponseSchema, CompaniesByUserRelationResponseSchema } from '@/lib/types/company';
+import { FiArrowRight, FiBriefcase, FiGlobe, FiHome, FiPlus, FiUsers } from 'react-icons/fi';
+import { PageHeader } from '@/components/uicustom/chrome/page-header';
+import { HoverChaser } from '@/components/uicustom/chrome/hover-chaser';
+import { StatusPill } from '@/components/uicustom/settings/settings-primitives';
 
 interface PublicCompany {
   id: string;
   name: string;
-  description: string | null;
+  description?: string | null;
   logo: string[] | null;
   bannerImage: string[] | null;
-  orgType: string | null;
+  orgType?: string | null;
   createdAt: string;
   ownerId?: string;
   creatorId?: string;
-  creator: {
-    id: string;
-    name: string | null;
-  };
-  employees?: Array<{
-    userId: string;
-    role?: string;
-  }>;
-  _count?: {
-    employees: number;
-  };
+  creator?: { id: string; name: string | null };
+  employees?: Array<{ userId: string; role?: string }>;
+  _count?: { employees: number };
 }
-
-const truncateDescription = (description: string | null) => {
-  if (!description) return '';
-  const maxLength = 120;
-  return description.length > maxLength ? `${description.substring(0, maxLength)}...` : description;
-};
 
 const CompanyCard = ({ company }: { company: PublicCompany }) => {
   const createdAtDate = new Date(company.createdAt);
-  const foundedLabel = Number.isNaN(createdAtDate.getTime())
-    ? 'Founded recently'
-    : `Founded ${formatDistanceToNow(createdAtDate, { addSuffix: true })}`;
-  const memberCount =
-    typeof company._count?.employees === 'number'
-      ? company._count.employees
-      : Array.isArray(company.employees)
-      ? company.employees.length
-      : 0;
+  const foundedLabel = Number.isNaN(createdAtDate.getTime()) ? 'Founded recently' : `Founded ${formatDistanceToNow(createdAtDate, { addSuffix: true })}`;
+  const memberCount = typeof company._count?.employees === 'number' ? company._count.employees : Array.isArray(company.employees) ? company.employees.length : 0;
 
   return (
     <Link
       href={`/companies/${company.id}`}
-      className="group flex h-full flex-col border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl overflow-hidden"
+      data-chase
+      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/70 text-card-foreground shadow-e1 backdrop-blur-xl transition-[transform,border-color] duration-200 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {/* Banner or gradient header */}
       <div className="relative h-20 w-full">
         {company.bannerImage?.[0] ? (
-          <Image
-            src={company.bannerImage[0]}
-            alt={`${company.name} banner`}
-            fill
-            className="object-cover"
-          />
+          <Image src={company.bannerImage[0]} alt="" fill sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 320px" className="object-cover" />
         ) : (
-          <div className="h-full w-full bg-linear-to-r from-indigo-500/30 via-sky-500/20 to-emerald-500/30 dark:from-indigo-500/20 dark:via-sky-500/10 dark:to-emerald-500/20" />
+          <div className="h-full w-full bg-[linear-gradient(135deg,hsl(var(--brand-accent)/0.35),hsl(var(--brand-accent)/0.08)_55%,hsl(var(--muted)))]" />
         )}
-        {/* Logo overlay */}
         <div className="absolute -bottom-6 left-3">
-          <div className="relative h-12 w-12 overflow-hidden rounded-lg border-2 border-white dark:border-zinc-900 bg-white dark:bg-zinc-900">
-            <Image
-              src={company.logo?.[0] || "/users/avatar.webp"}
-              alt={`${company.name} logo`}
-              fill
-              className="object-cover"
-            />
+          <div className="relative size-12 overflow-hidden rounded-xl border-2 border-card bg-card shadow-e1">
+            <Image src={company.logo?.[0] || '/users/avatar.webp'} alt="" fill sizes="48px" className="object-cover" />
           </div>
         </div>
       </div>
-
       <div className="flex flex-1 flex-col px-4 pb-4 pt-8">
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-            {company.name}
-          </h3>
-          {company.orgType && (
-            <div className="mt-1">
-              <span className="inline-flex items-center rounded-full border border-black/10 bg-black/5 px-2 py-0.5 text-[11px] font-medium text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
-                {company.orgType}
-              </span>
-            </div>
-          )}
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
-            {truncateDescription(company.description)}
-          </p>
+          <h3 className="truncate text-base font-semibold text-foreground">{company.name}</h3>
+          {company.orgType && <StatusPill className="mt-1">{company.orgType}</StatusPill>}
+          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{company.description || 'No description yet.'}</p>
         </div>
-
-        <div className="mt-4 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-          <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><FiUsers aria-hidden="true" className="size-3" />{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
           <span>{foundedLabel}</span>
         </div>
+        <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent">Open storefront <FiArrowRight aria-hidden="true" className="size-3.5" /></span>
       </div>
     </Link>
   );
 };
 
-const CompanySection = ({ 
-  title, 
-  icon: Icon, 
-  companies, 
-  emptyMessage 
-}: { 
-  title: string; 
-  icon: React.ElementType;
-  companies: PublicCompany[]; 
-  emptyMessage?: string;
-}) => {
+const CompanySection = ({ title, description, icon: Icon, companies, emptyMessage }: { title: string; description?: string; icon: React.ElementType; companies: PublicCompany[]; emptyMessage?: string }) => {
   if (companies.length === 0 && !emptyMessage) return null;
-
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <Icon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">({companies.length})</span>
+    <section aria-label={title} className="mb-8">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"><Icon aria-hidden="true" className="size-3.5 text-brand-accent" />{title}<span className="tabular-nums">· {companies.length}</span></h2>
+          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        </div>
       </div>
       {companies.length === 0 && emptyMessage ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{emptyMessage}</p>
+        <p className="rounded-2xl border border-dashed border-border/70 px-5 py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {companies.map((company) => (
-            <CompanyCard key={company.id} company={company} />
-          ))}
-        </div>
+        <HoverChaser className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" boxClassName="rounded-2xl">
+          {companies.map((company) => <CompanyCard key={company.id} company={company} />)}
+        </HoverChaser>
       )}
-    </div>
+    </section>
   );
 };
 
 const AllCompanies = () => {
-  const currentUser = useCurrentUser();
-  const [allCompanies, setAllCompanies] = useState<PublicCompany[]>([]);
-  const [userCompanies, setUserCompanies] = useState<PublicCompany[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user: currentUser, isLoading: sessionLoading } = useCurrentUserWithStatus();
+  const isDemo = isDemoUserId(currentUser?.id);
+  // Independent keys: resolving auth must not refetch/hide the public directory.
+  const publicQuery = useSWR('/api/companies/public', async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Company directory unavailable');
+    return CompaniesPublicResponseSchema.parse(await response.json());
+  }, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const relatedQuery = useSWR(currentUser?.id && !isDemo ? ['/api/companies/filter-by-user-relation', currentUser.id] : null,
+    async ([url]: [string, string]) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Your companies are unavailable');
+      return CompaniesByUserRelationResponseSchema.parse(await response.json());
+    }, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const allCompanies = publicQuery.data ?? [];
+  const userCompanies = relatedQuery.data ?? [];
 
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch all public companies
-        const publicResponse = await fetch('/api/companies/public');
-        if (!publicResponse.ok) {
-          throw new Error('Failed to fetch companies');
-        }
-        const publicData = await publicResponse.json();
-        setAllCompanies(publicData);
-
-        // If user is logged in, fetch their related companies
-        if (currentUser?.id) {
-          const userResponse = await fetch(`/api/companies/filter-by-user-relation?userId=${currentUser.id}`);
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            setUserCompanies(userData);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching companies:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch companies');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCompanies();
-  }, [currentUser?.id]);
-
-  // Categorize companies
-  const ownedCompanies = currentUser 
-    ? userCompanies.filter((c) => c.ownerId === currentUser.id)
-    : [];
-  
-  const employedCompanies = currentUser
-    ? userCompanies.filter((c) => 
-        c.ownerId !== currentUser.id && 
-        c.employees?.some((emp) => emp.userId === currentUser.id)
-      )
-    : [];
-  
-  // Get IDs of user's companies to filter them out from "other companies"
+  const ownedCompanies = currentUser ? userCompanies.filter((c) => c.ownerId === currentUser.id) : [];
+  const employedCompanies = currentUser ? userCompanies.filter((c) => c.ownerId !== currentUser.id && c.employees?.some((emp) => emp.userId === currentUser.id)) : [];
   const userCompanyIds = new Set(userCompanies.map((c) => c.id));
   const otherCompanies = allCompanies.filter((c) => !userCompanyIds.has(c.id));
-
-  const hasNoCompanyRelation = currentUser && ownedCompanies.length === 0 && employedCompanies.length === 0;
-
-  if (loading) {
-    return (
-      <div className="w-full">
-        <div className="mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-48 mb-4"></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-64 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full">
-        <div className="mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-6">
-          <div className="text-red-500">Error: {error}</div>
-        </div>
-      </div>
-    );
-  }
+  const hasNoCompanyRelation = currentUser && !isDemo && relatedQuery.data && userCompanies.length === 0;
 
   return (
     <div className="w-full">
-      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-6">
-        {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-              {currentUser ? 'Companies' : 'Company Directory'}
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-              {currentUser 
-                ? 'Manage your organizations and discover new businesses.'
-                : 'Discover companies and browse their storefronts.'}
-            </p>
-          </div>
-          <Link
-            href="/companies/create"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-black/10 bg-black/5 px-4 py-2 text-sm font-semibold text-zinc-900 transition-colors hover:bg-black/10 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.07]"
-          >
-            <FiPlus className="h-4 w-4" />
-            Create company
-          </Link>
-        </div>
+      <div data-company-directory className="mx-auto w-full max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Directory"
+          title="Companies"
+          description="Independent businesses selling and hiring on Veggat. Open a storefront to browse products, or run your own with a team."
+          actions={<Button asChild variant="vegaEmeraldBtn" className="min-h-11 gap-2"><Link href="/companies/create"><FiPlus aria-hidden="true" className="size-4" />{isDemo ? 'Company setup preview' : 'Create company'}</Link></Button>}
+          className="mb-8"
+        />
 
-        {/* Empty state for users with no company relations */}
+        {isDemo && <p className="mb-6 rounded-2xl border border-dashed border-border/70 px-4 py-3 text-sm text-muted-foreground">Demo preview: explore storefronts below. Company creation and team changes require your own account.</p>}
+        {(sessionLoading || relatedQuery.isLoading) && <p role="status" className="mb-6 text-sm text-muted-foreground">Checking your workspace…</p>}
+        {relatedQuery.error && <div role="alert" className="mb-6 rounded-2xl border border-border/60 bg-card/70 p-4 text-sm">Your organizations could not be loaded. Public storefronts are still available. <Button variant="vegaNormalBtn" className="mt-2 min-h-11" onClick={() => void relatedQuery.mutate()}>Retry your companies</Button></div>}
+
         {hasNoCompanyRelation && (
-          <div className="mb-10 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30 p-8 text-center">
-            <FiHome className="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500 mb-4" />
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-              Start Your Business Journey
-            </h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6 max-w-md mx-auto">
-              You don&apos;t own or work at any company yet. Create your own company to start selling products, or explore companies below to find opportunities.
-            </p>
-            <Link
-              href="/companies/create"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <FiPlus className="h-4 w-4" />
-              Create Your First Company
-            </Link>
+          <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-brand-accent/30 bg-brand-accent/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-accent/15 text-brand-accent"><FiHome aria-hidden="true" className="size-5" /></span>
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Start your business here</h3>
+                <p className="mt-1 max-w-xl text-sm text-muted-foreground">You do not own or work at a company yet. Create one to list products, receive requests from the job board and manage a team, or explore the storefronts below.</p>
+              </div>
+            </div>
+            <Button asChild variant="vegaEmeraldBtn" className="min-h-11 shrink-0 gap-2"><Link href="/companies/create"><FiPlus aria-hidden="true" className="size-4" />Create your first company</Link></Button>
           </div>
         )}
 
-        {/* User's Companies Section - Only show if logged in */}
         {currentUser && (
           <>
-            {/* Companies You Own */}
-            <CompanySection
-              title="Companies You Own"
-              icon={FiBriefcase}
-              companies={ownedCompanies}
-            />
-
-            {/* Companies You Work At */}
-            <CompanySection
-              title="Companies You Work At"
-              icon={FiUsers}
-              companies={employedCompanies}
-            />
+            <CompanySection title="Companies you own" description="Storefronts, team and payouts you control." icon={FiBriefcase} companies={ownedCompanies} />
+            <CompanySection title="Companies you work at" icon={FiUsers} companies={employedCompanies} />
           </>
         )}
 
-        {/* Other/All Companies */}
-        <CompanySection
-          title={currentUser ? "Other Companies" : "All Companies"}
+        {publicQuery.isLoading && <div role="status" aria-label="Loading company directory" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => <div key={index} aria-hidden="true" className="h-64 rounded-2xl border border-border/60 bg-muted motion-safe:animate-pulse" style={{ opacity: 1 - index * 0.18 }} />)}
+        </div>}
+        {publicQuery.error && <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+          <p>We couldn’t load the company directory. Please try again.</p>
+          <Button variant="vegaNormalBtn" className="mt-3 min-h-11" onClick={() => void publicQuery.mutate()}>Retry directory</Button>
+        </div>}
+        {publicQuery.data && <CompanySection
+          title={currentUser ? 'Other companies' : 'All companies'}
+          description="Every storefront on Veggat, newest first."
           icon={FiGlobe}
           companies={currentUser ? otherCompanies : allCompanies}
-          emptyMessage={allCompanies.length === 0 ? "No companies have been created yet." : undefined}
-        />
+          emptyMessage={allCompanies.length === 0 ? 'No companies have been created yet.' : undefined}
+        />}
       </div>
     </div>
   );

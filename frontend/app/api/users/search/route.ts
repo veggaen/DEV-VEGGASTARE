@@ -1,156 +1,77 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { NextResponse } from 'next/server';
-import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/browser';
 import { UserSearchResponseSchema } from '@/lib/types/users';
-import { resolveVisibleEmail } from '@/lib/email-visibility';
+import { DEMO_ID_PREFIX, isDemoUserId } from '@/lib/demo-policy';
+import { checkRateLimit } from '@/lib/rate-limit';
 
-const LOG_PREFIX = '[api/users/search]';
-const isDev = process.env.NODE_ENV !== 'production';
+const querySchema = z.object({
+  q: z.string().trim().max(100).default(''),
+  limit: z.coerce.number().int().min(1).max(20).default(10),
+  excludeSelf: z.enum(['true', 'false']).default('true').transform(value => value === 'true'),
+});
+function privateJson(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', ...extraHeaders } });
+}
 
-/**
- * GET /api/users/search?q=<query>&limit=<number>&excludeSelf=<boolean>
- * 
- * Case-insensitive user search for autocomplete.
- * Searches by name and email.
- * 
- * Query params:
- *   - q: search query (min 1 char)
- *   - limit: max results (default 10, max 50)
- *   - excludeSelf: exclude current user from results (default true)
- */
+/** Bounded autocomplete for signed-in people; no directory enumeration in demo. */
 export async function GET(req: Request) {
   try {
-    const currentUser = await MyLibUserAuth();
-    if (!currentUser?.id) {
-      return NextResponse.json({ users: [], message: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const queryResult = parseQueryOrError(
-      req,
-      z.object({
-        q: z.string().trim().min(1).max(100),
-        limit: z.coerce.number().int().min(1).max(20).optional().default(10),
-        excludeSelf: z
-          .preprocess((v) => v !== 'false', z.boolean())
-          .optional()
-          .default(true),
-      })
-    );
-    if (!queryResult.ok) return queryResult.response;
-    const { q, limit, excludeSelf } = queryResult.data;
-    
-    // Reduce enumeration: require at least 2 chars.
-    if (q.length < 2) {
-      return NextResponse.json({ users: [], count: 0, message: 'Query too short' }, { status: 200 });
-    }
-    
-    // Build where clause with case-insensitive search
-    const canSeeAllEmails = currentUser.role === 'ADMIN' || currentUser.role === 'OWNER';
-    const whereClause: Record<string, unknown> = {
-      OR: [
-        { name: { contains: q, mode: 'insensitive' } },
-        canSeeAllEmails
-          ? { email: { contains: q, mode: 'insensitive' } }
-          : {
-              AND: [
-                { email: { contains: q, mode: 'insensitive' } },
-                {
-                  OR: [
-                    { emailDisplayMode: 'PRIMARY' },
-                    { id: currentUser.id },
-                  ],
-                },
-              ],
-            },
-      ],
-    };
-    
-    // Exclude current user if requested and authenticated
-    if (excludeSelf) {
-      whereClause.NOT = { id: currentUser.id };
-    }
-    
+    // auth() refreshes the database identity/role on every request, including
+    // deleted-account and token-version checks. Never accept a viewer from query.
+    const viewer = await MyLibUserAuth();
+    if (!viewer?.id) return privateJson({ users: [], count: 0, message: 'Sign in to find people.' }, 401);
+    const parsed = querySchema.safeParse(Object.fromEntries(new URL(req.url).searchParams));
+    if (!parsed.success) return privateJson({ users: [], count: 0, message: 'Invalid search options.' }, 400);
+    const { q, limit, excludeSelf } = parsed.data;
+    if (isDemoUserId(viewer.id) || q.length < 2) return privateJson({ users: [], count: 0 });
+
+    const rate = await checkRateLimit('people-search:' + viewer.id, 'read');
+    if (!rate.success) return privateJson({ users: [], count: 0, message: 'Please wait before searching again.' }, 429, { 'Retry-After': String(Math.max(1, rate.resetIn)) });
+    const privileged = viewer.role === 'ADMIN' || viewer.role === 'OWNER';
+    // Prisma's contains/startsWith use SQL LIKE patterns; user input is literal.
+    const literal = (value: string) => value.replace(/[\\%_]/g, '\\$&');
+    const term = literal(q);
+    const visibleEmail: Prisma.UserWhereInput = privileged
+      ? { email: { contains: term, mode: 'insensitive' } }
+      : { AND: [{ email: { contains: term, mode: 'insensitive' } }, { OR: [{ emailDisplayMode: 'PRIMARY' }, { id: viewer.id }] }] };
     const users = await dbPrisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        emailDisplayMode: true,
-        image: true,
-        role: true,
-        bio: true,
-      },
+      where: { AND: [
+        { id: { not: { startsWith: literal(DEMO_ID_PREFIX) } } },
+        ...(excludeSelf ? [{ id: { not: viewer.id } }] : []),
+        { OR: [{ name: { contains: term, mode: 'insensitive' } }, visibleEmail] },
+      ] },
+      select: { id: true, name: true, email: true, emailDisplayMode: true, image: true, role: true, bio: true },
       take: limit,
-      orderBy: [
-        // Prioritize exact name matches, then partial matches
-        { name: 'asc' },
-      ],
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
-    
-    // Fetch follower counts for all results
-    const userIds = users.map(u => u.id);
-    const followerCounts = await dbPrisma.follow.groupBy({
-      by: ['followingId'],
-      where: { followingId: { in: userIds } },
-      _count: { followingId: true },
+    if (!users.length) return privateJson({ users: [], count: 0 });
+    const ids = users.map(user => user.id);
+    // Independent reads run together; empty searches avoid both queries.
+    const [counts, following] = await Promise.all([
+      dbPrisma.follow.groupBy({ by: ['followingId'], where: { followingId: { in: ids } }, _count: { followingId: true } }),
+      dbPrisma.follow.findMany({ where: { followerId: viewer.id, followingId: { in: ids } }, select: { followingId: true } }),
+    ]);
+    const countMap = new Map(counts.map(row => [row.followingId, row._count.followingId]));
+    const followingSet = new Set(following.map(row => row.followingId));
+    const payload = UserSearchResponseSchema.safeParse({
+      users: users.map(user => ({
+        id: user.id, name: user.name || 'Veggat member',
+        email: privileged || user.id === viewer.id || user.emailDisplayMode === 'PRIMARY' ? user.email : null,
+        image: user.image || '/users/avatar.webp',
+        role: privileged ? user.role : null, bio: user.bio || null,
+        followerCount: countMap.get(user.id) || 0, isFollowing: followingSet.has(user.id),
+      })),
+      count: users.length,
     });
-    
-    const countMap = new Map(
-      followerCounts.map(f => [f.followingId, f._count.followingId])
-    );
-
-    // Check which users the current user is following
-    const followingStatus = await dbPrisma.follow.findMany({
-      where: {
-        followerId: currentUser.id,
-        followingId: { in: userIds },
-      },
-      select: { followingId: true },
-    });
-    const followingSet = new Set(followingStatus.map(f => f.followingId));
-    
-    // Process results
-    const processedUsers = users.map(user => ({
-      id: user.id,
-      name: user.name || 'Unknown',
-      email: resolveVisibleEmail({
-        targetUserId: user.id,
-        targetEmail: user.email,
-        targetEmailDisplayMode: user.emailDisplayMode,
-        viewerUserId: currentUser.id,
-        viewerRole: currentUser.role,
-      }),
-      image: user.image || '/users/avatar.webp',
-      role: user.role,
-      bio: user.bio || null,
-      followerCount: countMap.get(user.id) || 0,
-      isFollowing: followingSet.has(user.id),
-    }));
-
-    const payload = {
-      users: processedUsers,
-      count: processedUsers.length,
-    };
-
-    const validated = UserSearchResponseSchema.safeParse(payload);
-    if (!validated.success) {
-      console.error(LOG_PREFIX, 'Invalid user search DTO:', validated.error);
-      return NextResponse.json(
-        { users: [], message: 'Server error while searching users', ...(isDev ? { issues: validated.error.issues } : {}) },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(validated.data);
-  } catch (error) {
-    console.error(LOG_PREFIX, 'Error searching users:', error);
-    return NextResponse.json(
-      { users: [], message: 'Server error while searching users' },
-      { status: 500 }
-    );
+    if (!payload.success) throw new Error('Invalid search result');
+    return privateJson(payload.data);
+  } catch {
+    // Never log a raw Prisma/provider error: it may include connection details.
+    console.error('[api/users/search] Search failed');
+    return privateJson({ users: [], count: 0, message: 'People search is temporarily unavailable.' }, 500);
   }
 }
 

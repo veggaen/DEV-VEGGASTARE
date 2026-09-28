@@ -4,12 +4,11 @@
  * After the client sends crypto to the system wallet and receives
  * a transaction hash, this route:
  *   1. Validates the wallet is verified + belongs to the session user
- *   2. Records the donation amount (increments donationTotalUsd)
- *   3. Recalculates the user's verification tier
+ *   2. Records an unverified claim for reconciliation
+ *   3. Does NOT grant trust, credits, or increase a verified donation total
  *
- * On-chain verification (checking the tx receipt for actual value) is
- * done asynchronously to avoid blocking the UX. The donation is
- * optimistically recorded, and a background job can reconcile later.
+ * There is no server-side chain verifier wired here yet. Client amounts and
+ * transaction hashes are claims, never payment evidence.
  *
  * @stability experimental
  */
@@ -20,7 +19,7 @@ import { z } from "zod";
 import { parseJsonOrError } from "@/lib/api-validate";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
-import { recalculateVerificationTier } from "@/lib/verification-recalc";
+import { isDemoUserId } from "@/lib/demo-policy";
 import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/rate-limit";
 
 const donateSchema = z.object({
@@ -41,6 +40,7 @@ const donateSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
   const rl = await checkRateLimit(getClientIdentifier(req), "wallet");
   if (!rl.success) return rateLimitedResponse(rl);
 
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
   if (!me?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (isDemoUserId(me.id)) return NextResponse.json({ error: 'Demo accounts cannot donate.' }, { status: 403 });
   if (!me.web3ModeEnabled) {
     return NextResponse.json({ error: "Enable Web3 mode first." }, { status: 403 });
   }
@@ -95,9 +96,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Record donation + increment wallet total atomically
-  const [donation] = await dbPrisma.$transaction([
-    dbPrisma.donation.create({
+  // A unique hash prevents concurrent replay. Pending claims never touch the
+  // wallet total or User verification flags, even for very large amounts.
+  try {
+    const donation = await dbPrisma.donation.create({
       data: {
         userId: me.id,
         walletId: wallet.id,
@@ -110,28 +112,11 @@ export async function POST(req: NextRequest) {
         tokenSymbol,
         status: "PENDING_CONFIRMATION",
       },
-    }),
-    dbPrisma.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        donationTotalUsd: { increment: amountUsd },
-      },
-    }),
-  ]);
-
-  // Recalculate verification tier with updated donation total (fire-and-forget)
-  recalculateVerificationTier(
-    me.id,
-    { hasWeb3Payment: true },
-    `Donation $${amountUsd.toFixed(2)} via ${tokenSymbol}`,
-  ).catch((err) => console.error("[donate] Tier recalc failed:", err));
-
-  return NextResponse.json(
-    {
-      ok: true,
-      donationId: donation.id,
-      newTotalUsd: (wallet.donationTotalUsd ?? 0) + amountUsd,
-    },
-    { status: 201 },
-  );
+    });
+    return NextResponse.json({ ok: true, donationId: donation.id, status: 'PENDING_CONFIRMATION',
+      message: 'Submitted for verification. No trust or credits have been awarded.' }, { status: 202 });
+  } catch (error) {
+    const duplicate = error && typeof error === 'object' && 'code' in error && error.code === 'P2002';
+    return NextResponse.json({ error: duplicate ? 'Donation with this transaction already recorded' : 'Donation could not be recorded.' }, { status: duplicate ? 409 : 503 });
+  }
 }

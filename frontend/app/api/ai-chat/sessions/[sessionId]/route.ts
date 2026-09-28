@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
+import { isDemoUserId } from '@/lib/demo-policy';
+import { imageSelect } from '@/lib/ai-chat/images';
+import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from '@/lib/rate-limit';
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,7 @@ export async function GET(
         orderBy: { createdAt: "asc" },
         take: 200,
         include: {
+          images: { select: imageSelect },
           reactions: true,
           participant: { select: { id: true, type: true, displayName: true, aiModel: true } },
         },
@@ -43,7 +47,7 @@ export async function GET(
     },
   });
 
-  if (!conv) {
+  if (!conv || conv.isDeleted) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
 
@@ -68,6 +72,11 @@ export async function PATCH(
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (isDemoUserId(session.id) || session.isDemo) return NextResponse.json({ error: 'DEMO_READ_ONLY' }, { status: 403 });
+  const rate = await checkRateLimit(getClientIdentifier(req, session.id), 'write');
+  if (!rate.success) return rateLimitedResponse(rate);
+
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
     select: { creatorId: true, isSuspended: true, isDeleted: true },
@@ -85,18 +94,21 @@ export async function PATCH(
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
 
-  const updated = await dbPrisma.aiConversation.update({
-    where: { id: sessionId },
-    data: body,
-    select: { id: true, title: true, isPublic: true, triggerMode: true, updatedAt: true },
+  const updated = await dbPrisma.$transaction(async tx => {
+    // Same lock as image-upload reservation prevents share/upload races.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(621642901)`;
+    if (body.isPublic && await tx.aiChatImage.count({ where: { conversationId: sessionId } })) return null;
+    return tx.aiConversation.update({ where: { id: sessionId }, data: body,
+      select: { id: true, title: true, isPublic: true, triggerMode: true, updatedAt: true } });
   });
+  if (!updated) return NextResponse.json({ error: 'PRIVATE_IMAGES', message: 'Chats containing private images cannot be made public.' }, { status: 409 });
 
   return NextResponse.json(updated);
 }
 
 // DELETE — soft-delete session
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
@@ -104,6 +116,11 @@ export async function DELETE(
   if (!session?.id) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (isDemoUserId(session.id) || session.isDemo) return NextResponse.json({ error: 'DEMO_READ_ONLY' }, { status: 403 });
+  const rate = await checkRateLimit(getClientIdentifier(req, session.id), 'write');
+  if (!rate.success) return rateLimitedResponse(rate);
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },

@@ -1,120 +1,35 @@
-/**
- * GET /api/users/verification
- * 
- * Returns the current user's verification state:
- * - All boolean flags (hasGoogleAuth, hasWeb2Payment, etc.)
- * - Current tier, score, and multiplier
- * - Linked OAuth accounts
- * 
- * POST /api/users/verification
- * 
- * Triggers a manual recalculation of verification tier + score.
- */
-
-import { NextResponse } from 'next/server';
-import { dbPrisma } from '@/lib/db';
+/** @fileOverview Authenticated, current verification evidence; guarded cache refresh. @stability stable */
+import { NextRequest, NextResponse } from 'next/server';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { VERIFICATION_TIER_MULTIPLIERS } from '@/lib/view-strength';
+import { VERIFICATION_TIER_MULTIPLIERS, type VerificationTier } from '@/lib/view-strength';
 import { recalculateVerificationTier } from '@/lib/verification-recalc';
+import { readVerificationEvidence } from '@/lib/verification-evidence';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
+import { isDemoUserId } from '@/lib/demo-policy';
 
-type VerificationTierKey = keyof typeof VERIFICATION_TIER_MULTIPLIERS;
-
+const headers = { 'Cache-Control': 'private, no-store' };
 export async function GET() {
   const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   try {
-    const user = await dbPrisma.user.findUnique({
-      where: { id: session.id },
-      select: {
-        emailVerified: true,
-        hasGoogleAuth: true,
-        hasDiscordAuth: true,
-        hasGithubAuth: true,
-        hasVerifiedWallet: true,
-        hasWeb2Payment: true,
-        hasWeb3Payment: true,
-        phoneVerified: true,
-        phoneNumber: true,
-        isTwoFactorEnabled: true,
-        web3ModeEnabled: true,
-        verificationTier: true,
-        verificationScore: true,
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Get linked OAuth accounts
-    const accounts = await dbPrisma.account.findMany({
-      where: { userId: session.id },
-      select: { provider: true },
-    });
-
-    const linkedProviders = accounts.map(a => a.provider);
-
-    // Get pending (unconfirmed) OAuth links
-    const pendingLinks = await dbPrisma.pendingOAuthLink.findMany({
-      where: { userId: session.id, expires: { gt: new Date() } },
-      select: { provider: true },
-    });
-    const pendingProviders = pendingLinks.map(p => p.provider);
-
-    const tier = (user.verificationTier ?? 'ANONYMOUS') as VerificationTierKey;
-    const multiplier = VERIFICATION_TIER_MULTIPLIERS[tier] ?? 0.1;
-
-    return NextResponse.json({
-      flags: {
-        emailVerified: user.emailVerified != null,
-        hasGoogleAuth: user.hasGoogleAuth ?? false,
-        hasDiscordAuth: user.hasDiscordAuth ?? false,
-        hasGithubAuth: user.hasGithubAuth ?? false,
-        hasVerifiedWallet: user.hasVerifiedWallet ?? false,
-        hasWeb2Payment: user.hasWeb2Payment ?? false,
-        hasWeb3Payment: user.hasWeb3Payment ?? false,
-        phoneVerified: user.phoneVerified != null,
-        isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
-      },
-      tier,
-      score: user.verificationScore ?? 0,
-      multiplier,
-      linkedProviders,
-      pendingProviders,
-      phoneNumber: user.phoneNumber
-        ? user.phoneNumber.slice(0, -4) + '****'
-        : null,
-    });
-  } catch (error) {
-    console.error('[api/users/verification] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const evidence = await readVerificationEvidence(session.id);
+    if (!evidence) return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+    const { flags, tier, score, multiplier, linkedProviders, pendingProviders, user } = evidence;
+    return NextResponse.json({ flags, tier, score, multiplier, linkedProviders, pendingProviders,
+      phoneNumber: user.phoneNumber ? user.phoneNumber.slice(0, -4) + '****' : null }, { headers });
+  } catch {
+    return NextResponse.json({ error: 'Verification is temporarily unavailable. Please retry.' }, { status: 503, headers });
   }
 }
 
-/**
- * POST — Manual recalculation of verification tier/score.
- * Useful when the user suspects their tier is stale.
- */
-export async function POST() {
+/** Compatibility endpoint. The settings Refresh button only needs GET now. */
+export async function POST(req: NextRequest) {
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'Invalid origin' }, { status: 403, headers });
   const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+  if (isDemoUserId(session.id)) return NextResponse.json({ error: 'Demo accounts cannot change verification.' }, { status: 403, headers });
+  if (!await allowAuthAttempt('verification-refresh', session.id, req)) return NextResponse.json({ error: 'Try again in a few minutes.' }, { status: 429, headers });
   const result = await recalculateVerificationTier(session.id);
-
-  if (!result) {
-    return NextResponse.json({ error: 'Failed to recalculate' }, { status: 500 });
-  }
-
-  const tier = result.tier as VerificationTierKey;
-  return NextResponse.json({
-    success: true,
-    tier,
-    score: result.score,
-    multiplier: VERIFICATION_TIER_MULTIPLIERS[tier] ?? 0.1,
-  });
+  if (!result) return NextResponse.json({ error: 'Verification is temporarily unavailable.' }, { status: 503, headers });
+  return NextResponse.json({ success: true, ...result, multiplier: VERIFICATION_TIER_MULTIPLIERS[result.tier as VerificationTier] }, { headers });
 }

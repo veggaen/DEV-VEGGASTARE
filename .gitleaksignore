@@ -1,0 +1,3 @@
+# Exact historical false positive: synthetic UUID in a fully mocked recovery test.
+# This does not exclude production tokens, whole files, paths, or other findings.
+dde372bd72503e8e0f632d577dd2627d11926221:frontend/actions/auth-recovery.test.ts:generic-api-key:18

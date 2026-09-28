@@ -178,7 +178,7 @@ function StatCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50"
+      className="flex items-center gap-3 p-3 rounded-lg bg-foreground/[0.06] border border-border/50"
     >
       <div className={cn(
         "p-2 rounded-lg",
@@ -256,7 +256,7 @@ function ChoiceChart({
                 transition={{ delay: idx * 0.1 }}
                 className={cn(
                   "transition-opacity cursor-pointer",
-                  isUserSelected(response.optionId) && "stroke-white stroke-2"
+                  isUserSelected(response.optionId) && "stroke-foreground stroke-2"
                 )}
               />
             );
@@ -332,7 +332,7 @@ function ChoiceChart({
               transition={{ duration: 0.5, delay: idx * 0.05 }}
             >
               {response.percentage > 10 && (
-                <span className="text-xs text-white font-medium">
+                <span className="text-xs text-foreground font-medium">
                   {response.percentage}%
                 </span>
               )}
@@ -467,7 +467,7 @@ function TextResponsesList({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
-              className="p-3 rounded-lg bg-muted/50 border border-border/30"
+              className="p-3 rounded-lg bg-foreground/[0.06] border border-border/30"
             >
               <div className="flex items-start gap-2">
                 <Quote className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />

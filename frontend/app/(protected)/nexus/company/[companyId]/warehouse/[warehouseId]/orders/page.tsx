@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import {
   FiPackage,
   FiTruck,
@@ -48,6 +49,7 @@ interface FulfilmentOrder {
   id: string;
   createdAt: string;
   totalAmount: number;
+  currency: string | null;
   status: string;
   fulfilmentStatus: string;
   claimedByUserId: string | null;
@@ -81,7 +83,7 @@ const STATUS_TABS = [
   { key: "UNFULFILLED", label: "Ikke sendt", icon: FiClock, color: "text-yellow-400" },
   { key: "PROCESSING", label: "Under behandling", icon: FiPackage, color: "text-blue-400" },
   { key: "SHIPPED", label: "Sendt", icon: FiTruck, color: "text-green-400" },
-  { key: "DELIVERED", label: "Levert", icon: FiCheckCircle, color: "text-emerald-400" },
+  { key: "DELIVERED", label: "Levert", icon: FiCheckCircle, color: "text-brand-accent" },
 ] as const;
 
 const BRING_SERVICES: Record<string, string> = {
@@ -269,19 +271,13 @@ export default function WarehouseOrdersPage() {
       minute: "2-digit",
     });
 
-  const formatPrice = (v: number) =>
-    new Intl.NumberFormat("nb-NO", {
-      style: "currency",
-      currency: "NOK",
-    }).format(v);
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
+    <div className="min-h-screen bg-surface-1 text-foreground p-6">
       {/* Header */}
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => router.push(`/nexus/company/${companyId}/warehouse/${warehouseId}`)}
-          className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 mb-4 transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground/80 mb-4 transition-colors"
         >
           <FiArrowLeft className="w-4 h-4" />
           Tilbake til varehus
@@ -290,7 +286,7 @@ export default function WarehouseOrdersPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Ordrekø</h1>
-            <p className="text-zinc-400 text-sm mt-1">
+            <p className="text-muted-foreground text-sm mt-1">
               Ordrer som venter på utsendelse fra dette varehuset
             </p>
           </div>
@@ -318,10 +314,10 @@ export default function WarehouseOrdersPage() {
                   setPage(1);
                   setExpandedOrder(null);
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                   isActive
-                    ? "bg-zinc-800 text-zinc-100 ring-1 ring-zinc-700"
-                    : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    ? "bg-muted text-foreground ring-1 ring-border"
+                    : "bg-surface-3 text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.06]"
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? tab.color : ""}`} />
@@ -330,8 +326,8 @@ export default function WarehouseOrdersPage() {
                   <span
                     className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
                       isActive
-                        ? "bg-zinc-700 text-zinc-200"
-                        : "bg-zinc-800 text-zinc-500"
+                        ? "bg-muted text-foreground/80"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {count}
@@ -345,10 +341,10 @@ export default function WarehouseOrdersPage() {
         {/* Orders List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <FiLoader className="w-6 h-6 animate-spin text-zinc-500" />
+            <FiLoader className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="text-center py-20 text-zinc-500">
+          <div className="text-center py-20 text-muted-foreground">
             <FiPackage className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>Ingen ordrer med status &quot;{STATUS_TABS.find((t) => t.key === activeTab)?.label}&quot;</p>
           </div>
@@ -367,14 +363,14 @@ export default function WarehouseOrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden"
+                  className="bg-surface-3 border border-border rounded-xl overflow-hidden"
                 >
                   {/* Order Header (always visible) */}
                   <button
                     onClick={() =>
                       setExpandedOrder(isExpanded ? null : order.id)
                     }
-                    className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/50 transition-colors text-left"
+                    className="w-full flex items-center justify-between p-4 hover:bg-foreground/[0.06] transition-colors text-left"
                   >
                     <div className="flex items-center gap-4">
                       {/* Product thumbnails */}
@@ -382,7 +378,7 @@ export default function WarehouseOrdersPage() {
                         {order.items.slice(0, 3).map((item) => (
                           <div
                             key={item.id}
-                            className="w-10 h-10 rounded-lg border-2 border-zinc-900 overflow-hidden bg-zinc-800"
+                            className="w-10 h-10 rounded-lg border-2 border-border overflow-hidden bg-muted"
                           >
                             {item.product.image?.[0] ? (
                               <Image
@@ -393,14 +389,14 @@ export default function WarehouseOrdersPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                 <FiPackage className="w-4 h-4" />
                               </div>
                             )}
                           </div>
                         ))}
                         {order.items.length > 3 && (
-                          <div className="w-10 h-10 rounded-lg border-2 border-zinc-900 bg-zinc-800 flex items-center justify-center text-xs text-zinc-400">
+                          <div className="w-10 h-10 rounded-lg border-2 border-border bg-muted flex items-center justify-center text-xs text-muted-foreground">
                             +{order.items.length - 3}
                           </div>
                         )}
@@ -410,7 +406,7 @@ export default function WarehouseOrdersPage() {
                         <div className="text-sm font-medium">
                           #{order.id.slice(-8).toUpperCase()}
                         </div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="text-xs text-muted-foreground">
                           {formatDate(order.createdAt)} •{" "}
                           {order.customer.name || order.customer.email}
                         </div>
@@ -419,7 +415,7 @@ export default function WarehouseOrdersPage() {
 
                     <div className="flex items-center gap-4">
                       {isMyClaim && (
-                        <span className="text-xs bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-xs bg-brand-accent/20 text-brand-accent-light px-2 py-0.5 rounded-full flex items-center gap-1">
                           <FiUserCheck className="w-3 h-3" />
                           Min
                         </span>
@@ -437,30 +433,30 @@ export default function WarehouseOrdersPage() {
                       )}
 
                       {order.trackingNumber && (
-                        <span className="text-xs text-zinc-400 font-mono">
+                        <span className="text-xs text-muted-foreground font-mono">
                           {order.trackingNumber}
                         </span>
                       )}
 
-                      <span className="text-sm font-medium text-zinc-300">
-                        {formatPrice(order.totalAmount)}
+                      <span className="text-sm font-medium text-foreground/80">
+                        <PriceAmount amount={order.totalAmount} currency={order.currency ?? null} />
                       </span>
 
                       {isExpanded ? (
-                        <FiChevronUp className="w-4 h-4 text-zinc-500" />
+                        <FiChevronUp className="w-4 h-4 text-muted-foreground" />
                       ) : (
-                        <FiChevronDown className="w-4 h-4 text-zinc-500" />
+                        <FiChevronDown className="w-4 h-4 text-muted-foreground" />
                       )}
                     </div>
                   </button>
 
                   {/* Expanded Details */}
                   {isExpanded && (
-                    <div className="border-t border-zinc-800 p-4">
+                    <div className="border-t border-border p-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Items */}
                         <div>
-                          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                             Produkter
                           </h3>
                           <div className="space-y-2">
@@ -469,7 +465,7 @@ export default function WarehouseOrdersPage() {
                                 key={item.id}
                                 className="flex items-center gap-3"
                               >
-                                <div className="w-8 h-8 rounded bg-zinc-800 overflow-hidden flex-shrink-0">
+                                <div className="w-8 h-8 rounded bg-muted overflow-hidden flex-shrink-0">
                                   {item.product.image?.[0] ? (
                                     <Image
                                       src={item.product.image[0]}
@@ -479,7 +475,7 @@ export default function WarehouseOrdersPage() {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                       <FiPackage className="w-3 h-3" />
                                     </div>
                                   )}
@@ -488,9 +484,9 @@ export default function WarehouseOrdersPage() {
                                   <div className="text-sm truncate">
                                     {item.title}
                                   </div>
-                                  <div className="text-xs text-zinc-500">
+                                  <div className="text-xs text-muted-foreground">
                                     {item.quantity}x{" "}
-                                    {formatPrice(item.priceAtTime)}
+                                    <PriceAmount amount={item.priceAtTime} currency={order.currency ?? null} />
                                   </div>
                                 </div>
                               </div>
@@ -500,30 +496,30 @@ export default function WarehouseOrdersPage() {
 
                         {/* Shipping Address */}
                         <div>
-                          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                             Leveringsadresse
                           </h3>
                           <div className="text-sm space-y-1">
                             <div className="font-medium">
                               {order.shipping.name}
                             </div>
-                            <div className="text-zinc-400">
+                            <div className="text-muted-foreground">
                               {order.shipping.address}
                             </div>
-                            <div className="text-zinc-400">
+                            <div className="text-muted-foreground">
                               {order.shipping.postalCode}{" "}
                               {order.shipping.city}
                             </div>
-                            <div className="text-zinc-400">
+                            <div className="text-muted-foreground">
                               {order.shipping.country}
                             </div>
                             {order.shipping.phone && (
-                              <div className="text-zinc-500 text-xs mt-2">
+                              <div className="text-muted-foreground text-xs mt-2">
                                 📞 {order.shipping.phone}
                               </div>
                             )}
                             {order.shipping.email && (
-                              <div className="text-zinc-500 text-xs">
+                              <div className="text-muted-foreground text-xs">
                                 ✉️ {order.shipping.email}
                               </div>
                             )}
@@ -539,7 +535,7 @@ export default function WarehouseOrdersPage() {
                                 <button
                                   onClick={() => handleClaim(order.id)}
                                   disabled={isClaiming}
-                                  className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+                                  className="w-full bg-brand-accent-hover hover:bg-brand-accent disabled:bg-muted disabled:text-muted-foreground text-brand-accent-foreground font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
                                 >
                                   {isClaiming ? (
                                     <FiLoader className="w-4 h-4 animate-spin" />
@@ -551,14 +547,14 @@ export default function WarehouseOrdersPage() {
                               )}
                               {isMyClaim && (
                                 <div className="space-y-2">
-                                  <div className="flex items-center gap-2 text-sm text-sky-300 bg-sky-500/10 border border-sky-500/20 rounded-lg px-3 py-2">
+                                  <div className="flex items-center gap-2 text-sm text-brand-accent-light bg-brand-accent/10 border border-brand-accent/20 rounded-lg px-3 py-2">
                                     <FiUserCheck className="w-4 h-4" />
                                     Du har tatt denne ordren
                                   </div>
                                   <button
                                     onClick={() => handleUnclaim(order.id)}
                                     disabled={isClaiming}
-                                    className="w-full text-zinc-400 hover:text-zinc-200 text-xs py-1 transition-colors flex items-center justify-center gap-1"
+                                    className="w-full text-muted-foreground hover:text-foreground/80 text-xs py-1 transition-colors flex items-center justify-center gap-1"
                                   >
                                     <FiUserX className="w-3 h-3" />
                                     Slipp ordre
@@ -576,13 +572,13 @@ export default function WarehouseOrdersPage() {
 
                           {order.fulfilmentStatus === "UNFULFILLED" && !isDigitalOnly && (
                             <div>
-                              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Send ordre
                               </h3>
 
                               {/* Service selector */}
                               <div className="mb-3">
-                                <label className="text-xs text-zinc-500 mb-1 block">
+                                <label className="text-xs text-muted-foreground mb-1 block">
                                   Bring-tjeneste
                                 </label>
                                 <select
@@ -590,7 +586,7 @@ export default function WarehouseOrdersPage() {
                                   onChange={(e) =>
                                     setServiceCode(e.target.value)
                                   }
-                                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                                  className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground/80"
                                 >
                                   {Object.entries(BRING_SERVICES).map(
                                     ([code, name]) => (
@@ -604,7 +600,7 @@ export default function WarehouseOrdersPage() {
 
                               {/* Weight */}
                               <div className="mb-4">
-                                <label className="text-xs text-zinc-500 mb-1 block">
+                                <label className="text-xs text-muted-foreground mb-1 block">
                                   Vekt (gram)
                                 </label>
                                 <input
@@ -616,7 +612,7 @@ export default function WarehouseOrdersPage() {
                                     )
                                   }
                                   min={1}
-                                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200"
+                                  className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground/80"
                                 />
                               </div>
 
@@ -629,7 +625,7 @@ export default function WarehouseOrdersPage() {
                               <button
                                 onClick={() => handleShip(order.id)}
                                 disabled={isShipping}
-                                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+                                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-muted disabled:text-muted-foreground text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
                               >
                                 {isShipping ? (
                                   <>
@@ -648,7 +644,7 @@ export default function WarehouseOrdersPage() {
                                 onClick={() =>
                                   handleStatusUpdate(order.id, "PROCESSING")
                                 }
-                                className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm transition-colors"
+                                className="w-full mt-2 bg-muted hover:bg-muted text-foreground/80 rounded-lg px-4 py-2 text-sm transition-colors"
                               >
                                 Marker som under behandling
                               </button>
@@ -657,13 +653,13 @@ export default function WarehouseOrdersPage() {
 
                           {order.fulfilmentStatus === "PROCESSING" && (
                             <div>
-                              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Under behandling
                               </h3>
                               <button
                                 onClick={() => handleShip(order.id)}
                                 disabled={isShipping}
-                                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-zinc-700 text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+                                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-muted text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
                               >
                                 {isShipping ? (
                                   <FiLoader className="w-4 h-4 animate-spin" />
@@ -677,13 +673,13 @@ export default function WarehouseOrdersPage() {
 
                           {order.fulfilmentStatus === "SHIPPED" && (
                             <div>
-                              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Sporingsinfo
                               </h3>
                               <div className="space-y-2 text-sm">
                                 {order.trackingNumber && (
-                                  <div className="text-zinc-300">
-                                    <span className="text-zinc-500">
+                                  <div className="text-foreground/80">
+                                    <span className="text-muted-foreground">
                                       Sporings-nr:{" "}
                                     </span>
                                     <span className="font-mono">
@@ -707,14 +703,14 @@ export default function WarehouseOrdersPage() {
                                     href={order.labelUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-zinc-400 hover:text-zinc-300 text-sm"
+                                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground/80 text-sm"
                                   >
                                     <FiDownload className="w-3 h-3" />
                                     Last ned etikett
                                   </a>
                                 )}
                                 {order.estimatedDelivery && (
-                                  <div className="text-zinc-400 text-xs mt-2">
+                                  <div className="text-muted-foreground text-xs mt-2">
                                     Forventet levering:{" "}
                                     {formatDate(order.estimatedDelivery)}
                                   </div>
@@ -725,7 +721,7 @@ export default function WarehouseOrdersPage() {
                                 onClick={() =>
                                   handleStatusUpdate(order.id, "DELIVERED")
                                 }
-                                className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm transition-colors flex items-center justify-center gap-2"
+                                className="w-full mt-4 bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground rounded-lg px-4 py-2 text-sm transition-colors flex items-center justify-center gap-2"
                               >
                                 <FiCheckCircle className="w-4 h-4" />
                                 Marker som levert
@@ -735,12 +731,12 @@ export default function WarehouseOrdersPage() {
 
                           {order.fulfilmentStatus === "DELIVERED" && (
                             <div className="text-center py-4">
-                              <FiCheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                              <div className="text-sm text-emerald-400 font-medium">
+                              <FiCheckCircle className="w-8 h-8 text-brand-accent mx-auto mb-2" />
+                              <div className="text-sm text-brand-accent font-medium">
                                 Levert
                               </div>
                               {order.deliveredAt && (
-                                <div className="text-xs text-zinc-500 mt-1">
+                                <div className="text-xs text-muted-foreground mt-1">
                                   {formatDate(order.deliveredAt)}
                                 </div>
                               )}
@@ -777,17 +773,17 @@ export default function WarehouseOrdersPage() {
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1.5 rounded bg-zinc-800 text-zinc-300 disabled:text-zinc-600 text-sm"
+                  className="px-3 py-1.5 rounded bg-muted text-foreground/80 disabled:text-muted-foreground text-sm"
                 >
                   Forrige
                 </button>
-                <span className="text-sm text-zinc-500">
+                <span className="text-sm text-muted-foreground">
                   Side {page} av {totalPages}
                 </span>
                 <button
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1.5 rounded bg-zinc-800 text-zinc-300 disabled:text-zinc-600 text-sm"
+                  className="px-3 py-1.5 rounded bg-muted text-foreground/80 disabled:text-muted-foreground text-sm"
                 >
                   Neste
                 </button>

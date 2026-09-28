@@ -14,7 +14,7 @@
  * is cleared and wagmi's native useAccount takes precedence.
  */
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 // ─── Storage key ─────────────────────────────────────────────
 const STORAGE_KEY = "veggat:activeLocalRpc";
@@ -44,19 +44,19 @@ const ActiveWalletContext = createContext<ActiveWalletContextValue>({
 
 // ─── Provider ────────────────────────────────────────────────
 export function ActiveWalletProvider({ children }: { children: React.ReactNode }) {
-  const [override, setOverrideState] = useState<ActiveWalletOverride | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as ActiveWalletOverride;
-        if (parsed.address && parsed.chainId && parsed.rpcUrl) return parsed;
-      }
-    } catch {
-      // Ignore parsing errors
-    }
-    return null;
-  });
+  const [override, setOverrideState] = useState<ActiveWalletOverride | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as ActiveWalletOverride;
+          if (parsed.address && parsed.chainId && parsed.rpcUrl) setOverrideState(parsed);
+        }
+      } catch { /* Storage may be disabled; keep the safe initial state. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const setOverride = useCallback((newOverride: ActiveWalletOverride) => {
     setOverrideState(newOverride);

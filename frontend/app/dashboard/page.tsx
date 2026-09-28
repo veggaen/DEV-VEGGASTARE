@@ -6,8 +6,10 @@
 
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
+import Link from "@/components/ui/navigation-link";
 import { dbPrisma } from "@/lib/db";
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 import {
   FiPackage,
   FiShoppingBag,
@@ -29,7 +31,7 @@ import {
 const QUICK_LINKS = [
   {
     href: "/dashboard/trading",
-    label: "Trading Hub",
+    label: "Trading · experimental",
     description: "P2P, DEX swap, paper trading & crypto inventory",
     icon: FiHexagon,
     accent: "sky",
@@ -72,7 +74,7 @@ const QUICK_LINKS = [
   {
     href: "/ai",
     label: "AI Chat",
-    description: "BYOK-powered assistant — bring your own API key",
+    description: "Use your credit balance or bring your own API key",
     icon: FiZap,
     accent: "rose",
   },
@@ -87,25 +89,25 @@ const QUICK_LINKS = [
 
 /* ── Accent color utilities (minimal — no heavy rings/borders) ─── */
 const accentText: Record<string, string> = {
-  sky: "text-sky-500",
-  emerald: "text-emerald-500",
+  sky: "text-brand-accent",
+  emerald: "text-brand-accent",
   violet: "text-violet-500",
   amber: "text-amber-500",
   blue: "text-blue-500",
   pink: "text-pink-500",
   rose: "text-rose-500",
-  zinc: "text-zinc-400",
+  zinc: "text-muted-foreground",
 };
 
 const accentBg: Record<string, string> = {
-  sky: "bg-sky-500/8",
-  emerald: "bg-emerald-500/8",
+  sky: "bg-brand-accent/8",
+  emerald: "bg-brand-accent/8",
   violet: "bg-violet-500/8",
   amber: "bg-amber-500/8",
   blue: "bg-blue-500/8",
   pink: "bg-pink-500/8",
   rose: "bg-rose-500/8",
-  zinc: "bg-zinc-500/8",
+  zinc: "bg-muted/8",
 };
 
 export default async function DashboardPage() {
@@ -115,9 +117,16 @@ export default async function DashboardPage() {
   const firstName = user.name?.split(" ")[0] ?? "there";
 
   // ── Fetch real stats ─────────────────────────────────────
-  const [productCount, orderCount, dbUser] = await Promise.all([
+  // "Open" = still in flight: payment pending/confirming, or paid but not yet
+  // delivered. Settled, refunded and cancelled orders are history, not a number
+  // that needs attention.
+  const [productCount, orderCount, openOrderCount, dbUser] = await Promise.all([
     dbPrisma.product.count({ where: { userId: user.id! } }).catch(() => 0),
     dbPrisma.order.count({ where: { userId: user.id! } }).catch(() => 0),
+    dbPrisma.order.count({ where: { userId: user.id!, OR: [
+      { status: { in: ["PENDING", "CONFIRMING"] } },
+      { status: "COMPLETED", fulfilmentStatus: { in: ["UNFULFILLED", "PROCESSING", "SHIPPED"] } },
+    ] } }).catch(() => 0),
     dbPrisma.user
       .findUnique({
         where: { id: user.id! },
@@ -134,17 +143,14 @@ export default async function DashboardPage() {
     : "—";
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* ── Welcome ──────────────────────────────────────── */}
-      <section className="mb-12">
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1.5 text-sm text-zinc-500">
-          Here&apos;s an overview of your account and quick links to everything
-          you need.
-        </p>
-      </section>
+      <PageHeader
+        eyebrow="Dashboard"
+        title={<>Welcome back, {firstName}</>}
+        description="Here's an overview of your account and quick links to everything you need."
+        className="mb-10"
+      />
 
       {/* ── Stat Highlights — flat, no bordered boxes ───── */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 mb-14">
@@ -156,13 +162,15 @@ export default async function DashboardPage() {
         />
         <StatCard
           icon={FiShoppingBag}
-          label="My Orders"
-          value={orderCount.toString()}
+          label="Open orders"
+          value={openOrderCount.toString()}
+          hint={orderCount === 0 ? "No orders yet" : openOrderCount === 0 ? `${orderCount} total · all settled` : `of ${orderCount} total`}
+          href="/my-orders"
           accent="sky"
         />
         <StatCard
           icon={FiRepeat}
-          label="DEX Swaps"
+          label="DEX · experimental"
           value="—"
           accent="violet"
         />
@@ -176,18 +184,19 @@ export default async function DashboardPage() {
 
       {/* ── Quick Links — clean open cards ─────────────── */}
       <section>
-        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-5">
+        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
           Quick Access
         </h2>
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        <HoverChaser className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" boxClassName="rounded-2xl">
           {QUICK_LINKS.map((link) => {
-            const txt = accentText[link.accent] ?? "text-zinc-400";
-            const bg = accentBg[link.accent] ?? "bg-zinc-500/8";
+            const txt = accentText[link.accent] ?? "text-muted-foreground";
+            const bg = accentBg[link.accent] ?? "bg-muted/8";
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className="group flex items-start gap-3.5 px-4 py-3.5 rounded-lg transition-colors hover:bg-white/5"
+                data-chase
+                className="group relative flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card/70 px-4 py-3.5 shadow-e1 backdrop-blur-xl transition-[transform,border-color] duration-200 motion-reduce:transition-none hover:border-transparent motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div
                   className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${bg}`}
@@ -196,19 +205,19 @@ export default async function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-zinc-200 group-hover:text-white transition-colors">
+                    <span className="text-sm font-medium text-foreground">
                       {link.label}
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                     {link.description}
                   </p>
                 </div>
-                <FiArrowRight className="shrink-0 h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all mt-1 opacity-0 group-hover:opacity-100" />
+                <FiArrowRight aria-hidden="true" className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
               </Link>
             );
           })}
-        </div>
+        </HoverChaser>
       </section>
     </div>
   );
@@ -219,25 +228,40 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  hint,
+  href,
   accent,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  /** One quiet line under the number, for the context that keeps it honest. */
+  hint?: string;
+  /** Makes the whole stat a link. */
+  href?: string;
   accent: string;
 }) {
-  const txt = accentText[accent] ?? "text-zinc-400";
-  return (
-    <div className="flex flex-col gap-1.5">
+  const txt = accentText[accent] ?? "text-muted-foreground";
+  const body = (
+    <>
       <div className="flex items-center gap-2">
         <Icon className={`h-3.5 w-3.5 ${txt}`} />
-        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
           {label}
         </span>
       </div>
       <span className={`text-2xl font-bold ${txt} tabular-nums`}>
         {value}
       </span>
-    </div>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className="flex min-w-0 flex-col gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {body}
+      </Link>
+    );
+  }
+  return <div className="flex min-w-0 flex-col gap-1.5">{body}</div>;
 }

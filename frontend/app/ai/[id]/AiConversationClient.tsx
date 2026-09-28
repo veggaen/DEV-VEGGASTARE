@@ -14,10 +14,28 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottom } from "@/components/uicustom/chats/primitives/ScrollToBottom";
 import { TypingIndicator } from "@/components/uicustom/chats/primitives/TypingIndicator";
-import HeroParticleField from "@/components/uicustom/home/HeroParticleField";
-import { NeonCursorTrail } from "@/components/uicustom/home/NeonCursorTrail";
+import { useAiDraft, useAiDraftTransfer, useAiImageDraft, useAiModelDraft } from "@/components/uicustom/ai/AiDrafts";
+import { DraftImages, MessageImages } from '@/components/uicustom/ai/ChatImages';
+import { detectImageIntent } from '@/lib/ai-chat/image-intent';
+import { MEDIA_MODELS } from '@/lib/ai-media/policy';
+import { CHAT_IMAGE_MAX_BYTES, CHAT_IMAGE_TYPES, imageContext, imageAllowance, type ChatImageView } from '@/lib/ai-chat/image-policy';
+import { ChatComposer } from "@/components/uicustom/ai/ChatComposer";
+import dynamic from "next/dynamic";
+// A `loading` fallback gives each lazy renderer its own Suspense boundary.
+// Without one the first streamed reply suspended up to the route-level
+// loading.tsx, which unmounted the page for a frame and aborted the request
+// ("The response was stopped" on the first message of every visit).
+const MessageContent = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.MessageContent), { loading: () => <span className="sr-only">Loading reply…</span> });
+const CopyMessage = dynamic(() => import("@/components/uicustom/ai/MessageContent").then(m => m.CopyMessage), { loading: () => null });
+
 import { ChatSidebar } from "@/components/uicustom/chats/ChatSidebar";
 import { cn } from "@/lib/utils";
+import { CreditModelPicker } from '@/components/uicustom/ai/CreditModelPicker';
+import { useAiCreditConfig } from '@/hooks/use-ai-credit-config';
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { isDemoUserId } from "@/lib/demo-policy";
+import { useUiPreferences } from "@/components/providers/ui-preferences";
+import { readChatStream } from '@/lib/ai-chat/read-stream';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +53,7 @@ interface Participant {
 }
 
 interface ConvMessage {
+  images?: ChatImageView[];
   id: string;
   content: string;
   role: "user" | "assistant";
@@ -78,6 +97,15 @@ interface Props {
   userRole: string | null;
 }
 
+// ── Client-side sensitive detection ──
+const SENSITIVE_RE = [
+  { type: "email", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
+  { type: "phone", re: /(\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/ },
+];
+const detectSensitive = (text: string) =>
+  SENSITIVE_RE.filter((p) => p.re.test(text)).map((p) => p.type);
+
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AiConversationClient({
@@ -91,15 +119,35 @@ export default function AiConversationClient({
   const reduceMotion = useReducedMotion();
   const searchParams = useSearchParams();
   const confirm = useConfirm();
+  const { prefs } = useUiPreferences();
 
-  const [conv, setConv] = useState<ConvSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [conv, setConv] = useState<ConvSession | null>(() => sessionId ? null : ({
+    id: '', title: 'New chat', isPublic: false, isSuspended: false, suspendedReason: null,
+    triggerMode: 'AUTO', creatorId: userId ?? '', participants: [], messages: [],
+  }));
+  const createdId = useRef(sessionId);
+  const mounted = useRef(true);
+  const sending = useRef(false);
+  const [loading, setLoading] = useState(!!sessionId);
   const [error, setError] = useState<string | null>(null);
 
-  const [input, setInput] = useState("");
+  const [input, setInput] = useAiDraft(sessionId || "new");
+  const [draftImages, setDraftImages, totalDraftImages] = useAiImageDraft(sessionId || 'new');
+  const [imageError, setImageError] = useState<string | null>(null);
+  const transferDraft = useAiDraftTransfer();
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMsgs, setStreamingMsgs] = useState<StreamingMsg[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const { config: creditConfig, error: creditError } = useAiCreditConfig();
+  const [{ provider, model }, setSelectedModel] = useAiModelDraft(sessionId || 'new');
+  const selectedModel = creditConfig?.models.find(item => item.provider === provider && item.model === model);
+  const usingOwnKey = creditConfig?.savedProviders.includes(provider) ?? false;
+  const contextImages = imageContext([...(conv?.messages ?? []).filter(message => !message.id.startsWith('temp-')).slice(-19), { role: 'user', content: input, images: draftImages.map(image => ({ id: image.id, width: 0, height: 0 })) }]);
+  const imageCount = contextImages.reduce((sum, message) => sum + message.images.length, 0);
+  const supportedImages = imageAllowance(provider, model);
+  const imageModelBlocked = imageCount > 0 && !supportedImages;
+  const messageCredits = usingOwnKey ? 0 : selectedModel ? selectedModel.credits + imageCount * (supportedImages?.credits ?? 0) : undefined;
+  const insufficientCredits = !!creditConfig && messageCredits !== undefined && creditConfig.balance < messageCredits;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -110,33 +158,42 @@ export default function AiConversationClient({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const demo = isDemoUserId(userId);
+  const participantButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const followTranscriptRef = useRef(true);
   const isCreator = conv?.creatorId === userId;
   const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
+  const handleFiles = (files: File[]) => {
+    setImageError(null);
+    if (files.some(file => !(CHAT_IMAGE_TYPES as readonly string[]).includes(file.type) || !file.size || file.size > CHAT_IMAGE_MAX_BYTES)) {
+      setImageError('Choose JPG, PNG or WebP images under 4 MB each.'); return;
+    }
+    if (draftImages.length + files.length > 2) { setImageError('Attach up to two images per message.'); return; }
+    if (totalDraftImages + files.length > 10) { setImageError('Remove an unsent image from another chat first. Ten draft images can be kept at once.'); return; }
+    const additions = files.map(file => ({ id: crypto.randomUUID(), file }));
+    setDraftImages(current => [...current, ...additions]);
+  };
 
-  // ── Load conversation ──
+  // The page is keyed by account/chat; obsolete reads and streams are aborted.
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/ai-chat/sessions/${sessionId}`);
-        if (!res.ok) {
-          if (res.status === 404) setError("Conversation not found.");
-          else if (res.status === 403) setError("Access denied.");
-          else if (res.status === 410) setError("This conversation has been deleted.");
-          else setError("Failed to load conversation.");
-          return;
-        }
-        const data = await res.json();
-        // API returns the conversation directly (not wrapped in { conversation })
-        setConv(data.conversation ?? data);
-      } catch {
-        setError("Network error. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    mounted.current = true;
+    const controller = new AbortController();
+    if (sessionId) {
+      void (async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/ai-chat/sessions/${encodeURIComponent(sessionId)}`, { signal: controller.signal });
+          if (!res.ok) throw new Error([401, 403, 404, 410].includes(res.status) ? 'Conversation unavailable.' : 'Could not load this conversation. Please retry.');
+          const data = await res.json(), conversation = data.conversation ?? data;
+          if (conversation.id !== sessionId || !Array.isArray(conversation.messages) || !Array.isArray(conversation.participants)) throw new Error('The conversation response was incomplete.');
+          if (!controller.signal.aborted) setConv(conversation);
+        } catch (error) {
+          if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Connection failed. Please retry.');
+        } finally { if (!controller.signal.aborted) setLoading(false); }
+      })();
+    }
+    return () => { mounted.current = false; controller.abort(); abortRef.current?.abort(); };
   }, [sessionId]);
 
   // ── Seed the composer from a starter prompt (?seed= from the AI home page) ──
@@ -157,7 +214,8 @@ export default function AiConversationClient({
 
   // ── Scroll to bottom ──
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+    const scroller = messagesContainerRef.current;
+    if (scroller && followTranscriptRef.current) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
   }, [conv?.messages, streamingMsgs, reduceMotion]);
 
   // ── Auto-resize textarea (enables Shift+Enter multi-line) ──
@@ -168,24 +226,43 @@ export default function AiConversationClient({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input]);
 
-  // ── Client-side sensitive detection ──
-  const SENSITIVE_RE = [
-    { type: "email", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
-    { type: "phone", re: /(\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/ },
-  ];
-  const detectSensitive = (text: string) =>
-    SENSITIVE_RE.filter((p) => p.re.test(text)).map((p) => p.type);
-
   // ── Send message ──
   const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+    const trimmed = input.trim() || (draftImages.length ? 'Describe the attached image.' : '');
+    if (!trimmed || sending.current || isStreaming) return;
     if (!isLoggedIn) {
-      setSendError("Please sign in to send messages.");
+      router.push("/auth/login?callbackUrl=%2Fai");
       return;
     }
+    // UX preflight only. The server still atomically authorizes every request
+    // against the latest balance; a stale tab cannot bypass that reservation.
+    if (insufficientCredits || imageModelBlocked) return;
 
+    sending.current = true;
+    setIsStreaming(true);
     setSendError(null);
+    const sentImages = draftImages.slice();
+    const abort = new AbortController();
+    abortRef.current = abort;
+    let targetId = createdId.current;
+    if (!targetId) {
+      try {
+        const response = await fetch('/api/ai-chat/sessions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New Chat' }), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15_000)]),
+        });
+        const data = await response.json();
+        if (!response.ok || typeof data.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(data.id)) throw new Error(data.message || 'Could not start the chat. Please retry.');
+        targetId = data.id; createdId.current = targetId;
+        window.dispatchEvent(new Event('ai-chat:sessions-changed'));
+        if (!mounted.current) { sending.current = false; return; }
+      } catch (error) {
+        if (mounted.current) { setSendError(error instanceof Error ? error.message : 'Could not start the chat. Please retry.'); setIsStreaming(false); }
+        sending.current = false;
+        return;
+      }
+    }
+    followTranscriptRef.current = true;
     const sensitive = detectSensitive(trimmed);
     if (sensitive.length > 0) setSensitiveBanner(sensitive);
 
@@ -204,8 +281,8 @@ export default function AiConversationClient({
       hasSensitiveData: sensitive.length > 0,
       sensitiveTypes: sensitive,
     };
-    const isFirstMessage = (conv?.messages.length ?? 0) === 0;
-    setConv((prev) => prev ? { ...prev, messages: [...prev.messages, tempUserMsg] } : prev);
+    const isFirstMessage = (conv?.messages.filter(message => !message.id.startsWith('temp-')).length ?? 0) === 0;
+    setConv((prev) => prev ? { ...prev, messages: [...prev.messages.filter(message => !message.id.startsWith('temp-')), tempUserMsg] } : prev);
 
     // Stream
     const aiStreamId = `stream-${Date.now()}`;
@@ -217,23 +294,70 @@ export default function AiConversationClient({
       done: false,
     }]);
 
-    const abort = new AbortController();
-    abortRef.current = abort;
-
     let fullContent = "";
+    let savedReply = false;
     let responseSensitive: string[] = [];
+    const restoreFailedDraft = () => {
+      setInput(current => current || trimmed);
+      if (fullContent) {
+        setStreamingMsgs(prev => prev.map(item => item.id === aiStreamId ? { ...item, done: true } : item));
+      } else {
+        setConv(prev => prev ? { ...prev, messages: prev.messages.filter(message => message.id !== tempUserMsg.id) } : prev);
+        setStreamingMsgs([]);
+      }
+    };
 
     try {
-      const history = conv?.messages ?? [];
-      const apiMessages = [
-        ...history.slice(-19).map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: trimmed },
-      ];
+      const uploaded: ChatImageView[] = [];
+      for (const image of sentImages) {
+        if (image.uploaded?.sessionId === targetId) { uploaded.push(image.uploaded); continue; }
+        const response = await fetch(`/api/ai-chat/images?sessionId=${encodeURIComponent(targetId)}`, { method: 'POST', headers: { 'Content-Type': image.file.type }, body: image.file, signal: abort.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not attach the image. Please retry.');
+        uploaded.push(data);
+        setDraftImages(current => current.map(item => item.id === image.id ? { ...item, uploaded: { ...data, sessionId: targetId } } : item));
+      }
+      if (uploaded.length) setConv(previous => previous ? { ...previous, messages: previous.messages.map(message => message.id === tempUserMsg.id ? { ...message, images: uploaded } : message) } : previous);
+      // "Make me an image of…" goes to the image model, not the chat model.
+      // Same credits and job pipeline as Studio; the result is saved into this chat.
+      const imageIntent = detectImageIntent(trimmed);
+      if (imageIntent && !uploaded.length) {
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: `Creating your image… (${MEDIA_MODELS.IMAGE.credits} credits, usually under a minute)` } : message));
+        const started = await fetch('/api/ai-media', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), kind: 'IMAGE', prompt: imageIntent.prompt.slice(0, 1000) }), signal: abort.signal });
+        const startedData = await started.json().catch(() => ({} as { message?: string; job?: { id: string; state: string; contentUrl: string | null; credits: number } }));
+        if (!started.ok || !startedData.job) { setSendError(startedData.message ?? 'Image generation could not start.'); restoreFailedDraft(); return; }
+        let job = startedData.job;
+        const deadline = Date.now() + 150_000;
+        while (['CREATING', 'PROCESSING'].includes(job.state) && Date.now() < deadline) {
+          await new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, 4000); abort.signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true }); });
+          const poll = await fetch('/api/ai-media', { cache: 'no-store', signal: abort.signal });
+          if (poll.ok) { const workspace = await poll.json() as { jobs?: Array<typeof job> }; job = workspace.jobs?.find(item => item.id === job.id) ?? job; }
+        }
+        if (job.state !== 'COMPLETED' || !job.contentUrl) {
+          setSendError(job.state === 'FAILED' ? 'The image could not be generated. Your credits were returned; try a different description.' : 'The image is still rendering. It will appear under AI → Images & video when ready.');
+          restoreFailedDraft(); return;
+        }
+        fullContent = `![${imageIntent.prompt.replace(/[[]]/g, '').slice(0, 200)}](${job.contentUrl})
+
+_Generated with ${MEDIA_MODELS.IMAGE.label} · ${job.credits} credits · [All your creations](/ai/studio)_`;
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: fullContent, done: true } : message));
+        const savedImage = await fetch(`/api/ai-chat/sessions/${targetId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userMessage: trimmed, assistantMessage: fullContent, providerUsed: 'OPENAI', modelUsed: MEDIA_MODELS.IMAGE.model, imageIds: [] }) });
+        if (!savedImage.ok) { setSendError('The image is ready but the message could not be saved. Find it under AI → Images & video.'); return; }
+        savedReply = true;
+        const refreshedImage = await fetch(`/api/ai-chat/sessions/${targetId}`);
+        if (refreshedImage.ok) { const data = await refreshedImage.json(); setConv(data.conversation ?? data); }
+        setStreamingMsgs([]);
+        return;
+      }
+
+      const history = (conv?.messages ?? []).filter(message => !message.id.startsWith('temp-'));
+      const apiMessages = imageContext([...history.slice(-19), { role: 'user' as const, content: trimmed, images: uploaded }])
+        .map(message => ({ role: message.role, content: message.content, ...(message.images.length ? { imageIds: message.images.map(image => image.id) } : {}) }));
 
       const res = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, sessionId }),
+        body: JSON.stringify({ messages: apiMessages, sessionId: targetId, provider, model, requestId: crypto.randomUUID() }),
         signal: abort.signal,
       });
 
@@ -246,57 +370,44 @@ export default function AiConversationClient({
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         setSendError(errData.message ?? "Failed to get response.");
-        setIsStreaming(false);
-        setStreamingMsgs([]);
+        restoreFailedDraft();
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.text) {
-              fullContent += parsed.text;
-              setStreamingMsgs((prev) =>
-                prev.map((m) => m.id === aiStreamId ? { ...m, content: m.content + parsed.text } : m)
-              );
-            }
-          } catch {}
-        }
-      }
+      fullContent = await readChatStream(res, text => {
+        fullContent += text;
+        setStreamingMsgs(previous => previous.map(message => message.id === aiStreamId ? { ...message, content: message.content + text } : message));
+      });
 
       setStreamingMsgs((prev) => prev.map((m) => m.id === aiStreamId ? { ...m, done: true } : m));
 
       // Persist and reload messages
       if (fullContent) {
-        await fetch(`/api/ai-chat/sessions/${sessionId}/messages`, {
+        const saved = await fetch(`/api/ai-chat/sessions/${targetId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userContent: trimmed,
-            aiContent: fullContent,
-            sensitiveTypes: [...sensitive, ...responseSensitive],
+            userMessage: trimmed,
+            assistantMessage: fullContent,
+            providerUsed: res.headers.get('X-Ai-Provider') ?? provider,
+            modelUsed: res.headers.get('X-Ai-Model') ?? model,
+            imageIds: uploaded.map(image => image.id),
           }),
         });
 
+        if (!saved.ok) {
+          setSendError('The reply arrived, but could not be saved. Copy it before leaving this page.');
+          return;
+        }
+
+        savedReply = true;
+        setDraftImages(current => current.filter(image => !sentImages.some(sent => sent.id === image.id)));
         // Auto-name the conversation from the first message (ChatGPT/t3.chat
         // style). Runs only now that the user message is persisted, and only
         // while the title is still default (the endpoint guards that). Fire-and-
         // forget — updates the header in place, never blocks the chat.
         if (isFirstMessage) {
-          void fetch(`/api/ai-chat/sessions/${sessionId}/title`, { method: "POST" })
+          void fetch(`/api/ai-chat/sessions/${targetId}/title`, { method: "POST" })
             .then((r) => (r.ok ? r.json() : null))
             .then((d) => {
               if (d?.ok && d.title) {
@@ -310,19 +421,24 @@ export default function AiConversationClient({
       }
 
       // Reload session to get persisted messages
-      const refreshed = await fetch(`/api/ai-chat/sessions/${sessionId}`);
+      const refreshed = await fetch(`/api/ai-chat/sessions/${targetId}`);
       if (refreshed.ok) {
         const data = await refreshed.json();
-        setConv(data.conversation);
+        setConv(data.conversation ?? data);
       }
       setStreamingMsgs([]);
     } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      setSendError("Connection error. Please try again.");
+      restoreFailedDraft();
+      setSendError((err?.name === 'AbortError' ? 'The response was stopped.' : err instanceof Error ? err.message : 'Connection error. Please try again.') + (fullContent ? ' Your partial reply is kept here but is not saved. Copy it before leaving.' : ' Your draft is preserved.'));
     } finally {
-      setIsStreaming(false);
+      sending.current = false;
+      if (mounted.current) {
+        setIsStreaming(false);
+        if (!sessionId && savedReply) { transferDraft('new', targetId); router.replace(`/ai/${targetId}`); }
+      }
+      window.dispatchEvent(new Event('ai-credit:refresh'));
     }
-  }, [input, isStreaming, isLoggedIn, conv, sessionId, userName]);
+  }, [input, draftImages, setDraftImages, imageModelBlocked, isStreaming, isLoggedIn, conv, sessionId, userName, provider, model, insufficientCredits, router, setInput, transferDraft]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -353,43 +469,22 @@ export default function AiConversationClient({
       const res = await fetch(`/api/ai-chat/sessions/${sessionId}/trigger-ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId }),
+        body: JSON.stringify({ participantId, requestId: crypto.randomUUID() }),
         signal: abort.signal,
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setSendError(err.error ?? "Failed to trigger AI.");
+        setSendError(err.message ?? err.error ?? "Failed to trigger AI.");
         setStreamingMsgs([]);
         setIsStreaming(false);
         return;
       }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.text) {
-              fullContent += parsed.text;
-              setStreamingMsgs((prev) =>
-                prev.map((m) => m.id === streamId ? { ...m, content: m.content + parsed.text } : m)
-              );
-            }
-          } catch {}
-        }
-      }
+      fullContent = await readChatStream(res, text => {
+        fullContent += text;
+        setStreamingMsgs(previous => previous.map(message => message.id === streamId ? { ...message, content: message.content + text } : message));
+      });
 
       // Reload
       const refreshed = await fetch(`/api/ai-chat/sessions/${sessionId}`);
@@ -402,6 +497,7 @@ export default function AiConversationClient({
       if (err?.name !== "AbortError") setSendError("Stream error.");
     } finally {
       setIsStreaming(false);
+      window.dispatchEvent(new Event("ai-credit:refresh"));
     }
   }, [conv, sessionId]);
 
@@ -443,25 +539,31 @@ export default function AiConversationClient({
   // ── Copy share link ──
   const handleShare = useCallback(async () => {
     if (!conv) return;
-    if (!conv.isPublic) {
-      await fetch(`/api/ai-chat/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: true }),
-      });
-      setConv((prev) => prev ? { ...prev, isPublic: true } : prev);
+    if (!conv.isPublic && !(await confirm({ title: 'Share this conversation publicly?', description: 'Anyone with the link can read its messages. Remove private information before sharing.', confirmLabel: 'Make public' }))) return;
+    try {
+      if (!conv.isPublic) {
+        const response = await fetch(`/api/ai-chat/sessions/${sessionId}`, {
+          method: "PATCH", signal: AbortSignal.timeout(15_000),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: true }),
+        });
+        if (!response.ok) { toast.error('Could not share this conversation. Please retry.'); return; }
+        setConv((prev) => prev ? { ...prev, isPublic: true } : prev);
+      }
+      await navigator.clipboard.writeText(`${window.location.origin}/ai/${sessionId}`);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error('Could not copy the link. Check sharing status before trying again.');
     }
-    navigator.clipboard.writeText(`${window.location.origin}/ai/${sessionId}`).catch(() => {});
-    toast.success("Link copied to clipboard");
-  }, [conv, sessionId]);
+  }, [conv, sessionId, confirm]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-emerald-500/40 border-t-emerald-400 animate-spin" />
+          <div className="h-8 w-8 rounded-full border-2 border-brand-accent/40 border-t-brand-accent animate-spin" />
           <p className="text-sm text-muted-foreground">Loading conversation…</p>
         </div>
       </div>
@@ -470,12 +572,12 @@ export default function AiConversationClient({
 
   if (error) {
     return (
-      <div className="min-h-dvh flex items-center justify-center px-6">
+      <div className="h-full flex items-center justify-center px-6">
         <div className="text-center max-w-sm">
           <div className="text-4xl mb-4">✦</div>
           <p className="text-lg font-semibold mb-2">Oops</p>
           <p className="text-muted-foreground text-sm mb-6">{error}</p>
-          <Link href="/ai" className="px-4 py-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 transition-colors">
+          <Link href="/ai" className="inline-flex items-center px-4 py-2 rounded-xl bg-brand-accent text-brand-accent-foreground text-sm font-semibold hover:bg-brand-accent-light transition-colors">
             Back to AI Chat
           </Link>
         </div>
@@ -497,34 +599,34 @@ export default function AiConversationClient({
     ...streamingMsgs.map((s) => ({ ...s, _streaming: true as true })),
   ];
 
+  const empty = conv.messages.length === 0 && streamingMsgs.length === 0;
+
   return (
-    <div className="relative flex flex-col h-[calc(100dvh-var(--app-header-offset,64px))] bg-background overflow-hidden">
-      {/* Landing aesthetic: edge-stars + the green cursor trail (the "bugs"). */}
-      <HeroParticleField className="z-0" density={0.55} centerFade={0.05} />
-      <NeonCursorTrail />
+    <div className="relative flex h-full min-h-0 flex-col bg-background overflow-hidden">
 
       {/* ── Top bar — theme-aware glassy bar; contents centered to the thread
           column so controls aren't stranded on wide screens. ── */}
-      <div className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 shrink-0">
+      <div className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 shrink-0 [@media(max-height:500px)]:py-0.5">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
+            <button type="button" aria-label="Open conversations" onClick={() => window.dispatchEvent(new Event('ai-chat:open-conversations'))}
+              className={cn('grid size-11 shrink-0 place-items-center rounded-full hover:bg-muted', prefs.aiChatLayout !== 'overlay' && 'lg:hidden')}>
+              <span aria-hidden="true">☰</span>
+            </button>
             <Link
               href="/ai"
               aria-label="Back to AI chats"
-              className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
+              className={cn("hidden place-items-center h-11 w-11 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0", sessionId && "lg:grid")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <span className="grid place-items-center h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">✦</span>
             <div className="min-w-0 leading-tight">
               <h1 className="text-[15px] font-semibold truncate">{conv.title}</h1>
-              <p className="text-[11px] text-muted-foreground">
-                {aiParticipants.length > 0
-                  ? `${aiParticipants.length} AI · ${conv.participants.length} participant${conv.participants.length !== 1 ? "s" : ""}`
-                  : "AI chat"}
-              </p>
+              {aiParticipants.length > 0 && <p className="text-[11px] text-muted-foreground">
+                {`${aiParticipants.length} AI · ${conv.participants.length} participant${conv.participants.length !== 1 ? "s" : ""}`}
+              </p>}
             </div>
             {conv.isSuspended && (
               <span className="text-[10px] text-red-500 border border-red-500/30 rounded-md px-1.5 py-0.5 shrink-0">
@@ -533,11 +635,11 @@ export default function AiConversationClient({
             )}
           </div>
 
-          <div className="flex items-center gap-0.5 shrink-0">
-            {isLoggedIn && (
+          <div className={cn("flex items-center gap-0.5 shrink-0", !sessionId && "hidden")}>
+            {sessionId && isLoggedIn && !demo && (
               <button
                 onClick={handleShare}
-                className="grid place-items-center h-9 w-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                className="grid place-items-center h-11 w-11 rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-colors"
                 title={conv.isPublic ? "Copy share link" : "Make public & copy link"}
                 aria-label="Share"
               >
@@ -548,12 +650,13 @@ export default function AiConversationClient({
             )}
 
             <button
+              ref={settingsButtonRef}
               onClick={() => setShowSettings((v) => !v)}
               className={cn(
-                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 showSettings
-                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+                  ? "text-brand-accent bg-brand-accent/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
               )}
               title="Settings"
               aria-label="Settings"
@@ -565,12 +668,13 @@ export default function AiConversationClient({
             </button>
 
             <button
+              ref={participantButtonRef}
               onClick={() => setSidebarOpen((v) => !v)}
               className={cn(
-                "grid place-items-center h-9 w-9 rounded-full transition-colors",
+                "grid place-items-center h-11 w-11 rounded-full transition-colors",
                 sidebarOpen
-                  ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+                  ? "text-brand-accent bg-brand-accent/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
               )}
               title="Participants"
               aria-label="Participants"
@@ -586,7 +690,7 @@ export default function AiConversationClient({
       {/* ── Main content ── (row-reverse puts the members/voice rail on the LEFT) */}
       <div className="relative z-10 flex-1 flex flex-row-reverse min-h-0">
         {/* Messages + input */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className={cn("flex-1 flex flex-col min-w-0 min-h-0", empty && "justify-center overflow-y-auto")}>
           {/* Suspended banner */}
           {conv.isSuspended && (
             <div className="px-4 py-3 bg-red-500/10 border-b border-red-500/20 text-sm text-red-400 text-center">
@@ -618,24 +722,9 @@ export default function AiConversationClient({
           {/* Messages — the SCROLLER is full-width so its scrollbar sits at the
               pane edge (not stranded mid-screen); message content is centered
               within via an inner max-w-3xl column. */}
-          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto min-h-0">
-            <div className="mx-auto w-full max-w-3xl px-4 py-4 space-y-4">
-              {conv.messages.length === 0 && streamingMsgs.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[55vh] gap-5 text-center">
-                  <div className="grid place-items-center h-16 w-16 rounded-2xl bg-emerald-500/10 text-3xl text-emerald-500 dark:text-emerald-400">
-                    ✦
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold tracking-tight">Start the conversation</h2>
-                    <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">
-                      {aiParticipants.length > 0
-                        ? `${aiParticipants.map((p) => p.displayName ?? "AI").join(", ")} ${aiParticipants.length === 1 ? "is" : "are"} ready to help. Ask anything below.`
-                        : "Type a message below to get going."}
-                    </p>
-                  </div>
-                </div>
-              )}
-
+          <div ref={messagesContainerRef} className={cn("relative flex-1 overflow-y-auto overscroll-contain min-h-0", empty && "hidden")} data-ai-transcript
+            onScroll={event => { const el = event.currentTarget; followTranscriptRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 space-y-6 sm:px-6">
               {conv.messages.map((msg) => (
                 <ConvMessageBubble key={msg.id} msg={msg} userId={userId} reduceMotion={!!reduceMotion} />
               ))}
@@ -665,74 +754,41 @@ export default function AiConversationClient({
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden max-w-3xl w-full mx-auto px-4"
               >
-                <div className="flex items-center gap-2 py-2 text-xs text-red-400 border-t border-red-500/20">
-                  <span className="flex-1">{sendError}</span>
-                  <button onClick={() => setSendError(null)}>✕</button>
+                <div role="alert" className="flex items-center gap-2 py-2 text-xs text-red-400 border-t border-red-500/20">
+                  <span className="min-w-0 flex-1">{sendError}</span>
+                  <button aria-label="Dismiss AI error" className="h-11 w-11 shrink-0" onClick={() => setSendError(null)}>✕</button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Input — centered composer dock (matches the DM composer language) */}
           {!conv.isSuspended && (
-            <div className="bg-linear-to-t from-background via-background/90 to-transparent px-4 pb-4 pt-6 shrink-0">
-              <div className="max-w-3xl w-full mx-auto">
-                <div className="ai-input-ring flex items-end gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/5 px-3 py-2.5 border border-black/8 dark:border-white/10 backdrop-blur-sm shadow-sm chat-input-wrapper transition-colors">
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={isLoggedIn ? "Message…" : "Sign in to send messages"}
-                    rows={1}
-                    disabled={isStreaming || !isLoggedIn}
-                    className="flex-1 resize-none bg-transparent px-1.5 py-1 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/50 outline-none max-h-40 disabled:opacity-50"
-                    style={{ scrollbarWidth: "none" }}
-                  />
-                  <motion.button
-                    onClick={handleSend}
-                    disabled={!input.trim() || isStreaming || !isLoggedIn}
-                    animate={{ scale: input.trim() && !isStreaming ? 1 : 0.92 }}
-                    whileTap={input.trim() && !isStreaming ? { scale: 0.85 } : undefined}
-                    transition={{ type: "spring", stiffness: 600, damping: 22 }}
-                    className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors chat-send-btn"
-                    aria-label="Send message"
-                  >
-                    {isStreaming ? (
-                      <span className="h-3.5 w-3.5 rounded-full border-2 border-black/50 border-t-transparent animate-spin" />
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    )}
-                  </motion.button>
-                </div>
-                {isLoggedIn && (
-                  <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/60">
-                    Enter to send · Shift+Enter for a new line
-                  </p>
-                )}
-                {!isLoggedIn && (
-                  <p className="text-center text-xs text-muted-foreground mt-2">
-                    <Link href="/auth/login" className="text-emerald-400 hover:underline">Sign in</Link> to participate.
-                  </p>
-                )}
+            <div className={cn("shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 [@media(max-height:500px)]:pt-1 [@media(max-height:500px)]:pb-[max(.25rem,env(safe-area-inset-bottom))]", empty && "pb-[clamp(1rem,12dvh,7rem)]")}>
+              <div className="mx-auto w-full max-w-3xl">
+                {empty && <h2 className="mb-7 text-center text-2xl font-medium tracking-tight sm:text-3xl">What’s on your mind?</h2>}
+                <ChatComposer value={input} onChange={setInput} onSend={() => void handleSend()} busy={isStreaming}
+                  disabled={insufficientCredits || imageModelBlocked} onStop={() => abortRef.current?.abort()}
+                  hasAttachments={draftImages.length > 0}
+                  onFiles={isLoggedIn && isCreator && !demo && !conv.isPublic ? handleFiles : undefined}
+                  attachments={draftImages.length ? <DraftImages images={draftImages} busy={isStreaming} remove={id => { setDraftImages(current => current.filter(image => image.id !== id)); setImageError(null); }} /> : undefined}
+                  toolbar={<CreditModelPicker provider={provider} model={model} config={creditConfig} error={creditError} disabled={isStreaming}
+                    onSelect={(nextProvider, nextModel) => { setSelectedModel({ provider: nextProvider, model: nextModel }); setSendError(null); }} />}
+                  guidance={imageModelBlocked ? <span role="status">Images need a vision model. <button type="button" onClick={() => setSelectedModel({ provider: 'OPENAI', model: 'gpt-5.6-luna' })} className="min-h-11 underline underline-offset-4">Choose GPT-5.6 Luna</button></span>
+                    : insufficientCredits ? <span role="status">This message needs {messageCredits} credits. {demo ? 'Choose another model.' : <Link href="/products/cveggatinterviewcredits01" className="underline underline-offset-4">Buy credits or choose another model.</Link>}</span>
+                    : !isLoggedIn ? <Link href="/auth/login?callbackUrl=%2Fai" className="underline underline-offset-4">Sign in to send</Link>
+                    : <div className="flex flex-wrap items-center justify-between gap-x-3"><span>{usingOwnKey ? 'Your key' : messageCredits === undefined ? 'Choose a model' : messageCredits === 0 ? 'Free preview' : `${imageCount ? 'Up to ' : ''}${messageCredits} credits / message`}</span><Link href="/ai/credits" className="inline-flex min-h-7 items-center underline-offset-4 hover:underline">{creditConfig?.balance ?? '…'} credits</Link></div>} />
+                {imageError && <p role="alert" className="mt-2 text-sm text-destructive">{imageError}</p>}
+                {imageCount > 0 && <details className="mt-1 px-2 text-xs text-muted-foreground"><summary className="cursor-pointer py-2">Image privacy & pricing</summary><p className="max-w-prose pb-2 leading-5">Only sending uploads your images. The selected model receives up to four recent images, resized to 1024 px without location metadata. Images stay private to this chat. The displayed credit cost includes image context on each reply.</p></details>}
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Sidebar — shared ChatSidebar (members + Discord-like voice) ── */}
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
-              className="relative z-10 border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
-            >
-              <div className="w-[300px] h-full">
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="right" accessibleTitle="Participants" accessibleDescription="Conversation members and experimental voice tools."
+            onCloseAutoFocus={event => { event.preventDefault(); participantButtonRef.current?.focus(); }}
+            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col p-0 pt-14 pb-[env(safe-area-inset-bottom)]">
+            <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-20">
                 <ChatSidebar
                   roomId={sessionId}
                   self={{ id: userId ?? "me", name: userName ?? "You", image: null }}
@@ -754,8 +810,8 @@ export default function AiConversationClient({
                   }))}
                 />
                 {/* Admin actions footer */}
-                {(isCreator || isAdmin) && (
-                  <div className="absolute bottom-0 inset-x-0 px-3 py-3 border-t border-black/5 dark:border-white/8 space-y-1 bg-background/80 backdrop-blur-xl">
+                {!demo && (isCreator || isAdmin) && (
+                  <div className="sticky bottom-0 inset-x-0 px-3 py-3 border-t border-border/60 space-y-1 bg-background/80 backdrop-blur-xl">
                     {isCreator && (
                       <button
                         onClick={handleDelete}
@@ -773,7 +829,7 @@ export default function AiConversationClient({
                           <button
                             onClick={() => handleModerate("unsuspend")}
                             disabled={moderating}
-                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
+                            className="w-full text-left text-xs px-3 py-2 rounded-lg text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10 disabled:opacity-50 transition-colors"
                           >
                             Unsuspend conversation
                           </button>
@@ -789,7 +845,7 @@ export default function AiConversationClient({
                         <button
                           onClick={() => handleModerate("flag")}
                           disabled={moderating}
-                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+                          className="w-full text-left text-xs px-3 py-2 rounded-lg text-muted-foreground hover:bg-foreground/[0.05] disabled:opacity-50 transition-colors"
                         >
                           Flag for review
                         </button>
@@ -797,33 +853,20 @@ export default function AiConversationClient({
                     )}
                   </div>
                 )}
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
-      {/* ── Settings panel ── */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-x-4 bottom-20 md:inset-auto md:bottom-20 md:right-6 md:w-80 z-50 glass-panel rounded-2xl border border-white/10 shadow-xl p-4"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium">Conversation Settings</span>
-              <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <ConvSettings conv={conv} sessionId={sessionId} onUpdate={setConv} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Sheet open={showSettings} onOpenChange={setShowSettings}>
+        <SheetContent side="right" accessibleTitle="Conversation settings" accessibleDescription="Edit this conversation."
+          onCloseAutoFocus={event => { event.preventDefault(); settingsButtonRef.current?.focus(); }}
+          className="w-[min(26rem,calc(100%-2rem))] max-w-full overflow-y-auto overscroll-contain px-4 pt-16 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <h2 className="mb-4 text-lg font-semibold">Conversation settings</h2>
+          {demo ? <p className="text-sm text-muted-foreground">Demo conversations stay private. Use your own account to rename, share, or manage participants.</p> :
+            <ConvSettings conv={conv} sessionId={sessionId} onUpdate={setConv} />}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -843,9 +886,9 @@ function ParticipantCard({
 }) {
   const isAi = p.type === "AI_BYOK" || p.type === "AI_PLATFORM";
   return (
-    <div className="px-3 py-3 rounded-xl bg-white/4 border border-black/5 dark:border-white/8">
+    <div className="px-3 py-3 rounded-xl bg-foreground/[0.05] border border-border/60">
       <div className="flex items-center gap-2 mb-1">
-        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-muted-foreground"}`}>
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[11px] ${isAi ? "bg-brand-accent/20 text-brand-accent" : "bg-foreground/[0.05] text-muted-foreground"}`}>
           {isAi ? "✦" : (p.displayName?.[0] ?? "?")}
         </div>
         <div className="min-w-0 flex-1">
@@ -858,11 +901,11 @@ function ParticipantCard({
 
       {/* BYOK AI owner controls */}
       {isOwner && isAi && p.type === "AI_BYOK" && (
-        <div className="mt-2 pt-2 border-t border-black/5 dark:border-white/8 space-y-2">
+        <div className="mt-2 pt-2 border-t border-border/60 space-y-2">
           <button
             onClick={() => onTrigger(p.id)}
             disabled={isStreaming}
-            className="w-full text-xs py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 transition-colors"
+            className="w-full text-xs py-1.5 rounded-lg bg-brand-accent/15 border border-brand-accent/20 text-brand-accent hover:bg-brand-accent/25 disabled:opacity-50 transition-colors"
           >
             {isStreaming ? "Responding…" : `Prompt ${p.displayName ?? "AI"} to respond`}
           </button>
@@ -937,13 +980,13 @@ function ConvSettings({
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTitle(); (e.target as HTMLInputElement).blur(); } }}
           disabled={saving}
           maxLength={120}
-          className="w-full rounded-xl bg-black/4 dark:bg-white/5 border border-black/8 dark:border-white/10 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-500/50 transition-colors"
+          className="w-full rounded-xl bg-foreground/[0.05] border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent/50 transition-colors"
           placeholder="Conversation name"
         />
       </div>
 
       {/* Visibility — honest about what "public" means */}
-      <div className="rounded-xl border border-black/8 dark:border-white/10 p-3 space-y-3">
+      <div className="rounded-xl border border-border p-3 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium">{conv.isPublic ? "Anyone with the link" : "Private"}</p>
@@ -959,16 +1002,16 @@ function ConvSettings({
             role="switch"
             aria-checked={conv.isPublic}
             aria-label="Make conversation public"
-            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${conv.isPublic ? "bg-emerald-500" : "bg-black/15 dark:bg-white/15"}`}
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${conv.isPublic ? "bg-brand-accent" : "bg-muted"}`}
           >
-            <span className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow transition-transform ${conv.isPublic ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
+            <span className={`inline-block h-4.5 w-4.5 rounded-full bg-card shadow transition-transform ${conv.isPublic ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
           </button>
         </div>
 
         {conv.isPublic && (
           <button
             onClick={copyLink}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-2 text-xs font-medium transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light px-3 py-2 text-xs font-medium transition-colors"
           >
             {copied ? "✓ Link copied" : "Copy share link"}
           </button>
@@ -993,7 +1036,7 @@ function ConvMessageBubble({
 }) {
   const isUser = msg.role === "user";
   const isMe = msg.participant.type === "HUMAN";
-  const name = msg.participant.displayName ?? (isUser ? "You" : "AI");
+  const name = !isUser && msg.modelUsed ? msg.modelUsed : msg.participant.displayName ?? (isUser ? "You" : "AI");
 
   return (
     <motion.div
@@ -1003,23 +1046,25 @@ function ConvMessageBubble({
       className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
     >
       {!isUser && (
-        <div className="mt-1 h-6 w-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400 shrink-0">
+        <div className="mt-1 h-6 w-6 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
           ✦
         </div>
       )}
-      <div className="max-w-[75%] space-y-1">
+      <div className={cn("min-w-0 space-y-1", isUser ? "max-w-[90%] sm:max-w-[85%]" : "flex-1")}>
         {!isUser && (
           <p className="text-[10px] text-muted-foreground px-1">{name}</p>
         )}
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+          className={`rounded-2xl text-base leading-7 [overflow-wrap:anywhere] ${
             isUser
-              ? "bg-emerald-500/15 border border-emerald-500/20 text-foreground"
-              : "bg-black/4 dark:bg-white/5 border border-black/5 dark:border-white/8 text-foreground"
+              ? "bg-muted px-4 py-3 whitespace-pre-wrap text-foreground"
+              : "py-1 text-foreground"
           }`}
         >
-          {msg.content}
+          {!!msg.images?.length && <MessageImages images={msg.images} />}
+          {isUser ? msg.content : <MessageContent content={msg.content} />}
         </div>
+        {!isUser && <CopyMessage content={msg.content} />}
         {msg.hasSensitiveData && (
           <p className="text-[10px] text-amber-400/70 px-1">⚠ Contains sensitive data</p>
         )}
@@ -1036,13 +1081,13 @@ function StreamingBubble({ msg, reduceMotion }: { msg: StreamingMsg; reduceMotio
       transition={{ duration: reduceMotion ? 0 : 0.15 }}
       className="flex gap-3 justify-start"
     >
-      <div className="mt-1 h-6 w-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[10px] text-emerald-400 shrink-0">
+      <div className="mt-1 h-6 w-6 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-[10px] text-brand-accent shrink-0">
         ✦
       </div>
-      <div className="max-w-[75%] space-y-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <p className="text-[10px] text-muted-foreground px-1">{msg.participantName}</p>
-        <div className="rounded-2xl px-4 py-2.5 bg-black/4 dark:bg-white/5 border border-black/5 dark:border-white/8 text-sm leading-relaxed break-words whitespace-pre-wrap">
-          {msg.content || (
+        <div className="min-w-0 py-1 text-base leading-7 [overflow-wrap:anywhere]">
+          {msg.content ? <MessageContent content={msg.content} /> : (
             <span className="inline-flex gap-1 items-center h-4">
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current opacity-60" />
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current opacity-60" />

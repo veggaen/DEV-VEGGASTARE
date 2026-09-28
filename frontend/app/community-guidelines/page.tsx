@@ -15,7 +15,7 @@ const BUSINESS_EMAIL = "kontakt@veggat.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-card/50 dark:bg-black/30 p-6 backdrop-blur-xl">
+    <section className="rounded-2xl border border-border bg-card/50 dark:bg-muted p-6 backdrop-blur-xl">
       <h2 className="text-xl font-semibold text-foreground">{title}</h2>
       <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
@@ -35,12 +35,9 @@ export default function CommunityGuidelinesPage() {
           className="space-y-8"
         >
           {/* Header */}
-          <header className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground">
-              <span className="h-2 w-2 rounded-full bg-violet-400" aria-hidden />
-              <span>Retningslinjer</span>
-            </div>
-            <h1 className="text-balance text-3xl font-bold text-foreground sm:text-4xl">
+          <header className="page-rise space-y-3 border-b border-border/70 pb-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-accent-hover dark:text-brand-accent-light">Retningslinjer</p>
+            <h1 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Retningslinjer for fellesskapet
             </h1>
             <p className="max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
@@ -183,7 +180,7 @@ export default function CommunityGuidelinesPage() {
             <p>
               Spørsmål om disse retningslinjene kan rettes til:
             </p>
-            <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-1 mt-2">
+            <div className="rounded-lg bg-foreground/[0.04] p-4 text-xs space-y-1 mt-2">
               <p className="font-semibold text-foreground">THORSEN SOFTWARE</p>
               <p>
                 E-post:{" "}

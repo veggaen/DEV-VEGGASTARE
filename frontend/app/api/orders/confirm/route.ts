@@ -4,12 +4,14 @@ import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { completePaidOrder } from '@/lib/payments/complete-fiat-order';
+import { legacyCheckoutPaused } from '@/lib/checkout-release';
 
 /**
  * POST /api/orders/confirm
  * Called after on-chain payment verification succeeds.
  */
 export async function POST(req: Request) {
+  if (legacyCheckoutPaused()) return NextResponse.json({ error: 'CHECKOUT_UPGRADING' }, { status: 503 });
   const session = await MyLibUserAuth();
   if (!session?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

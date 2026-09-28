@@ -64,7 +64,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
         variant="ghost"
         size="sm"
         onClick={quickToggle}
-        className="h-9 w-9 p-0 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        className="h-9 w-9 p-0 rounded-xl text-foreground/80 hover:bg-muted"
         aria-label={`Switch to ${effective === 'dark' ? 'light' : 'dark'} mode`}
       >
         <Icon className="h-4 w-4" />
@@ -77,7 +77,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-9 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+          className="h-9 gap-2 rounded-xl border border-border bg-card text-foreground/85 hover:bg-foreground/[0.05] transition-colors"
         >
           <Icon className="h-4 w-4" />
           {showLabel && <span className="text-sm">{label}</span>}
@@ -85,7 +85,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-40 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+        className="w-40 bg-card border-border"
       >
         <DropdownMenuItem 
           onClick={() => setTheme('light')}
@@ -95,7 +95,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
             <FiSun className="mr-2 h-4 w-4" />
             Light
           </div>
-          {theme === 'light' && <FiCheck className="h-4 w-4 text-emerald-500" />}
+          {theme === 'light' && <FiCheck className="h-4 w-4 text-brand-accent" />}
         </DropdownMenuItem>
         <DropdownMenuItem 
           onClick={() => setTheme('dark')}
@@ -105,9 +105,9 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
             <IoMoonOutline className="mr-2 h-4 w-4" />
             Dark
           </div>
-          {theme === 'dark' && <FiCheck className="h-4 w-4 text-emerald-500" />}
+          {theme === 'dark' && <FiCheck className="h-4 w-4 text-brand-accent" />}
         </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800" />
+        <DropdownMenuSeparator className="bg-muted" />
         <DropdownMenuItem 
           onClick={() => setTheme('system')}
           className="flex items-center justify-between cursor-pointer"
@@ -116,7 +116,7 @@ export default function ThemeToggleMenu({ showLabel = true, compact = false }: T
             <FiMonitor className="mr-2 h-4 w-4" />
             System
           </div>
-          {theme === 'system' && <FiCheck className="h-4 w-4 text-emerald-500" />}
+          {theme === 'system' && <FiCheck className="h-4 w-4 text-brand-accent" />}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -20,12 +20,12 @@ export type SiteMode = 'private' | 'public';
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔧 CHANGE THIS WHEN READY TO LAUNCH
 // ═══════════════════════════════════════════════════════════════════════════
-export const SITE_MODE: SiteMode = 'private';
+export const SITE_MODE: SiteMode = 'public';
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Derived flags for convenience
-export const IS_PRIVATE_MODE: boolean = SITE_MODE === 'private';
-export const IS_PUBLIC_MODE: boolean = !IS_PRIVATE_MODE;
+export const IS_PUBLIC_MODE: boolean = SITE_MODE === 'public';
+export const IS_PRIVATE_MODE: boolean = !IS_PUBLIC_MODE;
 
 function parseBooleanEnv(value: string | undefined): boolean | undefined {
   if (!value) return undefined;

@@ -36,6 +36,11 @@ Semantic tokens, all HSL triplets consumed as `hsl(var(--token))`:
 2. **Accent = `brand-accent` tokens, never raw `emerald-*`/`sky-*`** — raw colors break the theme-adaptive accent (light=sky, dark=emerald). Exception: semantic status colors (success emerald, warning amber, error red) — but ALWAYS as a light/dark pair: `text-emerald-600 dark:text-emerald-400`, `text-amber-700 dark:text-amber-200`.
 3. **Small accent text needs the darker step for contrast:** `text-brand-accent-hover dark:text-brand-accent-light` (sky-500 on white is only ~2.8:1).
 4. If a class has no `dark:` pair and isn't a token, it's a bug waiting for the other theme.
+5. **Washes are ink-alpha, never muted-alpha.** Hover fills and quiet surfaces use `bg-foreground/[0.05]` / `hover:bg-foreground/[0.07]` (5–9% ink on light, 5–9% white on dark — identical presence in both themes). `bg-muted/40` reads on black and vanishes on the light canvas. Full-strength `bg-muted` is fine for real surfaces.
+6. **Light mirrors dark 1:1.** Same composition, same motion, same particle density; only the palette flips (white/sky ↔ black/emerald, or the user's accent preset via `html[data-accent]`). Canvases read `--brand-accent-rgb`; never hardcode an rgb per theme.
+7. **Theme swap = View Transition.** Go through `swapThemeWithReveal()` (`components/uicustom/chrome/theme-toggle.tsx`); never call `setTheme` directly from UI. It gives the circular reveal on modern browsers and the 320ms cross-fade elsewhere.
+8. **Styled `<Link>`s declare their display.** `block` / `inline-flex` — an inline anchor with padding and a rounded border wraps around lines and draws a notch.
+9. **Inner pages open with `PageHeader`** (`components/uicustom/chrome/page-header.tsx`): eyebrow · title · description · actions, so every route shares the landing's DNA.
 
 ### Component kit conventions (`components/ui/`)
 
@@ -50,7 +55,7 @@ Semantic tokens, all HSL triplets consumed as `hsl(var(--token))`:
 
 `.auth-card-enter` (calm slide-up entrance) · `.message-bubble-enter` (fast pop-in) · `.scroll-reveal`+`.revealed` (IntersectionObserver reveals) · `.glass-panel` (theme-aware glassmorphism) · `.hero-spotlight` (cursor spotlight) · `.kinetic-char` (per-character title intro) · `.noise-overlay` (masks gradient banding) · `.no-scrollbar`, `.overscroll-contain-y`, `.fade-mask-*`.
 
-Theme toggle cross-fade: `themebtn.tsx` adds `.theme-transitioning` to `<html>` for ~520ms; only then do colors transition (320ms). Don't add global `transition: all` anywhere — it smears hover states and fights this system.
+Theme toggle: `components/uicustom/chrome/theme-toggle.tsx` — `swapThemeWithReveal()` runs a View Transition (circular reveal from the control, `html.theme-vt::view-transition-new(root)`); without the API it adds `.theme-transitioning` to `<html>` for ~520ms so colors cross-fade (320ms). Accent presets live on `html[data-accent]` (Settings → Appearance, `prefs.accent`). Don't add global `transition: all` anywhere — it smears hover states and fights this system.
 
 ### Page recipes used in this app
 

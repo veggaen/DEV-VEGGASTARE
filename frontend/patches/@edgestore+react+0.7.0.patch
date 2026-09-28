@@ -1,0 +1,28 @@
+diff --git a/node_modules/@edgestore/react/dist/contextProvider.mjs b/node_modules/@edgestore/react/dist/contextProvider.mjs
+--- a/node_modules/@edgestore/react/dist/contextProvider.mjs
++++ b/node_modules/@edgestore/react/dist/contextProvider.mjs
+@@ -42,7 +42,9 @@
+     const initExecuted = React.useRef(false); // to make sure we don't run init twice
+     React.useEffect(()=>{
+         if (!initExecuted.current) {
+-            void init();
++            // init records state.error before rejecting. The mount effect has
++            // no caller; explicit reset() must still reject for upload retry UI.
++            void init().catch(()=>{});
+         }
+         return ()=>{
+             initExecuted.current = true;
+diff --git a/node_modules/@edgestore/react/dist/contextProvider.js b/node_modules/@edgestore/react/dist/contextProvider.js
+--- a/node_modules/@edgestore/react/dist/contextProvider.js
++++ b/node_modules/@edgestore/react/dist/contextProvider.js
+@@ -62,7 +62,9 @@
+     const initExecuted = React__namespace.useRef(false); // to make sure we don't run init twice
+     React__namespace.useEffect(()=>{
+         if (!initExecuted.current) {
+-            void init();
++            // init records state.error before rejecting. The mount effect has
++            // no caller; explicit reset() must still reject for upload retry UI.
++            void init().catch(()=>{});
+         }
+         return ()=>{
+             initExecuted.current = true;

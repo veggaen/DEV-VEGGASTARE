@@ -52,9 +52,9 @@ export default function NetworkSwitcher() {
 
   return (
     <div className="inline-flex items-center gap-2">
-      <label className="text-xs text-gray-500 dark:text-gray-400">Network</label>
+      <label className="text-xs text-muted-foreground">Network</label>
       <select
-        className="px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+        className="px-2 py-1 rounded border border-border bg-card text-sm"
         value={activeChainId ?? ""}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}

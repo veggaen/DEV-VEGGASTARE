@@ -66,6 +66,19 @@ export default function HeroParticleField({
     const isDark = () =>
       document.documentElement.classList.contains("dark");
 
+    // Accent follows the theme AND the user's accent preset: read the
+    // space-separated `--brand-accent-rgb` token once, and again whenever
+    // <html>'s class / data-accent changes (theme toggle, settings).
+    let accent = { r: 52, g: 211, b: 153 };
+    const readAccent = () => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue("--brand-accent-rgb").trim();
+      const parts = raw.split(/[\s,]+/).map(Number);
+      if (parts.length >= 3 && parts.every((n) => Number.isFinite(n))) accent = { r: parts[0], g: parts[1], b: parts[2] };
+    };
+    readAccent();
+    const attrObserver = new MutationObserver(readAccent);
+    attrObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-accent", "style"] });
+
     // mouse (in CSS px), eased
     const mouse = { x: -9999, y: -9999, active: false };
 
@@ -154,18 +167,13 @@ export default function HeroParticleField({
       ctx.clearRect(0, 0, w, h);
 
       const dark = isDark();
-      // Blend mode is the crux of light-mode depth: additive ("lighter") makes
-      // particles GLOW on black, but on white it can't exceed white so the whole
-      // field washes out and the hero reads flat. In light mode we draw normally
-      // ("source-over") with a deeper, more opaque sky tone so particles read as
-      // soft specks ON the white rather than failing to out-glow it.
-      ctx.globalCompositeOperation = dark ? "lighter" : "source-over";
+      // Light mirrors dark 1:1. Additive ("lighter") is what makes particles
+      // GLOW on black; its exact inverse on white is "multiply" — the same soft
+      // radial gradient now *tints* the page towards the accent instead of
+      // failing to out-glow it, with identical size and alpha in both themes.
+      ctx.globalCompositeOperation = dark ? "lighter" : "multiply";
 
-      // brand accent rgb — light mode uses a deeper sky (sky-600-ish) so it has
-      // enough contrast to register against the soft off-white background.
-      const r = dark ? 52 : 2;
-      const g = dark ? 211 : 132;
-      const b = dark ? 153 : 199;
+      const { r, g, b } = accent;
 
       const t = performance.now() * 0.001;
 
@@ -205,13 +213,13 @@ export default function HeroParticleField({
 
         // fade out particles that wander into the central clean zone
         const centreFade = inEdgeBand(p.x, p.y) ? 1 : centerFade;
-        // Light mode draws normally (not additive), so equal alpha reads fainter
-        // than the dark glow — nudge it up a little for parity of presence.
-        const modeAlpha = dark ? 1 : 1.35;
-        const alpha = Math.max(0, twAlpha * centreFade * modeAlpha);
+        // Multiply on white reads fainter than additive on black at the same
+        // alpha (ink darkens less than light glows), so light gets a lift.
+        const alpha = Math.max(0, twAlpha * centreFade * (dark ? 1 : 2.4));
         if (alpha <= 0.01) continue;
 
-        const radius = p.r;
+        // Ink on white needs a bit more body than light on black.
+        const radius = p.r * (dark ? 1 : 1.35);
         // soft radial glow
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 4);
         grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
@@ -256,6 +264,7 @@ export default function HeroParticleField({
       running = false;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      attrObserver.disconnect();
       if (fixed) window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerleave", onLeave);

@@ -1,4 +1,5 @@
 // @ts-check
+import { fileURLToPath } from 'node:url';
 
 /**
  * @type {import('next').NextConfig}
@@ -21,8 +22,23 @@ const nextConfig = {
     async redirects() {
         return [
             {
+                source: "/dashboard/inventory",
+                destination: "/dashboard/trading",
+                permanent: false,
+            },
+            {
                 source: "/feed",
                 destination: "/pulse",
+                permanent: true,
+            },
+            {
+                source: "/messages",
+                destination: "/conversations",
+                permanent: true,
+            },
+            {
+                source: "/messages/:path*",
+                destination: "/conversations/:path*",
                 permanent: true,
             },
         ];
@@ -34,6 +50,14 @@ const nextConfig = {
         root: import.meta.dirname,
     },
     webpack: (config) => {
+        // Dependency patches must invalidate cached vendor chunks as well as
+        // apply during install; node_modules is otherwise treated as managed.
+        if (config.cache && typeof config.cache === 'object') {
+            config.cache.buildDependencies = {
+                ...config.cache.buildDependencies,
+                veggatPatches: [fileURLToPath(new URL('./patches/@edgestore+react+0.7.0.patch', import.meta.url))],
+            };
+        }
         config.externals.push("pino-pretty", "lokijs", "encoding");
 
         // Some wallet SDKs pull in optional React-Native deps even for web builds.
@@ -46,6 +70,9 @@ const nextConfig = {
         return config;
     },
     typescript: {
+        // Optional isolated type-check config for local audit builds. Keep the
+        // developer's tsconfig/generated build history untouched; checks remain strict.
+        ...(process.env.NEXT_TSCONFIG_PATH ? { tsconfigPath: process.env.NEXT_TSCONFIG_PATH } : {}),
         // SECURITY: Enable TypeScript checking in production builds
         // If you have TS errors, fix them before deploying
         ignoreBuildErrors: false,
@@ -112,6 +139,13 @@ const nextConfig = {
                 hostname: 'lh3.googleusercontent.com',
                 port: '',
                 pathname: '**',
+            },
+            {
+                // Discord OAuth profile pictures (Settings avatar preview crashed without it).
+                protocol: 'https',
+                hostname: 'cdn.discordapp.com',
+                port: '',
+                pathname: '/avatars/**',
             },
             {
                 protocol: 'http',

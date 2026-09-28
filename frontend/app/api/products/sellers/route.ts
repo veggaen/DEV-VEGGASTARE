@@ -1,6 +1,7 @@
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { SellersResponseSchema } from '@/lib/types/products';
+import { publicCatalogWhere } from '@/lib/public-catalog';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -16,13 +17,14 @@ export async function GET() {
     // Get product counts grouped by userId
     const userCounts = await dbPrisma.product.groupBy({
       by: ['userId'],
+      where: publicCatalogWhere(),
       _count: { id: true },
     });
 
     // Get product counts grouped by companyId (where companyId is not null)
     const companyCounts = await dbPrisma.product.groupBy({
       by: ['companyId'],
-      where: { companyId: { not: null } },
+      where: { ...publicCatalogWhere(), companyId: { not: null } },
       _count: { id: true },
     });
 
@@ -78,7 +80,7 @@ export async function GET() {
 
     return NextResponse.json(parsed.data, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
       },
     });
   } catch (error) {

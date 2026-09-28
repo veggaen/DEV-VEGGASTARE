@@ -1,9 +1,9 @@
 "use client";
 
 import React, { ReactNode, useEffect, useMemo, useRef } from "react";
-import { WagmiProvider, useAccount } from "wagmi";
+import { WagmiProvider, useAccount, useConfig } from "wagmi";
+import { reconnect } from "wagmi/actions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { reconnect } from "@wagmi/core";
 
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
@@ -73,7 +73,7 @@ function SolanaLayer({ children }: { children: ReactNode }) {
 
   const wallets = useMemo(
     () => [new PhantomWalletAdapter()],
-    [cluster]
+    []
   );
 
   return (
@@ -86,21 +86,53 @@ function SolanaLayer({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Restores browser-extension connections silently on load. The site permission
+ * lives in the extension, so an unlocked wallet reconnects with no prompt and a
+ * locked one simply reports no accounts; the user then re-activates with one
+ * click instead of connecting from scratch after every reload. EIP-6963
+ * extensions announce themselves just after mount, hence the second pass.
+ * AppKit-managed sessions (social, WalletConnect) are restored by AppKitInitializer.
+ */
+function ExtensionReconnect() {
+  const config = useConfig();
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      type Ext = (typeof config.connectors)[number];
+      const candidates = config.connectors.filter((c) => c.type === "injected" || c.type === "announced" || c.id === "coinbaseWalletSDK");
+      // With EIP-6963 extensions announced, the shared window.ethereum connector is redundant:
+      // it would double-connect one of them and later fight the others for the provider.
+      const hasAnnounced = candidates.some((c) => c.type === "injected" && c.id !== "injected");
+      const usable = (c: Ext) => !(hasAnnounced && c.id === "injected");
+      const live = Array.from(config.state.connections.values()).map((c) => c.connector);
+      const liveIds = new Set(live.map((c) => c.uid));
+      const fresh = candidates.filter((c) => !liveIds.has(c.uid) && usable(c));
+      if (!fresh.length) return;
+      // wagmi's reconnect() replaces the whole connection set with what ONE call finds: a call
+      // that finds nothing authorized wipes a live connection, and one that finds only a newcomer
+      // drops the rest. So ask the newcomers first, and reconnect them together with what is live.
+      const asked = await Promise.all(fresh.map(async (c) => ((await c.isAuthorized().catch(() => false)) ? c : null)));
+      const authorized = asked.filter((c): c is Ext => c !== null);
+      if (cancelled || !authorized.length) return;
+      void reconnect(config, { connectors: [...live.filter(usable), ...authorized] }).catch(() => undefined);
+    };
+    void run();
+    // Extensions announce just after mount; AppKit registers its connectors a little later still.
+    const timers = [800, 3000].map((ms) => window.setTimeout(() => void run(), ms));
+    return () => { cancelled = true; timers.forEach((t) => window.clearTimeout(t)); };
+  }, [config]);
+  return null;
+}
+
 export default function Web3Providers({ children }: { children: ReactNode }) {
   const queryClient = useMemo(() => new QueryClient(), []);
-  const didReconnectRef = useRef(false);
-
-  // Rehydrate wagmi sessions
-  useEffect(() => {
-    if (didReconnectRef.current) return;
-    didReconnectRef.current = true;
-    reconnect(wagmiConfig).catch(() => {});
-  }, []);
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
-        {/* Initialize AppKit modal for polished wallet UX */}
+        {/* Extensions reconnect silently; AppKit restores opted-in sessions and does no SDK work otherwise. */}
+        <ExtensionReconnect />
         <AppKitInitializer />
         <ActiveNetworkProvider>
           <PricingProvider>

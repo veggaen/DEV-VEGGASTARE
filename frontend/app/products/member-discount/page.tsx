@@ -1,16 +1,8 @@
-'use client'
+/** @fileOverview Member-offer availability without promising a paid membership. @stability stable */
+import MarketplaceOffers from '@/components/uicustom/products/MarketplaceOffers';
 
-import React from 'react';
+export const metadata = { title: 'Member discounts', description: 'Member offer availability and standard AI-credit volume pricing.', robots: { index: false, follow: true } };
 
-const MyProductMemberDiscountPage = () => {
-
-  return (
-    <div className='flex flex-col justify-start items-center'>
-      <h1 className='text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-bl dark:from-zinc-300 from-zinc-500 dark:to-zinc-300 to-zinc-900 text-pretty'>Member Discount</h1>
-      <p>Under development...</p>
-      {/* Optionally, list existing products here */}
-    </div>
-  );
-};
-  
-export default MyProductMemberDiscountPage;
+export default function MemberDiscountPage() {
+  return <MarketplaceOffers kind="members" />;
+}

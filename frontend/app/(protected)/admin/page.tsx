@@ -108,9 +108,9 @@ const adminSections = [
 
 const colorClasses = {
   emerald: {
-    bg: "bg-emerald-500/10 dark:bg-emerald-500/20",
-    icon: "text-emerald-600 dark:text-emerald-400",
-    border: "hover:border-emerald-500/30",
+    bg: "bg-brand-accent/10",
+    icon: "text-brand-accent-hover dark:text-brand-accent-light",
+    border: "hover:border-brand-accent/30",
   },
   blue: {
     bg: "bg-blue-500/10 dark:bg-blue-500/20",
@@ -179,7 +179,7 @@ export default function AdminPage() {
   if (status === "loading" || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-accent" />
       </div>
     );
   }
@@ -190,19 +190,19 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-xl bg-linear-to-br from-brand-accent to-teal-600 flex items-center justify-center">
               <FiShield className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h1 className="text-2xl font-bold text-foreground">
                 Admin Dashboard
               </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 Platform management • Role: {userRole}
               </p>
             </div>
@@ -230,8 +230,8 @@ export default function AdminPage() {
                 <button
                   onClick={() => router.push(section.href)}
                   className={cn(
-                    "w-full text-left p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800",
-                    "bg-white dark:bg-zinc-900 transition-all duration-200",
+                    "w-full text-left p-6 rounded-2xl border border-border",
+                    "bg-card transition duration-200",
                     "hover:shadow-lg hover:scale-[1.02]",
                     colors.border
                   )}
@@ -241,14 +241,14 @@ export default function AdminPage() {
                       <section.icon className={cn("h-6 w-6", colors.icon)} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                      <h3 className="font-semibold text-foreground mb-1">
                         {section.title}
                       </h3>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      <p className="text-sm text-muted-foreground">
                         {section.description}
                       </p>
                     </div>
-                    <FiArrowRight className="h-5 w-5 text-zinc-400 dark:text-zinc-600" />
+                    <FiArrowRight className="h-5 w-5 text-muted-foreground/70" />
                   </div>
                 </button>
               </motion.div>
@@ -261,17 +261,17 @@ export default function AdminPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="mt-8 p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800"
+          className="mt-8 p-6 bg-card rounded-2xl border border-border"
         >
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-            <FiBarChart2 className="h-5 w-5 text-zinc-400" />
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <FiBarChart2 className="h-5 w-5 text-muted-foreground" />
             Platform Overview
           </h2>
 
           {statsLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
           ) : stats ? (
@@ -282,7 +282,7 @@ export default function AdminPage() {
               <StatCard icon={FiBarChart2} label="Polls" value={stats.platform.totalPolls} color="amber" />
             </div>
           ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Could not load stats.</p>
+            <p className="text-sm text-muted-foreground">Could not load stats.</p>
           )}
         </motion.div>
 
@@ -292,9 +292,9 @@ export default function AdminPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="mt-4 p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800"
+            className="mt-4 p-6 bg-card rounded-2xl border border-border"
           >
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <FiCpu className="h-5 w-5 text-teal-500" />
               AI Generation — Today
             </h2>
@@ -308,19 +308,19 @@ export default function AdminPage() {
 
             {stats.ai.topUsersToday.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Top Users Today</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Top Users Today</h3>
                 <div className="space-y-2">
                   {stats.ai.topUsersToday.map((u) => (
-                    <div key={u.userId} className="flex items-center gap-3 px-3 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg text-sm">
+                    <div key={u.userId} className="flex items-center gap-3 px-3 py-2 bg-foreground/[0.05] rounded-lg text-sm">
                       {u.image ? (
                         <Image src={u.image} alt="" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
                       ) : (
-                        <div className="h-7 w-7 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                        <div className="h-7 w-7 rounded-full bg-muted" />
                       )}
-                      <span className="flex-1 text-zinc-700 dark:text-zinc-300 truncate">
+                      <span className="flex-1 text-foreground/85 truncate">
                         {u.name ?? u.email ?? u.userId}
                       </span>
-                      <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="font-mono text-xs text-muted-foreground">
                         {u.count} gen{u.count !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -348,7 +348,7 @@ export default function AdminPage() {
 
 function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
   const colorMap: Record<string, string> = {
-    emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/20",
+    emerald: "text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10",
     blue: "text-blue-600 dark:text-blue-400 bg-blue-500/10 dark:bg-blue-500/20",
     purple: "text-purple-600 dark:text-purple-400 bg-purple-500/10 dark:bg-purple-500/20",
     amber: "text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20",
@@ -358,13 +358,13 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType
   const classes = colorMap[color] ?? colorMap.emerald;
 
   return (
-    <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-foreground/[0.05]">
       <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", classes)}>
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{value.toLocaleString()}</p>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="text-2xl font-bold text-foreground">{value.toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );

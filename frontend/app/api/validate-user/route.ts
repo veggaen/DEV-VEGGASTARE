@@ -1,82 +1,49 @@
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
-import { parseJsonOrError } from '@/lib/api-validate';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/browser';
 import { ValidateUserResponseSchema } from '@/lib/types/users';
-import { resolveVisibleEmail } from '@/lib/email-visibility';
+import { isDemoUserId, DEMO_ID_PREFIX } from '@/lib/demo-policy';
+import { checkRateLimit } from '@/lib/rate-limit';
 
-const isDev = process.env.NODE_ENV !== 'production';
+const bodySchema = z.object({ input: z.string().trim().min(1).max(200) }).strict();
+function reply(body: unknown, status = 200, extra: Record<string, string> = {}) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', ...extra } });
+}
+const missing = () => reply({ isValid: false, message: 'User not found.' }, 404);
 
-const bodySchema = z.object({
-  input: z.string().trim().min(1).max(200),
-});
-
+/** Exact lookup obeys the same privacy boundary as people autocomplete. */
 export async function POST(req: Request) {
-  const session = await MyLibUserAuth();
-  if (!session?.id) {
-    return NextResponse.json({ isValid: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const bodyResult = await parseJsonOrError(req, bodySchema);
-    if (!bodyResult.ok) return bodyResult.response;
-    const { input } = bodyResult.data;
-
+    const viewer = await MyLibUserAuth();
+    if (!viewer?.id) return reply({ isValid: false, message: 'Sign in to find people.' }, 401);
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return reply({ isValid: false, message: 'Enter a name, shared email or user ID.' }, 400);
+    if (isDemoUserId(viewer.id)) return missing();
+    const rate = await checkRateLimit('people-lookup:' + viewer.id, 'read');
+    if (!rate.success) return reply({ isValid: false, message: 'Please wait before searching again.' }, 429, { 'Retry-After': String(Math.max(1, rate.resetIn)) });
+    const { input } = parsed.data;
+    const privileged = viewer.role === 'ADMIN' || viewer.role === 'OWNER';
+    // Filtering after retrieval would still reveal whether a hidden email exists.
+    const email: Prisma.UserWhereInput = privileged ? { email: input } : {
+      AND: [{ email: input }, { OR: [{ emailDisplayMode: 'PRIMARY' }, { id: viewer.id }] }],
+    };
     const user = await dbPrisma.user.findFirst({
-      where: {
-        OR: [
-          { email: input },
-          { id: input },
-          { name: input },
-        ],
-      },
+      where: { AND: [
+        { id: { not: { startsWith: DEMO_ID_PREFIX.replace(/[\\%_]/g, '\\$&') } } },
+        { OR: [{ id: input }, { name: input }, email] },
+      ] },
       select: { id: true, name: true, email: true, emailDisplayMode: true },
+      orderBy: { id: 'asc' },
     });
-
-    if (user) {
-      const visibleEmail = resolveVisibleEmail({
-        targetUserId: user.id,
-        targetEmail: user.email ?? null,
-        targetEmailDisplayMode: user.emailDisplayMode,
-        viewerUserId: session.id,
-        viewerRole: session.role,
-      });
-
-      const dto = {
-        isValid: true as const,
-        user: {
-          id: String(user.id),
-          name: user.name ?? null,
-          email: visibleEmail,
-        },
-      };
-      const parsed = ValidateUserResponseSchema.safeParse(dto);
-      if (!parsed.success) {
-        console.error('[api/validate-user] Invalid POST DTO:', parsed.error);
-        return NextResponse.json(
-          { isValid: false, message: 'Server error.', ...(isDev ? { issues: parsed.error.issues } : {}) },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json(parsed.data);
-    } else {
-      const dto = { isValid: false as const, message: 'User not found.' };
-      const parsed = ValidateUserResponseSchema.safeParse(dto);
-      if (!parsed.success) {
-        console.error('[api/validate-user] Invalid POST DTO:', parsed.error);
-        return NextResponse.json({ isValid: false, message: 'Server error.' }, { status: 500 });
-      }
-      return NextResponse.json(parsed.data, { status: 404 });
-    }
-  } catch (error) {
-    console.error('Error validating user:', error);
-
-    const dto = { isValid: false as const, message: 'Server error.' };
-    const parsed = ValidateUserResponseSchema.safeParse(dto);
-    if (!parsed.success) {
-      return NextResponse.json({ isValid: false, message: 'Server error.' }, { status: 500 });
-    }
-    return NextResponse.json(parsed.data, { status: 500 });
+    if (!user) return missing();
+    return reply(ValidateUserResponseSchema.parse({ isValid: true, user: {
+      id: user.id, name: user.name,
+      email: privileged || user.id === viewer.id || user.emailDisplayMode === 'PRIMARY' ? user.email : null,
+    } }));
+  } catch {
+    console.error('[api/validate-user] Lookup failed');
+    return reply({ isValid: false, message: 'People search is temporarily unavailable.' }, 500);
   }
 }

@@ -104,10 +104,10 @@ export function DragToZone({
               ref={(el) => { zoneRefs.current[zone.id] = el; }}
               className={cn(
                 "relative min-h-[160px] p-4 rounded-3xl",
-                "border-2 border-dashed transition-all duration-200",
+                "border-2 border-dashed transition duration-200",
                 isHovered
                   ? "border-primary bg-primary/10 scale-[1.02]"
-                  : "border-muted-foreground/30 bg-muted/20"
+                  : "border-muted-foreground/30 bg-foreground/[0.03]"
               )}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -143,13 +143,13 @@ export function DragToZone({
                         key={item.id}
                         className={cn(
                           "relative px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing",
-                          "bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm",
+                          "bg-surface-1/90 backdrop-blur-sm",
                           "border shadow-sm",
                           showFeedback
                             ? isCorrect
-                              ? "border-emerald-500 bg-emerald-500/10"
+                              ? "border-brand-accent bg-brand-accent/10"
                               : "border-rose-500 bg-rose-500/10"
-                            : "border-white/20 dark:border-white/10"
+                            : "border-border"
                         )}
                         style={{
                           zIndex: activeItem === item.id ? 9999 : 1,
@@ -188,15 +188,15 @@ export function DragToZone({
                           <motion.div
                             className={cn(
                               "absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center",
-                              isCorrect ? "bg-emerald-500" : "bg-rose-500"
+                              isCorrect ? "bg-brand-accent" : "bg-rose-500"
                             )}
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                           >
                             {isCorrect ? (
-                              <Check className="w-3 h-3 text-white" />
+                              <Check className="w-3 h-3 text-foreground" />
                             ) : (
-                              <X className="w-3 h-3 text-white" />
+                              <X className="w-3 h-3 text-foreground" />
                             )}
                           </motion.div>
                         )}
@@ -225,7 +225,7 @@ export function DragToZone({
       {/* Unplaced Items Pool */}
       {unplacedItems.length > 0 && (
         <motion.div
-          className="p-4 rounded-3xl bg-muted/30 border border-dashed border-muted-foreground/20"
+          className="p-4 rounded-3xl bg-foreground/[0.04] border border-dashed border-muted-foreground/20"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -238,8 +238,8 @@ export function DragToZone({
                 key={item.id}
                 className={cn(
                   "px-4 py-2 rounded-xl cursor-grab active:cursor-grabbing",
-                  "bg-white/80 dark:bg-white/5 backdrop-blur-xl",
-                  "border border-white/20 dark:border-white/10",
+                  "bg-surface-1/80 backdrop-blur-xl",
+                  "border border-border",
                   "shadow-lg shadow-black/5",
                   "relative"
                 )}
@@ -287,7 +287,7 @@ export function DragToZone({
         </span>
         <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-linear-to-r from-emerald-500 to-cyan-500"
+            className="h-full bg-linear-to-r from-brand-accent to-cyan-500"
             initial={{ width: 0 }}
             animate={{
               width: `${(Object.keys(value).length / items.length) * 100}%`,

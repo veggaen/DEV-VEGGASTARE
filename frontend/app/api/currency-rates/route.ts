@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { connection, NextResponse } from 'next/server';
 import { 
   getExchangeRates, 
   getCryptoPrices,
@@ -14,6 +14,9 @@ import {
  * Fiat rates cached for 1 hour, crypto prices cached for 5 minutes
  */
 export async function GET() {
+  // Fetch at request time, not while deploying. Provider caches keep their TTLs.
+  // Keep this outside catch so Next's prerender boundary is never swallowed.
+  await connection();
   try {
     const [fiatRates, cryptoPrices] = await Promise.all([
       getExchangeRates(),

@@ -157,7 +157,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
           href="/"
           className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <span className="grid place-items-center h-7 w-7 rounded-full bg-black/5 dark:bg-white/8 group-hover:bg-black/10 dark:group-hover:bg-white/12 transition-colors">
+          <span className="grid place-items-center h-7 w-7 rounded-full bg-foreground/[0.06] group-hover:bg-muted transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           </span>
           Home
@@ -168,10 +168,10 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
           disabled={creating}
           whileHover={reduceMotion ? undefined : { scale: 1.03 }}
           whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-emerald-500/25"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-accent text-foreground text-sm font-semibold hover:bg-brand-accent-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-brand-accent/25"
         >
           {creating ? (
-            <span className="h-4 w-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />
+            <span className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-transparent animate-spin" />
           ) : (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
@@ -193,7 +193,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-500 dark:text-emerald-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-brand-accent">
                 AI workspace
               </p>
               <h1 className="mt-2 text-3xl sm:text-4xl font-semibold tracking-[-0.03em] leading-[1.05]">
@@ -220,7 +220,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search…"
-                    className="w-40 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/8 px-3 py-1.5 text-xs outline-none focus:border-emerald-500/40 transition-colors"
+                    className="w-40 rounded-lg bg-foreground/[0.05] border border-border/60 px-3 py-1.5 text-xs outline-none focus:border-brand-accent/40 transition-colors"
                   />
                 )}
               </div>
@@ -234,7 +234,7 @@ export default function AiHomeClient({ isLoggedIn, userId, userName }: AiHomeCli
               {loading ? (
                 <div className="space-y-2.5">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-[68px] rounded-2xl bg-black/4 dark:bg-white/5 animate-pulse" />
+                    <div key={i} className="h-[68px] rounded-2xl bg-foreground/[0.05] animate-pulse" />
                   ))}
                 </div>
               ) : sessions.length === 0 ? (
@@ -311,10 +311,10 @@ function ConversationCard({
       onFocusCapture={handleEnter}
       // A plain fixed-height row — no hover expansion, so the list never reflows
       // and the hover-follow border simply glides between stable cards.
-      className="group relative rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-colors duration-200"
+      className="group relative rounded-2xl border border-border/50 bg-surface-1/60 hover:bg-surface-1/90 transition-colors duration-200"
     >
       <Link href={href} prefetch={false} className="flex items-center gap-3.5 px-4 py-3.5">
-        <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+        <span className="shrink-0 grid place-items-center h-10 w-10 rounded-xl bg-brand-accent/10 text-brand-accent group-hover:bg-brand-accent/20 transition-colors">
           ✦
         </span>
 
@@ -322,7 +322,7 @@ function ConversationCard({
           <div className="flex items-center gap-2">
             <p className="text-[15px] font-medium truncate">{s.title}</p>
             {s.isPublic && (
-              <span className="shrink-0 text-[10px] text-emerald-600 dark:text-emerald-400/70 border border-emerald-500/25 rounded-md px-1.5 py-0.5 leading-none">
+              <span className="shrink-0 text-[10px] text-brand-accent-hover dark:text-brand-accent-light border border-brand-accent/25 rounded-md px-1.5 py-0.5 leading-none">
                 Public
               </span>
             )}
@@ -350,7 +350,7 @@ function ConversationCard({
 
         {/* Static go-chevron (no rotation, no reveal). */}
         <svg
-          className="shrink-0 text-muted-foreground/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors"
+          className="shrink-0 text-muted-foreground/40 group-hover:text-brand-accent transition-colors"
           width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           aria-hidden
         >
@@ -374,9 +374,9 @@ function SuggestionDeck({ onPrompt, reduceMotion }: { onPrompt: (p: string) => v
           <HoverFollowItem key={s.label}>
             <button
               onClick={() => onPrompt(s.prompt)}
-              className="group flex w-full items-start gap-3 text-left px-4 py-3.5 rounded-2xl border border-black/6 dark:border-white/8 bg-white/60 dark:bg-white/[0.03] hover:bg-white/90 dark:hover:bg-white/[0.06] transition-all"
+              className="group flex w-full items-start gap-3 text-left px-4 py-3.5 rounded-2xl border border-border/50 bg-surface-1/60 hover:bg-surface-1/90 transition"
             >
-              <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-sm group-hover:scale-110 transition-transform">
+              <span className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-brand-accent/10 text-brand-accent text-sm group-hover:scale-110 transition-transform">
                 {s.icon}
               </span>
               <span className="min-w-0">
@@ -398,7 +398,7 @@ function EmptyState({ onCreate, creating, reduceMotion }: { onCreate: () => void
       animate={{ opacity: 1 }}
       className="flex flex-col items-center gap-4 py-12 text-center"
     >
-      <div className="text-4xl text-emerald-500/30 dark:text-emerald-400/30">✦</div>
+      <div className="text-4xl text-brand-accent/30">✦</div>
       <div>
         <p className="text-base font-medium">No conversations yet</p>
         <p className="text-sm text-muted-foreground mt-1">Try a starter above, or start fresh.</p>
@@ -407,7 +407,7 @@ function EmptyState({ onCreate, creating, reduceMotion }: { onCreate: () => void
         onClick={onCreate}
         disabled={creating}
         whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-        className="mt-1 px-6 py-2.5 rounded-xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-500/20"
+        className="mt-1 px-6 py-2.5 rounded-xl bg-brand-accent text-foreground font-semibold hover:bg-brand-accent-light disabled:opacity-50 transition-colors shadow-lg shadow-brand-accent/20"
       >
         {creating ? "Creating…" : "Start your first chat"}
       </motion.button>
@@ -432,7 +432,7 @@ function AnonymousHero({
         initial={reduceMotion ? false : { opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 18 }}
-        className="grid place-items-center h-16 w-16 rounded-2xl bg-emerald-500/10 text-3xl text-emerald-500 dark:text-emerald-400 mb-6"
+        className="grid place-items-center h-16 w-16 rounded-2xl bg-brand-accent/10 text-3xl text-brand-accent mb-6"
       >
         ✦
       </motion.div>
@@ -461,14 +461,14 @@ function AnonymousHero({
       >
         <Link
           href="/auth/login"
-          className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400 transition-colors text-center shadow-lg shadow-emerald-500/20"
+          className="flex-1 py-2.5 rounded-xl bg-brand-accent text-foreground font-semibold text-sm hover:bg-brand-accent-light transition-colors text-center shadow-lg shadow-brand-accent/20"
         >
           Sign in
         </Link>
         <button
           onClick={onCreate}
           disabled={creating}
-          className="flex-1 py-2.5 rounded-xl border border-black/10 dark:border-white/15 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+          className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-foreground/[0.05] disabled:opacity-50 transition-colors"
         >
           {creating ? "Starting…" : "Try anonymously"}
         </button>

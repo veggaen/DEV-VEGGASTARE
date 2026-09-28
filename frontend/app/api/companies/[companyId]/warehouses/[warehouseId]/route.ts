@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { CompanyWarehouseDetailsResponseSchema } from '@/lib/types/company';
+import { companyPrivateJson, companyReadScope, companyReadViewer } from '@/lib/company-read-access';
 
 type CompanyWarehouseParams = {
     companyId?: string;
@@ -8,9 +9,6 @@ type CompanyWarehouseParams = {
     warehouseId?: string;
     warehouseid?: string;
 };
-
-const isDev = process.env.NODE_ENV !== 'production';
-const LOG_PREFIX = '[frontend/app/api/companies/[companyId]/warehouses/[warehouseId]/route.ts]';
 
 const toIsoString = (value: unknown): string => {
     if (value instanceof Date) return value.toISOString();
@@ -29,16 +27,18 @@ export async function GET(
     { params }: { params: Promise<CompanyWarehouseParams> }
 ) {
     try {
+        const viewer = await companyReadViewer();
+        if (!viewer) return companyPrivateJson({ message: 'Sign in to view this warehouse.' }, 401);
         const resolvedParams = await params;
         const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
         const warehouseId = resolvedParams.warehouseId ?? resolvedParams.warehouseid;
 
         if (!companyId || !warehouseId) {
-            return NextResponse.json({ message: 'Invalid request parameters' }, { status: 400 });
+            return companyPrivateJson({ message: 'Invalid request parameters' }, 400);
         }
 
         const warehouse = await dbPrisma.warehouseLocation.findFirst({
-            where: { id: warehouseId, companyId },
+            where: { id: warehouseId, companyId, Company: { is: companyReadScope(viewer) } },
             include: {
                 Inventory: {
                     include: {
@@ -49,7 +49,7 @@ export async function GET(
         });
 
         if (!warehouse) {
-            return NextResponse.json({ message: 'Warehouse not found' }, { status: 404 });
+            return companyPrivateJson({ message: 'Warehouse unavailable or access restricted.' }, 404);
         }
 
         const dto = {
@@ -96,16 +96,13 @@ export async function GET(
 
         const parsed = CompanyWarehouseDetailsResponseSchema.safeParse(dto);
         if (!parsed.success) {
-            console.error(LOG_PREFIX, 'Invalid GET DTO:', parsed.error);
-            return NextResponse.json(
-                { message: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
-                { status: 500 }
-            );
+            console.error('Company warehouse response validation failed');
+            return companyPrivateJson({ message: 'Warehouse could not be loaded. Try again.' }, 500);
         }
 
-        return NextResponse.json(parsed.data, { status: 200 });
-    } catch (error) {
-        console.error('Error fetching warehouse details:', error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+        return companyPrivateJson(parsed.data);
+    } catch {
+        console.error('Company warehouse read failed');
+        return companyPrivateJson({ message: 'Warehouse could not be loaded. Try again.' }, 500);
     }
 }

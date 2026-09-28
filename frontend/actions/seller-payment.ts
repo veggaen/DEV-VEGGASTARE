@@ -10,10 +10,14 @@ import { z } from 'zod';
 import { dbPrisma } from '@/lib/db';
 import { MyLibUserAuth } from '@/lib/user-auth';
 import { getUserById } from '@/data/user';
-import { randomBytes, timingSafeEqual } from 'crypto';
-import { sendPaypalVerificationEmail } from '@/lib/mail';
+import { preparePaypalEmail, discardPaypalEmailRequest, checkPaypalEmail, clearPaypalEmail, readPaypalPaymentStatus, PaypalEmailError } from '@/lib/paypal-email';
+import { sendPaypalVerificationEmail, sendTwoFactorTokenEmail } from '@/lib/mail';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
+import { isDemoUserId } from '@/lib/demo-policy';
+import { changePayoutWallet, type PayoutTarget, type PayoutChoice } from '@/lib/payout-wallet';
+import { walletActionOrigin } from '@/lib/wallet-action-origin';
+import { WalletLinkError } from '@/lib/wallet-link';
 
 const log = createLogger('seller-payment');
 
@@ -26,12 +30,13 @@ const TargetSchema = z.discriminatedUnion('target', [
   z.object({ target: z.literal('user') }),
   z.object({
     target: z.literal('company'),
-    companyId: z.string().min(1).max(30).regex(CUID_RE, 'Invalid company ID'),
+    companyId: z.string().regex(/^c[a-z0-9]{24,29}$/, 'Invalid company ID'),
   }),
 ]);
 
 const SavePaypalEmailSchema = z.object({
-  paypalEmail: z.string().email('Invalid PayPal email').max(254, 'Email too long'),
+  paypalEmail: z.string().trim().toLowerCase().email('Invalid PayPal email').max(254, 'Email too long'),
+  expectedEmail: z.string().email().max(254).nullable(),
 }).and(TargetSchema);
 
 /** Token is 32 random bytes → 64 hex chars. */
@@ -39,22 +44,32 @@ const VerifyPaypalEmailSchema = z.object({
   token: z.string().length(64, 'Invalid token format').regex(/^[0-9a-f]+$/, 'Invalid token format'),
 }).and(TargetSchema);
 
-const RemovePaypalEmailSchema = TargetSchema;
+const RemovePaypalEmailSchema = z.object({
+  expectedEmail: z.string().email().max(254).nullable(),
+  expectedPendingEmail: z.string().email().max(254).nullable(),
+}).and(TargetSchema);
 
 const SetDefaultWalletSchema = z.object({
   walletId: z.string().min(1).max(30).regex(CUID_RE, 'Invalid wallet ID'),
+  expectedWalletId: z.string().regex(CUID_RE, 'Refresh payment settings before changing the receiving wallet.').nullable(),
+  code: z.string().regex(/^\d{6}$/).optional().nullable(),
 }).and(TargetSchema);
 
-const RemoveDefaultWalletSchema = TargetSchema;
+const RemoveDefaultWalletSchema = z.object({
+  expectedWalletId: z.string().min(1).max(30).regex(CUID_RE, 'Refresh payment settings before clearing the receiving wallet.'),
+  code: z.string().regex(/^\d{6}$/).optional().nullable(),
+}).and(TargetSchema);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 type Result = { error: string } | { success: string };
+export type PayoutWalletResult = Result | { twoFactor: true };
 
 /** Authenticate + rate limit in one call. Returns the DB user or an error. */
 async function authAndRateLimit(): Promise<{ error: string } | { dbUser: { id: string } }> {
   const me = await MyLibUserAuth();
   if (!me?.id) return { error: 'Unauthorized' };
+  if (isDemoUserId(me.id)) return { error: 'Demo accounts cannot change payout settings. Use your own account.' };
 
   const rl = await checkRateLimit(me.id, 'payment');
   if (!rl.success) return { error: 'Too many requests. Please try again shortly.' };
@@ -65,304 +80,106 @@ async function authAndRateLimit(): Promise<{ error: string } | { dbUser: { id: s
   return { dbUser };
 }
 
-/** Assert the authenticated user is the owner of the target company. */
-async function assertCompanyOwner(userId: string, companyId: string) {
-  const company = await dbPrisma.company.findUnique({
-    where: { id: companyId },
-    select: { ownerId: true },
-  });
-  if (!company) throw new Error('Company not found');
-  if (company.ownerId !== userId) throw new Error('Only the company owner can manage payment settings');
-}
-
-/**
- * Normalize email: lowercase + trim.  Prevents bypass via casing tricks.
- * RFC 5321: local-part is case-sensitive in theory, but PayPal treats them
- * as case-insensitive — normalizing is safe and expected.
- */
-function normalizeEmail(raw: string): string {
-  return raw.toLowerCase().trim();
-}
-
-/**
- * Timing-safe comparison of two hex token strings.
- * Prevents timing side-channel attacks on token verification.
- */
-function safeTokenEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
-}
-
-/** Create a verification token and send it to the PayPal email. */
-async function sendVerification(email: string, entityType: 'user' | 'company', entityId: string) {
-  const token = randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-
-  // Upsert a PaypalVerificationToken record
-  await dbPrisma.paypalVerificationToken.upsert({
-    where: { entityType_entityId: { entityType, entityId } },
-    create: { token, email, entityType, entityId, expires },
-    update: { token, email, expires },
-  });
-
-  await sendPaypalVerificationEmail(email, token, entityType, entityId);
-
-  // Opportunistically clean up expired tokens from other entities
-  dbPrisma.paypalVerificationToken.deleteMany({
-    where: { expires: { lt: new Date() } },
-  }).catch(() => { /* best-effort cleanup */ });
-}
-
-// ─── Save PayPal Email (sends verification) ─────────────────────────────────
-
+/** Mail stays outside database locks; a failure removes only its own request. */
 export async function savePaypalEmail(values: z.infer<typeof SavePaypalEmailSchema>): Promise<Result> {
   const parsed = SavePaypalEmailSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
   const auth = await authAndRateLimit();
   if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  const paypalEmail = normalizeEmail(parsed.data.paypalEmail);
-
   try {
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { paypalEmail, paypalEmailVerifiedAt: null },
-      });
-      await sendVerification(paypalEmail, 'company', companyId);
-      log.info('PayPal email saved (company)', { companyId, userId: dbUser.id });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { paypalEmail, paypalEmailVerifiedAt: null },
-      });
-      await sendVerification(paypalEmail, 'user', dbUser.id);
-      log.info('PayPal email saved (user)', { userId: dbUser.id });
+    const origin = await walletActionOrigin();
+    const request = await preparePaypalEmail({ ...parsed.data, userId: auth.dbUser.id, origin, email: parsed.data.paypalEmail });
+    try {
+      await sendPaypalVerificationEmail(parsed.data.paypalEmail, request.token, parsed.data.target, request.entityId, origin);
+    } catch {
+      await discardPaypalEmailRequest(parsed.data.target, request.entityId, request.tokenHash);
+      return { error: 'Verification email could not be sent. Your receiving address is unchanged. Try again.' };
     }
-
-    return { success: `Verification email sent to ${paypalEmail}` };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to save PayPal email';
-    log.error('savePaypalEmail failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to save PayPal email. Please try again.' };
+    return { success: 'Verification email requested. Open the link to confirm the new address.' };
+  } catch (error) {
+    if (error instanceof PaypalEmailError || error instanceof WalletLinkError) return { error: error.message };
+    log.error('PayPal email request failed');
+    return { error: 'Unable to request verification. Refresh payment settings and try again.' };
   }
 }
 
-// ─── Verify PayPal Email (confirm token) ─────────────────────────────────────
+export async function reviewPaypalEmail(values: z.infer<typeof VerifyPaypalEmailSchema>): Promise<{ error: string } | { data: { email: string } }> {
+  const parsed = VerifyPaypalEmailSchema.safeParse(values);
+  if (!parsed.success) return { error: 'Invalid verification link. Request a new one in payment settings.' };
+  const auth = await authAndRateLimit();
+  if ('error' in auth) return auth;
+  try {
+    const origin = await walletActionOrigin();
+    return { data: await checkPaypalEmail({ ...parsed.data, userId: auth.dbUser.id, origin }, false) };
+  } catch (error) {
+    if (error instanceof PaypalEmailError || error instanceof WalletLinkError) return { error: error.message };
+    log.error('PayPal email review failed');
+    return { error: 'Verification could not load. Try again.' };
+  }
+}
 
 export async function verifyPaypalEmail(values: z.infer<typeof VerifyPaypalEmailSchema>): Promise<Result> {
   const parsed = VerifyPaypalEmailSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
-  const { token } = parsed.data;
-  const entityType = parsed.data.target === 'company' ? 'company' : 'user';
-  const entityId = parsed.data.target === 'company' ? parsed.data.companyId : undefined;
-
+  if (!parsed.success) return { error: 'Invalid verification link. Request a new one in payment settings.' };
   const auth = await authAndRateLimit();
   if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  const resolvedEntityId = entityType === 'company' ? entityId! : dbUser.id;
-
   try {
-    const record = await dbPrisma.paypalVerificationToken.findUnique({
-      where: { entityType_entityId: { entityType, entityId: resolvedEntityId } },
-    });
-
-    // Use generic message for not-found / invalid to prevent enumeration
-    const GENERIC_FAIL = 'Verification failed or expired. Please request a new one.';
-
-    if (!record) return { error: GENERIC_FAIL };
-    if (record.expires < new Date()) {
-      // Clean up the expired token
-      await dbPrisma.paypalVerificationToken.delete({
-        where: { entityType_entityId: { entityType, entityId: resolvedEntityId } },
-      }).catch(() => {});
-      return { error: GENERIC_FAIL };
-    }
-
-    // Timing-safe comparison prevents side-channel leakage
-    if (!safeTokenEqual(record.token, token)) {
-      log.warn('Invalid token attempt', { entityType, entityId: resolvedEntityId, userId: dbUser.id });
-      return { error: GENERIC_FAIL };
-    }
-
-    // Confirm — for company target, assert ownership
-    if (entityType === 'company') {
-      await assertCompanyOwner(dbUser.id, resolvedEntityId);
-    }
-
-    const now = new Date();
-
-    if (entityType === 'company') {
-      await dbPrisma.company.update({
-        where: { id: resolvedEntityId },
-        data: { paypalEmailVerifiedAt: now },
-      });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: resolvedEntityId },
-        data: { paypalEmailVerifiedAt: now },
-      });
-    }
-
-    // Clean up token
-    await dbPrisma.paypalVerificationToken.delete({
-      where: { entityType_entityId: { entityType, entityId: resolvedEntityId } },
-    });
-
-    log.info('PayPal email verified', { entityType, entityId: resolvedEntityId, userId: dbUser.id });
-    return { success: 'PayPal email verified!' };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Verification failed';
-    log.error('verifyPaypalEmail failed', { userId: dbUser.id, error: msg });
-    return { error: 'Verification failed. Please try again.' };
+    const origin = await walletActionOrigin();
+    await checkPaypalEmail({ ...parsed.data, userId: auth.dbUser.id, origin }, true);
+    return { success: 'Receiving email verified.' };
+  } catch (error) {
+    if (error instanceof PaypalEmailError || error instanceof WalletLinkError) return { error: error.message };
+    log.error('PayPal email verification failed');
+    return { error: 'Verification could not complete. Request a new link in payment settings.' };
   }
 }
-
-// ─── Remove PayPal Email ─────────────────────────────────────────────────────
 
 export async function removePaypalEmail(values: z.infer<typeof RemovePaypalEmailSchema>): Promise<Result> {
   const parsed = RemovePaypalEmailSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
+  if (!parsed.success) return { error: 'Refresh payment settings before removing the receiving email.' };
   const auth = await authAndRateLimit();
   if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
   try {
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { paypalEmail: null, paypalEmailVerifiedAt: null },
-      });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { paypalEmail: null, paypalEmailVerifiedAt: null },
-      });
-    }
-
-    // Also clean up any pending token
-    const entityType = parsed.data.target === 'company' ? 'company' : 'user';
-    const entityId = parsed.data.target === 'company' ? parsed.data.companyId : dbUser.id;
-    await dbPrisma.paypalVerificationToken.deleteMany({
-      where: { entityType, entityId },
-    });
-
-    log.info('PayPal email removed', { entityType, entityId, userId: dbUser.id });
-    return { success: 'PayPal email removed' };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to remove PayPal email';
-    log.error('removePaypalEmail failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to remove PayPal email. Please try again.' };
+    const origin = await walletActionOrigin();
+    await clearPaypalEmail({ ...parsed.data, userId: auth.dbUser.id, origin });
+    return { success: 'Receiving email and pending verification removed.' };
+  } catch (error) {
+    if (error instanceof PaypalEmailError || error instanceof WalletLinkError) return { error: error.message };
+    log.error('PayPal email removal failed');
+    return { error: 'Unable to remove the receiving email. Refresh payment settings and try again.' };
   }
 }
 
-// ─── Set Default Receiving Wallet ────────────────────────────────────────────
+async function applyPayoutChoice(values: PayoutTarget & PayoutChoice & { code?: string | null }): Promise<PayoutWalletResult> {
+  const auth = await authAndRateLimit();
+  if ('error' in auth) return auth;
+  try {
+    const origin = await walletActionOrigin();
+    const limit = await checkRateLimit(`wallet-user:${auth.dbUser.id}`, 'wallet');
+    if (!limit.success) return { error: 'Too many wallet requests. Please try again shortly.' };
+    const result = await changePayoutWallet({ ...values, userId: auth.dbUser.id, origin });
+    if ('twoFactor' in result) {
+      await sendTwoFactorTokenEmail(result.email, result.code);
+      return { twoFactor: true };
+    }
+    return { success: values.action === 'set' ? 'Receiving wallet updated.' : 'Receiving choice cleared. The wallet stays linked.' };
+  } catch (error) {
+    if (error instanceof WalletLinkError) return { error: error.message };
+    log.error('Receiving wallet change could not be confirmed');
+    return { error: 'Unable to confirm this change. Refresh payment settings before trying again.' };
+  }
+}
 
-export async function setDefaultReceivingWallet(values: z.infer<typeof SetDefaultWalletSchema>): Promise<Result> {
+export async function setDefaultReceivingWallet(values: z.infer<typeof SetDefaultWalletSchema>): Promise<PayoutWalletResult> {
   const parsed = SetDefaultWalletSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
-  const auth = await authAndRateLimit();
-  if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  const { walletId } = parsed.data;
-
-  try {
-    // Verify wallet exists and belongs to the right owner
-    const wallet = await dbPrisma.wallet.findUnique({
-      where: { id: walletId },
-      select: { id: true, ownerUserId: true, ownerCompanyId: true, verifiedAt: true, address: true },
-    });
-
-    if (!wallet) return { error: 'Wallet not found' };
-
-    // Only verified wallets can be used as default receiving wallets
-    if (!wallet.verifiedAt) {
-      return { error: 'Only verified wallets can be set as default. Please verify this wallet first.' };
-    }
-
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-
-      // Wallet must belong to the company OR to the owner user
-      if (wallet.ownerCompanyId !== companyId && wallet.ownerUserId !== dbUser.id) {
-        return { error: 'Wallet does not belong to this company or you' };
-      }
-
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { defaultReceivingWalletId: walletId },
-      });
-      log.info('Default receiving wallet set (company)', { companyId, walletId, userId: dbUser.id });
-    } else {
-      // Wallet must belong to the authenticated user
-      if (wallet.ownerUserId !== dbUser.id) {
-        return { error: 'Wallet does not belong to you' };
-      }
-
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { defaultReceivingWalletId: walletId },
-      });
-      log.info('Default receiving wallet set (user)', { walletId, userId: dbUser.id });
-    }
-
-    return { success: `Default receiving wallet set to ${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}` };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to set wallet';
-    log.error('setDefaultReceivingWallet failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to set wallet. Please try again.' };
-  }
+  return applyPayoutChoice({ ...parsed.data, action: 'set' });
 }
 
-// ─── Remove Default Receiving Wallet ─────────────────────────────────────────
-
-export async function removeDefaultReceivingWallet(values: z.infer<typeof RemoveDefaultWalletSchema>): Promise<Result> {
+export async function removeDefaultReceivingWallet(values: z.infer<typeof RemoveDefaultWalletSchema>): Promise<PayoutWalletResult> {
   const parsed = RemoveDefaultWalletSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
-
-  const auth = await authAndRateLimit();
-  if ('error' in auth) return auth;
-  const { dbUser } = auth;
-
-  try {
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-      await dbPrisma.company.update({
-        where: { id: companyId },
-        data: { defaultReceivingWalletId: null },
-      });
-    } else {
-      await dbPrisma.user.update({
-        where: { id: dbUser.id },
-        data: { defaultReceivingWalletId: null },
-      });
-    }
-
-    log.info('Default receiving wallet removed', {
-      target: parsed.data.target,
-      userId: dbUser.id,
-      ...(parsed.data.target === 'company' ? { companyId: parsed.data.companyId } : {}),
-    });
-    return { success: 'Default receiving wallet removed' };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to remove wallet';
-    log.error('removeDefaultReceivingWallet failed', { userId: dbUser.id, error: msg });
-    return { error: 'Failed to remove wallet. Please try again.' };
-  }
+  return applyPayoutChoice({ ...parsed.data, action: 'clear' });
 }
 
 // ─── Get Seller Payment Status ───────────────────────────────────────────────
@@ -372,8 +189,11 @@ const GetPaymentStatusSchema = TargetSchema;
 export type SellerPaymentStatus = {
   paypalEmail: string | null;
   paypalEmailVerified: boolean;
+  pendingPaypalEmail: string | null;
   defaultReceivingWalletId: string | null;
   defaultReceivingWalletAddress: string | null;
+  walletChangesAllowed: boolean;
+  receivingWallets: Array<{ id: string; label: string; address: string; family: string; verifiedAt: string; scope: 'personal' | 'company' }>;
 };
 
 export async function getSellerPaymentStatus(
@@ -387,53 +207,10 @@ export async function getSellerPaymentStatus(
   const { dbUser } = auth;
 
   try {
-    if (parsed.data.target === 'company') {
-      const { companyId } = parsed.data;
-      await assertCompanyOwner(dbUser.id, companyId);
-
-      const company = await dbPrisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          paypalEmail: true,
-          paypalEmailVerifiedAt: true,
-          defaultReceivingWalletId: true,
-          defaultReceivingWallet: { select: { address: true } },
-        },
-      });
-      if (!company) return { error: 'Company not found' };
-
-      return {
-        data: {
-          paypalEmail: company.paypalEmail,
-          paypalEmailVerified: !!company.paypalEmailVerifiedAt,
-          defaultReceivingWalletId: company.defaultReceivingWalletId,
-          defaultReceivingWalletAddress: company.defaultReceivingWallet?.address ?? null,
-        },
-      };
-    } else {
-      const user = await dbPrisma.user.findUnique({
-        where: { id: dbUser.id },
-        select: {
-          paypalEmail: true,
-          paypalEmailVerifiedAt: true,
-          defaultReceivingWalletId: true,
-          defaultReceivingWallet: { select: { address: true } },
-        },
-      });
-      if (!user) return { error: 'User not found' };
-
-      return {
-        data: {
-          paypalEmail: user.paypalEmail,
-          paypalEmailVerified: !!user.paypalEmailVerifiedAt,
-          defaultReceivingWalletId: user.defaultReceivingWalletId,
-          defaultReceivingWalletAddress: user.defaultReceivingWallet?.address ?? null,
-        },
-      };
-    }
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to fetch payment status';
-    log.error('getSellerPaymentStatus failed', { userId: dbUser.id, error: msg });
+    return { data: await readPaypalPaymentStatus({ ...parsed.data, userId: dbUser.id, origin: '' }) };
+  } catch (error) {
+    if (error instanceof PaypalEmailError) return { error: error.message };
+    log.error('Payment settings could not load');
     return { error: 'Failed to load payment status. Please try again.' };
   }
 }

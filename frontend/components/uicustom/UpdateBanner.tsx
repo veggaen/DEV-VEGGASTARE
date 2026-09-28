@@ -40,7 +40,7 @@ export function UpdateBanner() {
             {/* Sheen sweep on hover/active */}
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-out"
+              className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-background/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-out"
             />
             <FiRefreshCw className={`h-3.5 w-3.5 ${updating ? 'animate-spin' : 'animate-[spin_3s_linear_infinite]'}`} />
             <span className="relative">

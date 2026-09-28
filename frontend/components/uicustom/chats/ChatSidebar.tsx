@@ -51,8 +51,8 @@ interface ChatSidebarProps {
 }
 
 const ROLE_BADGE: Record<VoiceRole, { label: string; cls: string }> = {
-  host: { label: "Host", cls: "text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
-  speaker: { label: "Speaker", cls: "text-sky-600 dark:text-sky-400 border-sky-500/30" },
+  host: { label: "Host", cls: "text-brand-accent-hover dark:text-brand-accent-light border-brand-accent/30" },
+  speaker: { label: "Speaker", cls: "text-brand-accent-hover dark:text-brand-accent-light border-brand-accent/30" },
   listener: { label: "", cls: "" },
 };
 
@@ -191,17 +191,17 @@ export function ChatSidebar({
         onTestingChange={handleSettingsTestingChange}
       />
       {/* ── Voice channel ── */}
-      <section className="px-4 pt-4 pb-3 border-b border-black/5 dark:border-white/8">
+      <section className="px-4 pt-4 pb-3 border-b border-border/60">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
             <FiHeadphones className="h-3.5 w-3.5" /> Voice
           </h3>
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] text-muted-foreground/70 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
+            <span className="text-[9px] text-muted-foreground/70 border border-border/60 rounded px-1.5 py-0.5">
               {connected ? voice.members.length : 0} active
             </span>
             {voice.isStub && (
-              <span className="text-[9px] text-muted-foreground/60 border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5">
+              <span className="text-[9px] text-muted-foreground/60 border border-border/60 rounded px-1.5 py-0.5">
                 Preview
               </span>
             )}
@@ -209,7 +209,7 @@ export function ChatSidebar({
               onClick={() => setSettingsOpen(true)}
               aria-label="Voice settings"
               title="Voice settings"
-              className="grid place-items-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:rotate-45 active:scale-90"
+              className="grid place-items-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors active:rotate-45 active:scale-90"
             >
               <FiSettings className="h-3.5 w-3.5" />
             </button>
@@ -229,7 +229,7 @@ export function ChatSidebar({
             />
             <button
               onClick={() => void loadVoiceDevices()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
               aria-label="Refresh microphones"
               title="Refresh microphones"
             >
@@ -243,7 +243,7 @@ export function ChatSidebar({
           <button
             onClick={handleJoinVoice}
             disabled={voice.connection === "connecting" || joinRequesting}
-            className="group w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
+            className="group w-full flex items-center justify-center gap-2 rounded-xl bg-brand-accent/10 hover:bg-brand-accent/20 border border-brand-accent/20 text-brand-accent-hover dark:text-brand-accent-light px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
           >
             <FiMic className="h-4 w-4 transition-transform group-hover:scale-110" />
             {joinRequesting ? "Opening mic..." : voice.connection === "connecting" ? "Joining..." : "Join voice"}
@@ -282,7 +282,7 @@ export function ChatSidebar({
                     <span className="text-xs truncate">{m.name}</span>
                     <button
                       onClick={() => voice.promote(m.id)}
-                      className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:underline shrink-0"
+                      className="text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light hover:underline shrink-0"
                     >
                       Bring up
                     </button>
@@ -358,7 +358,7 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
         {m.speaking && !reduceMotion && (
           <motion.span
             aria-hidden
-            className="absolute -inset-1.5 rounded-full bg-emerald-400/40 blur-md"
+            className="absolute -inset-1.5 rounded-full bg-brand-accent/40 blur-md"
             initial={{ opacity: 0.4, scale: 0.9 }}
             animate={{ opacity: [0.4, 0.75, 0.4], scale: [0.9, 1.12, 0.9] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
@@ -366,9 +366,9 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
         )}
         <div
           className={cn(
-            "relative grid place-items-center rounded-full overflow-hidden bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium transition-all duration-200",
+            "relative grid place-items-center rounded-full overflow-hidden bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium transition duration-200",
             size,
-            m.speaking && "ring-2 ring-emerald-400 ring-offset-2 ring-offset-background",
+            m.speaking && "ring-2 ring-brand-accent ring-offset-2 ring-offset-background",
           )}
         >
           {m.image ? (
@@ -382,7 +382,7 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
         {m.speaking && !reduceMotion && (
           <motion.span
             aria-hidden
-            className="absolute inset-0 rounded-full border-2 border-emerald-400"
+            className="absolute inset-0 rounded-full border-2 border-brand-accent"
             initial={{ opacity: 0.7, scale: 1 }}
             animate={{ opacity: 0, scale: 1.5 }}
             transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
@@ -395,7 +395,7 @@ function VoiceAvatar({ m, reduceMotion, large }: { m: VoiceMember; reduceMotion:
         )}
       </div>
       {large && (
-        <span className={cn("text-[10px] truncate max-w-full transition-colors", m.speaking ? "text-emerald-500 dark:text-emerald-400 font-medium" : "text-muted-foreground")}>
+        <span className={cn("text-[10px] truncate max-w-full transition-colors", m.speaking ? "text-brand-accent font-medium" : "text-muted-foreground")}>
           {m.name.split(" ")[0]}
         </span>
       )}
@@ -418,8 +418,8 @@ function ControlButton({
       className={cn(
         "grid place-items-center h-9 w-9 rounded-full transition-colors",
         active
-          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-          : "bg-black/5 dark:bg-white/8 text-muted-foreground hover:text-foreground",
+          ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light"
+          : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -505,7 +505,7 @@ function MemberRow({
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onContextMenu={onContextMenu}
-      className="group rounded-lg overflow-hidden hover:bg-black/4 dark:hover:bg-white/5 transition-colors"
+      className="group rounded-lg overflow-hidden hover:bg-foreground/[0.05] transition-colors"
     >
       {menu && (
         <MemberContextMenu
@@ -522,7 +522,7 @@ function MemberRow({
         <div className="relative shrink-0">
           <div className={cn(
             "grid place-items-center h-8 w-8 rounded-full text-xs font-medium text-white",
-            member.isAi ? "bg-emerald-500/80" : "bg-linear-to-br from-indigo-500 to-purple-600",
+            member.isAi ? "bg-brand-accent/80" : "bg-linear-to-br from-indigo-500 to-purple-600",
           )}>
             {member.isAi ? "✦" : initials(member.name)}
           </div>
@@ -531,7 +531,7 @@ function MemberRow({
           <p className="text-sm truncate">{member.name}</p>
         </div>
         {member.label && (
-          <span className="shrink-0 text-[10px] text-muted-foreground border border-black/5 dark:border-white/10 rounded px-1.5 py-0.5 leading-none">
+          <span className="shrink-0 text-[10px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 leading-none">
             {member.label}
           </span>
         )}
@@ -557,7 +557,7 @@ function MemberRow({
                 <button
                   onClick={() => run("mod", onMakeModerator)}
                   disabled={busy !== null}
-                  className="text-[11px] px-2 py-1 rounded-md bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 transition-colors disabled:opacity-50"
+                  className="text-[11px] px-2 py-1 rounded-md bg-foreground/[0.06] hover:bg-muted transition-colors disabled:opacity-50"
                 >
                   {busy === "mod" ? "Making…" : "Make moderator"}
                 </button>
@@ -611,20 +611,20 @@ function MemberContextMenu({
       ref={ref}
       role="menu"
       style={{ left, top }}
-      className="fixed z-[80] w-44 rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#15181e]/97 backdrop-blur-md shadow-2xl p-1"
+      className="fixed z-[80] w-44 rounded-xl border border-border bg-surface-1/95 dark:bg-[#15181e]/97 backdrop-blur-md shadow-2xl p-1"
     >
-      <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground truncate border-b border-black/5 dark:border-white/8 mb-1">
+      <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground truncate border-b border-border/60 mb-1">
         {name}
       </div>
       <button
         onClick={() => act(onMute)}
-        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-black/5 dark:hover:bg-white/8 transition-colors"
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-foreground/[0.06] transition-colors"
       >
         <FiMicOff className="h-3.5 w-3.5 text-muted-foreground" /> Mute
       </button>
       <button
         onClick={() => act(onMakeModerator)}
-        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-black/5 dark:hover:bg-white/8 transition-colors"
+        className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-foreground/[0.06] transition-colors"
       >
         <FiShield className="h-3.5 w-3.5 text-muted-foreground" /> Make moderator
       </button>

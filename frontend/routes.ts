@@ -15,8 +15,12 @@ export const publicRoutes = [
   "/pricing", // ✅ Public SaaS storefront / pricing page
   "/privacy", // ✅ Privacy page is public
   "/terms", // ✅ Sales terms page (required for Vipps)
+  "/accessibility", // Legal: accessibility statement, linked from /terms and the footer
+  "/community-guidelines", // Legal: community guidelines, linked from /terms
   "/contact",
+  "/help/local-chains", // Guide: Ganache/Anvil setup, linked from the wallet panel and trading hub
   "/auth/new-verification",
+  "/auth/security-action", // Retired email-link notice; never reads or consumes a token.
   "/api/bring-shipping",
   "/api/bring-shipping-suggest-postcode",
   // Note: Employee routes removed - they have internal auth checks

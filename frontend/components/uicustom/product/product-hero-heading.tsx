@@ -51,7 +51,7 @@ export default function ProductHeroHeading({
     switch (resolvedAccent) {
       case "sky":
         return {
-          blobA: "bg-sky-500/12",
+          blobA: "bg-brand-accent/12",
           blobB: "bg-violet-500/10",
           aura: "radial-gradient(closest-side, rgba(56,189,248,0.18), rgba(56,189,248,0) 72%)",
           pulse: "radial-gradient(closest-side, rgba(56,189,248,0.14), rgba(56,189,248,0) 70%)",
@@ -59,21 +59,21 @@ export default function ProductHeroHeading({
       case "fuchsia":
         return {
           blobA: "bg-fuchsia-500/12",
-          blobB: "bg-sky-500/8",
+          blobB: "bg-brand-accent/8",
           aura: "radial-gradient(closest-side, rgba(217,70,239,0.18), rgba(217,70,239,0) 72%)",
           pulse: "radial-gradient(closest-side, rgba(217,70,239,0.14), rgba(217,70,239,0) 70%)",
         };
       case "amber":
         return {
           blobA: "bg-amber-500/12",
-          blobB: "bg-emerald-500/8",
+          blobB: "bg-brand-accent/8",
           aura: "radial-gradient(closest-side, rgba(245,158,11,0.18), rgba(245,158,11,0) 72%)",
           pulse: "radial-gradient(closest-side, rgba(245,158,11,0.14), rgba(245,158,11,0) 70%)",
         };
       case "emerald":
       default:
         return {
-          blobA: "bg-emerald-500/10",
+          blobA: "bg-brand-accent/10",
           blobB: "bg-fuchsia-500/8",
           aura: "radial-gradient(closest-side, rgba(34,197,94,0.16), rgba(34,197,94,0) 72%)",
           pulse: "radial-gradient(closest-side, rgba(34,197,94,0.14), rgba(34,197,94,0) 70%)",
@@ -114,7 +114,7 @@ export default function ProductHeroHeading({
     >
       {/* soft lighting behind title+price */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-2xl">
-        <div className="absolute inset-0 bg-linear-to-b from-white/40 via-white/10 to-transparent dark:from-white/[0.06] dark:via-white/[0.03] dark:to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-b from-background/40 via-background/10 to-transparent dark:from-background/[0.06] dark:via-background/[0.03]" />
         <motion.div
           className={`absolute -top-12 -right-16 h-[220px] w-[220px] rounded-full blur-3xl ${palette.blobA}`}
           animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.12, 0.2, 0.12] }}
@@ -144,13 +144,13 @@ export default function ProductHeroHeading({
       </div>
 
       <motion.div
-        className={`relative flex w-full flex-col gap-2 rounded-2xl border border-black/5 bg-white/40 p-4 dark:border-white/10 dark:bg-white/[0.04] ${alignment}`}
+        className={`relative flex w-full flex-col gap-2 rounded-2xl border border-border/50 bg-surface-1/40 p-4 dark:border-border dark:bg-foreground/[0.05] ${alignment}`}
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
         transition={reduceMotion ? undefined : { duration: 0.35, ease: "easeOut" }}
       >
         {kicker ? (
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
             {kicker}
           </div>
         ) : null}

@@ -15,8 +15,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useConfirm } from '@/components/providers/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser, FiBellOff } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiMoreVertical, FiUsers, FiMessageCircle, FiUser } from 'react-icons/fi';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -49,6 +50,13 @@ const CONVERSATION_TYPE_LABEL: Record<string, string> = {
 };
 
 export default function ConversationPage() {
+  const params = useParams();
+  const user = useCurrentUser();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  return <ConversationThread key={`${user?.id ?? 'guest'}:${id ?? ''}`} />;
+}
+
+function ConversationThread() {
   const reduceMotion = useReducedMotion();
   const params = useParams();
   const router = useRouter();
@@ -58,22 +66,41 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readProblem, setReadProblem] = useState<'unavailable' | 'error' | null>(null);
+  const readRequest = useRef<AbortController | null>(null);
   const [conversation, setConversation] = useState<ConversationDetails | null>(null);
   const [isCancellingDeletion, setIsCancellingDeletion] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [managementError, setManagementError] = useState<string | null>(null);
+  const managementBusy = useRef(false);
   const [hasPoll, setHasPoll] = useState(false);
-  // Local mute preference (UI-level notification toggle for this thread).
-  const [muted, setMuted] = useState(false);
   // Right rail (members + voice channel) toggle.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const membersButtonRef = useRef<HTMLButtonElement>(null);
 
   const currentUser = useCurrentUser();
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (showLoading = false) => {
     if (!conversationId) return;
-    
+    readRequest.current?.abort();
+    const request = new AbortController();
+    readRequest.current = request;
+    if (showLoading) setLoading(true);
+    setReadProblem(null);
     try {
-      const response = await fetch(`/api/messages?conversationId=${conversationId}`);
+      const response = await fetch(`/api/messages?conversationId=${encodeURIComponent(conversationId)}`, { signal: request.signal });
+      if (!response.ok) {
+        if (request.signal.aborted) return;
+        setReadProblem([401, 403, 404].includes(response.status) ? 'unavailable' : 'error');
+        setConversation(null);
+        setMessages([]);
+        setUsers([]);
+        setHasPoll(false);
+        return;
+      }
       const data = await response.json();
+      if (request.signal.aborted) return;
+      if (!data.conversation || data.conversation.id !== conversationId || !Array.isArray(data.messages) || !Array.isArray(data.users)) throw new Error('Invalid conversation response');
       
       if (data.messages) {
         setMessages(data.messages);
@@ -84,18 +111,22 @@ export default function ConversationPage() {
       if (data.conversation) {
         setConversation(data.conversation);
       }
-      if (data.hasPoll || data.poll) {
-        setHasPoll(true);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
+      setHasPoll(Boolean(data.hasPoll || data.poll));
+    } catch {
+      if (request.signal.aborted) return;
+      setReadProblem('error');
+      setConversation(null);
+      setMessages([]);
+      setUsers([]);
+      setHasPoll(false);
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
   }, [conversationId]);
 
   useEffect(() => {
-    fetchMessages();
+    void fetchMessages();
+    return () => readRequest.current?.abort();
   }, [fetchMessages]);
 
   // Redirect PUBLIC_THREAD to /pulse/[id] (clean URL with parallel route modal)
@@ -106,15 +137,20 @@ export default function ConversationPage() {
   }, [conversation?.type, conversationId, router]);
 
   // Pusher real-time updates via shared singleton
-  const channelName = conversationId ? `ConversationChannel_${conversationId}` : '';
+  const channelName = conversation && !readProblem && conversationId ? `ConversationChannel_${conversationId}` : '';
 
-  usePusher<{ message?: any; conversationId?: string }>(channelName, 'new-message', useCallback((data: any) => {
-    const newMessage = data.message || data;
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === newMessage.id)) return prev;
-      return [...prev, newMessage];
-    });
-  }, []));
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshFromRealtime = useCallback(() => {
+    if (realtimeTimer.current) return;
+    realtimeTimer.current = setTimeout(() => { realtimeTimer.current = null; void fetchMessages(); }, 150);
+  }, [fetchMessages]);
+  useEffect(() => () => { if (realtimeTimer.current) clearTimeout(realtimeTimer.current); }, []);
+  usePusher(channelName, 'conversation-updated', refreshFromRealtime);
+  usePusher(channelName, 'pusher:subscription_succeeded', refreshFromRealtime);
+  usePusher(channelName, 'edit-message', refreshFromRealtime);
+  usePusher(channelName, 'delete-message', refreshFromRealtime);
+
+  usePusher(channelName, 'new-message', refreshFromRealtime);
 
   usePusher<{ messageId: string }>(channelName, 'message-deleted', useCallback((data) => {
     setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
@@ -124,6 +160,7 @@ export default function ConversationPage() {
   // other participants; auto-clears after a short idle so it never sticks.
   const [typingName, setTypingName] = useState<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current); }, []);
   usePusher<{ userId: string; name?: string }>(channelName, 'typing', useCallback((data) => {
     if (data.userId && data.userId === currentUser?.id) return; // ignore self
     setTypingName(data.name || 'Someone');
@@ -132,51 +169,57 @@ export default function ConversationPage() {
   }, [currentUser?.id]));
 
   const handleCancelDeletion = async () => {
-    if (!conversationId) return;
+    if (!conversationId || managementBusy.current) return;
+    managementBusy.current = true;
+    setManagementError(null);
     setIsCancellingDeletion(true);
     try {
       const response = await fetch(`/api/conversations/${conversationId}?cancel=true`, {
         method: 'DELETE',
       });
       if (response.ok) {
-        fetchMessages();
-      }
-    } catch (error) {
-      console.error('Error cancelling deletion:', error);
+        await fetchMessages();
+      } else setManagementError('Could not confirm cancellation. Try again.');
+    } catch {
+      setManagementError('Could not confirm cancellation. Try again.');
     } finally {
       setIsCancellingDeletion(false);
+      managementBusy.current = false;
     }
   };
 
   // Request deletion of the whole conversation, then return to the list. Mirrors
   // the existing DELETE endpoint (the `?cancel=true` variant undoes it).
   const handleDeleteConversation = async () => {
-    if (!conversationId) return;
-    if (!(await confirm({
-      title: 'Delete this conversation?',
-      description: 'This will start the deletion process.',
-      confirmLabel: 'Delete',
-      destructive: true,
-    }))) return;
+    if (!conversationId || managementBusy.current) return;
+    managementBusy.current = true;
+    setManagementError(null);
     try {
+      if (!(await confirm({
+        title: 'Delete this conversation?',
+        description: 'This deletes the shared conversation for everyone. Some conversations have a cancellation period.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
+      setIsDeleting(true);
       const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
       if (res.ok) {
         router.push('/conversations');
       } else {
-        const { toast } = await import('sonner');
-        toast.error('Could not delete the conversation.');
+        setManagementError('Could not confirm deletion. Try again.');
       }
-    } catch (error) {
-      console.error('Error deleting conversation:', error);
-      const { toast } = await import('sonner');
-      toast.error('Could not delete the conversation.');
+    } catch {
+      setManagementError('Could not confirm deletion. Try again.');
+    } finally {
+      setIsDeleting(false);
+      managementBusy.current = false;
     }
   };
 
-  const canManage = conversation && currentUser && (
+  const canManage = conversation && currentUser && !currentUser.isDemo && !currentUser.isImpersonating && (
     currentUser.id === conversation.userId ||
     currentUser.id === conversation.originalUserId ||
-    (currentUser as any).role === 'ADMIN'
+    currentUser.role === 'ADMIN' || currentUser.role === 'OWNER'
   );
 
   if (loading) {
@@ -198,8 +241,10 @@ export default function ConversationPage() {
 
   if (!conversation) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Conversation not found</h2>
+      <div role="alert" className="mx-auto flex min-h-[50dvh] max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-xl font-semibold text-foreground">{readProblem === 'error' ? 'Could not load conversation' : 'Conversation unavailable'}</h1>
+        <p className="text-sm text-muted-foreground">{readProblem === 'error' ? 'Please try again.' : 'This conversation is missing or you no longer have access.'}</p>
+        {readProblem === 'error' && <Button className="min-h-11" onClick={() => void fetchMessages(true)}>Try again</Button>}
         <Button onClick={() => router.push('/conversations')} variant="outline">
           Back to Messages
         </Button>
@@ -226,14 +271,14 @@ export default function ConversationPage() {
   }));
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-var(--app-header-offset,64px))]">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {/* Header — OPEN, no second bar. A soft top-down fade (no border, no solid
           fill) so it melts into the thread/landing background instead of reading
           as a chunky toolbar stacked under the global topbar. */}
       <motion.header
         initial={reduceMotion ? undefined : { opacity: 0, y: -10 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-        className="relative z-10 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5"
+        className="relative z-10 shrink-0 bg-linear-to-b from-background via-background/80 to-transparent px-3 py-2.5 [@media(max-height:500px)]:py-0.5"
       >
         {/* Centered inner row — aligns with the message column + composer dock so
             the controls aren't stranded in the far corners on wide screens. */}
@@ -241,7 +286,7 @@ export default function ConversationPage() {
         <Link
           href="/conversations"
           aria-label="Back to messages"
-          className="grid place-items-center h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FiArrowLeft className="h-4.5 w-4.5" />
         </Link>
@@ -255,29 +300,27 @@ export default function ConversationPage() {
               side="bottom"
               align="start"
             >
-              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-black/3 dark:hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3 min-w-0 cursor-pointer rounded-xl -mx-1 px-1 py-0.5 hover:bg-foreground/[0.05] transition-colors">
                 <div className="relative shrink-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={otherParticipant.image || undefined} />
-                    <AvatarFallback className="bg-linear-to-br from-sky-500 to-cyan-500 text-white text-sm">
+                    <AvatarFallback className="bg-linear-to-br from-brand-accent to-cyan-500 text-white text-sm">
                       {otherParticipant.name?.[0] || '?'}
                     </AvatarFallback>
                   </Avatar>
-                  {/* presence dot */}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="min-w-0 leading-tight">
                   <h1 className="font-semibold text-[15px] text-foreground truncate">
                     {otherParticipant.name || 'Unknown'}
                   </h1>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400/80">Active now</p>
+                  <p className="text-[11px] text-muted-foreground">Direct message</p>
                 </div>
               </div>
             </UserHoverCard>
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-sky-500/15 to-cyan-500/15 text-sky-600 dark:text-sky-300">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand-accent/15 to-cyan-500/15 text-brand-accent-hover dark:text-brand-accent-light">
               {conversation.type === 'GROUP' ? <FiUsers className="h-4.5 w-4.5" /> : <FiMessageCircle className="h-4.5 w-4.5" />}
             </div>
             <div className="flex-1 min-w-0 leading-tight">
@@ -291,33 +334,30 @@ export default function ConversationPage() {
           </div>
         )}
 
-        {muted && (
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-black/5 dark:bg-white/8 px-2 py-1 text-[10px] text-muted-foreground">
-            <FiBellOff className="h-3 w-3" /> Muted
-          </span>
-        )}
-
         <button
+          ref={membersButtonRef}
           onClick={() => setSidebarOpen((v) => !v)}
           aria-label="Members & voice"
+          aria-haspopup="dialog"
+          aria-expanded={sidebarOpen}
           title="Members & voice"
           className={cn(
-            'grid place-items-center h-9 w-9 rounded-full transition-colors',
+            'grid size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             sidebarOpen
-              ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10',
+              ? 'text-brand-accent bg-brand-accent/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
           )}
         >
           <FiUsers className="h-4.5 w-4.5" />
         </button>
 
-        <DropdownMenu>
+        {(canManage || (conversation.type === 'PRIVATE_DM' && otherParticipant)) && <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               aria-label="Conversation options"
-              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
             >
               <FiMoreVertical className="h-5 w-5" />
             </Button>
@@ -330,15 +370,12 @@ export default function ConversationPage() {
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setMuted((m) => !m)} className="cursor-pointer">
-              <FiBellOff className="mr-2 h-4 w-4" />
-              {muted ? 'Unmute notifications' : 'Mute notifications'}
-            </DropdownMenuItem>
             {canManage && (
               <>
-                <DropdownMenuSeparator />
+                {conversation.type === 'PRIVATE_DM' && otherParticipant && <DropdownMenuSeparator />}
                 <DropdownMenuItem
                   onClick={handleDeleteConversation}
+                  disabled={isDeleting || isCancellingDeletion}
                   className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
                 >
                   <FiTrash2 className="mr-2 h-4 w-4" /> Delete conversation
@@ -346,58 +383,62 @@ export default function ConversationPage() {
               </>
             )}
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
         </div>
       </motion.header>
 
+      {managementError && <div role="alert" className="shrink-0 border-b border-border text-sm text-red-700 dark:text-red-400"><p className="mx-auto w-full max-w-3xl px-4 py-3">{managementError}</p></div>}
+
       {/* Deletion Warning Banner */}
       {conversation.deletionScheduledFor && (
-        <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-orange-400">
-            <FiTrash2 className="h-4 w-4" />
+        <div className="shrink-0 border-b border-orange-500/20 bg-orange-500/10">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-orange-700 dark:text-orange-400">
+            <FiTrash2 aria-hidden className="h-4 w-4 shrink-0" />
             <span>
-              This conversation will be deleted in{' '}
-              {formatDistanceToNowStrict(new Date(conversation.deletionScheduledFor))}
+              {new Date(conversation.deletionScheduledFor) <= new Date() ? 'Deletion pending' : `Deletes in ${formatDistanceToNowStrict(new Date(conversation.deletionScheduledFor))}`} · Replies paused
             </span>
           </div>
-          {canManage && (
+          {canManage && new Date(conversation.deletionScheduledFor) > new Date() && (
             <Button
               size="sm"
               variant="outline"
               onClick={handleCancelDeletion}
-              disabled={isCancellingDeletion}
-              className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+              disabled={isCancellingDeletion || isDeleting}
+              className="min-h-11 shrink-0 border-orange-500/30 text-orange-700 hover:bg-orange-500/10 dark:text-orange-400"
             >
               {isCancellingDeletion ? 'Cancelling...' : 'Cancel Deletion'}
             </Button>
           )}
-        </div>
+        </div></div>
       )}
 
       {/* Poll (if exists) */}
       {hasPoll && conversationId && (
-        <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
+        <div className="px-4 py-3 border-b border-border">
           <PollDisplay conversationId={conversationId} />
         </div>
       )}
 
       {/* Body — thread column + members/voice rail on the LEFT (row-reverse) */}
       <div className="flex-1 flex flex-row-reverse min-h-0">
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* Messages — subtle surface so the thread reads as a distinct canvas */}
-          <div className="flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-white/2">
+          <div className="min-h-0 flex-1 overflow-hidden bg-linear-to-b from-muted/30 to-transparent dark:from-background/2">
             <MessageList
               messages={messages}
               users={users}
               conversationId={conversationId!}
               loading={loading}
+              onChanged={fetchMessages}
+              allowImages={false}
             />
           </div>
 
           {/* Input — the composer floats over the thread: a soft gradient fade (not a
               hard footer bar) lets messages scroll up behind it, with a centered
               column that aligns with the message list so it never sprawls. */}
-          <div className="bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-4 pt-6">
+          <div className="shrink-0 bg-linear-to-t from-background via-background/95 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 [@media(max-height:500px)]:px-3 [@media(max-height:500px)]:pb-[max(0.25rem,env(safe-area-inset-bottom))] [@media(max-height:500px)]:pt-1">
             <div className="mx-auto w-full max-w-3xl">
               <AnimatePresence>
                 {typingName && (
@@ -406,25 +447,23 @@ export default function ConversationPage() {
                   </div>
                 )}
               </AnimatePresence>
+              <fieldset disabled={!!conversation.deletionScheduledFor} aria-label="Message composer" className="m-0 min-w-0 border-0 p-0 disabled:opacity-60">
               <MessageInput
                 conversationId={conversationId!}
                 onMessageSent={fetchMessages}
+                allowImages={false}
               />
+              </fieldset>
             </div>
           </div>
         </div>
 
-        {/* Right rail — shared ChatSidebar (members + Discord-like voice) */}
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.aside
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
-              className="border-r border-black/5 dark:border-white/8 overflow-hidden shrink-0 bg-background/80 backdrop-blur-xl"
-            >
-              <div className="w-[300px] h-full">
+        {/* Reuse the AI conversation sheet; never squeeze the transcript. */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="right" accessibleTitle="Members & voice" accessibleDescription="Conversation members and experimental voice tools."
+            onCloseAutoFocus={event => { event.preventDefault(); membersButtonRef.current?.focus(); }}
+            className="flex w-[min(22rem,calc(100%-2rem))] max-w-full flex-col border-border bg-background p-0 pt-14 pb-[env(safe-area-inset-bottom)]">
+              <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-16">
                 <ChatSidebar
                   roomId={conversationId!}
                   self={{ id: currentUser?.id ?? 'me', name: currentUser?.name ?? 'You', image: currentUser?.image ?? null }}
@@ -433,9 +472,8 @@ export default function ConversationPage() {
                   members={dmMembers}
                 />
               </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

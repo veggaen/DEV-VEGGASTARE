@@ -64,6 +64,8 @@ export interface NotificationSettings {
   hotPulseEnabled: boolean;
   milestoneEnabled: boolean;
   vibeCheckEnabled: boolean;
+  /** Paper terminal: resting order fills/failures (optional: older settings objects predate it) */
+  paperOrderEnabled?: boolean;
   
   // Delivery channels
   pushEnabled: boolean;
@@ -109,7 +111,7 @@ export interface UserPresence {
 
 // Helper function to get notification config
 export function getNotificationConfig(type: NotificationTypeName) {
-  return notificationTypes[type];
+  return notificationTypes[type] ?? notificationTypes.SYSTEM;
 }
 
 // Helper function to get presence config

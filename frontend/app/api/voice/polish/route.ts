@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
-import { getUserAiKeyForGeneration } from "@/lib/ai-key-store";
+import { generateMeteredText, aiErrorResponse } from "@/lib/ai-chat/generation";
+import { guardAiRequest, readAiJson } from "@/lib/ai-chat/request";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
@@ -68,6 +69,8 @@ async function polishWithLanguageTool(raw: string, language: string) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: form.toString(),
+    signal: AbortSignal.timeout(5000),
+    redirect: "error",
   });
   if (!res.ok) return null;
 
@@ -91,9 +94,10 @@ export async function POST(req: NextRequest) {
 
   let body: z.infer<typeof schema>;
   try {
-    body = schema.parse(await req.json());
-  } catch {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    await guardAiRequest(req, session.id);
+    body = schema.parse(await readAiJson(req));
+  } catch (error) {
+    return error instanceof z.ZodError ? NextResponse.json({ error: "INVALID_BODY" }, { status: 400 }) : aiErrorResponse(error);
   }
 
   const raw = body.raw.trim();
@@ -106,20 +110,6 @@ export async function POST(req: NextRequest) {
     }
   } catch {
     /* fall through to Gemini/local cleanup */
-  }
-
-  // Resolve a key: user's BYOK Google key, else the platform key.
-  let apiKey = "";
-  try {
-    const byok = await getUserAiKeyForGeneration({ userId: session.id, provider: "GOOGLE" });
-    apiKey = byok?.apiKey ?? "";
-  } catch {
-    /* fall through */
-  }
-  if (!apiKey) apiKey = process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_AI_API_KEY ?? "";
-  // No key → just return the raw transcript (graceful, no error surfaced).
-  if (!apiKey) {
-    return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
   }
 
   const contextBlock = body.context?.length
@@ -141,20 +131,9 @@ export async function POST(req: NextRequest) {
     `\nRaw transcript:\n${raw}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
-      }),
-    });
-    if (!res.ok) {
-      return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });
-    }
-    const data = await res.json();
-    let text = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+    let text = (await generateMeteredText({ request: req, userId: session.id, provider: "GOOGLE", model: "gemini-2.5-flash-lite",
+      messages: [{ role: "user", content: prompt }], systemPrompt: "Clean up dictation without answering it. Output only the cleaned transcript.",
+    })).trim();
     text = text.replace(/^["'`]+|["'`]+$/g, "").trim();
     if (!text) {
       return NextResponse.json({ ok: true, text: cleanWithoutAi(raw), polished: false, provider: "local" });

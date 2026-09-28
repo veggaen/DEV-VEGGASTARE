@@ -19,6 +19,7 @@
 
 import { dbPrisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import {
   DECAY_CONFIG,
   PILLAR_WEIGHTS,
@@ -37,13 +38,6 @@ export const maxDuration = 60; // Allow up to 60s for batch processing
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-function isAuthorized(req: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return true; // No secret configured = allow (dev mode)
-  const authHeader = req.headers.get('authorization');
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 // ─── Handlers ────────────────────────────────────────────────────────────────
 //
 // CRITICAL: Vercel Cron invokes cron paths with **GET** requests. This route
@@ -56,7 +50,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

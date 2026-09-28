@@ -300,7 +300,7 @@ export function AddressInput({
                 type="button"
                 onClick={() => handleSelectSuggestion(suggestion)}
                 className={cn(
-                  'w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors',
+                  'w-full px-3 py-2 text-left text-sm hover:bg-foreground/[0.06] transition-colors',
                   'flex flex-col gap-0.5',
                   selectedIndex === index && 'bg-muted'
                 )}
@@ -331,7 +331,7 @@ export function AddressInput({
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="w-full flex items-center justify-between p-3 text-left hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-foreground/[0.04] transition-colors"
           >
             <div className="flex items-start gap-2">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />

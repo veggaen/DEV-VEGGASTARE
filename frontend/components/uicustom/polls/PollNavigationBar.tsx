@@ -271,7 +271,7 @@ export function PollNavigationBar({
   };
 
   const containerClasses = cn(
-    "fixed z-9999 transition-all duration-300",
+    "fixed z-9999 transition duration-300",
     positionStyles[position],
     isDragging && "cursor-grabbing"
   );
@@ -331,7 +331,7 @@ export function PollNavigationBar({
               <motion.button
                 className={cn(
                   "p-1.5 rounded-lg cursor-grab active:cursor-grabbing",
-                  "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]",
                   "transition-colors",
                   isDragging && "text-primary bg-primary/10"
                 )}

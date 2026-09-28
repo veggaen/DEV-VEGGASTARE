@@ -13,6 +13,7 @@ export default async function AiConversationPage({ params }: Props) {
 
   return (
     <AiConversationClient
+      key={`${user?.id ?? 'guest'}:${id}`}
       sessionId={id}
       isLoggedIn={!!user}
       userId={(user as any)?.id ?? null}

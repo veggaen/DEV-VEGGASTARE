@@ -54,7 +54,7 @@ function TokenIcon({ color, glyph, size = 'sm' }: { color: string; glyph: string
   const dim = size === 'md' ? 'h-7 w-7 text-[13px]' : 'h-5 w-5 text-[10px]';
   return (
     <span
-      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full font-semibold text-white`}
+      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-full font-semibold text-foreground`}
       style={{ backgroundColor: color }}
       aria-hidden
     >
@@ -115,9 +115,9 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
   return (
     <div>
       <div className="space-y-1">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">Accept crypto</h3>
+        <h3 className="text-base font-semibold tracking-tight text-foreground">Crypto preferences · experimental</h3>
         <p className="text-sm text-muted-foreground">
-          Optional. Choose which mainnet tokens buyers can pay you with directly on-chain.
+          Save token preferences for your listing. Verified Web3 checkout is not released; this does not enable payments.
         </p>
       </div>
 
@@ -132,11 +132,12 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               key={key}
               type="button"
               disabled={disabled}
+              aria-pressed={isActive}
               onClick={() => togglePreset(preset)}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200 ${
+              className={`group flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 isActive
-                  ? 'bg-emerald-500/[0.07] ring-1 ring-emerald-500/40 dark:bg-emerald-400/[0.06]'
-                  : 'hover:-translate-y-0.5 hover:bg-muted/40'
+                  ? 'bg-brand-accent/[0.07] ring-1 ring-brand-accent/40 dark:bg-brand-accent/[0.06]'
+                  : 'hover:-translate-y-0.5 hover:bg-foreground/[0.05]'
               }`}
             >
               <TokenIcon color={preset.color} glyph={preset.glyph} size="md" />
@@ -146,7 +147,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
               </span>
               <span
                 className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
-                  isActive ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-transparent group-hover:bg-border'
+                  isActive ? 'bg-brand-accent' : 'bg-transparent group-hover:bg-border'
                 }`}
               />
             </button>
@@ -156,9 +157,10 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
         <button
           type="button"
           disabled={disabled}
+          aria-expanded={showCustom}
           onClick={() => setShowCustom(!showCustom)}
-          className={`flex items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 text-left transition-all duration-200 ${
-            showCustom ? 'border-emerald-500/40 text-foreground' : 'border-border/80 text-muted-foreground hover:-translate-y-0.5 hover:text-foreground'
+          className={`flex min-h-11 items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+            showCustom ? 'border-brand-accent/40 text-foreground' : 'border-border/80 text-muted-foreground hover:-translate-y-0.5 hover:text-foreground'
           }`}
         >
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current">
@@ -170,7 +172,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
 
       {/* Custom token form */}
       {showCustom && (
-        <div className="mt-3 space-y-2 border-l-2 border-emerald-500/30 pl-4">
+        <div className="mt-3 space-y-2 border-l-2 border-brand-accent/30 pl-4">
           <p className="text-xs text-muted-foreground">Find your token by its chain and contract / mint address.</p>
           <div className="grid grid-cols-2 gap-2">
             <Select
@@ -218,7 +220,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
             size="sm"
             onClick={addCustom}
             disabled={disabled || !customSymbol.trim()}
-            className="h-8 bg-emerald-600 text-xs text-white hover:bg-emerald-500"
+            className="h-8 bg-brand-accent-hover text-xs text-brand-accent-foreground hover:bg-brand-accent"
           >
             Add token
           </Button>
@@ -248,8 +250,8 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
                   type="button"
                   onClick={() => removeToken(idx)}
                   disabled={disabled}
-                  className="ml-auto p-1 text-muted-foreground/50 transition-colors hover:text-red-500"
-                  title="Remove"
+                  className="ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  aria-label={`Remove ${t.symbol} preference`}
                 >
                   <FiTrash2 className="h-3.5 w-3.5" />
                 </button>
@@ -263,8 +265,7 @@ export function CryptoTokenSelector({ tokens, onChange, disabled }: CryptoTokenS
       {tokens.length > 0 && (
         <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-[11px] leading-relaxed text-muted-foreground">
           <FiShield className="mr-1 inline h-3 w-3 align-text-bottom" />
-          Crypto transactions are <strong className="text-foreground">irreversible</strong> and paid directly to your wallet — Veggat never custodies funds.
-          For Norwegian tax, report crypto income at its NOK value on the date received (skatteetaten.no).
+          These are listing preferences only. No funds are transferred, and no buyer payment is enabled by saving them.
         </p>
       )}
     </div>

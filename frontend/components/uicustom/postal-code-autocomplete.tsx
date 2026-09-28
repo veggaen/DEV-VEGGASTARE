@@ -304,7 +304,7 @@ export function PostalCodeAutocomplete({
     return (
       <>
         {text.slice(0, idx)}
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+        <span className="font-semibold text-brand-accent-hover dark:text-brand-accent-light">
           {text.slice(idx, idx + search.length)}
         </span>
         {text.slice(idx + search.length)}
@@ -329,9 +329,9 @@ export function PostalCodeAutocomplete({
             placeholder={placeholder}
             disabled={disabled || isLocating}
             className={cn(
-              'pr-8 bg-white dark:bg-black/30',
-              'border-gray-200 dark:border-white/10',
-              'focus:ring-emerald-500/20 focus:border-emerald-500',
+              'pr-8 bg-card',
+              'border-border',
+              'focus:ring-brand-accent/20 focus:border-brand-accent',
               error && 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
             )}
           />
@@ -344,7 +344,7 @@ export function PostalCodeAutocomplete({
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-0.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded"
+                className="p-0.5 hover:bg-muted rounded"
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -362,26 +362,26 @@ export function PostalCodeAutocomplete({
             disabled={disabled || isLocating}
             className={cn(
               'relative shrink-0 overflow-hidden',
-              'bg-linear-to-br from-emerald-500/10 to-teal-500/10',
-              'dark:from-emerald-500/20 dark:to-teal-500/20',
-              'border-emerald-500/30 hover:border-emerald-500/50',
-              'hover:from-emerald-500/20 hover:to-teal-500/20',
-              'dark:hover:from-emerald-500/30 dark:hover:to-teal-500/30',
-              'transition-all duration-200',
+              'bg-linear-to-br from-brand-accent/10 to-teal-500/10',
+              'dark:from-brand-accent/20 dark:to-teal-500/20',
+              'border-brand-accent/30 hover:border-brand-accent/50',
+              'hover:from-brand-accent/20 hover:to-teal-500/20',
+              'dark:hover:from-brand-accent/30 dark:hover:to-teal-500/30',
+              'transition duration-200',
               isLocating && 'animate-pulse'
             )}
             title="Auto-detect my location"
           >
             {isLocating ? (
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-brand-accent-hover dark:text-brand-accent-light" />
             ) : (
-              <Navigation className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <Navigation className="h-4 w-4 text-brand-accent-hover dark:text-brand-accent-light" />
             )}
             
             {/* Subtle pulse animation when idle */}
             {!isLocating && (
               <motion.div
-                className="absolute inset-0 bg-emerald-500/10 rounded-md"
+                className="absolute inset-0 bg-brand-accent/10 rounded-md"
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ 
                   scale: [0.8, 1.2, 0.8], 
@@ -408,8 +408,8 @@ export function PostalCodeAutocomplete({
             transition={{ duration: 0.15 }}
             className={cn(
               'absolute z-50 w-full mt-1',
-              'bg-white dark:bg-gray-900',
-              'border border-gray-200 dark:border-white/10',
+              'bg-card',
+              'border border-border',
               'rounded-lg shadow-lg',
               'max-h-60 overflow-auto'
             )}
@@ -422,22 +422,22 @@ export function PostalCodeAutocomplete({
                 className={cn(
                   'w-full px-3 py-2.5 text-left transition-colors',
                   'flex items-center gap-3',
-                  'hover:bg-gray-50 dark:hover:bg-white/5',
-                  selectedIndex === index && 'bg-emerald-50 dark:bg-emerald-500/10'
+                  'hover:bg-foreground/[0.05]',
+                  selectedIndex === index && 'bg-brand-accent/10'
                 )}
               >
-                <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
+                <MapPin className="h-4 w-4 shrink-0 text-brand-accent" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                    <span className="font-mono font-semibold text-foreground">
                       {highlightMatch(suggestion.postal_code, query)}
                     </span>
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    <span className="text-sm text-foreground/85 truncate">
                       {suggestion.city}
                     </span>
                   </div>
                   {suggestion.municipality && suggestion.municipality !== suggestion.city && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {suggestion.municipality}
                       {suggestion.county && `, ${suggestion.county}`}
                     </div>

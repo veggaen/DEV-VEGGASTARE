@@ -36,7 +36,7 @@ interface RankingQuestionProps {
 // Medal colors for top 3
 const MEDAL_CONFIG = [
   { icon: Trophy, color: "text-amber-400", bg: "bg-amber-500/20", label: "1st" },
-  { icon: Medal, color: "text-slate-400", bg: "bg-slate-500/20", label: "2nd" },
+  { icon: Medal, color: "text-muted-foreground", bg: "bg-foreground/[0.03]", label: "2nd" },
   { icon: Award, color: "text-amber-600", bg: "bg-amber-600/20", label: "3rd" },
 ];
 
@@ -144,9 +144,9 @@ function RankingItem({
 
   const itemClasses = cn(
     "flex items-center gap-3 select-none transition-colors touch-none cursor-grab active:cursor-grabbing",
-    variant === "cards" && "p-4 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border-none shadow-md",
-    variant === "default" && "p-3 rounded-lg bg-zinc-800/70 hover:bg-zinc-700/70 border-none shadow-sm",
-    variant === "compact" && "p-2 rounded-md bg-zinc-800/50 hover:bg-zinc-700/50 border-none",
+    variant === "cards" && "p-4 rounded-xl bg-foreground/[0.09] hover:bg-foreground/[0.09] border-none shadow-md",
+    variant === "default" && "p-3 rounded-lg bg-foreground/[0.08] hover:bg-foreground/[0.08] border-none shadow-sm",
+    variant === "compact" && "p-2 rounded-md bg-foreground/[0.06] hover:bg-foreground/[0.06] border-none",
     disabled && "opacity-60 cursor-not-allowed"
   );
 
@@ -258,7 +258,7 @@ export function RankingQuestion({
 
       {/* Current podium summary - shows top 3 at a glance */}
       {showMedals && visibleOptions.length >= 3 && (
-        <div className="mt-4 pt-3 border-t border-zinc-800/50">
+        <div className="mt-4 pt-3 border-t border-border/50">
           <p className="text-xs text-muted-foreground text-center mb-2">Your Top 3 (drag to reorder)</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
             {visibleOptions.slice(0, 3).map((option, idx) => {

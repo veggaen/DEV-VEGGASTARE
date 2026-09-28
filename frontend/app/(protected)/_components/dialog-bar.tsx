@@ -154,8 +154,8 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
           onClick={openDialog}
           className={
             variant === "topbar"
-              ? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-zinc-700 hover:bg-transparent hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 dark:text-zinc-200 dark:hover:text-zinc-50"
-              : "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              ? "group inline-flex h-10 w-10 items-center justify-center bg-transparent text-foreground hover:bg-transparent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/70"
+              : "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground hover:bg-muted"
           }
           aria-label="Open Nexus command palette"
           title="Open Nexus (Ctrl/Cmd + K)"
@@ -171,18 +171,18 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
       )}
 
       <CommandDialog open={actualOpen} onOpenChange={setOpen}>
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
-            <TbHexagons className="h-5 w-5 text-emerald-500 shrink-0" />
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Nexus</span>
+            <TbHexagons className="h-5 w-5 text-brand-accent shrink-0" />
+            <span className="text-sm font-medium text-foreground">Nexus</span>
           </div>
-          <kbd className="text-[10px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">⌘K</kbd>
+          <kbd className="text-[10px] text-muted-foreground/80 bg-muted px-2 py-0.5 rounded border border-border">⌘K</kbd>
         </div>
         <CommandInput placeholder="Search actions, pages, settings..." className="h-12" />
         <CommandList className="max-h-[400px] p-2">
           <CommandEmpty className="py-8 text-center">
-            <div className="text-zinc-400 dark:text-zinc-500">No results found.</div>
-            <div className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">Try a different search term</div>
+            <div className="text-muted-foreground/80">No results found.</div>
+            <div className="text-xs text-muted-foreground/60 mt-1">Try a different search term</div>
           </CommandEmpty>
 
           {/* Quick Actions */}
@@ -198,7 +198,7 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
                 <FiMoon className="h-4 w-4 text-indigo-500" />
               )}
               <span className="flex-1">Toggle Theme</span>
-              <span className="text-[10px] text-zinc-400">{resolvedTheme === "dark" ? "Light" : "Dark"}</span>
+              <span className="text-[10px] text-muted-foreground">{resolvedTheme === "dark" ? "Light" : "Dark"}</span>
             </CommandItem>
           </CommandGroup>
 
@@ -215,20 +215,20 @@ export const MyDialogbarNavigator = ({ onOpen, variant = "default", open, onOpen
                       key={item.href}
                       value={`${item.label} ${(item as any).keywords?.join(' ') || ''}`}
                       onSelect={() => handleNavigate(item.href)}
-                      className={`rounded-lg px-3 py-2.5 cursor-pointer ${isActive ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300" : ""
+                      className={`rounded-lg px-3 py-2.5 cursor-pointer ${isActive ? "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light" : ""
                         }`}
                     >
-                      <span className={isActive ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"}>
+                      <span className={isActive ? "text-brand-accent-hover dark:text-brand-accent-light" : "text-muted-foreground"}>
                         {item.icon}
                       </span>
                       <div className="flex-1 flex flex-col">
                         <span>{item.label}</span>
                         {(item as any).description && (
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">{(item as any).description}</span>
+                          <span className="text-xs text-muted-foreground/80">{(item as any).description}</span>
                         )}
                       </div>
                       {isActive && (
-                        <CiCircleCheck className="h-4 w-4 text-emerald-500" />
+                        <CiCircleCheck className="h-4 w-4 text-brand-accent" />
                       )}
                     </CommandItem>
                   );

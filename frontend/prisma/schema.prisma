@@ -7,6 +7,184 @@ datasource db {
   provider = "postgresql"
 }
 
+// HMAC-only identifiers; short-lived, atomic authentication attempt counters.
+model AuthRateBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// Durable revocation for read-only owner previews. Never stores a bearer token.
+model AccountPreviewSession {
+  id            String    @id @default(uuid())
+  ownerId       String
+  targetId      String
+  ownerVersion  Int
+  targetVersion Int
+  startedAt     DateTime
+  expiresAt     DateTime
+  endedAt       DateTime?
+  Owner         User      @relation("PreviewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  Target        User      @relation("PreviewTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, expiresAt])
+  @@index([targetId])
+  @@index([expiresAt])
+}
+
+// Immutable transactional copies, atomically queued with their source record.
+// Provider acceptance is not proof of delivery. No raw provider errors stored.
+model TransactionalEmail {
+  id             String    @id @default(uuid())
+  sourceKey      String    @unique
+  userId         String
+  orderId        String
+  environment    String
+  kind           String
+  recipient      String
+  payload        Json
+  status         String    @default("QUEUED")
+  attempts       Int       @default(0)
+  firstAttemptAt DateTime?
+  nextAttemptAt  DateTime  @default(now())
+  leaseUntil     DateTime?
+  providerId     String?   @unique
+  acceptedAt     DateTime?
+  deliveredAt    DateTime?
+  deliveryEventAt DateTime?
+  deliveryEventType String?
+  deliveryEventId String?
+  lastErrorCode  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([environment, status, nextAttemptAt])
+  @@index([orderId, userId])
+}
+
+// A server-owned quote and unique capture identity; never populated from a return URL.
+model CheckoutAttempt {
+  orderId          String   @id
+  userId           String
+  requestKey       String
+  environment      String
+  // NOK cash for legacy orders; frozen NOK exposure valuation for exact quotes.
+  totalOre         Int
+  currency         String   @default("NOK")
+  totalMinor       Int?
+  refundedMinor    Int?
+  settlementQuoteId String? @unique
+  cartFingerprint  String?
+  quote            Json
+  state            String   @default("PREPARED")
+  paypalOrderId    String?  @unique
+  merchantId       String?
+  approvalUrl      String?
+  captureId        String?  @unique
+  createRequestId  String   @unique @default(uuid())
+  captureRequestId String   @unique @default(uuid())
+  createdAt        DateTime @default(now())
+  completedAt      DateTime?
+  refundedOre      Int      @default(0)
+  refundReference  String?
+  paymentAdjustedAt DateTime?
+  Order            Order    @relation(fields: [orderId], references: [id])
+
+  @@unique([userId, requestKey])
+  @@index([userId, createdAt])
+}
+
+// A product can deliver several private files without exposing storage URLs.
+model DigitalProductFile {
+  productId      String
+  digitalAssetId String
+  Product        Product      @relation(fields: [productId], references: [id])
+  DigitalAsset   DigitalAsset @relation(fields: [digitalAssetId], references: [id])
+
+  @@id([productId, digitalAssetId])
+  @@index([digitalAssetId])
+}
+
+model AiCreditAccount {
+  id        String   @id
+  userId    String
+  environment String
+  balance   Int      @default(0)
+  // Used credits later refunded by the payment provider. Never a card charge.
+  refundAdjustment Int @default(0)
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id])
+  Entries   AiCreditEntry[]
+  Reservations AiGenerationReservation[]
+
+  @@unique([userId, environment])
+}
+
+model AiCreditEntry {
+  id        String   @id @default(uuid())
+  accountId String
+  delta     Int
+  kind      String
+  sourceKey String   @unique
+  createdAt DateTime @default(now())
+  Account   AiCreditAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt])
+}
+
+// Conservative provider-cost ceiling, shared by local/preview/live when the DB
+// is shared. Refunding a customer never replenishes this independent fuse.
+model AiPlatformSpendDay {
+  date             DateTime @id @db.Date
+  reservedMicroUsd Int      @default(0)
+  requests         Int      @default(0)
+}
+
+model AiGenerationReservation {
+  id               String   @id @default(uuid())
+  requestKey       String   @unique
+  accountId        String?
+  provider         String
+  model            String
+  credits          Int
+  reservedMicroUsd Int
+  state            String   @default("RESERVED")
+  createdAt        DateTime @default(now())
+  settledAt        DateTime?
+  Account          AiCreditAccount? @relation(fields: [accountId], references: [id])
+  MediaJob         AiMediaJob?
+
+  @@index([accountId, state, createdAt])
+}
+
+// Durable media state. Provider/storage URLs never leave authenticated server routes.
+model AiMediaJob {
+  id               String   @id
+  reservationId    String   @unique
+  userId           String
+  environment      String
+  kind             String
+  model            String
+  prompt           String
+  state            String   @default("CREATING")
+  providerId       String?  @unique
+  storageKey       String?
+  mimeType         String?
+  byteSize         Int?
+  actualMicroUsd   Int?
+  errorCode        String?
+  pollAfter        DateTime @default(now())
+  deadline         DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  Reservation      AiGenerationReservation @relation(fields: [reservationId], references: [id])
+
+  @@index([userId, environment, createdAt])
+  @@index([state, pollAfter])
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -42,6 +220,11 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int
+  // Null preserves legacy 100-credit carts; credit purchases always have quantity 1.
+  creditAmount Int?
+  // Exact-spend intent is separate from the current whole-credit preview.
+  creditSpendMinor Int?
+  creditSpendCurrency String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Cart      Cart     @relation(fields: [cartId], references: [id])
@@ -478,6 +661,7 @@ model Order {
   id            String      @id @default(cuid())
   userId        String
   totalAmount   Float
+  currency      String?
   status        OrderStatus @default(PENDING)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -516,6 +700,7 @@ model Order {
   OrderItem     OrderItem[]
   DownloadToken DownloadToken[]
   ReturnRequest ReturnRequest[]
+  CheckoutAttempt CheckoutAttempt?
 
   @@index([userId])
   @@index([status])
@@ -783,6 +968,7 @@ model Product {
   ShippingDetails      ShippingDetails[]
   OrderItem            OrderItem[]
   DigitalAsset         DigitalAsset?          @relation(fields: [digitalAssetId], references: [id])
+  Files                DigitalProductFile[]
   PulseProductLinks    PulseProductLink[]
   
   // New many-to-many categories/tags
@@ -829,6 +1015,7 @@ model DigitalAsset {
   Company         Company?         @relation(fields: [companyId], references: [id])
   Product         Product?
   DownloadToken   DownloadToken[]
+  ProductFiles    DigitalProductFile[]
 
   @@index([uploadedById])
   @@index([companyId])
@@ -1023,6 +1210,8 @@ model RuntimeConfig {
 }
 
 model User {
+  OwnedPreviews                                                   AccountPreviewSession[]       @relation("PreviewOwner")
+  TargetPreviews                                                  AccountPreviewSession[]       @relation("PreviewTarget")
   id                                                              String                        @id @default(cuid())
   name                                                            String?
   email                                                           String?                       @unique
@@ -1132,6 +1321,7 @@ model User {
   TradesInitiated                                                 Trade[]                       @relation("TradesInitiated")
   TradesReceived                                                  Trade[]                       @relation("TradesReceived")
   AiApiKeys                                                       UserAiApiKey[]
+  AiCreditAccounts                                                AiCreditAccount[]
   // AI Poll System
   DailyAiUsage                                                    DailyAiUsage[]
   ScheduledPolls                                                  ScheduledPoll[]
@@ -1543,6 +1733,8 @@ model NotificationSettings {
   // Category toggles (prompts)
   vibeCheckEnabled        Boolean  @default(false)
   dailyDigestEnabled      Boolean  @default(false)
+  /// Paper terminal: resting limit/stop order fills and failures (2026-09-27)
+  paperOrderEnabled       Boolean  @default(true)
   
   // Condensing settings
   condenseNotifications   Boolean  @default(true)
@@ -2810,6 +3002,7 @@ model AiConversation {
   updatedAt         DateTime            @updatedAt
   participants      AiConvParticipant[]
   messages          AiConvMessage[]
+  images            AiChatImage[]
 
   @@index([creatorId, createdAt(sort: Desc)])
   @@index([isPublic, createdAt(sort: Desc)])
@@ -2872,8 +3065,28 @@ model AiConvMessage {
 
   createdAt       DateTime            @default(now())
   reactions       AiConvReaction[]
+  images          AiChatImage[]
 
   @@index([conversationId, createdAt])
+}
+
+// Private, normalized chat inputs. Never expose storageKey in an API payload.
+model AiChatImage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  ownerId        String
+  messageId      String?
+  message        AiConvMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  storageKey     String?
+  purgingAt      DateTime?
+  width          Int
+  height         Int
+  createdAt      DateTime       @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([createdAt])
+  @@index([conversationId, messageId])
 }
 
 model AiConvReaction {
@@ -2926,8 +3139,55 @@ model PaperPortfolio {
   User            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   Positions       PaperPosition[]
   Trades          PaperTrade[]
+  Orders          PaperOrder[]
 
   @@index([userId])
+}
+
+enum PaperOrderSide {
+  BUY
+  SELL
+}
+
+enum PaperOrderType {
+  LIMIT
+  STOP
+}
+
+enum PaperOrderStatus {
+  OPEN
+  FILLED
+  CANCELLED
+  FAILED
+}
+
+/// Resting paper order (limit / stop) for the market terminal. It fills at the
+/// market price on the next price check after its trigger is crossed; there is
+/// no order book. Leverage is stored for a future margin mode (1 = spot).
+model PaperOrder {
+  id             String           @id @default(cuid())
+  portfolioId    String
+  side           PaperOrderSide
+  type           PaperOrderType
+  status         PaperOrderStatus @default(OPEN)
+  tokenSymbol    String
+  tokenAddress   String           @default("0x0")
+  chainId        Int              @default(1)
+  decimals       Int              @default(18)
+  /// BUY: virtual USD to spend when triggered. SELL: display units of the token to sell.
+  amount         Float
+  /// Trigger price in USD per unit.
+  triggerPrice   Float
+  leverage       Int              @default(1)
+  filledPriceUsd Float?
+  filledAt       DateTime?
+  failReason     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  Portfolio      PaperPortfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, status])
 }
 
 /// Individual token position in a paper portfolio.

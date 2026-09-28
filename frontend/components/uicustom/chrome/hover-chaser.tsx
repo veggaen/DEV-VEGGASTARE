@@ -1,0 +1,103 @@
+"use client";
+
+/**
+ * @fileOverview  HoverChaser — the "trailing box" for grids and menus. One
+ *                spring-driven accent box slides between the hovered/focused
+ *                items of a container in any direction (up, down, left,
+ *                right), the same feel as the rail's chaser in the header.
+ *
+ *                Usage: wrap a grid/list, mark each item with `data-chase` and
+ *                drop their own hover backgrounds/borders (the box is the hover).
+ *                The box paints above the items as a tinted hairline highlight,
+ *                so opaque cards work too; it never captures the pointer.
+ *                Positions come from measured geometry, so it works for any
+ *                layout (grid, flex, sticky sidebars) and any item size.
+ *
+ * @stability     evolving
+ */
+
+import * as React from "react";
+import { motion } from "framer-motion";
+import { useHydratedReducedMotion } from "@/hooks/use-hydrated-reduced-motion";
+import { cn } from "@/lib/utils";
+
+type Box = { x: number; y: number; w: number; h: number };
+const SPRING = { type: "spring", stiffness: 320, damping: 30, mass: 0.8 } as const;
+
+export function HoverChaser({
+  as: Tag = "div",
+  className,
+  boxClassName,
+  children,
+  ...rest
+}: {
+  as?: "div" | "nav" | "ul" | "section";
+  className?: string;
+  /** Override the box look (radius must match the items). */
+  boxClassName?: string;
+  children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLElement>, "className" | "children">) {
+  const ref = React.useRef<HTMLElement>(null);
+  const reduceMotion = useHydratedReducedMotion();
+  const [box, setBox] = React.useState<Box | null>(null);
+  const [visible, setVisible] = React.useState(false);
+  const itemRef = React.useRef<HTMLElement | null>(null);
+
+  const place = React.useCallback((item: HTMLElement) => {
+    const root = ref.current;
+    if (!root) return;
+    const r = root.getBoundingClientRect(), i = item.getBoundingClientRect();
+    setBox({ x: i.left - r.left + root.scrollLeft, y: i.top - r.top + root.scrollTop, w: i.width, h: i.height });
+  }, []);
+
+  const measure = React.useCallback((target: Element | null) => {
+    const root = ref.current;
+    const item = target instanceof Element ? target.closest<HTMLElement>("[data-chase]") : null;
+    if (!root || !item || !root.contains(item)) { setVisible(false); itemRef.current = null; return; }
+    itemRef.current = item;
+    place(item);
+    setVisible(true);
+  }, [place]);
+
+  // An item that grows under the pointer (an order expanding, a card revealing
+  // more) keeps the box fitted; without this it would lag until the next move.
+  React.useEffect(() => {
+    if (!visible || !itemRef.current || typeof ResizeObserver === "undefined") return;
+    const item = itemRef.current;
+    const ro = new ResizeObserver(() => place(item));
+    ro.observe(item);
+    return () => ro.disconnect();
+  }, [visible, box?.x, box?.y, place]);
+
+  const Comp = Tag as unknown as "div";
+  return (
+    <Comp
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={cn("relative", className)}
+      onPointerOver={(e) => measure(e.target as Element)}
+      onPointerLeave={() => setVisible(false)}
+      onFocusCapture={(e) => measure(e.target as Element)}
+      onBlurCapture={(e) => { if (!(e.relatedTarget instanceof Element) || !ref.current?.contains(e.relatedTarget)) setVisible(false); }}
+      {...rest}
+    >
+      {box && (
+        <motion.span
+          aria-hidden="true"
+          className={cn(
+            // Above the items (they keep their own surfaces) with a light tint and
+            // a hairline; no glow — it is a highlight, not a light source.
+            // Light needs more (sky on white washes out); dark needs less (it sits over photos).
+            "pointer-events-none absolute left-0 top-0 z-[1] rounded-xl bg-brand-accent/[0.10] ring-1 ring-inset ring-brand-accent/60 dark:bg-brand-accent/[0.05] dark:ring-brand-accent/40",
+            boxClassName,
+          )}
+          initial={false}
+          animate={{ x: box.x, y: box.y, width: box.w, height: box.h, opacity: visible ? 1 : 0 }}
+          transition={reduceMotion ? { duration: 0 } : { ...SPRING, opacity: { duration: 0.18 } }}
+        />
+      )}
+      {children}
+    </Comp>
+  );
+}
+
+export default HoverChaser;

@@ -20,7 +20,7 @@ export default function Page() {
 
   if (typeof productId !== "string" || !productId) {
     return (
-      <div className="p-6 text-sm text-zinc-600 dark:text-zinc-300">
+      <div className="p-6 text-sm text-foreground/80">
         Invalid product link.
       </div>
     );

@@ -1,15 +1,12 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
-import { auth } from "@/auth";
 import AppProviders from "@/components/providers/app-providers";
-
-/**
- * Force all pages dynamic — the root layout calls auth() (reads cookies),
- * and AppProviders uses SessionProvider / ThemeProvider (client contexts).
- * Next.js 16 doesn't always infer this, causing useContext prerender errors.
- */
-export const dynamic = "force-dynamic";
+import { auth } from "@/auth";
+import { headers } from "next/headers";
+import Script from "next/script";
+import { CONSENT_VISIBILITY_SCRIPT } from "@/lib/consent-visibility";
+import { ACCENT_BOOT_SCRIPT } from "@/lib/accent-boot";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -41,21 +38,27 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
-  // A failed session read (e.g. an undecryptable legacy cookie after the
-  // next-auth upgrade) must never 500 the entire site. Degrade to logged-out.
-  let session = null;
-  try {
-    session = await auth();
-  } catch (err) {
-    console.error("[RootLayout] auth() failed, rendering as logged-out:", err);
-  }
-
+  // Initialize both SSR and hydration with the same verified identity. Otherwise
+  // the demo banner and signed-in composer arrive after users start scrolling.
+  // auth() reads request headers: personalized HTML must never be shared-cached.
+  // Route handlers/actions still perform their own authorization checks.
+  const session = await auth();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.className} myanimation min-h-dvh flex flex-col bg-background text-foreground`}
         suppressHydrationWarning={true}
       >
+      {/* Parser-time presentation check, like the theme bootstrap: returning
+          visitors never see a consent flash while the application JS downloads.
+          Nonce is inherited from the existing CSP; this does not enable tracking. */}
+      <Script id="consent-visibility" strategy="beforeInteractive" nonce={nonce}>{CONSENT_VISIBILITY_SCRIPT}</Script>
+      {/* Saved accent preset on <html> before hydration — no colour flash. */}
+      <Script id="accent-boot" strategy="beforeInteractive" nonce={nonce}>{ACCENT_BOOT_SCRIPT}</Script>
+      {/* With JS disabled no optional SDK can run, and an inert consent panel
+          must not cover the readable sales terms or other server content. */}
+      <noscript><style>{'[data-cookie-banner]{display:none}'}</style></noscript>
       <AppProviders session={session}>
         {children}
         {modal}

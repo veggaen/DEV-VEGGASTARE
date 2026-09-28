@@ -145,7 +145,15 @@ export function useNftBalances() {
   const chainId = useChainId();
   const { override } = useActiveWalletOverride();
 
-  const [nfts, setNfts] = useState<InventoryNft[]>([]);
+  const [nfts, setNftsState] = useState<InventoryNft[]>([]);
+  // Same NFTs → same array: a 30 s poll that finds nothing new must not re-render the inventory.
+  const nftSignatureRef = useRef<string>("");
+  const setNfts = useCallback((next: InventoryNft[]) => {
+    const signature = next.map((n) => `${n.contractAddress ?? ""}:${n.tokenId}`).join("|");
+    if (signature === nftSignatureRef.current) return;
+    nftSignatureRef.current = signature;
+    setNftsState(next);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -178,7 +186,7 @@ export function useNftBalances() {
         setLoading(false);
       }
     }
-  }, [effectiveAddress, effectiveChainId]);
+  }, [effectiveAddress, effectiveChainId, setNfts]);
 
   // Initial fetch + polling
   useEffect(() => {

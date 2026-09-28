@@ -11,7 +11,10 @@ import { ACCESS_GATE_CONFIG } from "@/lib/site-config";
 import { makeGateCookieValue } from "@/lib/access-gate-cookie";
 // Shared with auth.ts so the middleware's session detection can never drift
 // from the actual configured cookie name.
-import { SESSION_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { SESSION_COOKIE_NAME } from "@/lib/auth-cookies";
+import { getToken } from "next-auth/jwt";
+import { isDemoUserId, allowsDemoMutation } from "@/lib/demo-policy";
+import { allowsImpersonationRequest } from '@/lib/impersonation-policy';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API RATE LIMITING — Edge-compatible, in-memory, per-instance
@@ -202,6 +205,12 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
 
   const { pathname } = req.nextUrl;
 
+  // The product is public. A second access gate may only protect unfinished admin tools.
+  // Leaving a signed preview must work even if the admin gate cookie expired.
+  if (pathname === '/api/admin/impersonate/end' && req.method === 'POST') return null;
+
+  if (!(pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/api/admin' || pathname.startsWith('/api/admin/'))) return null;
+
   // ─── BYPASS CHECKS FIRST (before any blocking) ───
 
   // Never gate NextAuth/Auth.js endpoints. OAuth redirects and callbacks rely on these.
@@ -237,7 +246,7 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   if (pathname.startsWith('/api') || pathname.startsWith('/trpc')) {
     return NextResponse.json(
       { error: 'Access Gate: authentication required' },
-      { status: 401 }
+      { status: 401, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } }
     );
   }
 
@@ -245,7 +254,10 @@ function checkAccessGate(req: NextRequest): NextResponse | null {
   const gateUrl = new URL('/gate', req.url);
   gateUrl.searchParams.set('redirect', pathname);
   
-  return NextResponse.redirect(gateUrl);
+  const response = NextResponse.redirect(gateUrl);
+  response.headers.set('Cache-Control', 'private, no-store');
+  response.headers.set('Vary', 'Cookie');
+  return response;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -330,10 +342,26 @@ function applySecurityHeaders(res: NextResponse, requestId: string, nonce: strin
 }
 
 function hasSessionCookie(req: NextRequest): boolean {
-  return SESSION_COOKIE_NAMES.some((name) => Boolean(req.cookies.get(name)?.value));
+  // Auth.js splits large sessions into .0/.1 cookies; getToken reassembles them.
+  return req.cookies.getAll().some(({ name, value }) => Boolean(value) && (name === SESSION_COOKIE_NAME || name.startsWith(`${SESSION_COOKIE_NAME}.`)));
 }
 
-export default function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
+  // Start production OAuth on the same host that receives its callback. Preview
+  // deployments and localhost are deliberately excluded from canonicalization.
+  if (process.env.VERCEL_ENV === 'production' && ['veggat.com', 'dev-veggastare.vercel.app'].includes(req.nextUrl.hostname)) {
+    const canonical = new URL(process.env.AUTH_URL || 'https://www.veggat.com');
+    if (canonical.hostname !== req.nextUrl.hostname) {
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const target = req.nextUrl.clone();
+        target.protocol = canonical.protocol; target.host = canonical.host;
+        return NextResponse.redirect(target, 307);
+      }
+      if (req.nextUrl.pathname.startsWith('/auth/') || req.nextUrl.pathname.startsWith('/api/auth/')) {
+        return NextResponse.json({ error: 'Please open www.veggat.com and sign in again.' }, { status: 409 });
+      }
+    }
+  }
   // ─── ACCESS GATE CHECK (first priority) ───
   const gateResponse = checkAccessGate(req);
   if (gateResponse) {
@@ -342,13 +370,35 @@ export default function proxy(req: NextRequest) {
 
   const { nextUrl } = req;
   const { pathname } = nextUrl;
-  const isLoggedIn = hasSessionCookie(req);
+  const token = hasSessionCookie(req) ? await getToken({
+    req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    cookieName: SESSION_COOKIE_NAME, salt: SESSION_COOKIE_NAME,
+  }) : null;
+  const isLoggedIn = Boolean(token?.sub);
+
+  if (token?.isImpersonating === true && !allowsImpersonationRequest(pathname, req.method, req.headers.has('next-action'))) {
+    return NextResponse.json({ error: 'IMPERSONATION_READ_ONLY', message: 'Account preview is read-only. End the preview before making changes.' }, { status: 403, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
+  }
+
+  if (isDemoUserId(token?.sub)) {
+    const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    const isAccountLink = pathname.startsWith('/api/auth/') &&
+      !['/api/auth/session', '/api/auth/csrf', '/api/auth/providers', '/api/auth/signout', '/api/auth/callback/demo'].includes(pathname);
+    if ((isWrite && !allowsDemoMutation(pathname)) || isAccountLink) {
+      return NextResponse.json({ error: 'DEMO_READ_ONLY', message: 'This action is unavailable in demo mode. Browse products and preview your cart, or exit the demo to use your own account.' }, { status: 403, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
+    }
+  }
 
   const requestHeaders = new Headers(req.headers);
   const requestId = crypto.randomUUID();
   const nonce = generateNonce();
   requestHeaders.set("x-request-id", requestId);
   requestHeaders.set("x-nonce", nonce);
+  // Presentation only: never trust a caller's marker or use it for access checks.
+  // The root streaming fallback may show this public publication immediately.
+  requestHeaders.set('x-veggat-publication', pathname === '/terms' ? 'sales-terms'
+    : pathname === '/products/daily-deals' ? 'marketplace-deals'
+    : pathname === '/products/member-discount' ? 'marketplace-members' : '');
 
   // ─── API RATE LIMIT CHECK ───
   const rlResponse = checkApiRateLimit(req);
@@ -370,7 +420,10 @@ export default function proxy(req: NextRequest) {
   // and sending is gated at the page/API level. (API routes keep their own auth.)
   const isPublicAiPage = pathname === "/ai" || pathname.startsWith("/ai/");
 
-  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage || isPublicAiPage;
+  // Only the directory and a single CUID storefront are public. Never allow
+  // /create, /settings, /hub or nested warehouse pages through this exception.
+  const isPublicCompanyPage = pathname === '/companies' || /^\/companies\/c[a-z0-9]+$/.test(pathname) && pathname !== '/companies/create';
+  const isPublicRoute = publicRoutes.includes(pathname) || isPublicProductPage || isPublicAiPage || isPublicCompanyPage;
 
   if (isApiAuthRoute) {
     return applySecurityHeaders(
@@ -450,5 +503,6 @@ export default function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)",
+    { source: '/:path*', has: [{ type: 'header', key: 'next-action' }] }],
 };

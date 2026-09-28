@@ -48,6 +48,11 @@ export const UserReachSchema = z
   })
   .strict();
 
+export const IdentitySourceSchema = z.enum(['AUTO', 'MANUAL', 'GOOGLE', 'GITHUB', 'DISCORD']);
+export const IdentityImageSourcesSchema = z
+  .object({ manual: z.string().nullable(), google: z.string().nullable(), github: z.string().nullable(), discord: z.string().nullable() })
+  .strict();
+
 export const UserProfileSchema = z
   .object({
     id: z.string().min(1),
@@ -61,6 +66,10 @@ export const UserProfileSchema = z
     banner: z.string().nullable(),
     bio: z.string().nullable(),
     createdAt: IsoDateStringSchema,
+
+    // Own profile only: which linked picture is shown, and every picture the account can show.
+    imageSource: IdentitySourceSchema.optional(),
+    imageSources: IdentityImageSourcesSchema.optional(),
 
     // Only present for admins.
     role: z.string().nullable().optional(),
@@ -86,6 +95,8 @@ export const UserProfilePatchResponseSchema = z
         image: z.string().nullable(),
         banner: z.string().nullable(),
         bio: z.string().nullable(),
+        imageSource: IdentitySourceSchema.optional(),
+        imageSources: IdentityImageSourcesSchema.optional(),
       })
       .strict(),
   })

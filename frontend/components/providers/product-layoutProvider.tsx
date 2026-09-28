@@ -2,19 +2,19 @@
 
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefCallback, RefObject } from "react";
 import { usePathname } from "next/navigation";
-import { MySidebarProductsMenu } from "../uicustom/product/sidebar";
+import { DEFAULT_CATALOG_PAGE_SIZE } from '@/lib/catalog-snapshot';
 
 export type SidebarDock = "edge-left" | "frame-left" | "frame-right" | "edge-right";
 
 // Sidebar dimensions - must match sidebar.tsx
 const SIDEBAR_WIDTH = 340;
-const SIDEBAR_GAP = 16; // breathing room between sidebar and content
 
 const SIDEBAR_DOCK_KEY = "veggastare.products.sidebarDock";
 const LEGACY_PLACEMENT_KEY = "veggastare.products.sidebarPlacement";
+const FILTER_COLUMN_KEY = "veggat:catalog:filtersHidden";
 
 // Define the context props interface
 interface SidebarContextProps {
@@ -33,8 +33,6 @@ interface SidebarContextProps {
 	/** Mobile-only: whether the global TopBar should be visible. */
 	topBarVisible: boolean;
 	scrollContainerRef: RefObject<HTMLDivElement | null>;
-	/** True when the products scroll container is past the initial threshold. */
-	isContentScrolled: boolean;
 	sidebarDock: SidebarDock;
 	setSidebarDock: (dock: SidebarDock) => void;
 	/**
@@ -43,17 +41,12 @@ interface SidebarContextProps {
 	 */
 	registerProductsFrame: RefCallback<HTMLElement>;
 	productsFrameBounds: { left: number; right: number } | null;
-	/** Scroll progress as a value from 0 to 1 */
-	scrollProgress: number;
-	/** Whether to show the site footer (false during infinite scroll loading) */
-	showFooter: boolean;
-	setShowFooter: (show: boolean) => void;
 	/** Pagination size for /products */
 	perPage: number;
 	setPerPage: (n: number) => void;
-	/** Sticky toolbar element to render at scroll container level */
-	stickyToolbar: React.ReactNode;
-	setStickyToolbar: (toolbar: React.ReactNode) => void;
+	/** xl+ only: the inline filter column is hidden so the grid takes the whole frame. Persisted. */
+	filterColumnHidden: boolean;
+	setFilterColumnHidden: (hidden: boolean) => void;
 }
 
 // Create the context
@@ -76,7 +69,7 @@ export const useSidebarOptional = () => {
 // Define the ProductProvider component
 const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-	const hideSidebarOnThisRoute = pathname?.startsWith("/products/create");
+	const hideSidebarOnThisRoute = pathname !== '/products';
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [sidebarSwipePx, setSidebarSwipePx] = useState(0);
 	const [isSidebarSwiping, setIsSidebarSwiping] = useState(false);
@@ -165,6 +158,13 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		}
 	}, [hideSidebarOnThisRoute]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const previousPathname = useRef(pathname);
+  useLayoutEffect(() => {
+    if (previousPathname.current !== pathname) {
+      scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      previousPathname.current = pathname;
+    }
+  }, [pathname]);
 	// Swipe-to-open on mobile: kept lightweight (passive touch listeners), and only
 	// triggers when the gesture starts near the screen edges.
 	useEffect(() => {
@@ -183,9 +183,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		let startCarouselCanScrollPrev = false;
 		let startCarouselCanScrollNext = false;
 		let isSwipingSidebar = false;
-		let lastScrollTop = el.scrollTop || 0;
-		let upAccum = 0;
-		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
+		const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 1024px)").matches : true);
 		const setChrome = (nextControls: boolean, nextTopbar: boolean) => {
 			if (productsControlsVisibleRef.current !== nextControls) setProductsControlsVisible(nextControls);
 			if (topBarVisibleRef.current !== nextTopbar) setTopBarVisible(nextTopbar);
@@ -206,7 +204,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 		// If the user switches between mobile emulation and desktop, force chrome visible on desktop.
 		// Otherwise the topbar can remain hidden until the next scroll event.
-		const mq = window.matchMedia?.("(min-width: 768px)");
+		const mq = window.matchMedia?.("(min-width: 1024px)");
 		const onMq = () => {
 			if (mq?.matches) setChrome(true, true);
 		};
@@ -398,79 +396,37 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 			}
 		};
 
-		const onChromeScroll = () => {
-			if (!isMobile()) {
-				setChrome(true, true);
-				lastScrollTop = el.scrollTop || 0;
-				upAccum = 0;
-				return;
-			}
-			// Don't auto-hide UI while a sheet is open.
-			if (menuOpenRef.current || sidebarOpenRef.current || isSidebarSwipingRef.current) return;
-
-			const top = el.scrollTop || 0;
-			const delta = top - lastScrollTop;
-			lastScrollTop = top;
-
-			// At the very top, show everything.
-			if (top <= 2) {
-				upAccum = 0;
-				setChrome(true, true);
-				return;
-			}
-
-			const DOWN_EPS = 2;
-			const UP_EPS = 2;
-			const HIDE_AFTER_PX = 10;
-			const REVEAL_CONTROLS_UP_PX = 10;
-			const REVEAL_TOPBAR_UP_PX = 44;
-
-			if (delta > DOWN_EPS) {
-				upAccum = 0;
-				if (top >= HIDE_AFTER_PX) setChrome(false, false);
-				return;
-			}
-
-			if (delta < -UP_EPS) {
-				upAccum += -delta;
-				if (!productsControlsVisibleRef.current && upAccum >= REVEAL_CONTROLS_UP_PX) {
-					setChrome(true, false);
-				}
-				if (!topBarVisibleRef.current && upAccum >= REVEAL_TOPBAR_UP_PX) {
-					setChrome(true, true);
-				}
-			}
-		};
+		// Keep navigation stable while scrolling. Collapsing the global header
+		// changed the viewport height and shifted product content on every gesture.
 
 		el.addEventListener("touchstart", onTouchStart, { passive: true });
 		el.addEventListener("touchmove", onTouchMove, { passive: false });
 		el.addEventListener("touchend", onTouchEnd, { passive: true });
 		el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-		el.addEventListener("scroll", onChromeScroll, { passive: true });
 		return () => {
 			mq?.removeEventListener?.("change", onMq);
 			el.removeEventListener("touchstart", onTouchStart as any);
 			el.removeEventListener("touchmove", onTouchMove as any);
 			el.removeEventListener("touchend", onTouchEnd as any);
 			el.removeEventListener("touchcancel", onTouchEnd as any);
-			el.removeEventListener("scroll", onChromeScroll as any);
 		};
 	}, [openSidebar]);
-	// Footer visibility - hidden during infinite scroll loading on /products
-	const [showFooter, setShowFooter] = useState(false);
-	// Pagination size - used by products page + sidebar
-	const [perPage, setPerPage] = useState(30);
-	// Sticky toolbar - registered by pages, rendered at scroll container level
-	const [stickyToolbar, setStickyToolbar] = useState<React.ReactNode>(null);
-		const [isContentScrolled, setIsContentScrolled] = useState(false);
-		// "Compact / full" mode for /products. Entered on first scroll gesture even if we prevent
-		// the actual scroll movement, to avoid the initial scroll feeling "boosted".
-		const [isCompactMode, setIsCompactMode] = useState(false);
-		const compactRef = useRef(false);
-		const hasLeftTopRef = useRef(false);
-		// Scroll progress (0-1) for progress indicator
-		const [scrollProgress, setScrollProgress] = useState(0);
-	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>(() => {
+	const [perPage, setPerPage] = useState(DEFAULT_CATALOG_PAGE_SIZE);
+	const [filterColumnHidden, setFilterColumnHiddenState] = useState(false);
+	useEffect(() => {
+		// Browser-only preference; read after mount so server markup matches.
+		try {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setFilterColumnHiddenState(localStorage.getItem(FILTER_COLUMN_KEY) === "1");
+		} catch {}
+	}, []);
+	const setFilterColumnHidden = useCallback((hidden: boolean) => {
+		setFilterColumnHiddenState(hidden);
+		try { localStorage.setItem(FILTER_COLUMN_KEY, hidden ? "1" : "0"); } catch {}
+	}, []);
+	const [sidebarDock, setSidebarDockState] = useState<SidebarDock>('edge-left');
+	useEffect(() => {
+		const readDock = (): SidebarDock => {
 		// Prefer the new key; fall back to legacy placement key.
 		try {
 			const raw = localStorage.getItem(SIDEBAR_DOCK_KEY);
@@ -482,17 +438,21 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 			if (legacy === "left") return "edge-left";
 		} catch {}
 		return "edge-left";
-	});
+		};
+		// Browser-only preference: match server markup first. The panel is closed
+		// during this one synchronization, so visible content does not move.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setSidebarDockState(readDock());
+	}, []);
 
 	const [productsFrameBounds, setProductsFrameBounds] = useState<{ left: number; right: number } | null>(null);
 	const [productsFrameNode, setProductsFrameNode] = useState<HTMLElement | null>(null);
 
 	// ─── Viewport width tracking for responsive sidebar padding ───────────────
-	const [viewportWidth, setViewportWidth] = useState(() =>
-		typeof window !== 'undefined' ? window.innerWidth : 0
-	);
+	const [viewportWidth, setViewportWidth] = useState(0);
 	useEffect(() => {
 		const onResize = () => setViewportWidth(window.innerWidth);
+		onResize();
 		window.addEventListener('resize', onResize, { passive: true });
 		return () => window.removeEventListener('resize', onResize);
 	}, []);
@@ -538,194 +498,6 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 		};
 	}, [productsFrameNode]);
 
-	// Track scroll state (docked vs floating) based on the owned scroll container.
-	useEffect(() => {
-		const el = scrollContainerRef.current;
-		if (!el) return;
-
-			// Mobile: first upward swipe (which would normally scroll content down) at the very top
-			// should only enter compact mode, without moving the grid.
-			let touchStartX: number | null = null;
-			let touchStartY: number | null = null;
-			let blockTouchScrollForGesture = false;
-			const TOUCH_THRESHOLD_PX = 6;
-			const onTouchStart = (e: TouchEvent) => {
-				blockTouchScrollForGesture = false;
-				if (e.touches.length !== 1) {
-					touchStartX = null;
-					touchStartY = null;
-					return;
-				}
-				touchStartX = e.touches[0].clientX;
-				touchStartY = e.touches[0].clientY;
-			};
-			const onTouchMove = (e: TouchEvent) => {
-				// Allow pinch-zoom / multi-touch gestures.
-				if (e.touches.length !== 1) return;
-
-				// Ignore touch events from inside the filters sidebar - let sidebar scroll independently
-				const target = e.target as HTMLElement | null;
-				if (target?.closest('[data-sidebar-filters="true"]')) return;
-
-				if (blockTouchScrollForGesture) {
-					e.preventDefault();
-					e.stopPropagation();
-					return;
-				}
-
-				if (touchStartX == null || touchStartY == null) return;
-				const dx = e.touches[0].clientX - touchStartX;
-				const dy = e.touches[0].clientY - touchStartY;
-
-				// Ignore mostly-horizontal gestures.
-				if (Math.abs(dx) > Math.abs(dy)) return;
-
-				// Helper to detect mobile for chrome visibility
-				const isMobile = () => (window.matchMedia ? !window.matchMedia("(min-width: 768px)").matches : true);
-
-				// Helper to update chrome visibility (updates refs + state + dispatches event)
-				const updateChrome = (controls: boolean, topbar: boolean) => {
-					setProductsControlsVisible(controls);
-					setTopBarVisible(topbar);
-					productsControlsVisibleRef.current = controls;
-					topBarVisibleRef.current = topbar;
-					try {
-						window.dispatchEvent(
-							new CustomEvent("veggat:products-chrome", {
-								detail: { controlsVisible: controls, topbarVisible: topbar },
-							})
-						);
-					} catch {}
-				};
-
-				// dy < 0 means finger moved up -> would scroll content down (enter compact).
-				if (el.scrollTop === 0 && !compactRef.current && dy < -TOUCH_THRESHOLD_PX) {
-					e.preventDefault();
-					e.stopPropagation();
-					blockTouchScrollForGesture = true;
-					compactRef.current = true;
-					setIsCompactMode(true);
-					setIsContentScrolled(true);
-					// On mobile, entering compact mode should also hide the chrome
-					if (isMobile()) {
-						updateChrome(false, false);
-					}
-					return;
-				}
-
-				// dy > 0 means finger moved down -> would scroll content up (exit compact).
-				// Allow exiting compact mode with swipe down when at top.
-				if (el.scrollTop === 0 && compactRef.current && dy > TOUCH_THRESHOLD_PX) {
-					e.preventDefault();
-					e.stopPropagation();
-					blockTouchScrollForGesture = true;
-					compactRef.current = false;
-					setIsCompactMode(false);
-					setIsContentScrolled(false);
-					// On mobile, exiting compact mode should show the chrome
-					if (isMobile()) {
-						updateChrome(true, true);
-					}
-				}
-			};
-			const onTouchEnd = () => {
-				blockTouchScrollForGesture = false;
-				touchStartX = null;
-				touchStartY = null;
-			};
-
-			const onWheel = (e: WheelEvent) => {
-				// allow ctrl/cmd + wheel zoom gestures
-				if (e.ctrlKey || e.metaKey) return;
-
-				// Ignore wheel events from inside the filters sidebar - let sidebar scroll independently
-				const target = e.target as HTMLElement | null;
-				if (target?.closest('[data-sidebar-filters="true"]')) return;
-
-				// First downward wheel notch at the very top should *only* enter compact mode,
-				// not actually scroll the products grid.
-				if (el.scrollTop === 0 && !compactRef.current && e.deltaY > 0) {
-					e.preventDefault();
-					e.stopPropagation();
-					compactRef.current = true;
-					setIsCompactMode(true);
-					setIsContentScrolled(true);
-					return;
-				}
-
-				// Wheel up while at top AND in compact mode should exit compact mode.
-				// This allows "scroll down once to enter, scroll up once to exit".
-				if (el.scrollTop === 0 && compactRef.current && e.deltaY < 0) {
-					e.preventDefault();
-					e.stopPropagation();
-					compactRef.current = false;
-					setIsCompactMode(false);
-					setIsContentScrolled(false);
-				}
-			};
-
-		const onScroll = () => {
-			const top = el.scrollTop;
-				// Calculate scroll progress (0-1)
-				const scrollHeight = el.scrollHeight - el.clientHeight;
-				const progress = scrollHeight > 0 ? Math.min(1, top / scrollHeight) : 0;
-				setScrollProgress(progress);
-
-				if (top > 0) {
-					hasLeftTopRef.current = true;
-					// Once the user has actually scrolled, we stay in compact mode.
-					if (!compactRef.current) {
-						compactRef.current = true;
-						setIsCompactMode(true);
-					}
-					setIsContentScrolled(true);
-					return;
-				}
-
-				// top === 0
-				if (hasLeftTopRef.current) {
-					// User returned to the very top after scrolling; restore the hero state.
-					hasLeftTopRef.current = false;
-					if (compactRef.current) setIsCompactMode(false);
-					setIsContentScrolled(false);
-					return;
-				}
-
-				// Still at the very top (we may be in compact mode via the first wheel gesture).
-				setIsContentScrolled(compactRef.current);
-		};
-
-		onScroll();
-			el.addEventListener("touchstart", onTouchStart, { passive: true });
-			el.addEventListener("touchmove", onTouchMove, { passive: false });
-			el.addEventListener("touchend", onTouchEnd, { passive: true });
-			el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-			el.addEventListener("wheel", onWheel, { passive: false });
-			el.addEventListener("scroll", onScroll, { passive: true });
-			return () => {
-				el.removeEventListener("touchstart", onTouchStart);
-				el.removeEventListener("touchmove", onTouchMove);
-				el.removeEventListener("touchend", onTouchEnd);
-				el.removeEventListener("touchcancel", onTouchEnd);
-				el.removeEventListener("wheel", onWheel);
-				el.removeEventListener("scroll", onScroll);
-			};
-	}, []);
-
-		// Keep refs + a DOM hint in sync for components outside this provider (TopBar).
-		useEffect(() => {
-			compactRef.current = isCompactMode;
-			const el = scrollContainerRef.current;
-			if (!el) return;
-			if (isCompactMode) {
-				el.setAttribute("data-products-compact", "true");
-			} else {
-				el.removeAttribute("data-products-compact");
-			}
-			// Trigger listeners that only react to scroll events (e.g. TopBar) even when
-			// the first wheel gesture was prevented.
-			el.dispatchEvent(new Event("scroll"));
-		}, [isCompactMode]);
 
   // Prevent “double scrollbars” (window + inner container) on /products.
   // The ProductProvider owns the main scroll area via `scrollContainerRef`.
@@ -742,32 +514,10 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, []);
 
-	// ─── Sidebar content adjustment ──────────────────────────────────────────
-	// When the sidebar is open on edge-left or edge-right, we use a flex layout
-	// with a spacer that takes up the sidebar width. This forces the content to
-	// shrink (grid reflows to fewer columns, inputs shrink) instead of just shifting.
-	const isDesktop = viewportWidth >= 768; // md breakpoint
-	const isEdgeDock = sidebarDock === 'edge-left' || sidebarDock === 'edge-right';
+	// The filter panel is part of the catalog frame now (CatalogClient renders
+	// it as a column on xl+ and a Sheet below); the page is never pushed aside.
 	const effectiveSidebarOpen = hideSidebarOnThisRoute ? false : isSidebarOpen;
-	const showLeftSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-left';
-	const showRightSpacer = effectiveSidebarOpen && isDesktop && sidebarDock === 'edge-right';
-	const spacerWidth = SIDEBAR_WIDTH; // No extra gap needed - sidebar already has some padding
 
-	// Spacer style with smooth transition
-	const spacerStyle: React.CSSProperties = {
-		width: spacerWidth,
-		minWidth: spacerWidth,
-		transition: 'width 300ms ease-out, min-width 300ms ease-out, opacity 300ms ease-out',
-	};
-	const collapsedSpacerStyle: React.CSSProperties = {
-		width: 0,
-		minWidth: 0,
-		transition: 'width 300ms ease-out, min-width 300ms ease-out, opacity 300ms ease-out',
-	};
-
-	// When scrolled/sticky, show a toolbar-matching background on the spacer to seamlessly
-	// connect the sticky toolbar with the edge-docked sidebar (no visible gap).
-	const spacerHasToolbarBg = isContentScrolled && effectiveSidebarOpen && isEdgeDock;
 
 	// /products/create should fit on one screen on desktop. Lock the provider scroll
 	// container on large screens so the page doesn't scroll, while keeping mobile scroll.
@@ -786,18 +536,14 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 				productsControlsVisible,
 				topBarVisible,
 				scrollContainerRef,
-				isContentScrolled,
 					sidebarDock,
 					setSidebarDock,
 					registerProductsFrame,
 					productsFrameBounds,
-					scrollProgress,
-					showFooter,
-					setShowFooter,
 					perPage,
 					setPerPage,
-					stickyToolbar,
-					setStickyToolbar,
+					filterColumnHidden,
+					setFilterColumnHidden,
 			}}
 		>
 		    <div className="productProvider relative flex w-full h-full min-h-0">
@@ -812,16 +558,7 @@ const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 						className="flex-1 min-w-0 h-full min-h-0 overscroll-contain"
 						style={{ overflowY: lockScrollOnDesktopCreate ? "hidden" : undefined }}
 					>
-								{!hideSidebarOnThisRoute && <MySidebarProductsMenu />}
-							{/* Content wrapper with sidebar spacing */}
-							<div 
-								className="h-full"
-								style={{
-									paddingLeft: showLeftSpacer ? spacerWidth : 0,
-									paddingRight: showRightSpacer ? spacerWidth : 0,
-									transition: 'padding 300ms ease-out',
-								}}
-							>
+							<div className="h-full">
 								{children}
 							</div>
 					</div>

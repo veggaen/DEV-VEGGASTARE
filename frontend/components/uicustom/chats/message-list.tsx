@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { Button } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import { RxCrossCircled } from "react-icons/rx";
-import { FaFileUpload } from "react-icons/fa";
 import { FiEdit2, FiTrash2, FiCheck, FiX, FiImage, FiFlag } from "react-icons/fi";
 import { useEdgeStore } from '@/lib/edgestore';
-import Pusher from 'pusher-js';
+import { toast } from 'sonner';
+import { useConfirm } from '@/components/providers/confirm-dialog';
 import Spinner from '../spinner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
@@ -18,6 +17,7 @@ import { UserHoverCard } from '@/components/uicustom/UserHoverCard';
 import { ReportDialog } from '@/components/uicustom/report/ReportDialog';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ScrollToBottom } from './primitives/ScrollToBottom';
+import { Button } from '@/components/ui/button';
 
 interface Message {
   id: string;
@@ -39,9 +39,12 @@ interface MessageListProps {
   users: User[];
   conversationId: string;
   loading?: boolean;
+  onChanged?: () => void;
+  allowImages?: boolean;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, users, conversationId, loading }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, users, loading, onChanged, allowImages = true }) => {
+  const confirm = useConfirm();
   const currentUser = useCurrentUser();
   const reduceMotion = useReducedMotion();
   const { edgestore } = useEdgeStore();
@@ -54,55 +57,48 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
 
   const messageListRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const followLatestRef = useRef(true);
+  const viewportHeightRef = useRef(0);
+  const previousListRef = useRef({ count: 0, lastId: '' });
 
   useEffect(() => {
     setLocalMessages(messages); // Ensure localMessages syncs with the initial messages prop
   }, [messages]);
 
-  // Auto-scroll to the newest message whenever the list changes.
-  useEffect(() => {
+  // Follow new messages only while already near the bottom, or after our own
+  // new send. Refetches, edits and incoming replies must not interrupt reading.
+  useLayoutEffect(() => {
     const el = messageListRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [localMessages.length]);
-
-  useEffect(() => {
-    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-      forceTLS: true,
-    });
-  
-    const channel = pusherClient.subscribe(`ConversationChannel_${conversationId}`);
-  
-    channel.bind('edit-message', (data: any) => {
-      setLocalMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === data.messageId
-            ? { ...msg, content: data.content, imageUrl: data.imageUrl, editedAt: data.editedAt }
-            : msg
-        )
-      );
-    });
-  
-    channel.bind('delete-message', (data: any) => {
-      setLocalMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== data.messageId)
-      );
-    });
-  
-    return () => {
-      pusherClient.unsubscribe(`ConversationChannel_${conversationId}`);
-    };
-  }, [conversationId]);
-
-  useEffect(() => {
-    // Scroll to the bottom whenever the localMessages change
-    if (messageListRef.current) {
-      messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+    const last = localMessages.at(-1);
+    const previous = previousListRef.current;
+    const ownAppend = localMessages.length > previous.count && last?.id !== previous.lastId && last?.senderId === currentUser?.id;
+    if (el && (followLatestRef.current || ownAppend)) {
+      el.scrollTop = el.scrollHeight;
+      followLatestRef.current = true;
     }
-  }, [localMessages]);
+    if (el) viewportHeightRef.current = el.clientHeight;
+    previousListRef.current = { count: localMessages.length, lastId: last?.id ?? '' };
+  }, [localMessages, currentUser?.id]);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const observer = new ResizeObserver(() => {
+      const el = messageListRef.current;
+      if (el) {
+        if (followLatestRef.current) el.scrollTop = el.scrollHeight;
+        viewportHeightRef.current = el.clientHeight;
+      }
+    });
+    observer.observe(content);
+    if (messageListRef.current) observer.observe(messageListRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleEditClick = (message: Message) => {
     setEditingMessageId(message.id);
+    setEditedImage(null);
     setEditedContent(message.content);
     setEditedImagePreview(message.imageUrl || null);
   };
@@ -112,7 +108,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
     try {
       let imageUrl = editedImagePreview;
   
-      if (editedImage) {
+      if (editedImage && allowImages) {
         const res = await edgestore.myPublicImages.upload({ file: editedImage });
         imageUrl = `${res.url}?t=${new Date().getTime()}`; // Add a timestamp to the URL to prevent caching issues
       }
@@ -124,35 +120,42 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
       });
   
       if (response.ok) {
+        const saved = await response.json();
+        setLocalMessages(previous => previous.map(message => message.id === messageId ? { ...message, ...saved } : message));
         setEditingMessageId(null);
         setEditedImage(null);
         setEditedImagePreview(null);
+        onChanged?.();
       } else {
-        console.error('Error saving edit');
+        toast.error('Could not save the message. Your edit is still here.');
       }
-    } catch (error) {
-      console.error('Error saving edit:', error);
+    } catch {
+      toast.error('Could not save the message. Try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteClick = async (messageId: string) => {
+    if (!await confirm({ title: 'Delete this message?', description: 'This cannot be undone.', confirmLabel: 'Delete message', destructive: true })) return;
     try {
       const response = await fetch(`/api/messages/${messageId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
+        setLocalMessages(previous => previous.filter(message => message.id !== messageId));
+        onChanged?.();
       } else {
-        console.error('Error deleting message');
+        toast.error('Could not delete the message. Try again.');
       }
-    } catch (error) {
-      console.error('Error deleting message:', error);
+    } catch {
+      toast.error('Could not delete the message. Try again.');
     }
   };
 
   const handleDrop = (acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       setEditedImage(acceptedFiles[0]);
       setEditedImagePreview(URL.createObjectURL(acceptedFiles[0]));
@@ -165,6 +168,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   };
 
   const { getRootProps, getInputProps } = useDropzone({
+    disabled: !allowImages || isSaving,
     onDrop: handleDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -193,10 +197,20 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
   };
 
   return (
+    <div className="relative h-full min-h-0">
     <div
-      className="relative h-full overflow-y-auto px-4 py-6 scroll-smooth"
+      role="region"
+      aria-label="Conversation messages"
+      tabIndex={0}
+      className="h-full overflow-y-auto overscroll-contain px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       ref={messageListRef}
+      onScroll={event => {
+        const el = event.currentTarget;
+        // Growing the composer is a layout change, not a request to stop following.
+        if (el.clientHeight === viewportHeightRef.current) followLatestRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      }}
     >
+      <div ref={contentRef} className="mx-auto min-h-full w-full max-w-3xl">
       {loading ? (
         <div className="flex justify-center items-center h-full">
           <div className="flex flex-col items-center gap-3">
@@ -213,7 +227,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
           </p>
         </div>
       ) : (
-        <div className="space-y-1 max-w-4xl mx-auto">
+        <div className="space-y-1">
           {localMessages.map((message, idx) => {
             const isCurrentUser = message.senderId === currentUser?.id;
             const senderName = userMap[message.senderId] || message.senderId;
@@ -249,17 +263,15 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                   </div>
                 )}
               <motion.div
-                // Additive: each message slides+fades in (own messages from the
-                // right, incoming from the left) for a lively, modern feel.
                 initial={
                   reduceMotion
                     ? false
-                    : { opacity: 0, y: 8, x: isCurrentUser ? 12 : -12, scale: 0.98 }
+                    : { opacity: 0, y: 4 }
                 }
-                animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 32, mass: 0.7 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.16 }}
                 className={cn(
-                  "group flex items-end gap-2 max-w-[85%] md:max-w-[70%]",
+                  "group flex w-fit max-w-full items-end gap-1.5 sm:max-w-[88%] sm:gap-2",
                   isCurrentUser ? "ml-auto flex-row-reverse" : "mr-auto",
                   isGroupStart ? "mt-3" : "mt-0.5",
                 )}
@@ -271,7 +283,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                       <UserHoverCard userId={message.senderId} userName={senderName} side="top" align="start">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={senderImage || undefined} />
-                          <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white text-xs">
+                          <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                             {senderName?.[0]?.toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
@@ -294,27 +306,29 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
 
                   <div
                     className={cn(
-                      "relative rounded-2xl px-4 py-2.5 shadow-sm transition-all",
+                      "relative rounded-2xl border px-4 py-2.5",
                       isCurrentUser
-                        ? "bg-linear-to-br from-indigo-500 to-purple-600 text-white rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md border border-border/60",
+                        ? "bg-primary/10 border-primary/20 text-foreground rounded-br-md"
+                        : "bg-card text-foreground rounded-bl-md border-border",
                     )}
                   >
                     {isEditing ? (
                       /* Edit Mode */
-                      <div className="space-y-3 min-w-[250px]">
-                        <input
-                          type="text"
+                      <div className="space-y-3 min-w-0 w-64 max-w-full">
+                        <textarea
+                          aria-label="Edit message"
+                          rows={3}
+                          maxLength={5000}
                           value={editedContent}
                           onChange={(e) => setEditedContent(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          className="min-h-11 max-h-40 w-full resize-y px-3 py-2 text-base rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           placeholder="Edit message..."
                           disabled={isSaving}
                           autoFocus
                         />
 
                         {/* Image Upload Zone */}
-                        <div
+                        {(allowImages || editedImagePreview) && <div
                           {...getRootProps()}
                           className="cursor-pointer rounded-lg border-2 border-dashed border-border hover:border-foreground/40 transition-colors p-3"
                         >
@@ -331,70 +345,71 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                               />
                               <button
                                 type="button"
+                                aria-label="Remove image from message"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveImage(); }}
                                 disabled={isSaving}
-                                className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                                className="absolute -top-2 -right-2 grid size-11 place-items-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 <RxCrossCircled className="h-3 w-3" />
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
+                            <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
                               <FiImage className="h-4 w-4" />
                               <span>Add image</span>
                             </div>
                           )}
-                        </div>
+                        </div>}
 
                         {/* Save/Cancel Buttons */}
                         <div className="flex items-center gap-2">
-                          <button
+                          <Button
                             onClick={() => handleSaveEdit(message.id)}
                             disabled={isSaving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm font-medium disabled:opacity-50"
+                            className="min-h-11 gap-1.5"
                           >
                             {isSaving ? (
-                              <div className="animate-spin h-3.5 w-3.5 border-2 border-green-400 border-t-transparent rounded-full" />
+                              <div className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
                             ) : (
                               <FiCheck className="h-3.5 w-3.5" />
                             )}
                             Save
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="outline"
                             onClick={() => setEditingMessageId(null)}
                             disabled={isSaving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors text-sm font-medium disabled:opacity-50"
+                            className="min-h-11 gap-1.5"
                           >
                             <FiX className="h-3.5 w-3.5" />
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
                       /* Normal Message View */
                       <>
-                        <p className="text-[15px] leading-relaxed break-words break-all whitespace-pre-wrap">
+                        <p className="text-[15px] leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
                           {message.content}
                         </p>
                         
                         {message.imageUrl && (
-                          <div className="mt-2">
+                          <a href={message.imageUrl} target="_blank" rel="noopener noreferrer" aria-label="Open message attachment" className="mt-2 block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             <Image
                               src={message.imageUrl}
-                              alt="Attachment"
+                              alt="Message attachment"
                               width={512}
                               height={512}
                               unoptimized
-                              className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(message.imageUrl, '_blank')}
+                              className="rounded-lg max-w-full max-h-64 object-contain hover:opacity-90 transition-opacity"
                             />
-                          </div>
+                          </a>
                         )}
                         
                         {/* Timestamp & Edited indicator */}
                         <div className={cn(
                           "flex items-center gap-1.5 mt-1.5 text-[11px]",
-                          isCurrentUser ? "text-white/70" : "text-muted-foreground"
+                          "text-muted-foreground"
                         )}>
                           <span>{formatMessageTime(message.createdAt)}</span>
                           {message.editedAt && (
@@ -412,22 +427,24 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                 {/* Hover Actions - Only show when not editing */}
                 {canModify && !isEditing && (
                   <div className={cn(
-                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                    "flex shrink-0 items-center opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150",
                     isCurrentUser ? "flex-row-reverse" : ""
                   )}>
                     <button
                       onClick={() => handleEditClick(message)}
                       disabled={isSaving}
-                      className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                      className="grid size-11 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title="Edit message"
+                      aria-label="Edit message"
                     >
                       <FiEdit2 className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(message.id)}
                       disabled={isSaving}
-                      className="p-2 rounded-full hover:bg-red-500/15 text-muted-foreground hover:text-red-500 transition-all"
+                      className="grid size-11 place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title="Delete message"
+                      aria-label="Delete message"
                     >
                       <FiTrash2 className="h-3.5 w-3.5" />
                     </button>
@@ -436,12 +453,13 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
                 {/* Report button - visible on other people's messages */}
                 {!isCurrentUser && !isEditing && (
                   <div className={cn(
-                    "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    "flex shrink-0 items-center opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
                   )}>
                     <button
                       onClick={() => setReportMessageId(message.id)}
-                      className="p-2 rounded-full hover:bg-red-500/15 text-muted-foreground hover:text-red-500 transition-all"
+                      className="grid size-11 place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title="Rapporter melding"
+                      aria-label="Report message"
                     >
                       <FiFlag className="h-3.5 w-3.5" />
                     </button>
@@ -453,7 +471,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, users, conve
           })}
         </div>
       )}
-
+      </div>
+    </div>
       {/* Floating scroll-to-latest button (appears when scrolled up) */}
       <ScrollToBottom containerRef={messageListRef} />
 

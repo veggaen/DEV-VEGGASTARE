@@ -160,6 +160,8 @@ export default function EditProductClient({ productId }: { productId: string }) 
   const [acceptedTokens, setAcceptedTokens] = useState<AcceptedToken[]>([]);
   const [repoAccessEnabled, setRepoAccessEnabled] = useState(false);
   const [repoAccessConfig, setRepoAccessConfig] = useState<RepoAccessConfig>(EMPTY_REPO_ACCESS);
+  const [repoAccessLoaded, setRepoAccessLoaded] = useState(false);
+  const repoAccessBaseline = useRef<string | null>(null);
 
   const sessionUserId = (session as any)?.user?.id as string | undefined;
   const isSignedIn = Boolean(sessionUserId);
@@ -228,7 +230,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
 
         if (data?.config) {
           setRepoAccessEnabled(true);
-          setRepoAccessConfig({
+          const config: RepoAccessConfig = {
             owner: String(data.config.owner ?? ""),
             repo: String(data.config.repo ?? ""),
             mode: (data.config.mode ?? "COLLABORATOR") as RepoAccessMode,
@@ -239,11 +241,15 @@ export default function EditProductClient({ productId }: { productId: string }) 
             previewBranch: String(data.config.previewBranch ?? ""),
             devBranch: String(data.config.devBranch ?? ""),
             notes: String(data.config.notes ?? ""),
-          });
+          };
+          setRepoAccessConfig(config);
+          repoAccessBaseline.current = JSON.stringify([true, config]);
         } else {
           setRepoAccessEnabled(false);
           setRepoAccessConfig(EMPTY_REPO_ACCESS);
+          repoAccessBaseline.current = JSON.stringify([false, EMPTY_REPO_ACCESS]);
         }
+        setRepoAccessLoaded(true);
       } catch {
         // non-blocking
       }
@@ -332,7 +338,8 @@ export default function EditProductClient({ productId }: { productId: string }) 
     }
   };
 
-  const onSave = async () => {
+  const onSave = async (action: 'save' | 'saveAndView') => {
+    setSaveAction(action);
     setError(undefined);
     setSuccess(undefined);
 
@@ -397,7 +404,8 @@ export default function EditProductClient({ productId }: { productId: string }) 
         return;
       }
 
-      if (repoAccessEnabled) {
+      const repoChanged = repoAccessLoaded && repoAccessBaseline.current !== JSON.stringify([repoAccessEnabled, repoAccessConfig]);
+      if (repoChanged && repoAccessEnabled) {
         const owner = repoAccessConfig.owner.trim();
         const repo = repoAccessConfig.repo.trim();
         if (!owner || !repo) {
@@ -412,7 +420,8 @@ export default function EditProductClient({ productId }: { productId: string }) 
         }
       }
 
-      const repoRes = await fetch(`/api/products/${productId}/repo-access`, {
+      if (repoChanged) {
+        const repoRes = await fetch(`/api/products/${productId}/repo-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -437,10 +446,13 @@ export default function EditProductClient({ productId }: { productId: string }) 
       if (!repoRes.ok) {
         const body = await repoRes.json().catch(() => ({}));
         setError(body?.error ? `Product saved, but repo access failed: ${body.error}` : "Product saved, but repo access update failed.");
+        return;
+      }
+      repoAccessBaseline.current = JSON.stringify([repoAccessEnabled, repoAccessConfig]);
       }
 
       // If save and view, redirect immediately
-      if (saveAction === 'saveAndView') {
+      if (action === 'saveAndView') {
         router.push(`/products/${productId}`);
         return;
       }
@@ -497,7 +509,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
                 type="button" 
                 variant="outline" 
                 size="sm"
-                onClick={() => { setSaveAction('save'); onSave(); }} 
+                onClick={() => { void onSave('save'); }}
                 disabled={isSubmitting}
               >
                 <Save className="h-4 w-4 mr-1" />
@@ -506,7 +518,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
               <Button 
                 type="button" 
                 size="sm"
-                onClick={() => { setSaveAction('saveAndView'); onSave(); }} 
+                onClick={() => { void onSave('saveAndView'); }}
                 disabled={isSubmitting}
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
@@ -619,7 +631,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
                     {FIAT_OPTIONS.map((opt) => {
                       const checked = acceptedFiatCurrencies.includes(opt.value);
                       return (
-                        <label key={opt.value} className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs cursor-pointer hover:bg-muted/50">
+                        <label key={opt.value} className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs cursor-pointer hover:bg-foreground/[0.06]">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -653,7 +665,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
 
                 <div
                   {...getRootProps()}
-                  className="cursor-pointer rounded border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground text-center hover:bg-muted/50 transition-colors"
+                  className="cursor-pointer rounded border border-dashed border-border bg-foreground/[0.04] p-3 text-xs text-muted-foreground text-center hover:bg-foreground/[0.06] transition-colors"
                 >
                   <input {...getInputProps()} />
                   Drop or click to add images
@@ -805,7 +817,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
                 </AccordionItem>
               </Accordion>
 
-              <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+              {repoAccessLoaded && <div className="rounded-lg border border-border bg-background p-4 space-y-3">
                 <div className="text-sm font-semibold">GitHub Repo Access</div>
                 <label className="flex items-center gap-2 text-xs text-foreground/90">
                   <input
@@ -911,7 +923,7 @@ export default function EditProductClient({ productId }: { productId: string }) 
                     />
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         </div>

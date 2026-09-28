@@ -82,6 +82,9 @@ export const TOKEN_LOGO_FALLBACKS: Record<string, string> = {
 /** Chain ID → block explorer base URL */
 export const CHAIN_EXPLORERS: Record<number, string> = {
   1: "https://etherscan.io",
+  369: "https://scan.pulsechain.com",
+  11155111: "https://sepolia.etherscan.io",
+  84532: "https://sepolia.basescan.org",
   137: "https://polygonscan.com",
   42161: "https://arbiscan.io",
   10: "https://optimistic.etherscan.io",
@@ -113,12 +116,26 @@ const PALETTE = [
  * Used as the ultimate fallback when no logo is found.
  */
 export function generateLetterIcon(symbol: string): string {
+  // Airdropped junk tokens carry symbols with lone surrogates and control
+  // characters; encodeURIComponent throws on those and took the whole trading
+  // page down. Hash the raw text, but only ever draw a well-formed letter.
+  const clean = safeLetterSource(symbol);
   const hash = symbol
     .toUpperCase()
     .split("")
     .reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const color = PALETTE[hash % PALETTE.length];
-  const letter = symbol.charAt(0).toUpperCase();
+  const letter = (Array.from(clean)[0] ?? "?").toUpperCase();
+  let encoded = "%3F";
+  try { encoded = encodeURIComponent(letter); } catch { /* keep the "?" */ }
 
-  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='${encodeURIComponent(color)}'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='14' font-weight='bold' fill='white' font-family='Arial'%3E${encodeURIComponent(letter)}%3C/text%3E%3C/svg%3E`;
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='${encodeURIComponent(color)}'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='14' font-weight='bold' fill='white' font-family='Arial'%3E${encoded}%3C/text%3E%3C/svg%3E`;
+}
+
+/** Drops lone UTF-16 surrogates, control characters and leading whitespace so the first character is always drawable. */
+export function safeLetterSource(symbol: string): string {
+  return (symbol ?? "")
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
+    .replace(/[\u0000-\u001F\u007F-\u009F﻿​-‏]/g, "")
+    .trim();
 }

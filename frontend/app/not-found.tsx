@@ -13,7 +13,7 @@ export default function NotFound() {
         >
           404
         </span>
-        <div className="absolute grid h-16 w-16 place-items-center rounded-2xl bg-muted/60 ring-1 ring-border/60">
+        <div className="absolute grid h-16 w-16 place-items-center rounded-2xl bg-foreground/[0.07] ring-1 ring-border/60">
           <FiCompass className="h-7 w-7 text-muted-foreground/70" />
         </div>
       </div>

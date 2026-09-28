@@ -82,17 +82,17 @@ function TradeSessionToken({ tradeId }: { tradeId: string }) {
 
   const c = 2 * Math.PI * 10;
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-2 border border-border">
       <svg width="24" height="24" viewBox="0 0 24 24" className="shrink-0">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-200 dark:text-zinc-700" />
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" className="text-foreground/80" />
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"
           strokeDasharray={c} strokeDashoffset={c - (progress / 100) * c} strokeLinecap="round"
-          className={progress > 30 ? "text-emerald-500" : progress > 10 ? "text-amber-500" : "text-red-500"}
+          className={progress > 30 ? "text-brand-accent" : progress > 10 ? "text-amber-500" : "text-red-500"}
           transform="rotate(-90 12 12)" />
       </svg>
       <div className="flex flex-col">
-        <span className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 leading-none">Session</span>
-        <span className="text-[11px] font-mono font-bold text-zinc-700 dark:text-zinc-300 tracking-[0.2em] leading-tight">{code}</span>
+        <span className="text-[8px] uppercase tracking-widest text-muted-foreground/80 leading-none">Session</span>
+        <span className="text-[11px] font-mono font-bold text-foreground/85 tracking-[0.2em] leading-tight">{code}</span>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ function TradeExpiry({ expiresAt }: { expiresAt?: string }) {
 
   if (!expiresAt) return null;
   return (
-    <div className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80">
       <FiClock className="h-3 w-3" />
       <span className="font-mono">{remaining}</span>
     </div>
@@ -142,17 +142,17 @@ function PhaseIndicator({ phase }: { phase: TradePhase }) {
   const ci = phases.findIndex((p) => p.key === phase);
 
   return (
-    <div className="flex items-center gap-1 px-4 py-2 bg-zinc-50/50 dark:bg-zinc-900/30">
+    <div className="flex items-center gap-1 px-4 py-2 bg-foreground/[0.05]">
       {phases.map((p, i) => (
         <React.Fragment key={p.key}>
           <motion.div
             animate={{ backgroundColor: phase === p.key ? "rgb(16 185 129 / 0.15)" : ci > i ? "rgb(16 185 129 / 0.08)" : "rgb(0 0 0 / 0.03)" }}
             className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md"
           >
-            <span className={phase === p.key ? "text-emerald-600 dark:text-emerald-400" : ci > i ? "text-emerald-400/60" : "text-zinc-400"}>
+            <span className={phase === p.key ? "text-brand-accent-hover dark:text-brand-accent-light" : ci > i ? "text-brand-accent/60" : "text-muted-foreground"}>
               {p.icon}
             </span>
-            <span className={`text-[9px] font-medium ${phase === p.key ? "text-emerald-700 dark:text-emerald-400" : ci > i ? "text-emerald-500/60" : "text-zinc-400"}`}>
+            <span className={`text-[9px] font-medium ${phase === p.key ? "text-brand-accent-hover dark:text-brand-accent-light" : ci > i ? "text-brand-accent/60" : "text-muted-foreground"}`}>
               {p.label}
             </span>
           </motion.div>
@@ -182,7 +182,7 @@ function TradeItemGrid({
     <div className="grid grid-cols-4 gap-1.5 min-h-25">
       {items.length === 0 ? (
         <motion.div
-          className="col-span-4 flex flex-col items-center justify-center py-8 text-zinc-400 dark:text-zinc-600 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg"
+          className="col-span-4 flex flex-col items-center justify-center py-8 text-muted-foreground/70 border-2 border-dashed border-border rounded-lg"
           animate={isRemote ? {} : { borderColor: ["rgba(16,185,129,0.15)", "rgba(16,185,129,0.35)", "rgba(16,185,129,0.15)"] }}
           transition={{ duration: 2, repeat: isRemote ? 0 : Infinity }}
         >
@@ -201,8 +201,8 @@ function TradeItemGrid({
             whileHover={!isRemote ? { scale: 1.08, boxShadow: "0 4px 20px rgba(239,68,68,0.2)", borderColor: "rgb(239,68,68)" } : { scale: 1.05 }}
             className={`relative aspect-square rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-colors ${
               isRemote
-                ? "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
-                : "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/50"
+                ? "border-border bg-surface-1"
+                : "border-brand-accent bg-brand-accent/50"
             }`}
             onClick={() => !isRemote && onRemoveItem?.(item.id)}
             title={isRemote ? `${item.amount} ${item.token.symbol}` : "Click to remove"}
@@ -216,8 +216,8 @@ function TradeItemGrid({
                 size={24}
               />
             </div>
-            <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 mt-0.5 truncate max-w-full">{item.amount}</span>
-            <span className="text-[7px] text-zinc-400 truncate max-w-full">{item.token.symbol}</span>
+            <span className="text-[9px] font-bold text-foreground/85 mt-0.5 truncate max-w-full">{item.amount}</span>
+            <span className="text-[7px] text-muted-foreground truncate max-w-full">{item.token.symbol}</span>
           </motion.div>
         ))
       )}
@@ -248,17 +248,27 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'unavailable' | 'failed' | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
   // ── Initial fetch ──
   useEffect(() => {
+    const controller = new AbortController();
     async function load() {
+      setLoading(true);
+      setLoadError(null);
+      setPartner(null);
       try {
-        const res = await fetch(`/api/trades/${tradeId}`);
-        if (!res.ok) { toast.error("Trade not found"); router.back(); return; }
+        const res = await fetch(`/api/trades/${tradeId}`, { signal: controller.signal });
+        if (!res.ok) {
+          setLoadError([401, 403, 404].includes(res.status) ? 'unavailable' : 'failed');
+          return;
+        }
         const data = await res.json();
+        if (controller.signal.aborted) return;
 
         if (data.expiresAt) setExpiresAt(data.expiresAt);
         const iAmInitiator = data.initiatorId === currentUser?.id;
@@ -269,18 +279,18 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
         else if (data.status === "COMPLETED") setPhase("complete");
         else if (data.status === "CONFIRMING") setPhase("confirm");
       } catch {
-        toast.error("Failed to load trade");
-        router.back();
+        if (!controller.signal.aborted) setLoadError('failed');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     if (currentUser?.id) load();
-  }, [tradeId, currentUser?.id, router]);
+    return () => controller.abort();
+  }, [tradeId, currentUser?.id, loadAttempt]);
 
   // ── Poll trade state ──
   useEffect(() => {
-    if (!tradeId || phase === "complete" || phase === "cancelled" || loading) return;
+    if (!tradeId || phase === "complete" || phase === "cancelled" || loading || loadError) return;
     let active = true;
 
     const poll = async () => {
@@ -334,7 +344,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
     const iv = setInterval(poll, 3000);
     poll();
     return () => { active = false; clearInterval(iv); };
-  }, [tradeId, phase, currentUser?.id, loading]);
+  }, [tradeId, phase, currentUser?.id, loading, loadError]);
 
   // ── Add/Remove items ──
   const addMyItem = useCallback((slot: InventorySlot) => {
@@ -510,7 +520,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
     return (
       <ModalWrapper isFullPage={isFullPage} onClose={handleClose} mounted={mounted}>
         <div className="flex items-center justify-center py-20">
-          <div className="h-6 w-6 border-2 border-zinc-200 dark:border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="h-6 w-6 border-2 border-border border-t-brand-accent rounded-full animate-spin" />
         </div>
       </ModalWrapper>
     );
@@ -519,7 +529,14 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   if (!partner) {
     return (
       <ModalWrapper isFullPage={isFullPage} onClose={handleClose} mounted={mounted}>
-        <div className="flex items-center justify-center py-20 text-zinc-500">Trade not found</div>
+        <div className="space-y-4 px-6 py-10 text-center" role="status">
+          <h1 className="text-xl font-semibold">{loadError === 'failed' ? 'Could not load this trade' : 'Trade unavailable'}</h1>
+          <p className="text-sm text-muted-foreground">{loadError === 'failed' ? 'Try again in a moment.' : 'It may have ended, or you may not have access.'}</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {loadError === 'failed' && <button type="button" className="min-h-11 rounded-lg border px-4 text-sm" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button>}
+            <button type="button" className="min-h-11 rounded-lg border px-4 text-sm" onClick={() => isFullPage ? router.push('/dashboard/trading') : handleClose()}>{isFullPage ? 'Back to trading' : 'Close'}</button>
+          </div>
+        </div>
       </ModalWrapper>
     );
   }
@@ -531,11 +548,11 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
   const modalContent = (
     <div className="flex flex-col h-full max-h-[85vh] w-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm shrink-0">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-1/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <FiRepeat className="h-4 w-4 text-emerald-500" />
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">P2P Trade</span>
+            <FiRepeat className="h-4 w-4 text-brand-accent" />
+            <span className="text-sm font-semibold text-foreground/90">P2P Trade</span>
           </div>
           <TradeExpiry expiresAt={expiresAt} />
         </div>
@@ -543,9 +560,9 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
           <TradeSessionToken tradeId={tradeId} />
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors"
           >
-            <FiX className="h-4 w-4 text-zinc-500" />
+            <FiX className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -569,40 +586,40 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <motion.div className="absolute inset-0 rounded-full bg-emerald-400/20" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
-                <div className="h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <motion.div className="absolute inset-0 rounded-full bg-brand-accent/20" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
+                <div className="h-20 w-20 rounded-full bg-brand-accent/15 flex items-center justify-center">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.3 }}>
-                    <FiCheckCircle className="h-10 w-10 text-emerald-500" />
+                    <FiCheckCircle className="h-10 w-10 text-brand-accent" />
                   </motion.div>
                 </div>
               </motion.div>
-              <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-1">Trade Complete!</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">You traded with {partner.name ?? "a trader"}. Check your wallet.</p>
-              <div className="mt-4 flex items-center gap-1.5 text-[10px] text-zinc-400"><FiShield className="h-3 w-3" /> Cryptographically verified</div>
+              <h3 className="text-lg font-bold text-foreground/90 mb-1">Trade Complete!</h3>
+              <p className="text-sm text-muted-foreground">You traded with {partner.name ?? "a trader"}. Check your wallet.</p>
+              <div className="mt-4 flex items-center gap-1.5 text-[10px] text-muted-foreground"><FiShield className="h-3 w-3" /> Cryptographically verified</div>
             </motion.div>
           ) : phase === "cancelled" ? (
             <motion.div key="cancelled" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
                 <FiX className="h-8 w-8 text-red-400" />
               </motion.div>
-              <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-1">Trade Cancelled</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">No items exchanged. All assets remain in their wallets.</p>
+              <h3 className="text-lg font-bold text-foreground/90 mb-1">Trade Cancelled</h3>
+              <p className="text-sm text-muted-foreground">No items exchanged. All assets remain in their wallets.</p>
             </motion.div>
           ) : (
-            <motion.div key="trade-panels" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 h-full divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
+            <motion.div key="trade-panels" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 h-full divide-y lg:divide-y-0 lg:divide-x divide-border">
               {/* ──── LEFT SIDE: Partner Profile + Their Window ──── */}
               <div className="flex flex-col overflow-y-auto">
                 {/* Partner header */}
-                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-900">
+                <div className="px-5 py-4 border-b border-border/60">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950 ring-purple-300 dark:ring-purple-700">
+                      <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-background ring-purple-300 dark:ring-purple-700">
                         <AvatarImage src={partner.image ?? undefined} />
                         <AvatarFallback className="text-sm">{partner.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{partner.name ?? "Trader"}</h3>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Trading partner</p>
+                        <h3 className="text-sm font-semibold text-foreground/90">{partner.name ?? "Trader"}</h3>
+                        <p className="text-[10px] text-muted-foreground/80">Trading partner</p>
                       </div>
                     </div>
                     <AnimatePresence>
@@ -611,7 +628,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full"
+                          className="flex items-center gap-1 text-[10px] text-brand-accent-hover dark:text-brand-accent-light font-medium bg-brand-accent/10 px-2 py-0.5 rounded-full"
                         >
                           <FiCheckCircle className="h-3 w-3" /> Ready
                         </motion.span>
@@ -622,7 +639,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
 
                 {/* Partner's offered items */}
                 <div className="flex-1 px-5 py-4">
-                  <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 font-medium">
+                  <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-3 font-medium">
                     Their Offer
                   </h4>
                   <TradeItemGrid items={theirItems} isRemote />
@@ -632,16 +649,16 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
               {/* ──── RIGHT SIDE: My Offer + Inventory ──── */}
               <div className="flex flex-col overflow-y-auto">
                 {/* My header */}
-                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-900">
+                <div className="px-5 py-4 border-b border-border/60">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950 ring-emerald-300 dark:ring-emerald-700">
+                      <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-background ring-brand-accent">
                         <AvatarImage src={currentUser?.image ?? undefined} />
                         <AvatarFallback className="text-sm">{currentUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{currentUser?.name ?? "You"}</h3>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Your side</p>
+                        <h3 className="text-sm font-semibold text-foreground/90">{currentUser?.name ?? "You"}</h3>
+                        <p className="text-[10px] text-muted-foreground/80">Your side</p>
                       </div>
                     </div>
                     <AnimatePresence>
@@ -650,7 +667,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.5 }}
-                          className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full"
+                          className="flex items-center gap-1 text-[10px] text-brand-accent-hover dark:text-brand-accent-light font-medium bg-brand-accent/10 px-2 py-0.5 rounded-full"
                         >
                           <FiCheckCircle className="h-3 w-3" /> Ready
                         </motion.span>
@@ -660,19 +677,19 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                 </div>
 
                 {/* My offered items */}
-                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-900">
-                  <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 font-medium">
+                <div className="px-5 py-4 border-b border-border/60">
+                  <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-3 font-medium">
                     Your Offer ({myItems.length} item{myItems.length !== 1 ? "s" : ""})
                   </h4>
                   <TradeItemGrid items={myItems} onRemoveItem={removeMyItem} />
                 </div>
 
                 {/* Compact Inventory — click to add items to offer */}
-                <div className="flex-1 px-5 py-4 bg-zinc-50/50 dark:bg-zinc-900/30">
-                  <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 font-medium flex items-center gap-1.5">
+                <div className="flex-1 px-5 py-4 bg-foreground/[0.05]">
+                  <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground/80 mb-3 font-medium flex items-center gap-1.5">
                     <FiPackage className="h-3 w-3" /> Your Inventory
                     <FiArrowRight className="h-2.5 w-2.5 ml-1" />
-                    <span className="text-emerald-500">drag or click to add</span>
+                    <span className="text-brand-accent">drag or click to add</span>
                   </h4>
                   <OsrsInventory
                     compact
@@ -690,8 +707,8 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
 
       {/* Security footer */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-4 py-1.5 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/30 shrink-0">
-          <div className="flex items-center justify-center gap-1.5 text-[9px] text-zinc-400 dark:text-zinc-500">
+        <div className="px-4 py-1.5 border-t border-border/60 bg-foreground/[0.05] shrink-0">
+          <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground/80">
             <FiLock className="h-2.5 w-2.5" />
             <span>End-to-end verified &middot; Zero-knowledge proof ready &middot; VeggaSystem: {VEGGA_SYSTEM.walletAddress.slice(0, 6)}...{VEGGA_SYSTEM.walletAddress.slice(-4)}</span>
           </div>
@@ -700,7 +717,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
 
       {/* Action Bar */}
       {phase !== "complete" && phase !== "cancelled" && (
-        <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2 bg-white dark:bg-zinc-950 shrink-0">
+        <div className="px-5 py-3 border-t border-border space-y-2 bg-card shrink-0">
           {phase === "offer" && (
             <div className="flex gap-2">
               <motion.button
@@ -708,7 +725,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                 onClick={handleCancel}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 hover:border-red-300 dark:hover:border-red-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 hover:border-red-300 dark:hover:border-red-700 transition-colors"
               >
                 <FiX className="h-3.5 w-3.5" />
                 Decline
@@ -719,10 +736,10 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                 disabled={myReady || myItems.length === 0}
                 whileHover={!myReady && myItems.length > 0 ? { scale: 1.02 } : {}}
                 whileTap={!myReady && myItems.length > 0 ? { scale: 0.98 } : {}}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                   myReady
-                    ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700"
-                    : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none"
+                    ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light border border-brand-accent"
+                    : "bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 disabled:opacity-40 disabled:shadow-none"
                 }`}
               >
                 {myReady ? (
@@ -758,7 +775,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                   onClick={handleCancel}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl border border-border text-xs font-medium text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                 >
                   Cancel
                 </motion.button>
@@ -768,7 +785,7 @@ export function TradeModal({ tradeId, isFullPage = false }: TradeModalProps) {
                   disabled={confirmed}
                   whileHover={!confirmed ? { scale: 1.02 } : {}}
                   whileTap={!confirmed ? { scale: 0.98 } : {}}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 disabled:opacity-40 shadow-lg shadow-emerald-500/25 disabled:shadow-none transition-all"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-accent-hover text-brand-accent-foreground text-xs font-semibold hover:bg-brand-accent disabled:opacity-40 shadow-lg shadow-brand-accent/25 disabled:shadow-none transition"
                 >
                   {confirmed ? (
                     <span className="flex items-center justify-center gap-1.5">
@@ -825,7 +842,7 @@ function ModalWrapper({
 
   if (isFullPage) {
     return (
-      <div className="w-full max-w-5xl mx-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden">
+      <div className="w-full max-w-5xl mx-auto rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
         {children}
       </div>
     );
@@ -854,7 +871,7 @@ function ModalWrapper({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="relative z-10 w-full max-w-5xl max-h-[90vh] rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden"
+          className="relative z-10 w-full max-w-5xl max-h-[90vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
         >
           {children}
         </motion.div>

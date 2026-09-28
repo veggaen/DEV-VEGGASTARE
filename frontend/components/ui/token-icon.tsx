@@ -12,7 +12,7 @@
  * @stability     stable
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { getAddress } from "viem";
 import {
   getTrustWalletLogoUrl,
@@ -73,11 +73,12 @@ export function TokenIcon({
   }, [address, chainId, symbol, logo]);
 
   const [srcIndex, setSrcIndex] = useState(0);
-
-  // Reset index when token identity changes
-  useEffect(() => {
+  const [previousSources, setPreviousSources] = useState(sources);
+  // Reset before committing a different token (or its newly discovered logo).
+  if (previousSources !== sources) {
+    setPreviousSources(sources);
     setSrcIndex(0);
-  }, [address, chainId, symbol]);
+  }
 
   const handleError = useCallback(() => {
     setSrcIndex((prev) => Math.min(prev + 1, sources.length - 1));

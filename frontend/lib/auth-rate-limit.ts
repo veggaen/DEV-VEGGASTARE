@@ -1,0 +1,62 @@
+/** @fileOverview Durable auth throttling across serverless replicas; failures deny attempts. @stability stable */
+import { createHmac } from 'node:crypto';
+import { headers } from 'next/headers';
+import { dbPrisma } from '@/lib/db';
+
+export const AUTH_RETRY_MESSAGE = 'Too many attempts or sign-in is temporarily unavailable. Please try again in a few minutes.';
+
+export async function allowAuthAttempt(operation: string, identity = '', request?: Request): Promise<boolean> {
+  return allowAttempt(operation, identity, request, 20, 5);
+}
+
+/** Authenticated admin detail reads share a durable, separate read budget. */
+export async function allowAdminDetailRead(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('admin-user-detail-read', identity, request, 120, 60);
+}
+
+/** Debounced price/cart edits never share or relax the payment creation budget. */
+export async function allowSettlementEdit(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('settlement-quote-edit', identity, request, 120, 60);
+}
+
+/** Durable messaging budgets supplement the short-window burst limiter. */
+export async function allowMessageWrite(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('message-write', identity, request, 200, 100);
+}
+export async function allowConversationCreate(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('conversation-create', identity, request, 60, 20);
+}
+export async function allowConversationManagement(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('conversation-management', identity, request, 120, 40);
+}
+export async function allowRealtimeAuthorization(identity: string, request: Request): Promise<boolean> {
+  return allowAttempt('realtime-authorization', identity, request, 300, 150);
+}
+
+async function allowAttempt(operation: string, identity: string, request: Request | undefined, ipLimit: number, identityLimit: number): Promise<boolean> {
+  try {
+    const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) return false;
+    const h = request?.headers || await headers();
+    // Vercel overwrites this header. Do not trust client-supplied IP aliases in production.
+    const ip = (process.env.VERCEL ? h.get('x-vercel-forwarded-for') : h.get('x-forwarded-for'))?.split(',')[0]?.trim() || 'unknown';
+    const entries = [{ scope: `ip:${ip}`, limit: ipLimit }];
+    if (identity) entries.push({ scope: `identity:${identity.trim().toLowerCase()}`, limit: identityLimit });
+    for (const entry of entries) {
+      const key = createHmac('sha256', secret).update(`${operation}:${entry.scope}`).digest('hex');
+      const rows = await dbPrisma.$queryRaw<{ count: number }[]>`
+        INSERT INTO "AuthRateBucket" ("key", "count", "expiresAt")
+        VALUES (${key}, 1, CURRENT_TIMESTAMP + INTERVAL '5 minutes')
+        ON CONFLICT ("key") DO UPDATE SET
+          "count" = CASE WHEN "AuthRateBucket"."expiresAt" <= CURRENT_TIMESTAMP THEN 1 ELSE LEAST("AuthRateBucket"."count" + 1, 100000) END,
+          "expiresAt" = CASE WHEN "AuthRateBucket"."expiresAt" <= CURRENT_TIMESTAMP THEN CURRENT_TIMESTAMP + INTERVAL '5 minutes' ELSE "AuthRateBucket"."expiresAt" END
+        RETURNING "count"`;
+      if (!rows[0] || rows[0].count > entry.limit) return false;
+    }
+    // Small, bounded cleanup. Hashed identifiers expire without storing raw IP/email.
+    await dbPrisma.$executeRaw`DELETE FROM "AuthRateBucket" WHERE "key" IN (SELECT "key" FROM "AuthRateBucket" WHERE "expiresAt" < CURRENT_TIMESTAMP - INTERVAL '1 day' LIMIT 100)`;
+    return true;
+  } catch {
+    return false;
+  }
+}

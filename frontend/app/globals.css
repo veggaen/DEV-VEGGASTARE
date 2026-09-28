@@ -34,6 +34,9 @@
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  /* Market data semantics (paper terminal): rising / falling. Not the accent. */
+  --color-chart-up: hsl(var(--chart-up));
+  --color-chart-down: hsl(var(--chart-down));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-accent: hsl(var(--accent));
@@ -68,6 +71,9 @@
   --color-brand-accent-light: hsl(var(--brand-accent-light));
   --color-brand-accent-muted: hsl(var(--brand-accent-muted));
   --color-brand-accent-foreground: hsl(var(--brand-accent-foreground));
+  /* Second brand tint — the ™ counter-phase colour and "same letter" resonance
+     in the BrandMark. Cyan in light, violet in dark (see :root / .dark). */
+  --color-brand-accent-alt: hsl(var(--brand-accent-alt));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -195,13 +201,13 @@
      * Light base is a soft cool neutral (#F9FAFB / zinc-50-ish) rather than stark
      * near-white — reduces eye strain and lets pure-white cards read as "raised".
      * Foreground stays a near-black charcoal (#171717) for AA-comfortable contrast. */
-    --background: 210 20% 98%; /* #F9FAFB - soft cool neutral (NOT stark white) */
+    --background: 210 20% 96%; /* #f2f4f7 - a real canvas: white cards separate from it without leaning on hairlines */
     --foreground: 222 16% 12%; /* #1a1d24 - charcoal near-black, slightly warm */
 
     /* Surface hierarchy for depth — white cards lift cleanly off the soft bg */
     --surface-1: 0 0% 100%; /* #ffffff - raised cards (now stand out vs soft bg) */
     --surface-2: 210 20% 99%; /* near-white subtle panels */
-    --surface-3: 210 18% 95%; /* #eef1f4 - distinct raised areas */
+    --surface-3: 210 18% 92%; /* #e6eaef - distinct raised areas (one clear step below the canvas) */
 
     /* Component colors */
     --card: 0 0% 100%; /* #ffffff - Pure white cards for contrast against bg */
@@ -224,8 +230,13 @@
 
     --destructive: 0 84.2% 60.2%; /* #ef4444 */
     --destructive-foreground: 0 0% 100%; /* #ffffff */
+    --chart-up: 142 71% 45%; /* #22c55e */
+    --chart-down: 0 84% 60%; /* #ef4444 */
 
-    --border: 214 15% 86%; /* #d4d9df - visible cool border against soft bg */
+    --border: 214 14% 74%; /* #b1bbc6 - components use it at /60, which must still read as a line on white on an average panel */
+    /* OSRS inventory text: a pale halo on light cells, a black outline on dark ones */
+    --stack-outline: 1px 1px 0 hsl(0 0% 100%), -1px -1px 0 hsl(0 0% 100%), 1px -1px 0 hsl(0 0% 100%), -1px 1px 0 hsl(0 0% 100%), 0 1px 0 hsl(0 0% 100%);
+    --stack-text-shadow: 0 1px 2px hsl(0 0% 100% / 0.9);
     --input: 210 20% 97%; /* #f1f4f7 - soft input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
  
@@ -253,11 +264,21 @@
     --brand-accent-muted: 199 89% 48%;     /* sky-500 at lower opacity (use with /10, /20 etc) */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 199, 89%, 48%;    /* For rgba() usage: rgb(14, 165, 233) */
+    --brand-accent-rgb: 14 165 233;        /* sky-500 as space-separated RGB for canvases / rgb(var() / a) */
+    --brand-accent-alt: 192 91% 36%;       /* cyan-600: #0891b2 — ™ counter-phase tint */
+    /* BrandMark letter/™ ink: the accent itself on light, the lighter step on
+       dark so lit letters stay legible on near-black (mid-emerald reads muddy). */
+    --brand-mark-tint: var(--brand-accent);
+
+    /* Chrome layout tokens: the floating mobile dock reserves this much space at
+       the bottom of scrollable pages (set by the media rule below, 0 on md+). */
+    --mobile-rail-offset: 0px;
 
     /* Elevation (light): layered soft ink shadows — realistic, never muddy */
-    --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
-    --elevation-2: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -1px rgba(16, 24, 40, 0.05);
-    --elevation-3: 0 20px 40px -8px rgba(16, 24, 40, 0.14), 0 8px 16px -6px rgba(16, 24, 40, 0.08);
+    /* Light shadows carry a hint of the ink colour and enough alpha to survive a bright monitor. */
+    --elevation-1: 0 1px 2px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.10);
+    --elevation-2: 0 6px 12px -2px rgba(16, 24, 40, 0.12), 0 2px 4px -1px rgba(16, 24, 40, 0.08);
+    --elevation-3: 0 20px 40px -8px rgba(16, 24, 40, 0.18), 0 8px 16px -6px rgba(16, 24, 40, 0.10);
   }
  
   .dark {
@@ -296,8 +317,12 @@
  
     --destructive: 0 62.8% 30.6%; /* #7f1d1d */
     --destructive-foreground: 0 0% 98%; /* #fafafa */
+    --chart-up: 142 69% 58%; /* #4ade80 */
+    --chart-down: 0 91% 71%; /* #f87171 */
  
     --border: 0 0% 13%; /* #212121 - softer borders (zinc-850) */
+    --stack-outline: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000;
+    --stack-text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
     --input: 0 0% 10%; /* #1a1a1a - input backgrounds */
     --ring: var(--brand-accent); /* Uses brand accent for focus rings */
 
@@ -320,6 +345,9 @@
     --brand-accent-muted: 160 84% 39%;     /* emerald-500 at lower opacity */
     --brand-accent-foreground: 0 0% 100%;  /* white text on accent */
     --brand-accent-glow: 160, 84%, 39%;    /* For rgba() usage: rgb(16, 185, 129) */
+    --brand-accent-rgb: 52 211 153;        /* emerald-400 for canvases (pops on black) */
+    --brand-accent-alt: 255 92% 76%;       /* violet-300: #c4b5fd — ™ counter-phase tint */
+    --brand-mark-tint: var(--brand-accent-light);
 
     /* Elevation (dark): shadows barely read on black — keep them whisper-soft;
        elevation is expressed through surface-1/2/3 lightness steps instead */
@@ -328,12 +356,88 @@
     --elevation-3: 0 24px 48px -12px rgba(0, 0, 0, 0.75);
   }
 }
-/*  
 @layer base {
-  * {
-    @apply border-border;
+  /* Tailwind v4 preflight leaves border-color at currentColor; the app was
+     authored against the shadcn/v3 default where a bare `border` is the theme
+     token. Utilities (`border-brand-accent`, `border-border/60`…) still win. */
+  *,
+  ::before,
+  ::after {
+    border-color: hsl(var(--border));
   }
-} */
+}
+
+/* ─── Accent presets (user preference, `html[data-accent]`) ───────────────────
+ * The default accent is sky on light / emerald on dark. A user can pin one hue
+ * for both themes from Settings → Appearance; every token that reads
+ * --brand-accent* (buttons, rings, rail, BrandMark, particles) follows.
+ * Light values sit one step darker than dark values so small text keeps
+ * contrast on white. Set by components/providers/ui-preferences.tsx.
+ * ───────────────────────────────────────────────────────────────────────────── */
+html[data-accent="sky"] {
+  --brand-accent: 199 89% 48%;  --brand-accent-hover: 200 98% 39%;  --brand-accent-light: 198 93% 60%;
+  --brand-accent-muted: 199 89% 48%; --brand-accent-glow: 199, 89%, 48%; --brand-accent-rgb: 14 165 233;
+  --brand-accent-alt: 192 91% 36%;
+}
+html.dark[data-accent="sky"] {
+  --brand-accent: 198 93% 60%;  --brand-accent-hover: 199 89% 48%;  --brand-accent-light: 199 95% 74%;
+  --brand-accent-muted: 198 93% 60%; --brand-accent-glow: 198, 93%, 60%; --brand-accent-rgb: 56 189 248;
+  --brand-accent-alt: 187 92% 69%;
+}
+html[data-accent="emerald"] {
+  --brand-accent: 161 94% 30%;  --brand-accent-hover: 163 94% 24%;  --brand-accent-light: 160 84% 39%;
+  --brand-accent-muted: 161 94% 30%; --brand-accent-glow: 161, 94%, 30%; --brand-accent-rgb: 5 150 105;
+  --brand-accent-alt: 175 84% 32%;
+}
+html.dark[data-accent="emerald"] {
+  --brand-accent: 160 84% 39%;  --brand-accent-hover: 161 94% 30%;  --brand-accent-light: 160 84% 46%;
+  --brand-accent-muted: 160 84% 39%; --brand-accent-glow: 160, 84%, 39%; --brand-accent-rgb: 52 211 153;
+  --brand-accent-alt: 255 92% 76%;
+}
+html[data-accent="violet"] {
+  --brand-accent: 262 83% 58%;  --brand-accent-hover: 263 70% 50%;  --brand-accent-light: 258 90% 66%;
+  --brand-accent-muted: 262 83% 58%; --brand-accent-glow: 262, 83%, 58%; --brand-accent-rgb: 124 58 237;
+  --brand-accent-alt: 292 84% 61%;
+}
+html.dark[data-accent="violet"] {
+  --brand-accent: 258 90% 66%;  --brand-accent-hover: 262 83% 58%;  --brand-accent-light: 255 92% 76%;
+  --brand-accent-muted: 258 90% 66%; --brand-accent-glow: 258, 90%, 66%; --brand-accent-rgb: 167 139 250;
+  --brand-accent-alt: 292 91% 73%;
+}
+html[data-accent="rose"] {
+  --brand-accent: 347 77% 50%;  --brand-accent-hover: 345 83% 41%;  --brand-accent-light: 350 89% 60%;
+  --brand-accent-muted: 347 77% 50%; --brand-accent-glow: 347, 77%, 50%; --brand-accent-rgb: 225 29 72;
+  --brand-accent-alt: 25 95% 53%;
+}
+html.dark[data-accent="rose"] {
+  --brand-accent: 351 95% 71%;  --brand-accent-hover: 350 89% 60%;  --brand-accent-light: 353 96% 82%;
+  --brand-accent-muted: 351 95% 71%; --brand-accent-glow: 351, 95%, 71%; --brand-accent-rgb: 251 113 133;
+  --brand-accent-alt: 38 92% 50%;
+}
+html[data-accent="amber"] {
+  --brand-accent: 32 95% 44%;   --brand-accent-hover: 26 90% 37%;   --brand-accent-light: 38 92% 50%;
+  --brand-accent-muted: 32 95% 44%;  --brand-accent-glow: 32, 95%, 44%;  --brand-accent-rgb: 217 119 6;
+  --brand-accent-alt: 199 89% 48%;
+}
+html.dark[data-accent="amber"] {
+  --brand-accent: 43 96% 56%;   --brand-accent-hover: 38 92% 50%;   --brand-accent-light: 46 97% 65%;
+  --brand-accent-muted: 43 96% 56%;  --brand-accent-glow: 43, 96%, 56%;  --brand-accent-rgb: 251 191 36;
+  --brand-accent-alt: 198 93% 60%;
+}
+html[data-accent="mono"] {
+  --brand-accent: 0 0% 9%;      --brand-accent-hover: 0 0% 20%;     --brand-accent-light: 0 0% 40%;
+  --brand-accent-muted: 0 0% 9%;     --brand-accent-glow: 0, 0%, 9%;      --brand-accent-rgb: 23 23 23;
+  --brand-accent-alt: 0 0% 45%;
+}
+html.dark[data-accent="mono"] {
+  --brand-accent: 0 0% 98%;     --brand-accent-hover: 0 0% 82%;     --brand-accent-light: 0 0% 100%;
+  --brand-accent-foreground: 0 0% 4%;
+  --brand-accent-muted: 0 0% 98%;    --brand-accent-glow: 0, 0%, 98%;     --brand-accent-rgb: 250 250 250;
+  --brand-accent-alt: 0 0% 64%;
+}
+html[data-accent="mono"] {
+  --brand-accent-foreground: 0 0% 100%;
+}
 
 @layer utilities {
 
@@ -353,7 +457,7 @@
 
 /* ─── Smooth theme cross-fade ──────────────────────────────────────────────────
  * The theme toggle adds `.theme-transitioning` to <html> for ~500ms around the
- * swap (see components/uicustom/themebtn.tsx). Only during that window do we let
+ * swap (see components/uicustom/chrome/theme-toggle.tsx). Only during that window do we let
  * color-bearing properties transition — so light↔dark reads as a deliberate,
  * calm cross-fade instead of a hard cut, WITHOUT permanently transitioning every
  * element (which would smear hover states and the kinetic intro). We animate
@@ -376,6 +480,33 @@
 .theme-transitioning canvas,
 .theme-transitioning .hero-spotlight {
   transition: none !important;
+}
+
+/* ─── Theme swap via View Transitions ──────────────────────────────────────────
+ * ThemeToggle calls document.startViewTransition() and flags <html> with
+ * `.theme-vt` plus the toggle's centre (--vt-x/--vt-y) and the radius that
+ * covers the viewport (--vt-r). The old theme stays as a static snapshot while
+ * the new one is revealed by a growing circle from the button — a true
+ * frame-to-frame swap, no mid-gray, canvases included.
+ * ───────────────────────────────────────────────────────────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-vt::view-transition-old(root) {
+  z-index: 1;
+}
+html.theme-vt::view-transition-new(root) {
+  z-index: 2;
+  animation: themeReveal 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes themeReveal {
+  from { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 0%)); }
+  to   { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0%)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-vt::view-transition-new(root) { animation: none; }
 }
 
 /* ─── Noise/Grain overlay to mask gradient banding on different monitors ─── */
@@ -411,6 +542,12 @@
   z-index: 1;
 }
 
+/* Seamless horizontal loop: the track holds two copies of its content, so -50% lands on the seam. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 @keyframes ambientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -442,6 +579,12 @@ body {
   height: 100%;
 }
 
+/* Saved consent affects presentation only; SiteTelemetry independently checks
+   explicit opt-in before mounting either SDK and before every event. */
+html[data-saved-consent="true"] [data-cookie-banner] {
+  display: none;
+}
+
 body {
   min-height: 100dvh;
   background-size: 200% 200%;
@@ -471,10 +614,12 @@ html:not(.dark) body {
      Three tightly-positioned radials: emerald glow from top-center, sky hint top-right,
      violet whisper top-left. Fixed so they anchor to the viewport (hero stays in the glow,
      below-fold content is clean white). */
+  /* Light mirrors dark 1:1 — a clean base with only a whisper of accent haze
+     behind the hero (dark is pure black; light is pure white + 4% tint). */
   background-image:
-    radial-gradient(ellipse 90% 38% at 50% -6%,  rgba(56, 189, 248, 0.10) 0%, transparent 58%),
-    radial-gradient(ellipse 45% 22% at 92%  4%,  rgba(99, 102, 241, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 35% 16% at 8%   4%,  rgba(14, 165, 233, 0.05) 0%, transparent 48%);
+    radial-gradient(ellipse 90% 38% at 50% -6%,  rgb(var(--brand-accent-rgb) / 0.05) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 22% at 92%  4%,  rgb(var(--brand-accent-rgb) / 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 16% at 8%   4%,  rgb(var(--brand-accent-rgb) / 0.02) 0%, transparent 48%);
   background-size: 100% 100%;
   background-attachment: fixed;
 }
@@ -511,13 +656,9 @@ html:not(.dark) [data-card]:hover {
    IMPORTANT: only targets the bare Tailwind `border` utility when no explicit
    color utility (border-sky-*, border-emerald-*, etc.) is applied.  This avoids
    clobbering accent-coloured sliding indicators. */
-html:not(.dark) .border:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
-  border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald"]):not([class*="border-red"]):not([class*="border-blue"]):not([class*="border-violet"]):not([class*="border-amber"]):not([class*="border-orange"]):not([class*="border-green"]):not([class*="border-yellow"]):not([class*="border-pink"]):not([class*="border-purple"]):not([class*="border-cyan"]):not([class*="border-indigo"]) {
-  border-color: rgba(0, 0, 0, 0.15) !important;
-}
+/* (2026-09-27) The bare-`.border` !important rescue that lived here is gone:
+   `* { @apply border-border }` in @layer base already gives every border the
+   theme token, and the light `--border` value is tuned to be visible. */
 
 /* ─── Light mode: rescue the "fading" page-dividing borders ─────────────────────
  * App-wide, dividers use `border-{zinc,gray,neutral,slate}-100` (≈#f4f4f5) paired
@@ -531,18 +672,9 @@ html:not(.dark) .border-2:not([class*="border-sky"]):not([class*="border-emerald
  * `divide-*` paints the border on the second-and-later children (Tailwind's
  * `> :not([hidden]) ~ :not([hidden])`), so it's targeted separately.
  * ───────────────────────────────────────────────────────────────────────────── */
-html:not(.dark) [class*="border-zinc-100"],
-html:not(.dark) [class*="border-gray-100"],
-html:not(.dark) [class*="border-neutral-100"],
-html:not(.dark) [class*="border-slate-100"] {
-  border-color: rgba(0, 0, 0, 0.09) !important;
-}
-html:not(.dark) [class*="divide-zinc-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-neutral-100"] > :not([hidden]) ~ :not([hidden]),
-html:not(.dark) [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgba(0, 0, 0, 0.09) !important;
-}
+/* (2026-09-27) The zinc/gray-100 divider rescue that lived here is gone: no
+   palette border classes remain in app/ or components/, dividers use
+   `border-border/60` and the token is visible in both themes. */
 
 /* Light mode: Enhance rounded panels with subtle shadow */
 html:not(.dark) .rounded-xl,
@@ -555,15 +687,6 @@ html:not(.dark) .bg-surface-1\/30,
 html:not(.dark) .bg-surface-1\/50 {
   background-color: rgba(255, 255, 255, 0.95) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-/* Light mode: Stronger accent for selected/active states */
-html:not(.dark) .bg-emerald-500\/10 {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-}
-
-html:not(.dark) .bg-emerald-500\/20 {
-  background-color: rgba(16, 185, 129, 0.2) !important;
 }
 
 /* Light mode: Make icon backgrounds more visible */
@@ -636,101 +759,8 @@ html.dark [data-theme-tinted] {
   fill: black !important; /* Override the default fill color */
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Poll Builder light-mode compatibility layer
- * Scope only to poll builder so we do not affect the rest of the app.
- * This lets the legacy dark-zinc utility usage read cleanly in light mode.
- * ────────────────────────────────────────────────────────────────────────── */
-
-.poll-builder-theme-scope--light [class*="bg-zinc-"] {
-  background-color: hsl(var(--card)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="border-zinc-"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="text-zinc-200"],
-.poll-builder-theme-scope--light [class*="text-zinc-300"],
-.poll-builder-theme-scope--light [class*="text-zinc-400"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="text-zinc-500"],
-.poll-builder-theme-scope--light [class*="text-zinc-600"],
-.poll-builder-theme-scope--light [class*="text-zinc-700"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="hover:bg-zinc-"]:hover {
-  background-color: hsl(var(--accent)) !important;
-}
-
-.poll-builder-theme-scope--light [class*="hover:text-zinc-"]:hover {
-  color: hsl(var(--foreground)) !important;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Product detail (/products/[...id]) light-mode compatibility layer
- *
- * That page was authored as an immersive DARK glass showcase: the root forces
- * `text-white` and the custom cards use white-hairline borders, `bg-white/[0.0x]`
- * frosted panels, and `bg-black/4x` surfaces. With no `dark:` pairing it rendered
- * white-on-near-white in light mode (unreadable). Rather than rewrite ~47 inline
- * classes, we remap just those dark-glass families to themed light equivalents —
- * but ONLY under `html:not(.dark) [data-product-detail]`, so dark mode is
- * untouched by construction. Mirrors the poll-builder layer above.
- *
- * Accent colours (emerald/sky/amber/red) and already-themed tokens
- * (text-muted-foreground, the Button components) are intentionally NOT touched.
- * ────────────────────────────────────────────────────────────────────────── */
-html:not(.dark) [data-product-detail] {
-  color: hsl(var(--foreground));
-}
-/* The page shell itself is `bg-black` (no opacity slash) with an emerald grid
-   overlay. In light mode give it the app background and dial the grid right back
-   so it reads as a faint texture, not a dark scrim. */
-html:not(.dark) [data-product-detail].bg-black,
-html:not(.dark) [data-product-detail] > .bg-black {
-  background-color: hsl(var(--background)) !important;
-}
-html:not(.dark) [data-product-detail] [class*="bg-[linear-gradient"] {
-  opacity: 0.4 !important;
-}
-/* White body/heading text → foreground ink */
-html:not(.dark) [data-product-detail] [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-}
-/* Muted zinc text → muted foreground */
-html:not(.dark) [data-product-detail] [class*="text-zinc-200"],
-html:not(.dark) [data-product-detail] [class*="text-zinc-300"],
-html:not(.dark) [data-product-detail] [class*="text-zinc-400"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-/* White-hairline borders → subtle ink border */
-html:not(.dark) [data-product-detail] [class*="border-white/"] {
-  border-color: rgba(0, 0, 0, 0.10) !important;
-}
-/* Frosted white-glass panels (bg-white/[0.0x]) → clean raised white surface */
-html:not(.dark) [data-product-detail] [class*="bg-white/"] {
-  background-color: hsl(var(--surface-1)) !important;
-}
-/* Dark scrim panels (bg-black/4x, bg-black/55) → soft light panel.
-   The gallery's inner bg-black/55 holds product imagery, so use a neutral light
-   so transparent PNGs still read. */
-html:not(.dark) [data-product-detail] [class*="bg-black/"] {
-  background-color: hsl(var(--surface-2)) !important;
-}
-/* The detail panel's heavy black drop-shadows are tuned for glow-on-black; soften
-   them so they read as gentle elevation on the light canvas instead of muddy blobs. */
-html:not(.dark) [data-product-detail] [class*="shadow-["] {
-  --tw-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-}
-/* Pale emerald text (text-emerald-200/...) is low-contrast on white — deepen it. */
-html:not(.dark) [data-product-detail] [class*="text-emerald-200"] {
-  color: #047857 !important; /* emerald-700 */
-}
+/* The poll-builder and product-detail light-mode compat layers that lived here
+   were deleted on 2026-09-27: both surfaces now use semantic tokens directly. */
 
 /* ─── AI Chat + Landing Page Visual Effects ─────────────────────────────────── */
 
@@ -777,16 +807,14 @@ html:not(.dark) .glass-panel {
   border: 1px solid rgba(0, 0, 0, 0.07);
 }
 html:not(.dark) .chat-desktop-panel:hover {
-  border-color: rgba(14, 165, 233, 0.35) !important;
+  border-color: hsl(var(--brand-accent) / 0.35);
   box-shadow:
-    0 0 40px rgba(14,165,233,0.06),
+    0 0 40px hsl(var(--brand-accent) / 0.06),
     0 8px 32px rgba(0,0,0,0.08);
 }
 html:not(.dark) .chat-desktop-panel:focus-within {
-  border-color: rgba(14, 165, 233, 0.45) !important;
-  box-shadow:
-    0 0 50px rgba(14,165,233,0.08),
-    0 8px 40px rgba(0,0,0,0.10);
+  border-color: hsl(var(--brand-accent) / 0.18);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.08);
 }
 
 /* Desktop chat container — feature-card-style hover with gradient accent + border glow */
@@ -803,14 +831,15 @@ html:not(.dark) .chat-desktop-panel:focus-within {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(to bottom right, rgba(14,165,233,0.04), transparent);
+  background: linear-gradient(to bottom right, hsl(var(--brand-accent) / 0.04), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
   z-index: 0;
 }
-.chat-desktop-panel:hover::before,
-.chat-desktop-panel:focus-within::before {
+/* Hover only: while typing the composer is the single focal point, so the
+   panel keeps a flat surface (no tinted gradient behind the input). */
+.chat-desktop-panel:hover::before {
   opacity: 1;
 }
 .chat-desktop-panel > * {
@@ -819,17 +848,18 @@ html:not(.dark) .chat-desktop-panel:focus-within {
 }
 .chat-desktop-panel:hover {
   box-shadow:
-    0 0 50px rgba(34,197,94,0.10),
+    0 0 50px hsl(var(--brand-accent) / 0.10),
     0 8px 40px rgba(0,0,0,0.25),
-    inset 0 -40px 60px -30px rgba(34,197,94,0.04);
-  border-color: rgba(34, 197, 94, 0.30);
+    inset 0 -40px 60px -30px hsl(var(--brand-accent) / 0.04);
+  border-color: hsl(var(--brand-accent) / 0.30);
 }
+/* While typing, the panel steps back (faint accent hairline) and the composer
+   carries the glow — one focal point, not two competing green frames. */
 .chat-desktop-panel:focus-within {
   box-shadow:
-    0 0 60px rgba(34,197,94,0.14),
-    0 8px 40px rgba(0,0,0,0.35),
-    inset 0 -50px 70px -30px rgba(34,197,94,0.06);
-  border-color: rgba(34, 197, 94, 0.40);
+    0 8px 40px rgba(0,0,0,0.30),
+    inset 0 -50px 70px -30px hsl(var(--brand-accent) / 0.05);
+  border-color: hsl(var(--brand-accent) / 0.18);
 }
 
 /* Chat input wrapper — neutral, no green glow */
@@ -896,6 +926,16 @@ html.dark .chat-send-btn:not(:disabled):hover {
 }
 
 /* Auth card entrance — slightly slower/calmer than the chat panel */
+/* Inner-page header entrance (PageHeader): a calm 12px rise + fade, once. */
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-rise { animation: pageRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-rise { animation: none; }
+}
+
 .auth-card-enter {
   animation: slide-up-fade 0.4s var(--ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
@@ -950,6 +990,40 @@ html.dark .chat-send-btn:not(:disabled):hover {
   outline: none;
 }
 
+/* One neutral focus boundary, shared by the homepage and full chat. This sits
+   after the global focus fallback so it replaces, rather than doubles, it. */
+.ai-composer-surface {
+  transition: border-color 0.2s ease-out, box-shadow 0.25s ease-out;
+}
+/* Focus: a calm accent hairline plus one soft, evenly spread halo. No thick
+   ring (it read as bright side edges on the wide, short composer). */
+.ai-composer-surface:has(textarea:focus-visible) {
+  border-color: hsl(var(--brand-accent) / 0.5);
+  outline: none;
+  box-shadow: 0 0 20px -6px hsl(var(--brand-accent) / 0.22);
+}
+.ai-composer-surface textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Keep every corner and the close control inside even short/rotated screens.
+   Only the model list scrolls; search and balance never move out of reach. */
+.ai-model-picker {
+  top: 50%;
+  bottom: auto;
+  width: calc(100% - 2rem);
+  max-width: 36rem;
+  height: min(40rem, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  border-radius: 1rem;
+  transform: translateY(-50%);
+  animation: none;
+}
+.ai-model-picker input:focus-visible {
+  outline-color: hsl(var(--muted-foreground));
+  border-radius: var(--radius-lg);
+}
+
 /* Hero feature chip entry — CSS keyframe instead of framer-motion for lower overhead */
 @keyframes heroChipIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -958,6 +1032,13 @@ html.dark .chat-send-btn:not(:disabled):hover {
 
 /* Update banner — animated gradient sweep so the "new version" bar feels alive
    and the click reads as active while the page reloads. */
+/* Expanding accent ring (drag ghost, live markers). Reads the accent token, so it
+   follows the user's accent preset — framer cannot interpolate var() colours. */
+@keyframes accent-ring {
+  from { box-shadow: 0 0 0 0 hsl(var(--brand-accent) / 0.4); }
+  to { box-shadow: 0 0 0 8px hsl(var(--brand-accent) / 0); }
+}
+
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
@@ -988,6 +1069,13 @@ html.dark .chat-send-btn:not(:disabled):hover {
   }
 }
 
+/* A paginated feed has no page end until its final batch has arrived. Keep the
+   shared footer out of layout while more posts (or an explicit retry) remain,
+   so it cannot flash into view and then be pushed away by the next response. */
+[data-site-scroll]:has([data-feed-footer-pending="true"]) > footer {
+  display: none;
+}
+
 /* AI chat message bubble animations */
 @keyframes message-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -998,6 +1086,47 @@ html.dark .chat-send-btn:not(:disabled):hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .message-bubble-enter { animation: none; }
+}
+
+/* ─── App chrome: BrandMark ™ + AppRail ───────────────────────────────────────
+ * The ™ letters idle in counter-phase between the two brand tints. This used to
+ * be a 3s React interval re-rendering the whole hero; a colour keyframe does it
+ * on the compositor for free, on every mark (header + hero) at once. Hovering the
+ * mark pauses the swap so the spring/jump reads clean.
+ * ─────────────────────────────────────────────────────────────────────────────── */
+@keyframes brandTmSwap {
+  0%, 38%   { color: hsl(var(--brand-mark-tint)); }
+  50%, 88%  { color: hsl(var(--brand-accent-alt)); }
+  100%      { color: hsl(var(--brand-mark-tint)); }
+}
+.brand-tm-letter {
+  color: hsl(var(--brand-mark-tint));
+  animation: brandTmSwap 6s ease-in-out infinite;
+}
+.brand-tm-letter[data-phase="m"] {
+  animation-delay: -3s;
+}
+[data-brand-mark]:hover .brand-tm-letter,
+[data-brand-mark][data-active="true"] .brand-tm-letter {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-tm-letter { animation: none; }
+}
+
+/* The floating mobile dock (AppRail variant="dock") reserves room at the bottom
+   of scrolling pages so the last row of content is never hidden under it.
+   Contained routes (products, immersive chat) subtract it from their own height. */
+@media (max-width: 767.98px) {
+  [data-app-shell][data-mobile-rail="true"] {
+    --mobile-rail-offset: 92px;
+  }
+}
+
+/* Rail chips: the chase/active boxes live on their own compositor layer so a
+   spring between chips never repaints the glass behind them. */
+.app-rail-box {
+  will-change: transform, width;
 }
 
 

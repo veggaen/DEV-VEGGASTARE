@@ -3,15 +3,19 @@ import { z } from "zod";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { dbPrisma } from "@/lib/db";
 import { detectSensitiveData } from "@/lib/ai-chat/safety";
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
+import { readAiJson } from '@/lib/ai-chat/request';
+import { imageSelect, unusedImageCutoff } from '@/lib/ai-chat/images';
 
 export const dynamic = "force-dynamic";
 
 const saveSchema = z.object({
   userMessage: z.string().min(1).max(4000),
-  assistantMessage: z.string().min(1).max(8000),
+  assistantMessage: z.string().min(1).max(16384),
   modelUsed: z.string().max(100).optional().default("gemini-3.8-flash"),
   providerUsed: z.string().max(50).optional().default("GOOGLE"),
   tokenCount: z.number().int().min(0).optional(),
+  imageIds: z.array(z.string().cuid()).max(2).default([]),
 });
 
 // GET — fetch messages for a session
@@ -27,9 +31,9 @@ export async function GET(
 
   const conv = await dbPrisma.aiConversation.findUnique({
     where: { id: sessionId },
-    select: { creatorId: true, isPublic: true, participants: { select: { userId: true } } },
+    select: { creatorId: true, isPublic: true, isDeleted: true, participants: { where: { isActive: true }, select: { userId: true } } },
   });
-  if (!conv) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  if (!conv || conv.isDeleted) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   const isParticipant = conv.participants.some((p) => p.userId === session.id);
   if (!conv.isPublic && conv.creatorId !== session.id && !isParticipant) {
@@ -37,7 +41,8 @@ export async function GET(
   }
 
   const cursor = req.nextUrl.searchParams.get("cursor") ?? undefined;
-  const limit = Math.min(parseInt(req.nextUrl.searchParams.get("limit") ?? "100", 10), 200);
+  const requestedLimit = Number(req.nextUrl.searchParams.get('limit') ?? 100);
+  const limit = Number.isInteger(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 200)) : 100;
 
   const messages = await dbPrisma.aiConvMessage.findMany({
     where: { conversationId: sessionId },
@@ -45,6 +50,7 @@ export async function GET(
     take: limit,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {
+      images: { select: imageSelect },
       reactions: true,
       participant: { select: { id: true, type: true, displayName: true, aiModel: true } },
     },
@@ -81,10 +87,12 @@ export async function POST(
   if (conv.isDeleted) return NextResponse.json({ error: "DELETED" }, { status: 410 });
   if (conv.isSuspended) return NextResponse.json({ error: "SUSPENDED" }, { status: 403 });
   if (conv.creatorId !== session.id) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (req.headers.get('origin') !== req.nextUrl.origin) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
+  if (!await allowAuthAttempt('ai-message-save', session.id, req)) return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 });
 
   let body: z.infer<typeof saveSchema>;
   try {
-    body = saveSchema.parse(await req.json());
+    body = saveSchema.parse(await readAiJson(req));
   } catch {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
@@ -99,9 +107,16 @@ export async function POST(
   // Detect sensitive data in user message
   const sensitive = detectSensitiveData(body.userMessage);
 
-  await dbPrisma.$transaction([
+  // Linking is atomic: another account/chat cannot attach these IDs, and a
+  // replay cannot move an already-saved image to a different message.
+  try { await dbPrisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(621642901)`;
+    const ids = [...new Set(body.imageIds)];
+    if (ids.length !== body.imageIds.length) throw new Error('INVALID_IMAGES');
+    const available = await tx.aiChatImage.count({ where: { id: { in: ids }, ownerId: session.id, conversationId: sessionId, messageId: null, purgingAt: null, storageKey: { not: null }, createdAt: { gt: unusedImageCutoff() } } });
+    if (available !== ids.length) throw new Error('INVALID_IMAGES');
     // Save human message
-    dbPrisma.aiConvMessage.create({
+    const humanMessage = await tx.aiConvMessage.create({
       data: {
         conversationId: sessionId,
         participantId: humanParticipant.id,
@@ -111,9 +126,11 @@ export async function POST(
         hasSensitiveData: sensitive.found,
         sensitiveTypes: sensitive.types,
       },
-    }),
+    });
+    const linked = await tx.aiChatImage.updateMany({ where: { id: { in: ids }, ownerId: session.id, conversationId: sessionId, messageId: null }, data: { messageId: humanMessage.id } });
+    if (linked.count !== ids.length) throw new Error('INVALID_IMAGES');
     // Save AI message
-    dbPrisma.aiConvMessage.create({
+    await tx.aiConvMessage.create({
       data: {
         conversationId: sessionId,
         participantId: aiParticipant.id,
@@ -124,13 +141,15 @@ export async function POST(
         providerUsed: body.providerUsed,
         tokenCount: body.tokenCount,
       },
-    }),
+    });
     // Update conversation timestamp
-    dbPrisma.aiConversation.update({
+    await tx.aiConversation.update({
       where: { id: sessionId },
       data: { updatedAt: new Date() },
-    }),
-  ]);
+    });
+  }); } catch {
+    return NextResponse.json({ error: 'SAVE_FAILED', message: 'Could not save this reply or its images. Copy the reply before leaving.' }, { status: 409 });
+  }
 
   return NextResponse.json({ success: true });
 }

@@ -10,6 +10,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { reconcileWalletDisplay, walletAddressKey } from "@/lib/wallet-display";
+import { readLocalChainStatus } from "@/lib/local-chain-status";
+import { parseWalletRegistry, type WalletRegistryEntry } from "@/lib/wallet-registry";
 import Link from "next/link";
 import {
   useAccount,
@@ -30,8 +34,10 @@ import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { FiZap, FiExternalLink, FiPower, FiChevronDown, FiShield, FiLogOut, FiSend, FiTerminal, FiPlusCircle, FiClock, FiRefreshCw, FiEdit2, FiCheck, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { CopyChip } from "@/components/uicustom/CopyChip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CHAIN_DISPLAY } from "@/lib/vegga-system-constants";
-import { useWalletVerify, type VerifyStep } from "@/hooks/use-wallet-verify";
+import { useWalletVerify } from "@/hooks/use-wallet-verify";
+import { WalletVerificationAction } from "./WalletVerificationAction";
 import { useDonate, getNextDonationInfo, type DonateStep } from "@/hooks/use-donate";
 import { useWalletTransfer } from "@/hooks/use-wallet-transfer";
 import { isLocalChain } from "@/lib/is-local-chain";
@@ -49,6 +55,7 @@ import { formatUnits, isAddress, parseEther } from "viem";
 import { toast } from "sonner";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { createLogger } from "@/lib/logger";
+import { ensureWalletAccount, walletActivationMessage, WalletActivationError } from '@/lib/wallet-activation';
 
 const log = createLogger('WalletPanel');
 
@@ -83,34 +90,6 @@ type TransferReceipt = {
   txHash: string;
   chainId: number | null;
   createdAt: number;
-};
-
-/**
- * Registry entry for a wallet seen this session.
- * Persists even when the provider auto-disconnects (AppKit AUTH),
- * so the card stays visible as a grey/inactive row with copyable address.
- */
-type WalletRegistryEntry = {
-  key: string;
-  label: string;
-  /** User-defined custom label (overrides label in display) */
-  customLabel?: string;
-  family: string;
-  address: string;
-  connectorName: string;
-  connectorType: string;
-  connectorUid: string;
-  connectorId: string;
-  connectorIcon?: string;
-  /** Auth provider saved at connect time (Google, Discord, etc.) — only for AUTH wallets */
-  authProvider?: string;
-  /** Social display name saved at connect time */
-  socialName?: string;
-  /** Social email saved at connect time */
-  socialEmail?: string;
-  /** DB wallet ID (cuid) — backfilled when DB wallets are synced */
-  dbWalletId?: string;
-  addedAt: number;
 };
 
 /**
@@ -149,8 +128,7 @@ function saveRegistryToStorage(registry: Map<string, WalletRegistryEntry>) {
 /** Restore wallet registry from sessionStorage */
 function restoreRegistryFromStorage(): [string, WalletRegistryEntry][] {
   try {
-    const stored = sessionStorage.getItem(REGISTRY_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    return parseWalletRegistry(sessionStorage.getItem(REGISTRY_STORAGE_KEY));
   } catch { /* ignore corrupt data */ }
   return [];
 }
@@ -387,13 +365,6 @@ function preferredAuthProvider(saved?: string, live?: string, socialEmail?: stri
   return undefined;
 }
 
-function authIdentityKey(provider?: string, socialEmail?: string, socialName?: string): string | null {
-  const providerPart = provider?.trim().toLowerCase();
-  const emailPart = socialEmail?.trim().toLowerCase();
-  const namePart = socialName?.trim().toLowerCase();
-  if (!providerPart && !emailPart && !namePart) return null;
-  return `${providerPart ?? ''}|${emailPart ?? ''}|${namePart ?? ''}`;
-}
 
 /**
  * Resolve a static icon URL for a connector by name/id.
@@ -449,7 +420,15 @@ function ConnectWalletButton({
   previousAuthProvider?: string;
   onRestore?: () => void;
 }) {
-  const handleOpen = async () => {
+  const [opening, setOpening] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const openWallet = async () => {
+    // Start optional services before disconnecting an existing AUTH wallet.
+    // Closing the sidebar while this loads must not produce a late popup.
+    const { ensureAppKit } = await import('./AppKitInit');
+    const appKit = await ensureAppKit();
+    if (!mounted.current) return;
     // Disconnect any active AUTH session first so all social providers
     // are available in the modal (AppKit grays them out otherwise).
     let disconnectedProvider: string | undefined;
@@ -461,7 +440,14 @@ function ConnectWalletButton({
     }
 
     // Open the Connect modal
-    ModalController.open({ view: 'Connect' });
+    try {
+      if (!mounted.current) return;
+      await appKit.open({ view: 'Connect' });
+      if (!mounted.current) { await appKit.close(); return; }
+    } catch {
+      toast.error('WalletConnect could not open. Try a browser wallet or try again later.');
+      return;
+    }
 
     // If we disconnected an AUTH session, watch for modal close.
     // If the modal closes without establishing a new AUTH connection,
@@ -507,14 +493,24 @@ function ConnectWalletButton({
     }
   };
 
+  const handleOpen = async () => {
+    if (opening) return;
+    setOpening(true);
+    try { await openWallet(); }
+    catch { if (mounted.current) toast.error('WalletConnect could not open. Try a browser wallet or try again later.'); }
+    finally { if (mounted.current) setOpening(false); }
+  };
+
   return (
     <button
       type="button"
       onClick={handleOpen}
-      className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors"
+      disabled={opening}
+      aria-busy={opening}
+      className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-accent/50 hover:text-brand-accent disabled:opacity-60"
     >
       <WalletIcon src={REOWN_ICON_DATA_URI} alt="Reown" />
-      <span className="truncate flex-1 text-left">Reown · Social · Email · 520+ wallets</span>
+      <span className="min-w-0 flex-1 text-left">{opening ? 'Opening wallet…' : 'Reown · Social · Email · 520+ wallets'}</span>
     </button>
   );
 }
@@ -647,12 +643,12 @@ function DirectConnectors({
                 onClick={() => handleConnect(c)}
                 className={`w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors truncate ${
                   inUse
-                    ? "border-zinc-200/50 dark:border-zinc-700/50 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
-                    : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 disabled:opacity-50"
+                    ? "border-border/50 text-muted-foreground/70 cursor-not-allowed"
+                    : "border-border text-muted-foreground hover:text-brand-accent hover:border-brand-accent/50 disabled:opacity-50"
                 }`}
               >
                 {connecting === c.uid ? (
-                  <span className="flex items-center gap-2 text-sky-500 dark:text-emerald-400">
+                  <span className="flex items-center gap-2 text-brand-accent">
                     <div className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
                     <span>Connecting {label}…</span>
                   </span>
@@ -679,7 +675,7 @@ function DirectConnectors({
           type="button"
           disabled={connecting !== null}
           onClick={() => handleConnect(wcConnector)}
-          className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-colors disabled:opacity-50"
+          className="w-full flex items-center gap-2 text-[10px] font-medium px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition-colors disabled:opacity-50"
         >
           {connecting === wcConnector.uid ? (
             <span className="flex items-center gap-2 text-blue-500 dark:text-blue-400">
@@ -763,7 +759,7 @@ function ConnectSection({
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
-        className="w-full flex items-center justify-center gap-1.5 text-[11px] font-medium px-3 py-2 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:border-sky-500/50 dark:hover:border-emerald-500/50 transition-colors"
+        className="w-full flex items-center justify-center gap-1.5 text-[11px] font-medium px-3 py-2 rounded-lg border border-dashed border-border text-muted-foreground hover:text-brand-accent hover:border-brand-accent/50 transition-colors"
       >
         <span>+ Connect a wallet</span>
         <FiChevronDown
@@ -826,50 +822,19 @@ function ConnectSection({
 type ChainStatus = 'checking' | 'online' | 'offline';
 
 function DevChainStatusIndicator() {
-  const [chains, setChains] = useState<Record<number, ChainStatus>>({
-    31337: 'checking',
-    1337: 'checking',
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ['local-chain-status', ...LOCAL_RPC_SOURCES.map(source => source.rpcUrl)],
+    queryFn: async ({ signal }) => Object.fromEntries(await Promise.all(
+      LOCAL_RPC_SOURCES.map(async source => [source.chainId, await readLocalChainStatus(source.chainId, source.rpcUrl, signal)]),
+    )) as Record<number, ChainStatus>,
+    refetchInterval: 15000, staleTime: 10000, retry: false, refetchOnWindowFocus: false,
   });
-
-  const checkChain = useCallback(async (chainId: number, rpcUrl: string): Promise<ChainStatus> => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_chainId', params: [], id: 1 }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.result) return 'online';
-      }
-      return 'offline';
-    } catch {
-      return 'offline';
-    }
-  }, []);
-
-  const checkAll = useCallback(async () => {
-    setChains({ 31337: 'checking', 1337: 'checking' });
-    const [anvil, ganache] = await Promise.all([
-      checkChain(31337, process.env.NEXT_PUBLIC_ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'),
-      checkChain(1337, process.env.NEXT_PUBLIC_GANACHE_RPC_URL ?? 'http://127.0.0.1:7545'),
-    ]);
-    setChains({ 31337: anvil, 1337: ganache });
-  }, [checkChain]);
-
-  useEffect(() => {
-    checkAll();
-    const interval = setInterval(checkAll, 15000); // Re-check every 15s
-    return () => clearInterval(interval);
-  }, [checkAll]);
+  // Keep the last result during background refreshes instead of flashing dots.
+  const chains = data ?? { 31337: 'checking', 1337: 'checking' };
 
   const statusDot = (s: ChainStatus) => {
-    if (s === 'checking') return 'bg-zinc-500 animate-pulse';
-    if (s === 'online') return 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]';
+    if (s === 'checking') return 'bg-muted animate-pulse';
+    if (s === 'online') return 'bg-brand-accent shadow-[0_0_6px_hsl(var(--brand-accent)/0.5)]';
     return 'bg-red-500/60';
   };
 
@@ -882,16 +847,17 @@ function DevChainStatusIndicator() {
   const anyOnline = chains[31337] === 'online' || chains[1337] === 'online';
 
   return (
-    <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/40 p-2 space-y-1.5">
+    <div className="rounded-lg border border-border/60 bg-surface-3/40 p-2 space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
           Dev Chains
         </span>
         <button
           type="button"
-          onClick={checkAll}
-          className="p-0.5 rounded hover:bg-zinc-700/40 text-zinc-500 hover:text-zinc-300 transition-colors"
-          title="Refresh chain status"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          aria-label="Refresh chain status"
+          className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FiRefreshCw className="h-2.5 w-2.5" />
         </button>
@@ -905,8 +871,8 @@ function DevChainStatusIndicator() {
             key={c.id}
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] transition-colors ${
               chains[c.id] === 'online'
-                ? 'bg-emerald-500/5 text-emerald-400'
-                : 'bg-zinc-800/40 text-zinc-500'
+                ? 'bg-brand-accent/5 text-brand-accent'
+                : 'bg-foreground/[0.05] text-muted-foreground'
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot(chains[c.id])}`} />
@@ -916,8 +882,9 @@ function DevChainStatusIndicator() {
         ))}
       </div>
       {!anyOnline && (
-        <p className="text-[9px] text-zinc-500 leading-relaxed">
-          Start a local chain: <code className="text-zinc-400">npx ganache</code> or <code className="text-zinc-400">anvil</code>
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          Start a local chain first: in the Ganache app choose <span className="font-medium text-foreground">Quickstart Ethereum</span> (port 7545), or run <code className="rounded bg-foreground/[0.06] px-1">anvil</code> (port 8545).{" "}
+          <a href="/help/local-chains" className="font-medium text-brand-accent-hover underline underline-offset-2 hover:text-foreground dark:text-brand-accent-light">Step-by-step guide</a>
         </p>
       )}
     </div>
@@ -928,73 +895,12 @@ function DevChainStatusIndicator() {
 /*  Web3EnablePrompt — shown when web3 mode is disabled                */
 /* ------------------------------------------------------------------ */
 function Web3EnablePrompt() {
-  const [enabling, setEnabling] = useState(false);
-  const [done, setDone] = useState(false);
-  const [authError, setAuthError] = useState(false);
-  const { update: updateSession } = useSession();
-
-  const handleEnable = async () => {
-    setEnabling(true);
-    setAuthError(false);
-    try {
-      const res = await fetch('/api/settings/web3-mode', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: true }),
-      });
-      if (res.status === 401 || res.status === 403) {
-        setAuthError(true);
-        setEnabling(false);
-        return;
-      }
-      if (res.ok) {
-        try { localStorage.setItem('veggastare:web3ModeEnabled', 'true'); } catch { /* ok */ }
-        setDone(true);
-        // web3ModeEnabled lives in the JWT — a plain reload keeps the STALE token,
-        // so the toggle appeared to do nothing. Force a NextAuth session update
-        // (re-runs the jwt callback → re-reads web3ModeEnabled from the DB), THEN
-        // reload so the fresh value is in the cookie.
-        try { await updateSession(); } catch { /* ignore */ }
-        setTimeout(() => window.location.reload(), 400);
-      }
-    } catch { /* ignore */ }
-    setEnabling(false);
-  };
-
-  if (done) {
-    return (
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-center">
-        <p className="text-[11px] text-emerald-400 font-medium">Web3 enabled! Refreshing…</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700/60 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-2">
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-        Web3 is currently disabled. Enable it to connect wallets, trade tokens, and accept crypto payments.
-      </p>
-      {authError && (
-        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-          Session expired — please sign in again to enable Web3.
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={handleEnable}
-        disabled={enabling}
-        className="w-full rounded-lg bg-sky-500 dark:bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-sky-600 dark:hover:bg-emerald-500 transition-colors disabled:opacity-50"
-      >
-        {enabling ? 'Enabling…' : 'Enable Web3'}
-      </button>
-      <Link
-        href="/settings?section=wallet"
-        className="block text-center text-[10px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
-      >
-        or go to Settings →
-      </Link>
-    </div>
-  );
+  return <div className="space-y-2 rounded-lg border border-border bg-foreground/[0.04] p-3">
+    <p className="text-sm text-muted-foreground">Experimental Web3 tools are off.</p>
+    <Link href="/settings?section=wallet" className="flex min-h-11 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      Review Web3 settings
+    </Link>
+  </div>;
 }
 
 function LocalDevTools({
@@ -1036,6 +942,7 @@ function LocalDevTools({
   const [sendAmountEth, setSendAmountEth] = useState("1");
   const [localDevExpanded, setLocalDevExpanded] = useState(false);
   const [sendingTx, setSendingTx] = useState(false);
+  const chainPickedByUser = useRef(false);
 
   const selectedChainName = localChainName(selectedChainId) ?? `Chain ${selectedChainId}`;
   const selectedAccounts = availableAccounts.filter((account) => account.chainId === selectedChainId);
@@ -1059,6 +966,14 @@ function LocalDevTools({
       .then((accounts) => {
         if (!alive) return;
         setAvailableAccounts(accounts);
+        // Follow the chain that is actually running (Ganache on 7545 vs Anvil on
+        // 8545) until the user picks one explicitly, so the funded accounts show
+        // up without hunting through the dropdown.
+        if (!chainPickedByUser.current) {
+          setSelectedChainId((prev) =>
+            accounts.some((account) => account.chainId === prev) ? prev : (accounts[0]?.chainId ?? prev),
+          );
+        }
       })
       .catch(() => {
         if (!alive) return;
@@ -1088,30 +1003,33 @@ function LocalDevTools({
   }, [selectedAccounts, sendFromAddress]);
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2 space-y-2">
+    <div className="rounded-lg border border-border p-2 space-y-2">
       <button
         type="button"
         onClick={() => setLocalDevExpanded((p) => !p)}
         className="flex items-center justify-between gap-1.5 px-1 w-full hover:opacity-80 transition-opacity"
       >
         <div className="flex items-center gap-1.5">
-          <FiTerminal className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-400" />
-          <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-300">Local Dev Chains</span>
+          <FiTerminal className="h-3.5 w-3.5 text-brand-accent" />
+          <span className="text-[10px] font-semibold text-foreground/80">Local Dev Chains</span>
           {selectedAccounts.length > 0 && (
-            <span className="text-[8px] text-zinc-500 dark:text-zinc-400">
+            <span className="text-[8px] text-muted-foreground">
               ({selectedAccounts.length})
             </span>
           )}
         </div>
-        <FiChevronDown className={`h-3 w-3 text-zinc-500 transition-transform ${localDevExpanded ? "rotate-180" : ""}`} />
+        <FiChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${localDevExpanded ? "rotate-180" : ""}`} />
       </button>
 
       {localDevExpanded && (
-      <><div className="px-1">
+      <>
+      <DevChainStatusIndicator />
+      <div className="px-1">
         <select
           value={selectedChainId}
-          onChange={(event) => setSelectedChainId(Number(event.target.value))}
-          className="w-full appearance-none rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300"
+          onChange={(event) => { chainPickedByUser.current = true; setSelectedChainId(Number(event.target.value)); }}
+          aria-label="Local chain"
+          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {LOCAL_RPC_SOURCES.map((source) => (
             <option key={source.chainId} value={source.chainId}>
@@ -1126,7 +1044,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onAddWallet({ chainId: selectedChainId, addAll: false })}
-          className="flex items-center justify-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-sky-500 dark:hover:text-emerald-400 disabled:opacity-50"
+          className="flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-brand-accent disabled:opacity-50"
         >
           <FiPlusCircle className="h-3 w-3" /> Add first
         </button>
@@ -1134,20 +1052,20 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onAddWallet({ chainId: selectedChainId, addAll: true })}
-          className="flex items-center justify-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-sky-500 dark:hover:text-emerald-400 disabled:opacity-50"
+          className="flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-brand-accent disabled:opacity-50"
         >
           <FiPlusCircle className="h-3 w-3" /> Add all
         </button>
       </div>
 
-      <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-1.5 space-y-1">
-        <p className="text-[9px] text-zinc-500 dark:text-zinc-400">
+      <div className="rounded-md border border-border p-1.5 space-y-1">
+        <p className="text-[9px] text-muted-foreground">
           Available Accounts · {selectedChainName}
         </p>
         {loadingAccounts ? (
-          <p className="text-[9px] text-zinc-400 dark:text-zinc-500">Loading local RPC accounts…</p>
+          <p className="text-[9px] text-muted-foreground/80">Loading local RPC accounts…</p>
         ) : selectedAccounts.length === 0 ? (
-          <p className="text-[9px] text-zinc-400 dark:text-zinc-500">No accounts detected. Start the local node first.</p>
+          <p className="text-[10px] text-muted-foreground/80">No accounts yet. Start the local chain, then they appear here as temporary wallets.</p>
         ) : (
           <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
             {selectedAccounts.slice(0, 10).map((account) => {
@@ -1161,22 +1079,22 @@ function LocalDevTools({
                   key={addedKey}
                   className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-1 ${
                     isActive
-                      ? "border-orange-500/60 bg-orange-500/10 dark:border-orange-500/50 dark:bg-orange-500/10"
+                      ? "border-orange-500/60 bg-orange-500/10 dark:border-orange-500/50"
                       : isAdded
                         ? "border-orange-400/40 dark:border-orange-500/30 bg-orange-500/5"
-                        : "border-zinc-200 dark:border-zinc-700"
+                        : "border-border"
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className={`text-[9px] font-mono truncate ${isActive ? "text-orange-400" : isAdded ? "text-orange-300/80" : "text-zinc-600 dark:text-zinc-300"}`}>
+                    <p className={`truncate font-mono text-[9px] ${isActive ? "text-orange-600 dark:text-orange-400" : isAdded ? "text-orange-600/80 dark:text-orange-300/80" : "text-foreground"}`}>
                       {account.address}
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <p className={`text-[8px] ${isActive ? "text-orange-400" : isAdded ? "text-orange-400/60" : "text-zinc-400 dark:text-zinc-500"}`}>
-                        {isActive ? "⚡ Active" : isAdded ? "✔ In wallet list" : "Not added"}
+                      <p className={`text-[9px] ${isActive ? "text-orange-600 dark:text-orange-400" : isAdded ? "text-orange-600/70 dark:text-orange-400/60" : "text-muted-foreground/80"}`}>
+                        {isActive ? "Active" : isAdded ? "In your wallet list" : "Not added"}
                       </p>
                       {account.balanceEth && (
-                        <p className="text-[8px] font-medium text-orange-400 dark:text-orange-400">
+                        <p className="text-[9px] font-medium tabular-nums text-orange-600 dark:text-orange-400">
                           {account.balanceEth} ETH
                         </p>
                       )}
@@ -1189,8 +1107,8 @@ function LocalDevTools({
                         type="button"
                         disabled={busy}
                         onClick={() => onActivateRpcAccount(account.address, account.chainId)}
-                        className="rounded-md border border-orange-500/50 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-orange-400 hover:bg-orange-500/20 hover:text-orange-300 disabled:opacity-50 transition-colors"
-                        title="Set this account as the active wallet — inventory will show this wallet's tokens"
+                        aria-label={`Use ${account.address.slice(0, 6)}…${account.address.slice(-4)} as the active wallet`}
+                        className="rounded-md border border-orange-500/50 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 transition-colors hover:bg-orange-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 dark:text-orange-300"
                       >
                         Activate
                       </button>
@@ -1206,14 +1124,14 @@ function LocalDevTools({
                           address: account.address,
                         })
                       }
-                      className={`rounded-md border px-1.5 py-0.5 text-[9px] disabled:opacity-50 ${
+                      aria-label={isActive ? "This account is active" : isAdded ? "Already in your wallet list" : `Add ${account.address.slice(0, 6)}…${account.address.slice(-4)} to your wallet list`}
+                      className={`rounded-md border px-1.5 py-0.5 text-[9px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                         isActive
-                          ? "border-orange-500/40 text-orange-400 cursor-default"
+                          ? "cursor-default border-orange-500/40 text-orange-600 dark:text-orange-400"
                           : isAdded
-                            ? "border-orange-500/30 text-orange-400/50 cursor-default"
-                            : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400"
+                            ? "cursor-default border-orange-500/30 text-orange-600/60 dark:text-orange-400/50"
+                            : "border-border text-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"
                       }`}
-                      title={isActive ? "This account is currently active" : isAdded ? "Already in your wallet list" : "Add this account to your wallet list"}
                     >
                       {isActive ? "Active" : isAdded ? "Added" : "Add"}
                     </button>
@@ -1230,19 +1148,18 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "mine", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
-          title="Mine a new block on the local chain — triggers pending transactions and block-dependent logic"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground transition-colors hover:border-orange-500/40 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 dark:hover:text-orange-400"
         >
           <FiRefreshCw className="inline h-2.5 w-2.5 mr-1" /> Mine 1 block
         </button>
       </div>
 
       <div className="space-y-1">
-        <p className="text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-0.5">Send ETH between accounts</p>
+        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Send ETH between accounts</p>
         <select
           value={sendFromAddress}
           onChange={(event) => setSendFromAddress(event.target.value)}
-          className="w-full appearance-none rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300"
+          className="w-full appearance-none rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80"
           title="Select the source account to send from"
         >
           {selectedAccounts.map((account) => (
@@ -1255,14 +1172,14 @@ function LocalDevTools({
           <input
             value={sendTargetAddress}
             onChange={(event) => setSendTargetAddress(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] font-mono text-foreground/80 focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
             placeholder="0x45Ce…8C99"
             title="Recipient address — paste a 0x address from the accounts above or any wallet"
           />
           <input
             value={sendAmountEth}
             onChange={(event) => setSendAmountEth(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 text-right focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 text-right focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500/40"
             placeholder="e.g. 1.5"
             title="Amount in ETH to send (e.g. 0.5, 1, 100)"
             type="text"
@@ -1295,10 +1212,10 @@ function LocalDevTools({
               setSendingTx(false);
             }
           }}
-          className={`w-full rounded-md border px-2 py-1.5 text-[10px] font-medium transition-all disabled:opacity-50 ${
+          className={`w-full rounded-md border px-2 py-1.5 text-[10px] font-medium transition disabled:opacity-50 ${
             sendingTx
               ? "border-orange-500/40 bg-orange-500/10 text-orange-400 animate-pulse"
-              : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40"
+              : "border-border text-foreground/80 hover:text-orange-400 hover:border-orange-500/40"
           }`}
           title="Send ETH via local RPC — no wallet approval needed for dev accounts"
         >
@@ -1317,7 +1234,7 @@ function LocalDevTools({
         <input
           value={balanceEth}
           onChange={(event) => setBalanceEth(event.target.value)}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="e.g. 100 (ETH)"
           title="Amount in ETH to set as the wallet's balance"
         />
@@ -1333,7 +1250,7 @@ function LocalDevTools({
               amountEth: balanceEth,
             });
           }}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title={activeEvmAddress ? `Instantly set ${activeEvmAddress.slice(0, 6)}…${activeEvmAddress.slice(-4)} balance to ${balanceEth} ETH (no tx needed)` : "Connect an active EVM wallet first"}
         >
           Fund active wallet
@@ -1344,7 +1261,7 @@ function LocalDevTools({
         <input
           value={secondsInput}
           onChange={(event) => setSecondsInput(event.target.value)}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="e.g. 3600 (1 hour)"
           title="Number of seconds to fast-forward the chain's clock"
         />
@@ -1352,7 +1269,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "increase-time", chainId: selectedChainId, seconds: Number(secondsInput) || 0 })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title="Fast-forward the local chain clock by the specified seconds — useful for testing time-locked contracts"
         >
           <FiClock className="inline h-2.5 w-2.5 mr-1" /> +Time
@@ -1364,7 +1281,7 @@ function LocalDevTools({
           type="button"
           disabled={busy}
           onClick={() => void onRunAction({ action: "snapshot", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title="Save the current chain state — you can revert back to this point later"
         >
           Snapshot
@@ -1373,7 +1290,7 @@ function LocalDevTools({
           type="button"
           disabled={busy || snapshots[selectedChainId] == null}
           onClick={() => void onRunAction({ action: "revert", chainId: selectedChainId })}
-          className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+          className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
           title={snapshots[selectedChainId] != null ? "Revert the chain to the last snapshot — undoes all transactions since then" : "Take a snapshot first before reverting"}
         >
           Revert snapshot
@@ -1381,11 +1298,11 @@ function LocalDevTools({
       </div>
 
       <div className="space-y-1">
-        <p className="text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-0.5">Set arbitrary balance</p>
+        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Set arbitrary balance</p>
         <input
           value={balanceAddress}
           onChange={(event) => setBalanceAddress(event.target.value)}
-          className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+          className="w-full rounded-md border border-border bg-card px-2 py-1 text-[10px] font-mono text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
           placeholder="0x… (target address)"
           title="The address whose balance will be overwritten — defaults to your active wallet"
         />
@@ -1393,7 +1310,7 @@ function LocalDevTools({
           <input
             value={balanceEth}
             onChange={(event) => setBalanceEth(event.target.value)}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 focus:ring-1 focus:ring-orange-500/40"
+            className="rounded-md border border-border bg-card px-2 py-1 text-[10px] text-foreground/80 focus:ring-1 focus:ring-orange-500/40"
             placeholder="e.g. 100 (ETH)"
             title="New balance in ETH — overwrites the current balance entirely"
           />
@@ -1401,7 +1318,7 @@ function LocalDevTools({
             type="button"
             disabled={busy || !balanceAddress}
             onClick={() => void onRunAction({ action: "set-balance", chainId: selectedChainId, targetAddress: balanceAddress, amountEth: balanceEth })}
-            className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-orange-400 dark:hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
+            className="rounded-md border border-border px-2 py-1 text-[10px] text-foreground/80 hover:text-orange-400 hover:border-orange-500/40 disabled:opacity-50 transition-colors"
             title={`Overwrite the balance of ${balanceAddress || 'target address'} on ${selectedChainName} — anvil_setBalance / hardhat_setBalance`}
           >
             Set balance
@@ -1410,7 +1327,7 @@ function LocalDevTools({
       </div>
 
       {(error || notice) && (
-        <p className={`px-1 text-[9px] ${error ? "text-red-500 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+        <p className={`px-1 text-[9px] ${error ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
           {error ?? notice}
         </p>
       )}
@@ -1442,117 +1359,6 @@ function WaitingDots({ prefix = "Waiting" }: { prefix?: string }) {
 /*  VerifyActionRow — inline verification flow with animated states    */
 /* ------------------------------------------------------------------ */
 
-function VerifyActionRow({
-  step,
-  error,
-  onVerify,
-  onReset,
-  nextTierCta,
-}: {
-  step: VerifyStep;
-  error: string | null;
-  onVerify: () => void;
-  onReset: () => void;
-  nextTierCta?: string;
-}) {
-  // After success, show the next tier CTA (e.g. "Grab a buff for $5 donation →")
-  if (step === "success") {
-    return (
-      <div className="text-center space-y-1">
-        <span className="text-[9px] font-semibold text-sky-600 dark:text-emerald-400">
-          ✓ Verified
-        </span>
-        {nextTierCta && nextTierCta !== "Max tier reached" && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="block w-full text-[9px] text-sky-500 dark:text-emerald-400 hover:underline"
-          >
-            {nextTierCta}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (step === "error") {
-    return (
-      <div className="text-center space-y-0.5">
-        <span className="text-[9px] text-red-500 dark:text-red-400 block">
-          {error ?? "Failed"}
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:underline"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "preparing") {
-    return (
-      <div className="text-center flex items-center justify-center gap-1.5">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
-          <WaitingDots prefix="Preparing request" />
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
-          title="Cancel"
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "in-wallet") {
-    return (
-      <div className="text-center flex items-center justify-center gap-1.5">
-        <span className="text-[9px] text-amber-500 dark:text-amber-400 font-medium animate-pulse">
-          Waiting for wallet signature…
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
-          title="Cancel"
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "waiting") {
-    return (
-      <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
-          <WaitingDots prefix="Validating signature" />
-        </span>
-      </div>
-    );
-  }
-
-  // idle — show CTA as a proper pill (verification is a trust action, not fine print)
-  return (
-    <div className="text-center">
-      <button
-        type="button"
-        onClick={onVerify}
-        className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[9px] font-semibold text-sky-600 transition-all hover:bg-sky-500/15 hover:border-sky-500/60 motion-safe:hover:-translate-y-px dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15 dark:hover:border-emerald-500/60"
-        title="Free — one signature proves you own this wallet. No transaction, no gas."
-      >
-        <FiShield className="h-2.5 w-2.5" />
-        Verify ownership · free signature
-      </button>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  DonateActionRow — inline donation flow with animated states        */
@@ -1561,8 +1367,6 @@ function VerifyActionRow({
 function DonateActionRow({
   step,
   error,
-  ctaText,
-  onDonate,
   onReset,
 }: {
   step: DonateStep;
@@ -1575,7 +1379,7 @@ function DonateActionRow({
     return (
       <div className="text-center">
         <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">
-          ✓ Donation recorded!
+          Submitted · verification pending
         </span>
       </div>
     );
@@ -1590,7 +1394,7 @@ function DonateActionRow({
         <button
           type="button"
           onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:underline"
+          className="text-[9px] text-muted-foreground hover:text-brand-accent hover:underline"
         >
           Try again
         </button>
@@ -1607,7 +1411,7 @@ function DonateActionRow({
         <button
           type="button"
           onClick={onReset}
-          className="text-[9px] text-zinc-400 hover:text-red-400 transition-colors"
+          className="text-[9px] text-muted-foreground hover:text-red-400 transition-colors"
           title="Cancel"
         >
           ✕
@@ -1619,7 +1423,7 @@ function DonateActionRow({
   if (step === "confirming") {
     return (
       <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
+        <span className="text-[9px] text-brand-accent font-medium">
           <WaitingDots prefix="On-chain" />
         </span>
       </div>
@@ -1629,23 +1433,24 @@ function DonateActionRow({
   if (step === "recording") {
     return (
       <div className="text-center">
-        <span className="text-[9px] text-sky-500 dark:text-emerald-400 font-medium">
+        <span className="text-[9px] text-brand-accent font-medium">
           <WaitingDots prefix="Recording" />
         </span>
       </div>
     );
   }
 
-  // idle — show donate CTA
+  // Do not invite a transfer for rewards we cannot verify or deliver yet.
   return (
     <div className="text-center">
       <button
         type="button"
-        onClick={onDonate}
-        className="text-[9px] text-amber-500 dark:text-amber-400 hover:underline transition-colors"
+        disabled
+        className="text-[10px] text-muted-foreground disabled:cursor-not-allowed"
       >
-        {ctaText}
+        Donation rewards unavailable
       </button>
+      <p className="text-[10px] text-muted-foreground">Server verification is not configured.</p>
     </div>
   );
 }
@@ -1695,6 +1500,7 @@ function WalletRow({
   canDisconnect,
   onVerified,
   onSetActive,
+  activationPending,
   onTransfer,
   onRename,
   connectorName,
@@ -1732,6 +1538,7 @@ function WalletRow({
   canDisconnect?: boolean;
   onVerified?: () => void;
   onSetActive?: () => void;
+  activationPending?: boolean;
   onTransfer?: () => void;
   onRename?: (newName: string) => void;
   connectorName?: string;
@@ -1768,7 +1575,7 @@ function WalletRow({
   const resolvedName = ensName || baseName;
 
   // Inline signature verification flow — pass connectorUid so the CORRECT wallet extension opens
-  const { step: verifyStep, error: verifyError, verify, reset: verifyReset } = useWalletVerify({
+  const verification = useWalletVerify({
     address: family === "EVM" ? address : undefined,
     chainId: family === "EVM" ? chainId : undefined,
     connectorUid: isLive ? connectorUid : undefined,
@@ -1814,12 +1621,15 @@ function WalletRow({
       className={`group/row relative rounded-lg border transition-colors ${
         isActive
           ? connectorType === 'LOCAL_RPC'
-            ? "border-orange-500/50 dark:border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/15"
-            : "border-sky-500/50 dark:border-emerald-500/50 bg-sky-50/50 dark:bg-emerald-950/20"
+            ? "border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/15"
+            : "border-brand-accent/50 bg-brand-accent/50"
           : isLive
-              ? "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60"
-              : "border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/70 dark:bg-zinc-900/45"
+              ? "border-border/60 bg-foreground/[0.05]"
+              : "border-border/80 bg-foreground/[0.05]"
       }`}
+      role="group"
+      aria-label={`${displayName} wallet`}
+      data-wallet-active={isActive}
     >
       {/* (Dead hidden badge/activate blocks removed — the inline chip on row 1
           and the "Set active" action next to the address are the single source
@@ -1830,7 +1640,7 @@ function WalletRow({
         <span
           aria-hidden
           className={`absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full ${
-            connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-sky-500 dark:bg-emerald-500"
+            connectorType === 'LOCAL_RPC' ? "bg-orange-500" : "bg-brand-accent"
           }`}
         />
       )}
@@ -1841,7 +1651,7 @@ function WalletRow({
           <div className="relative shrink-0" style={{ width: 22, height: 22 }}>
             <WalletIcon src={REOWN_ICON_DATA_URI} alt="Reown" size={22} />
             {AUTH_PROVIDER_ICONS[normalizedAuthProvider] && (
-              <div className="absolute -bottom-1 -right-1 rounded-full border border-white dark:border-zinc-900 bg-white dark:bg-zinc-900" style={{ padding: 1 }}>
+              <div className="absolute -bottom-1 -right-1 rounded-full border border-background bg-card" style={{ padding: 1 }}>
                 <WalletIcon src={AUTH_PROVIDER_ICONS[normalizedAuthProvider]} alt={authProviderLabel(normalizedAuthProvider)} size={11} />
               </div>
             )}
@@ -1865,16 +1675,16 @@ function WalletRow({
         {/* Info column */}
         <div className="min-w-0 flex-1">
           {/* Row 1: Title + via source + badge */}
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <span
-              className="inline-flex items-center gap-1 shrink-0"
+              className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1"
               title={`${displayName}${sourceMethodLabel ? ` (via ${sourceMethodLabel})` : ""}${label && label !== displayName ? ` — ${label}` : ""}`}
             >
-              <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 shrink-0">
+              <span className="min-w-0 break-words text-xs font-medium text-foreground/85">
                 {displayName}
               </span>
               {sourceMethodLabel && (
-                <span className="inline-flex items-center gap-0.5 text-[8px] text-zinc-400 dark:text-zinc-500 shrink-0 whitespace-nowrap">
+                <span className="inline-flex items-center gap-0.5 text-[8px] text-muted-foreground/80 shrink-0 whitespace-nowrap">
                   <span>via</span>
                   {sourceIconSrc && <WalletIcon src={sourceIconSrc} alt={sourceMethodLabel} size={10} />}
                   <span>{sourceMethodLabel}</span>
@@ -1882,15 +1692,19 @@ function WalletRow({
               )}
             </span>
             {isDefault && (
-              <span className="text-[8px] uppercase tracking-wider px-1 py-px rounded bg-sky-500/10 dark:bg-emerald-500/10 text-sky-600 dark:text-emerald-400 font-semibold shrink-0">
+              <span className="text-[8px] uppercase tracking-wider px-1 py-px rounded bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light font-semibold shrink-0">
                 Primary
               </span>
             )}
             {isActive ? (
-              <span className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
+              <span
+                title={connectorType === 'LOCAL_RPC'
+                  ? "Active local dev-chain account"
+                  : "Active: balances are read from the chain. A locked extension keeps the connection; signing will ask you to unlock it."}
+                className={`inline-flex items-center gap-1 rounded px-1 py-px text-[8px] font-semibold uppercase tracking-wider ${
                 connectorType === 'LOCAL_RPC'
                   ? "bg-orange-500/15 text-orange-500 dark:text-orange-300"
-                  : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+                  : "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
               }`}>
                 <span aria-hidden className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60 motion-reduce:hidden" />
@@ -1899,7 +1713,7 @@ function WalletRow({
                 Active
               </span>
             ) : isLive ? (
-              <span className="inline-flex items-center gap-0.5 rounded bg-zinc-500/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-0.5 rounded bg-muted/10 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Connected
               </span>
             ) : null}
@@ -1907,7 +1721,7 @@ function WalletRow({
             {walletTier !== "CONNECTED" ? (
               <TierBadge tier={walletTier} />
             ) : isLive ? (
-              <span className="inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider px-1 py-px rounded bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 font-semibold shrink-0 whitespace-nowrap">
+              <span className="inline-flex items-center gap-0.5 text-[8px] uppercase tracking-wider px-1 py-px rounded bg-muted/10 text-muted-foreground font-semibold shrink-0 whitespace-nowrap">
                 <FiShield className="h-2 w-2 opacity-60" />
                 Unverified
               </span>
@@ -1918,7 +1732,7 @@ function WalletRow({
           {/* ENS / CB.ID */}
           {resolvedName && (
             <span
-              className="text-[10px] font-medium text-sky-600 dark:text-emerald-400 block truncate"
+              className="text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light block truncate"
               title={ensName ? `ENS: ${ensName}` : `CB.ID: ${baseName}`}
             >
               {resolvedName}
@@ -1927,7 +1741,7 @@ function WalletRow({
           {/* AUTH wallets: user display name + email */}
           {isAuthWallet && (userName || socialName || socialEmail) && (
             <span
-              className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate"
+              className="text-[10px] text-muted-foreground block truncate"
               title={[userName, socialName, socialEmail].filter(Boolean).join(' · ')}
             >
               {(() => {
@@ -1959,10 +1773,10 @@ function WalletRow({
                     }}
                     maxLength={40}
                     placeholder={label || "Wallet name"}
-                    className={`w-24 rounded border bg-white dark:bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-600 dark:text-zinc-400 outline-none ${
+                    className={`w-24 rounded border bg-card px-1 py-0.5 text-[10px] text-muted-foreground outline-none ${
                       connectorType === 'LOCAL_RPC'
                         ? "border-orange-400 dark:border-orange-500"
-                        : "border-sky-400 dark:border-emerald-500"
+                        : "border-brand-accent"
                     }`}
                   />
                   <button
@@ -1971,7 +1785,7 @@ function WalletRow({
                     className={`p-0.5 rounded ${
                       connectorType === 'LOCAL_RPC'
                         ? "hover:bg-orange-100 dark:hover:bg-orange-900/40 text-orange-500 dark:text-orange-400"
-                        : "hover:bg-sky-100 dark:hover:bg-emerald-900/40 text-sky-500 dark:text-emerald-400"
+                        : "hover:bg-brand-accent/10 text-brand-accent"
                     }`}
                     title="Save"
                   >
@@ -1980,7 +1794,7 @@ function WalletRow({
                   <button
                     type="button"
                     onClick={() => { setRenameValue(customLabel ?? ''); setRenaming(false); }}
-                    className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400"
+                    className="p-0.5 rounded hover:bg-muted text-muted-foreground"
                     title="Cancel"
                   >
                     <FiX className="h-3 w-3" />
@@ -1988,14 +1802,14 @@ function WalletRow({
                 </span>
               ) : customLabel ? (
                 <>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                  <span className="text-[10px] text-muted-foreground truncate">
                     {customLabel}
                   </span>
                   <button
                     type="button"
                     onClick={() => { setRenameValue(customLabel ?? ''); setRenaming(true); }}
-                    className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 transition-opacity ${
-                      connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-sky-500 dark:hover:text-emerald-400"
+                    className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-muted text-muted-foreground transition-opacity ${
+                      connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-brand-accent"
                     }`}
                     title="Rename wallet"
                   >
@@ -2006,8 +1820,8 @@ function WalletRow({
                 <button
                   type="button"
                   onClick={() => { setRenameValue(''); setRenaming(true); }}
-                  className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 transition-opacity ${
-                    connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-sky-500 dark:hover:text-emerald-400"
+                  className={`p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-muted text-muted-foreground transition-opacity ${
+                    connectorType === 'LOCAL_RPC' ? "hover:text-orange-400" : "hover:text-brand-accent"
                   }`}
                   title="Name this wallet"
                 >
@@ -2020,16 +1834,16 @@ function WalletRow({
           {/* Browser / extension wallets: DB label as subtitle when no custom name set */}
           {!customLabel && !isAuthWallet && connectorType !== 'LOCAL_RPC' && label && label !== displayName && !resolvedName && (
             <span
-              className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate"
+              className="text-[10px] text-muted-foreground block truncate"
               title={label}
             >
               {label}
             </span>
           )}
           {/* Address + copy + inline actions */}
-          <span className="flex items-center gap-1">
+          <span className="flex flex-wrap items-center gap-1">
             <span
-              className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 truncate"
+              className="text-[10px] font-mono text-muted-foreground truncate"
               title={address}
             >
               {trimAddress(address)}
@@ -2042,15 +1856,16 @@ function WalletRow({
               <button
                 type="button"
                 onClick={onSetActive}
-                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${
+                disabled={activationPending}
+                aria-label={connectorType === 'LOCAL_RPC' ? "Make this local dev-chain account the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
+                className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
                   connectorType === 'LOCAL_RPC'
-                    ? "bg-muted/70 text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500 dark:hover:text-orange-300"
-                    : "bg-muted/70 text-muted-foreground hover:bg-sky-500/15 hover:text-sky-600 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
+                    ? "border border-orange-500/50 bg-orange-500/10 text-orange-700 hover:bg-orange-500/20 dark:text-orange-300"
+                    : "bg-foreground/[0.08] text-muted-foreground hover:bg-brand-accent/15 hover:text-brand-accent-hover dark:hover:text-brand-accent-light"
                 }`}
-                title={connectorType === 'LOCAL_RPC' ? "Make this local RPC wallet the active wallet" : isLive ? "Make this the active wallet" : "Reconnect and make this the active wallet"}
               >
                 {connectorType === 'LOCAL_RPC' ? <FiTerminal className="h-2.5 w-2.5" /> : <FiPower className="h-2.5 w-2.5 opacity-70" />}
-                Set active
+                Activate
               </button>
             )}
 
@@ -2058,7 +1873,7 @@ function WalletRow({
               <button
                 type="button"
                 onClick={onDisconnect}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-300"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-300"
                 title={isLive ? "Disconnect this wallet" : "Remove this wallet from the sidebar list"}
               >
                 <FiLogOut className="h-2.5 w-2.5" />
@@ -2075,17 +1890,17 @@ function WalletRow({
                   isActive
                     ? connectorType === 'LOCAL_RPC'
                       ? "text-orange-400 hover:bg-orange-950/30"
-                      : "text-sky-600 dark:text-emerald-400 hover:bg-sky-50 dark:hover:bg-emerald-950/30"
-                    : "text-zinc-500 hover:text-amber-400 hover:bg-amber-950/20"
+                      : "text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/10"
+                    : "text-muted-foreground hover:text-amber-400 hover:bg-amber-950/20"
                 }`}
-                title={
+                aria-label={
                   isActive
-                    ? connectorType === 'LOCAL_RPC' ? "Transfer via Local RPC" : "Transfer to another linked wallet"
-                    : "Fund this wallet from the active wallet"
+                    ? connectorType === 'LOCAL_RPC' ? "Transfer from this account over the local RPC" : "Transfer to another linked wallet"
+                    : "Send ETH to this wallet from the active wallet"
                 }
               >
                 <FiSend className="h-2.5 w-2.5" />
-                {isActive ? "Transfer" : "Fund"}
+                Transfer
               </button>
             )}
 
@@ -2095,7 +1910,7 @@ function WalletRow({
                 <button
                   type="button"
                   onClick={() => setNetOpen((o) => !o)}
-                  className="rounded px-1 py-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors text-[9px] flex items-center gap-0.5 text-zinc-500 dark:text-zinc-400"
+                  className="rounded px-1 py-0.5 hover:bg-muted transition-colors text-[9px] flex items-center gap-0.5 text-muted-foreground"
                   title="Switch network"
                 >
                   <span className="max-w-16 truncate">{chainName ?? "Network"}</span>
@@ -2108,7 +1923,7 @@ function WalletRow({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-1 z-50 min-w-32.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1"
+                      className="absolute right-0 top-full mt-1 z-50 min-w-32.5 rounded-lg border border-border bg-card shadow-xl py-1"
                     >
                       {chains.map((c) => (
                         <button
@@ -2121,8 +1936,8 @@ function WalletRow({
                           }}
                           className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
                             c.id === chainId
-                              ? "text-sky-600 dark:text-emerald-400 font-medium bg-sky-50 dark:bg-emerald-950/30"
-                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              ? "text-brand-accent-hover dark:text-brand-accent-light font-medium bg-brand-accent/10"
+                              : "text-muted-foreground hover:bg-muted"
                           } ${switchPending ? "opacity-50 cursor-wait" : ""}`}
                         >
                           {isLocalChain(c.id) && <span className="font-mono font-bold text-amber-500 dark:text-amber-400 mr-1">&gt;_RPC</span>}
@@ -2141,15 +1956,15 @@ function WalletRow({
               <button
                 type="button"
                 onClick={() => setExpanded((e) => !e)}
-                className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                className="p-0.5 rounded hover:bg-muted transition-colors shrink-0"
                 title={expanded ? "Collapse" : "Show wallet details"}
               >
-                <FiChevronDown className={`h-3 w-3 text-zinc-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+                <FiChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
               </button>
             )}
           </span>
           {isActive && summaryNativeBalance && (
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block truncate">
+            <span className="text-[10px] text-muted-foreground block truncate">
               {summaryNativeBalance}
               {typeof summaryTokenCount === "number" && ` · ${summaryTokenCount} token${summaryTokenCount === 1 ? "" : "s"}`}
               {summaryPortfolioValue ? ` · ${summaryPortfolioValue}` : ""}
@@ -2167,27 +1982,24 @@ function WalletRow({
 
       {/* Combined: chain info (left) + verify/tier CTA (right) */}
       {((isActive && chainName) || (isLive && family === "EVM")) && (
-        <div className="flex items-center px-3 pb-1.5 -mt-0.5 gap-2">
+        <div className="flex flex-wrap items-center px-3 pb-1.5 -mt-0.5 gap-2">
           {isActive && chainName && (
-            <span className={`text-[9px] shrink-0 inline-flex items-center gap-1 ${
-              isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
-            }`}>
-              {isLocalChain(chainId) && <span className="font-mono font-bold">&gt;_RPC</span>}
-              on {chainName} (ID: {chainId})
+            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+              isLocalChain(chainId)
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "border-border/50 bg-foreground/[0.04] text-foreground/80"
+            }`} title={`Chain ID ${chainId}`}>
+              <span aria-hidden="true" className={`size-1.5 rounded-full ${isLocalChain(chainId) ? "bg-amber-500" : "bg-brand-accent"}`} />
+              {chainName}
+              <span className="font-mono text-muted-foreground">#{chainId}</span>
             </span>
           )}
           {isLive && family === "EVM" && (
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto min-w-0 max-w-full">
               {!verified ? (
-                <VerifyActionRow
-                  step={verifyStep}
-                  error={verifyError}
-                  onVerify={verify}
-                  onReset={verifyReset}
-                  nextTierCta={nextTier?.nextCta}
-                />
+                <WalletVerificationAction flow={verification} size="sm" />
               ) : walletTier === "PATRON_1M" ? (
-                <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                <span className="text-[9px] text-muted-foreground/80">
                   🐋 Max tier
                 </span>
               ) : nextTier && nextTier.nextCta !== "Max tier reached" && onDonate ? (
@@ -2214,16 +2026,16 @@ function WalletRow({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-2.5 pt-1.5 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+            <div className="px-3 pb-2.5 pt-1.5 border-t border-border/60 space-y-2">
               {/* Balance display for active wallet — custom instead of <w3m-account-button>
                   which shows a broken "appkitgooglemethod..." name for social logins */}
               {isActive && summaryNativeBalance && (
                 <div className="flex items-center justify-center gap-1.5">
                   {sourceIconSrc && <WalletIcon src={sourceIconSrc} alt={sourceMethodLabel ?? 'wallet'} size={14} />}
-                  <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                  <span className="text-[11px] font-medium text-foreground/80">
                     {displayName}{sourceMethodLabel ? ` (${sourceMethodLabel})` : ''}
                   </span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="text-[11px] text-muted-foreground">
                     {summaryNativeBalance}
                   </span>
                 </div>
@@ -2232,7 +2044,7 @@ function WalletRow({
               {!isActive && chainName && (
                 <div className="text-center">
                   <span className={`text-[9px] inline-flex items-center gap-1 ${
-                    isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-zinc-400 dark:text-zinc-500"
+                    isLocalChain(chainId) ? "text-amber-500 dark:text-amber-400 font-medium" : "text-muted-foreground/80"
                   }`}>
                     {isLocalChain(chainId) && <span className="font-mono font-bold">&gt;_RPC</span>}
                     on {chainName} (ID: {chainId})
@@ -2320,6 +2132,9 @@ export default function SidebarWalletPanel({
 
   const [linkedWallets, setLinkedWallets] = useState<LinkedWallet[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activationPending, setActivationPending] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const activationLock = useRef(false);
 
   // Donation hook — shared across all wallet rows
   const { step: donateStep, error: donateError, txHash: donateTxHash, donate: execDonate, reset: donateReset } = useDonate({
@@ -2333,6 +2148,8 @@ export default function SidebarWalletPanel({
 
   // Active wallet override — used to make LOCAL_RPC wallets drive the inventory
   const { override: activeOverride, setOverride, clearOverride } = useActiveWalletOverride();
+  // The React connector list carries the EIP-6963 extensions as announced this session.
+  const { connectors: liveConnectors } = useConnect();
 
   const { step: transferStep, error: transferError, txHash: transferTxHash, transfer: execTransfer, reset: resetTransfer } = useWalletTransfer();
   const [transferOpen, setTransferOpen] = useState(false);
@@ -2582,91 +2399,95 @@ export default function SidebarWalletPanel({
   // Also updates UIDs when connectors re-announce (EIP-6963 can change UIDs)
   // For AUTH wallets, we save the auth provider + social info at connect time
   // so each wallet remembers which social method created it (Google vs Discord etc.)
-  for (const conn of connections) {
-    const connUid = conn.connector.uid;
-    const connId = conn.connector.id;
-    const isAuthConnector = conn.connector.type === 'AUTH' || conn.connector.name === 'Auth';
-    const activeInConn = conn.accounts.find(
-      (a) => a.toLowerCase() === evmAddress?.toLowerCase(),
-    );
-    const account = activeInConn ?? conn.accounts[0];
-    if (!account) continue;
-    const addrLower = account.toLowerCase();
-    const regKey = `${connUid}::${addrLower}`;
+  function syncWalletRegistry() {
+    for (const conn of connections) {
+      const connUid = conn.connector.uid;
+      const connId = conn.connector.id;
+      const isAuthConnector = conn.connector.type === 'AUTH' || conn.connector.name === 'Auth';
+      const activeInConn = conn.accounts.find(
+        (a) => a.toLowerCase() === evmAddress?.toLowerCase(),
+      );
+      const account = activeInConn ?? conn.accounts[0];
+      if (!account) continue;
+      const addrLower = account.toLowerCase();
+      const regKey = `${connUid}::${addrLower}`;
 
-    // For AUTH connectors: save provider info ONLY if this address is the
-    // currently active AppKit address (that's the only one AppKit gives data for).
-    // For non-active AUTH addresses, keep the previously saved data.
-    const isCurrentAppKit = isAuthConnector && addrLower === appKitActiveAddress;
+      // For AUTH connectors: save provider info ONLY if this address is the
+      // currently active AppKit address (that's the only one AppKit gives data for).
+      // For non-active AUTH addresses, keep the previously saved data.
+      const isCurrentAppKit = isAuthConnector && addrLower === appKitActiveAddress;
 
-    // Check if we already have an entry for this address+connectorId but with a stale UID
-    const existingEntry = [...walletRegistryRef.current.entries()].find(
-      ([k, e]) =>
-        e.address.toLowerCase() === addrLower &&
-        e.connectorId === connId &&
-        k !== regKey,
-    );
-    if (existingEntry) {
-      // UID drifted — re-key the entry with the new UID
-      walletRegistryRef.current.delete(existingEntry[0]);
-      walletRegistryRef.current.set(regKey, {
-        ...existingEntry[1],
-        key: regKey,
-        connectorUid: connUid,
-        connectorName: conn.connector.name,
-        connectorType: conn.connector.type,
-        connectorIcon: (conn.connector as any).icon ?? existingEntry[1].connectorIcon,
-        // Update auth/social info only if this is the currently active AppKit address
-        // Don't overwrite a specific social provider with generic "email"
-        ...(isCurrentAppKit ? (() => {
-          const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
-          const existingIsSpecific = existingEntry[1].authProvider && KNOWN_SOCIALS.includes(existingEntry[1].authProvider);
-          const newIsGeneric = appKitAuthProvider === 'email';
-          return {
-            authProvider: (existingIsSpecific && newIsGeneric) ? existingEntry[1].authProvider : (appKitAuthProvider ?? existingEntry[1].authProvider),
-            socialName: appKitSocialName ?? existingEntry[1].socialName,
-            socialEmail: appKitSocialEmail ?? existingEntry[1].socialEmail,
-          };
-        })() : {}),
-      });
-    } else if (!walletRegistryRef.current.has(regKey)) {
-      walletRegistryRef.current.set(regKey, {
-        key: regKey,
-        label: connectorLabel(conn.connector.name),
-        family: "EVM",
-        address: account,
-        connectorName: conn.connector.name,
-        connectorType: conn.connector.type,
-        connectorUid: connUid,
-        connectorId: connId,
-        connectorIcon: (conn.connector as any).icon,
-        // Save auth provider + social info at connection time for AUTH wallets
-        ...(isCurrentAppKit ? {
-          authProvider: appKitAuthProvider,
-          socialName: appKitSocialName,
-          socialEmail: appKitSocialEmail,
-        } : {}),
-        addedAt: Date.now(),
-      });
-    } else if (isCurrentAppKit) {
-      // Entry already exists AND this is the active AppKit address — update social data
-      // (user might have reconnected or social session refreshed)
-      const entry = walletRegistryRef.current.get(regKey)!;
-      // Don't overwrite a specific social provider (google/discord/etc.) with generic "email".
-      // AppKit sometimes reports authProvider as "email" after reconnecting via social OAuth.
-      const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
-      const existingIsSpecific = entry.authProvider && KNOWN_SOCIALS.includes(entry.authProvider);
-      const newIsGeneric = appKitAuthProvider === 'email';
-      if (appKitAuthProvider && !(existingIsSpecific && newIsGeneric)) {
-        entry.authProvider = appKitAuthProvider;
+      // Check if we already have an entry for this address+connectorId but with a stale UID
+      const existingEntry = [...walletRegistryRef.current.entries()].find(
+        ([k, e]) =>
+          e.address.toLowerCase() === addrLower &&
+          e.connectorId === connId &&
+          k !== regKey,
+      );
+      if (existingEntry) {
+        // UID drifted — re-key the entry with the new UID
+        walletRegistryRef.current.delete(existingEntry[0]);
+        walletRegistryRef.current.set(regKey, {
+          ...existingEntry[1],
+          key: regKey,
+          connectorUid: connUid,
+          connectorName: conn.connector.name,
+          connectorType: conn.connector.type,
+          connectorIcon: (conn.connector as any).icon ?? existingEntry[1].connectorIcon,
+          // Update auth/social info only if this is the currently active AppKit address
+          // Don't overwrite a specific social provider with generic "email"
+          ...(isCurrentAppKit ? (() => {
+            const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
+            const existingIsSpecific = existingEntry[1].authProvider && KNOWN_SOCIALS.includes(existingEntry[1].authProvider);
+            const newIsGeneric = appKitAuthProvider === 'email';
+            return {
+              authProvider: (existingIsSpecific && newIsGeneric) ? existingEntry[1].authProvider : (appKitAuthProvider ?? existingEntry[1].authProvider),
+              socialName: appKitSocialName ?? existingEntry[1].socialName,
+              socialEmail: appKitSocialEmail ?? existingEntry[1].socialEmail,
+            };
+          })() : {}),
+        });
+      } else if (!walletRegistryRef.current.has(regKey)) {
+        walletRegistryRef.current.set(regKey, {
+          key: regKey,
+          label: connectorLabel(conn.connector.name),
+          family: "EVM",
+          address: account,
+          connectorName: conn.connector.name,
+          connectorType: conn.connector.type,
+          connectorUid: connUid,
+          connectorId: connId,
+          connectorIcon: (conn.connector as any).icon,
+          // Save auth provider + social info at connection time for AUTH wallets
+          ...(isCurrentAppKit ? {
+            authProvider: appKitAuthProvider,
+            socialName: appKitSocialName,
+            socialEmail: appKitSocialEmail,
+          } : {}),
+          addedAt: Date.now(),
+        });
+      } else if (isCurrentAppKit) {
+        // Entry already exists AND this is the active AppKit address — update social data
+        // (user might have reconnected or social session refreshed)
+        const entry = walletRegistryRef.current.get(regKey)!;
+        // Don't overwrite a specific social provider (google/discord/etc.) with generic "email".
+        // AppKit sometimes reports authProvider as "email" after reconnecting via social OAuth.
+        const KNOWN_SOCIALS = ['google', 'discord', 'github', 'apple', 'facebook', 'x', 'farcaster'];
+        const existingIsSpecific = entry.authProvider && KNOWN_SOCIALS.includes(entry.authProvider);
+        const newIsGeneric = appKitAuthProvider === 'email';
+        if (appKitAuthProvider && !(existingIsSpecific && newIsGeneric)) {
+          entry.authProvider = appKitAuthProvider;
+        }
+        if (appKitSocialName) entry.socialName = appKitSocialName;
+        if (appKitSocialEmail) entry.socialEmail = appKitSocialEmail;
       }
-      if (appKitSocialName) entry.socialName = appKitSocialName;
-      if (appKitSocialEmail) entry.socialEmail = appKitSocialEmail;
     }
-  }
 
-  // Persist registry to sessionStorage after every sync
-  saveRegistryToStorage(walletRegistryRef.current);
+    // Persist registry to sessionStorage after every sync
+    saveRegistryToStorage(walletRegistryRef.current);
+
+  }
+  syncWalletRegistry();
 
   // Build display list combining DB wallets + registry
   type DisplayWallet = {
@@ -2695,536 +2516,275 @@ export default function SidebarWalletPanel({
     canDisconnect: boolean;
   };
 
-  const displayWallets: DisplayWallet[] = [];
+  function collectDisplayWallets(): DisplayWallet[] {
+    const displayWallets: DisplayWallet[] = [];
 
-  // ─── 1. DB-linked wallets ────────────────────────────────────────
-  const linkedAddresses = new Set<string>();
-  const registryKeysUsedByLinked = new Set<string>();
-  for (const w of linkedWallets) {
-    linkedAddresses.add(w.address.toLowerCase());
-    const liveConn = connections.find((c) =>
-      c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-    );
-    if (liveConn) {
-      registryKeysUsedByLinked.add(
-        `${liveConn.connector.uid}::${w.address.toLowerCase()}`,
+    // ─── 1. DB-linked wallets ────────────────────────────────────────
+    const linkedAddresses = new Set<string>();
+    const registryKeysUsedByLinked = new Set<string>();
+    for (const w of linkedWallets) {
+      linkedAddresses.add(walletAddressKey(w.family, w.address));
+      const liveConn = connections.find((c) =>
+        c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
       );
-    }
-    // Also mark any registry entry that shares this address (regardless of UID)
-    for (const [rk, re] of walletRegistryRef.current) {
-      if (re.address.toLowerCase() === w.address.toLowerCase()) {
-        registryKeysUsedByLinked.add(rk);
-      }
-    }
-    // Also try matching by address if UID-based match failed
-    const liveByAddr = !liveConn
-      ? connections.find((c) =>
-          c.accounts.some(
-            (a) => a.toLowerCase() === w.address.toLowerCase(),
-          ),
-        )
-      : undefined;
-    const effectiveLiveConn = liveConn ?? liveByAddr;
-    const isLive =
-      (w.family === "EVM" && evmConnected && effectiveLiveConn !== undefined) ||
-      (w.family === "SOLANA" &&
-        solConnected &&
-        solAddress?.toLowerCase() === w.address.toLowerCase());
-    // Active = override takes priority: if a LOCAL_RPC override is set,
-    // ONLY that address is active. Otherwise fall back to wagmi.
-    const isActiveWallet = activeOverride
-      ? activeOverride.address?.toLowerCase() === w.address.toLowerCase()
-      : w.family === "EVM" &&
-        evmConnected &&
-        evmAddress?.toLowerCase() === w.address.toLowerCase();
-    const chain =
-      w.family === "EVM"
-        ? evmChains.find((c) => c.id === evmChainId)
-        : undefined;
-
-    // Look up saved per-wallet auth info from registry (preferred — saved at connect time)
-    // For non-live wallets: also search registry by address alone (UID may have changed)
-    const regEntry = effectiveLiveConn
-      ? walletRegistryRef.current.get(`${effectiveLiveConn.connector.uid}::${w.address.toLowerCase()}`)
-      : undefined;
-    // Fallback: search registry by address when no live connection (stale AUTH sessions)
-    const regEntryByAddr = !regEntry
-      ? [...walletRegistryRef.current.values()].find(
-          (e) => e.address.toLowerCase() === w.address.toLowerCase(),
-        )
-      : undefined;
-    const effectiveRegEntry = regEntry ?? regEntryByAddr;
-    const isAuthConn = effectiveLiveConn?.connector.type === 'AUTH';
-    // For non-live wallets, check if registry OR DB says it was an AUTH connector
-    const wasAuthConn = !isAuthConn && (
-      effectiveRegEntry?.connectorType === 'AUTH' || w.connectorType === 'AUTH'
-    );
-
-    // Backfill dbWalletId into registry so rename handler can persist to DB
-    if (effectiveRegEntry && !effectiveRegEntry.dbWalletId) {
-      effectiveRegEntry.dbWalletId = w.id;
-    }
-
-    displayWallets.push({
-      key: w.id,
-      dbWalletId: w.id,
-      label: w.label,
-      customLabel: effectiveRegEntry?.customLabel,
-      family: w.family,
-      address: w.address,
-      isLive,
-      isActive: !!isActiveWallet,
-      isDefault: w.isDefault,
-      verified: !!w.verifiedAt,
-      donationTotalUsd: w.donationTotalUsd ?? 0,
-      chainName: chain?.name,
-      chainId: w.family === "EVM" ? evmChainId : undefined,
-      connectorName: effectiveLiveConn?.connector.name ?? effectiveRegEntry?.connectorName,
-      connectorType: effectiveLiveConn?.connector.type ?? effectiveRegEntry?.connectorType ?? w.connectorType,
-      connectorUid: effectiveLiveConn?.connector.uid ?? effectiveRegEntry?.connectorUid,
-      connectorIcon: (effectiveLiveConn?.connector as any)?.icon ?? effectiveRegEntry?.connectorIcon,
-      // Show auth provider info even when NOT live — DB + registry preserve it.
-      // Priority: live AppKit > registry (saved at connect time) > DB (persisted)
-      authProvider: (isAuthConn || wasAuthConn)
-        ? preferredAuthProvider(
-            effectiveRegEntry?.authProvider ?? w.authProvider,
-            isAuthConn ? appKitAuthProvider : undefined,
-            effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined),
-          )
-        : undefined,
-      socialName: (isAuthConn || wasAuthConn)
-        ? (effectiveRegEntry?.socialName ?? (isAuthConn ? appKitSocialName : undefined))
-        : undefined,
-      socialEmail: (isAuthConn || wasAuthConn)
-        ? (effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined))
-        : undefined,
-      canDisconnect: !!effectiveLiveConn,
-    });
-  }
-
-  // ─── 2. Registry entries (persists across auto-disconnects) ──────
-  // Iterate in addedAt order so the first-connected wallet stays at top.
-  const registryEntries = [...walletRegistryRef.current.entries()].sort(
-    ([, a], [, b]) => a.addedAt - b.addedAt,
-  );
-  log.debug(`registry=${registryEntries.length}, linked=${linkedWallets.length}, conn=${connections.length}`);
-  for (const [regKey, entry] of registryEntries) {
-    // Already shown via DB-linked loop → skip
-    if (registryKeysUsedByLinked.has(regKey)) continue;
-    // Same address from the same connector already shown via linked → skip
-    if (linkedAddresses.has(entry.address.toLowerCase())) {
-      const sameConnLinked = linkedWallets.some(
-        (w) =>
-          w.address.toLowerCase() === entry.address.toLowerCase() &&
-          connections.find(
-            (c) =>
-              c.connector.uid === entry.connectorUid &&
-              c.accounts.some(
-                (a) => a.toLowerCase() === w.address.toLowerCase(),
-              ),
-          ),
-      );
-      if (sameConnLinked) continue;
-    }
-
-    // Check current live status — match by UID + address.
-    // For AUTH wallets, UID alone isn't enough because Google and Discord
-    // share the same AUTH connector but have different addresses.
-    const entryAddrLower = entry.address.toLowerCase();
-    const isAuthEntry = entry.connectorType === 'AUTH';
-    const liveConn = connections.find(
-      (c) =>
-        // UID match — but for AUTH connectors, also require address match
-        (c.connector.uid === entry.connectorUid &&
-          (!isAuthEntry || c.accounts.some((a) => a.toLowerCase() === entryAddrLower))) ||
-        // ID + address match
-        (c.connector.id === entry.connectorId &&
-          c.accounts.some((a) => a.toLowerCase() === entryAddrLower)),
-    );
-    // Also check if ANY connection owns this address (handles UID drift)
-    const liveByAddr = !liveConn
-      ? connections.find((c) =>
-          c.accounts.some(
-            (a) => a.toLowerCase() === entry.address.toLowerCase(),
-          ),
-        )
-      : undefined;
-    const effectiveLive = liveConn ?? liveByAddr;
-    const isLive = !!effectiveLive;
-    // Active = override takes priority: if a LOCAL_RPC override is set,
-    // ONLY that address is active. Otherwise fall back to wagmi.
-    const isActiveWallet = activeOverride
-      ? activeOverride.address?.toLowerCase() === entry.address.toLowerCase()
-      : evmConnected &&
-        evmAddress?.toLowerCase() === entry.address.toLowerCase();
-    const chain = evmChains.find((c) => c.id === evmChainId);
-    const entryLocalChainId = entry.connectorType === "LOCAL_RPC"
-      ? Number(entry.connectorUid.split(":")[1] ?? entry.connectorId.split(":")[1] ?? 0) || undefined
-      : undefined;
-    const entryLocalChainName = localChainName(entryLocalChainId);
-
-    // Update registry UID if we found the connection by address fallback
-    if (liveByAddr && !liveConn) {
-      entry.connectorUid = liveByAddr.connector.uid;
-      entry.connectorName = liveByAddr.connector.name;
-      entry.connectorType = liveByAddr.connector.type;
-    }
-
-    displayWallets.push({
-      key: regKey,
-      label: entry.label,
-      customLabel: entry.customLabel,
-      family: entry.family,
-      address: entry.address,
-      isLive,
-      isActive: !!isActiveWallet,
-      isDefault: false,
-      verified: false,
-      donationTotalUsd: 0,
-      chainName: isLive ? chain?.name : entryLocalChainName,
-      chainId: isLive ? evmChainId : entryLocalChainId,
-      connectorName: effectiveLive?.connector.name ?? entry.connectorName,
-      connectorType: effectiveLive?.connector.type ?? entry.connectorType,
-      connectorUid: effectiveLive?.connector.uid ?? entry.connectorUid,
-      connectorIcon: (effectiveLive?.connector as any)?.icon ?? entry.connectorIcon,
-      // Use registry-saved per-wallet auth info (saved at connect time)
-      authProvider: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH'
-        ? preferredAuthProvider(entry.authProvider, isActiveWallet ? appKitAuthProvider : undefined, entry.socialEmail)
-        : undefined,
-      socialName: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialName : undefined,
-      socialEmail: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialEmail : undefined,
-      canDisconnect: isLive,
-    });
-  }
-
-  // ─── 3. Live Solana (not linked) ────────────────────────────────
-  if (
-    solConnected &&
-    solAddress &&
-    !linkedAddresses.has(solAddress.toLowerCase())
-  ) {
-    displayWallets.push({
-      key: `live-sol-${solAddress}`,
-      label: "Solana (not linked)",
-      family: "SOLANA",
-      address: solAddress,
-      isLive: true,
-      isActive: false,
-      isDefault: false,
-      verified: false,
-      donationTotalUsd: 0,
-      canDisconnect: true,
-    });
-  }
-
-  // ─── Safety net: force active wallet if wagmi says connected ─────
-  // Even if connections array is empty (AppKit quirk), if useAccount()
-  // reports an address, find and promote that wallet in the display list.
-  if (!activeOverride && evmConnected && evmAddress) {
-    const activeAddrLower = evmAddress.toLowerCase();
-    let idx = displayWallets.findIndex(
-      (w) => w.address.toLowerCase() === activeAddrLower,
-    );
-    if (idx >= 0) {
-      displayWallets[idx].isActive = true;
-      displayWallets[idx].isLive = true;
-
-      // ── Stale drift cleanup ──────────────────────────────────
-      // When an AUTH wallet is active at address A, but the DB still has
-      // an old record at address B (address drift from Reown embedded wallets),
-      // both may appear as separate cards. Remove the stale one.
-      const activated = displayWallets[idx];
-      const isActivatedAuth = activated.connectorType === 'AUTH';
-      if (isActivatedAuth) {
-        for (let i = displayWallets.length - 1; i >= 0; i--) {
-          if (i === idx) continue;
-          const w = displayWallets[i];
-          if (w.address.toLowerCase() === activeAddrLower) continue; // same address → handled by dedup
-
-          // Case 1: Same social email = confirmed same identity, different address
-          if (activated.socialEmail && w.socialEmail
-            && activated.socialEmail.toLowerCase() === w.socialEmail.toLowerCase()
-            && w.address.toLowerCase() !== activeAddrLower) {
-            // Inherit DB info (dbWalletId, verified, donations) from the stale entry
-            if (w.dbWalletId && !activated.dbWalletId) displayWallets[idx].dbWalletId = w.dbWalletId;
-            if (w.verified) displayWallets[idx].verified = true;
-            if (w.isDefault) displayWallets[idx].isDefault = true;
-            if (w.donationTotalUsd > displayWallets[idx].donationTotalUsd) {
-              displayWallets[idx].donationTotalUsd = w.donationTotalUsd;
-            }
-            displayWallets.splice(i, 1);
-            if (i < idx) idx--;
-            log.info(`Removed stale drift card ${trimAddress(w.address)} — same email as active ${trimAddress(evmAddress)}`);
-
-            // Backfill DB if stale entry was a DB wallet
-            if (w.dbWalletId) {
-              fetch('/api/wallets/evm/backfill-meta', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  walletId: w.dbWalletId,
-                  connectorType: 'AUTH',
-                  authProvider: activated.authProvider ?? appKitAuthProvider,
-                  socialEmail: activated.socialEmail ?? appKitSocialEmail,
-                }),
-              }).catch((err) => log.warn('Backfill metadata failed:', err));
-            }
-            continue;
-          }
-
-          // Case 2: Old untyped DB wallet — no connectorType, not live, not verified.
-          // This catches pre-update records where we have no metadata to match by.
-          // Only safe when the old address has no active connection claiming it.
-          if (w.dbWalletId && !w.connectorType && !w.isLive && !w.verified) {
-            const claimedByOtherConn = connections.some((c) =>
-              c.connector.type !== 'AUTH' &&
-              c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-            );
-            if (!claimedByOtherConn) {
-              if (w.dbWalletId && !activated.dbWalletId) displayWallets[idx].dbWalletId = w.dbWalletId;
-              displayWallets.splice(i, 1);
-              if (i < idx) idx--;
-              log.info(`Removed old untyped wallet ${trimAddress(w.address)} — likely drifted AUTH`);
-
-              if (w.dbWalletId) {
-                fetch('/api/wallets/evm/backfill-meta', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    walletId: w.dbWalletId,
-                    connectorType: 'AUTH',
-                    authProvider: activated.authProvider ?? appKitAuthProvider,
-                    socialEmail: activated.socialEmail ?? appKitSocialEmail,
-                  }),
-                }).catch((err) => log.warn('Backfill metadata failed:', err));
-              }
-              continue;
-            }
-          }
-        }
-      }
-    } else {
-      // Check if this is an AUTH address that drifted from a DB-linked wallet.
-      // Reown embedded wallets can generate different addresses for the same
-      // social identity across sessions. Instead of adding a ghost 5th card,
-      // find the existing AUTH entry for this social identity and update it.
-      const activeConn = connections.find((c) =>
-        c.accounts.some((a) => a.toLowerCase() === activeAddrLower),
-      );
-      const isAuthActive = activeConn?.connector.type === 'AUTH';
-      let merged = false;
-
-      if (isAuthActive && appKitSocialEmail) {
-        // Look for a DB-linked AUTH wallet with the same social email
-        // but a stale/different address (address drift from Reown)
-        let staleIdx = displayWallets.findIndex(
-          (w) =>
-            w.connectorType === 'AUTH' &&
-            w.address.toLowerCase() !== activeAddrLower &&
-            w.socialEmail?.toLowerCase() === appKitSocialEmail?.toLowerCase(),
+      if (liveConn) {
+        registryKeysUsedByLinked.add(
+          `${liveConn.connector.uid}::${w.address.toLowerCase()}`,
         );
-
-        // Try 2: Old DB wallets created BEFORE we added connectorType/socialEmail.
-        // These have connectorType === undefined. When the active AUTH address
-        // doesn't match any display wallet and no socialEmail match was found,
-        // look for unverified DB wallets with unknown type. If exactly ONE
-        // candidate fits, it's almost certainly the same AUTH wallet that drifted.
-        if (staleIdx < 0) {
-          const candidates = displayWallets
-            .map((w, i) => ({ w, i }))
-            .filter(({ w }) =>
-              w.dbWalletId &&                                     // Must be DB-linked
-              !w.connectorType &&                                 // Unknown type (old record)
-              w.family === 'EVM' &&                               // Same family
-              w.address.toLowerCase() !== activeAddrLower &&      // Different address (drift)
-              // Exclude wallets that are currently live via a non-AUTH connector
-              // (e.g. MetaMask) — those are clearly NOT the drifted AUTH wallet
-              !connections.some((c) =>
-                c.connector.type !== 'AUTH' &&
-                c.accounts.some((a) => a.toLowerCase() === w.address.toLowerCase()),
-              ),
-            );
-          if (candidates.length === 1) {
-            staleIdx = candidates[0].i;
-            log.info(`Safety net: matched old untyped wallet ${trimAddress(candidates[0].w.address)} to active AUTH identity`);
-          }
-        }
-
-        if (staleIdx >= 0) {
-          // Merge: update the stale entry's address + make it active
-          const stale = displayWallets[staleIdx];
-          displayWallets[staleIdx] = {
-            ...stale,
-            address: evmAddress,
-            isLive: true,
-            isActive: true,
-            connectorName: activeConn?.connector.name ?? stale.connectorName,
-            connectorType: activeConn?.connector.type ?? stale.connectorType,
-            connectorUid: activeConn?.connector.uid ?? stale.connectorUid,
-            connectorIcon: (activeConn?.connector as any)?.icon ?? stale.connectorIcon,
-            authProvider: preferredAuthProvider(stale.authProvider, appKitAuthProvider, appKitSocialEmail ?? stale.socialEmail),
-            socialName: appKitSocialName ?? stale.socialName,
-            socialEmail: appKitSocialEmail ?? stale.socialEmail,
-          };
-          merged = true;
-          log.info(`Merged drifted AUTH address ${trimAddress(evmAddress)} into existing wallet (was ${trimAddress(stale.address)})`);
-
-          // Fire-and-forget: backfill the DB record with correct metadata
-          // so subsequent sessions don't hit the same drift issue.
-          if (stale.dbWalletId) {
-            fetch('/api/wallets/evm/backfill-meta', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                walletId: stale.dbWalletId,
-                connectorType: 'AUTH',
-                authProvider: appKitAuthProvider,
-                socialEmail: appKitSocialEmail,
-              }),
-            }).catch((err) => log.warn('Backfill metadata failed:', err));
-          }
+      }
+      // Also mark any registry entry that shares this address (regardless of UID)
+      for (const [rk, re] of walletRegistryRef.current) {
+        if (re.address.toLowerCase() === w.address.toLowerCase()) {
+          registryKeysUsedByLinked.add(rk);
         }
       }
+      // Also try matching by address if UID-based match failed
+      const liveByAddr = !liveConn
+        ? connections.find((c) =>
+            c.accounts.some(
+              (a) => a.toLowerCase() === w.address.toLowerCase(),
+            ),
+          )
+        : undefined;
+      const effectiveLiveConn = liveConn ?? liveByAddr;
+      const isLive =
+        (w.family === "EVM" && evmConnected && effectiveLiveConn !== undefined) ||
+        (w.family === "SOLANA" &&
+          solConnected &&
+          solAddress?.toLowerCase() === w.address.toLowerCase());
+      // Active = override takes priority: if a LOCAL_RPC override is set,
+      // ONLY that address is active. Otherwise fall back to wagmi.
+      const isActiveWallet = activeOverride
+        ? activeOverride.address?.toLowerCase() === w.address.toLowerCase()
+        : w.family === "EVM" &&
+          evmConnected &&
+          evmAddress?.toLowerCase() === w.address.toLowerCase();
+      const chain =
+        w.family === "EVM"
+          ? evmChains.find((c) => c.id === evmChainId)
+          : undefined;
 
-      if (!merged) {
-        // Truly new active address — add as live entry
-        const chain = evmChains.find((c) => c.id === evmChainId);
+      // Look up saved per-wallet auth info from registry (preferred — saved at connect time)
+      // For non-live wallets: also search registry by address alone (UID may have changed)
+      const regEntry = effectiveLiveConn
+        ? walletRegistryRef.current.get(`${effectiveLiveConn.connector.uid}::${w.address.toLowerCase()}`)
+        : undefined;
+      // Fallback: search registry by address when no live connection (stale AUTH sessions)
+      const regEntryByAddr = !regEntry
+        ? [...walletRegistryRef.current.values()].find(
+            (e) => e.address.toLowerCase() === w.address.toLowerCase(),
+          )
+        : undefined;
+      const effectiveRegEntry = regEntry ?? regEntryByAddr;
+      const isAuthConn = effectiveLiveConn?.connector.type === 'AUTH';
+      // For non-live wallets, check if registry OR DB says it was an AUTH connector
+      const wasAuthConn = !isAuthConn && (
+        effectiveRegEntry?.connectorType === 'AUTH' || w.connectorType === 'AUTH'
+      );
+
+      // Backfill dbWalletId into registry so rename handler can persist to DB
+      if (effectiveRegEntry && !effectiveRegEntry.dbWalletId) {
+        effectiveRegEntry.dbWalletId = w.id;
+      }
+
+      displayWallets.push({
+        key: w.id,
+        dbWalletId: w.id,
+        label: w.label,
+        customLabel: effectiveRegEntry?.customLabel,
+        family: w.family,
+        address: w.address,
+        isLive,
+        isActive: !!isActiveWallet,
+        isDefault: w.isDefault,
+        verified: !!w.verifiedAt,
+        donationTotalUsd: w.donationTotalUsd ?? 0,
+        chainName: chain?.name,
+        chainId: w.family === "EVM" ? evmChainId : undefined,
+        connectorName: effectiveLiveConn?.connector.name ?? effectiveRegEntry?.connectorName,
+        connectorType: effectiveLiveConn?.connector.type ?? effectiveRegEntry?.connectorType ?? w.connectorType,
+        connectorUid: effectiveLiveConn?.connector.uid ?? effectiveRegEntry?.connectorUid,
+        connectorIcon: (effectiveLiveConn?.connector as any)?.icon ?? effectiveRegEntry?.connectorIcon,
+        // Show auth provider info even when NOT live — DB + registry preserve it.
+        // Priority: live AppKit > registry (saved at connect time) > DB (persisted)
+        authProvider: (isAuthConn || wasAuthConn)
+          ? preferredAuthProvider(
+              effectiveRegEntry?.authProvider ?? w.authProvider,
+              isAuthConn ? appKitAuthProvider : undefined,
+              effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined),
+            )
+          : undefined,
+        socialName: (isAuthConn || wasAuthConn)
+          ? (effectiveRegEntry?.socialName ?? (isAuthConn ? appKitSocialName : undefined))
+          : undefined,
+        socialEmail: (isAuthConn || wasAuthConn)
+          ? (effectiveRegEntry?.socialEmail ?? w.socialEmail ?? (isAuthConn ? appKitSocialEmail : undefined))
+          : undefined,
+        canDisconnect: !!effectiveLiveConn,
+      });
+    }
+
+    // ─── 2. Registry entries (persists across auto-disconnects) ──────
+    // Iterate in addedAt order so the first-connected wallet stays at top.
+    const registryEntries = [...walletRegistryRef.current.entries()].sort(
+      ([, a], [, b]) => a.addedAt - b.addedAt,
+    );
+    log.debug(`registry=${registryEntries.length}, linked=${linkedWallets.length}, conn=${connections.length}`);
+    for (const [regKey, entry] of registryEntries) {
+      // Already shown via DB-linked loop → skip
+      if (registryKeysUsedByLinked.has(regKey)) continue;
+      // Same address from the same connector already shown via linked → skip
+      if (linkedAddresses.has(walletAddressKey(entry.family, entry.address))) {
+        const sameConnLinked = linkedWallets.some(
+          (w) =>
+            w.address.toLowerCase() === entry.address.toLowerCase() &&
+            connections.find(
+              (c) =>
+                c.connector.uid === entry.connectorUid &&
+                c.accounts.some(
+                  (a) => a.toLowerCase() === w.address.toLowerCase(),
+                ),
+            ),
+        );
+        if (sameConnLinked) continue;
+      }
+
+      // Check current live status — match by UID + address.
+      // For AUTH wallets, UID alone isn't enough because Google and Discord
+      // share the same AUTH connector but have different addresses.
+      const entryAddrLower = entry.address.toLowerCase();
+      const isAuthEntry = entry.connectorType === 'AUTH';
+      const liveConn = connections.find(
+        (c) =>
+          // UID match — but for AUTH connectors, also require address match
+          (c.connector.uid === entry.connectorUid &&
+            (!isAuthEntry || c.accounts.some((a) => a.toLowerCase() === entryAddrLower))) ||
+          // ID + address match
+          (c.connector.id === entry.connectorId &&
+            c.accounts.some((a) => a.toLowerCase() === entryAddrLower)),
+      );
+      // Also check if ANY connection owns this address (handles UID drift)
+      const liveByAddr = !liveConn
+        ? connections.find((c) =>
+            c.accounts.some(
+              (a) => a.toLowerCase() === entry.address.toLowerCase(),
+            ),
+          )
+        : undefined;
+      const effectiveLive = liveConn ?? liveByAddr;
+      const isLive = !!effectiveLive;
+      // Active = override takes priority: if a LOCAL_RPC override is set,
+      // ONLY that address is active. Otherwise fall back to wagmi.
+      const isActiveWallet = activeOverride
+        ? activeOverride.address?.toLowerCase() === entry.address.toLowerCase()
+        : evmConnected &&
+          evmAddress?.toLowerCase() === entry.address.toLowerCase();
+      const chain = evmChains.find((c) => c.id === evmChainId);
+      const entryLocalChainId = entry.connectorType === "LOCAL_RPC"
+        ? Number(entry.connectorUid.split(":")[1] ?? entry.connectorId.split(":")[1] ?? 0) || undefined
+        : undefined;
+      const entryLocalChainName = localChainName(entryLocalChainId);
+
+      // Update registry UID if we found the connection by address fallback
+      if (liveByAddr && !liveConn) {
+        entry.connectorUid = liveByAddr.connector.uid;
+        entry.connectorName = liveByAddr.connector.name;
+        entry.connectorType = liveByAddr.connector.type;
+      }
+
+      displayWallets.push({
+        key: regKey,
+        label: entry.label,
+        customLabel: entry.customLabel,
+        family: entry.family,
+        address: entry.address,
+        isLive,
+        isActive: !!isActiveWallet,
+        isDefault: false,
+        verified: false,
+        donationTotalUsd: 0,
+        chainName: isLive ? chain?.name : entryLocalChainName,
+        chainId: isLive ? evmChainId : entryLocalChainId,
+        connectorName: effectiveLive?.connector.name ?? entry.connectorName,
+        connectorType: effectiveLive?.connector.type ?? entry.connectorType,
+        connectorUid: effectiveLive?.connector.uid ?? entry.connectorUid,
+        connectorIcon: (effectiveLive?.connector as any)?.icon ?? entry.connectorIcon,
+        // Use registry-saved per-wallet auth info (saved at connect time)
+        authProvider: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH'
+          ? preferredAuthProvider(entry.authProvider, isActiveWallet ? appKitAuthProvider : undefined, entry.socialEmail)
+          : undefined,
+        socialName: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialName : undefined,
+        socialEmail: (effectiveLive?.connector.type ?? entry.connectorType) === 'AUTH' ? entry.socialEmail : undefined,
+        canDisconnect: isLive,
+      });
+    }
+
+    // ─── 3. Live Solana (not linked) ────────────────────────────────
+    if (
+      solConnected &&
+      solAddress &&
+      !linkedAddresses.has(walletAddressKey("SOLANA", solAddress))
+    ) {
+      displayWallets.push({
+        key: `live-sol-${solAddress}`,
+        label: "Solana (not linked)",
+        family: "SOLANA",
+        address: solAddress,
+        isLive: true,
+        isActive: false,
+        isDefault: false,
+        verified: false,
+        donationTotalUsd: 0,
+        canDisconnect: true,
+      });
+    }
+
+    // A new active address stays separate from saved addresses, even when the
+    // social account/email is the same. Ownership proof belongs to an address.
+    if (!activeOverride && evmConnected && evmAddress) {
+      const existing = displayWallets.find(w => w.family === 'EVM' && w.address.toLowerCase() === evmAddress.toLowerCase());
+      if (existing) {
+        existing.isActive = true;
+        existing.isLive = true;
+      } else {
+        const connection = connections.find(c => c.accounts.some(address => address.toLowerCase() === evmAddress.toLowerCase()));
         displayWallets.push({
-          key: `active-${activeAddrLower}`,
-          label: activeConn
-            ? connectorLabel(activeConn.connector.name)
-            : "Wallet",
-          family: "EVM",
-          address: evmAddress,
-          isLive: true,
-          isActive: true,
-          isDefault: false,
-          verified: false,
-          donationTotalUsd: 0,
-          chainName: chain?.name,
-          chainId: evmChainId,
-          connectorName: activeConn?.connector.name,
-          connectorType: activeConn?.connector.type,
-          connectorUid: activeConn?.connector.uid,
-          connectorIcon: (activeConn?.connector as any)?.icon,
-          authProvider: isAuthActive ? preferredAuthProvider(undefined, appKitAuthProvider, appKitSocialEmail) : undefined,
-          socialName: isAuthActive ? appKitSocialName : undefined,
-          socialEmail: isAuthActive ? appKitSocialEmail : undefined,
-          canDisconnect: !!activeConn,
+          key: `active-${evmAddress.toLowerCase()}`, family: 'EVM', address: evmAddress,
+          label: connection ? connectorLabel(connection.connector.name) : 'Wallet',
+          isLive: true, isActive: true, isDefault: false, verified: false, donationTotalUsd: 0,
+          chainId: evmChainId, chainName: evmChains.find(chain => chain.id === evmChainId)?.name,
+          connectorName: connection?.connector.name, connectorType: connection?.connector.type,
+          connectorUid: connection?.connector.uid, canDisconnect: !!connection,
         });
       }
     }
-  }
 
-  // ─── Secondary safety net: if connections exist but nothing is active ───
-  // This handles the case where useAccount() doesn't report an address
-  // but wagmi still has live connections (e.g. after AUTH auto-disconnect).
-  if (!activeOverride && !displayWallets.some((w) => w.isActive) && connections.length > 0) {
-    const firstConn = connections[0];
-    const firstAddr = firstConn.accounts[0]?.toLowerCase();
-    if (firstAddr) {
-      const idx = displayWallets.findIndex(
-        (w) => w.address.toLowerCase() === firstAddr,
-      );
-      if (idx >= 0) {
-        displayWallets[idx].isActive = true;
-        displayWallets[idx].isLive = true;
-        // Secondary safety net: force-mark first connection as active
+    // ─── Secondary safety net: if connections exist but nothing is active ───
+    // This handles the case where useAccount() doesn't report an address
+    // but wagmi still has live connections (e.g. after AUTH auto-disconnect).
+    if (!activeOverride && !displayWallets.some((w) => w.isActive) && connections.length > 0) {
+      const firstConn = connections[0];
+      const firstAddr = firstConn.accounts[0]?.toLowerCase();
+      if (firstAddr) {
+        const idx = displayWallets.findIndex(
+          (w) => w.address.toLowerCase() === firstAddr,
+        );
+        if (idx >= 0) {
+          displayWallets[idx].isActive = true;
+          displayWallets[idx].isLive = true;
+          // Secondary safety net: force-mark first connection as active
+        }
       }
     }
-  }
 
-  // ─── Dedupe: collapse entries sharing the same address ──────────
-  // When MetaMask is connected via extension AND via AppKit, or when a
-  // registry ghost duplicates a live card, prefer the live/active entry.
-  // IMPORTANT: Always dedupe by address first. AUTH identity keys are an
-  // additional layer but must never bypass address-based deduplication.
-  // This prevents ghost cards when Reown generates different addresses
-  // for the same social identity (address drift).
-  const deduped: DisplayWallet[] = [];
-  const seenAddresses = new Map<string, number>(); // dedupeKey → index in deduped
-  const seenRawAddresses = new Map<string, number>(); // plain addr → index (secondary dedup)
-  for (const w of displayWallets) {
-    const addrKey = w.address.toLowerCase();
-    const identityKey =
-      w.connectorType === 'AUTH'
-        ? authIdentityKey(w.authProvider, w.socialEmail, w.socialName)
-        : null;
-    const localKey =
-      w.connectorType === "LOCAL_RPC" && w.chainId != null
-        ? localRpcEntryKey(w.chainId, w.address)
-        : null;
-    const dedupeKey = identityKey
-      ? `auth:${identityKey}`
-      : localKey
-        ? `local:${localKey}`
-        : `addr:${addrKey}`;
-    // Check BOTH identity-based key AND raw address to prevent duplicates
-    const existingIdx = seenAddresses.get(dedupeKey) ?? seenRawAddresses.get(addrKey);
-    if (existingIdx !== undefined) {
-      const existing = deduped[existingIdx];
-      // Keep the "better" entry: active > live > grey, has dbWalletId > not, extension > AUTH
-      const wScore = (w.isActive ? 8 : 0) + (w.isLive ? 4 : 0) + (w.dbWalletId ? 2 : 0) + (w.connectorType !== 'AUTH' ? 1 : 0);
-      const eScore = (existing.isActive ? 8 : 0) + (existing.isLive ? 4 : 0) + (existing.dbWalletId ? 2 : 0) + (existing.connectorType !== 'AUTH' ? 1 : 0);
-      if (wScore > eScore) {
-        // Replace with better entry, but inherit verified/default/db info
-        deduped[existingIdx] = {
-          ...w,
-          dbWalletId: w.dbWalletId || existing.dbWalletId,
-          verified: w.verified || existing.verified,
-          isDefault: w.isDefault || existing.isDefault,
-          donationTotalUsd: Math.max(w.donationTotalUsd, existing.donationTotalUsd),
-          // Prefer specific auth provider over undefined
-          authProvider: w.authProvider || existing.authProvider,
-          socialName: w.socialName || existing.socialName,
-          socialEmail: w.socialEmail || existing.socialEmail,
-        };
-      } else {
-        // Keep existing, but inherit verified/default/live from duplicate
-        deduped[existingIdx] = {
-          ...existing,
-          dbWalletId: existing.dbWalletId || w.dbWalletId,
-          verified: existing.verified || w.verified,
-          isDefault: existing.isDefault || w.isDefault,
-          isLive: existing.isLive || w.isLive,
-          isActive: existing.isActive || w.isActive,
-          donationTotalUsd: Math.max(existing.donationTotalUsd, w.donationTotalUsd),
-          authProvider: existing.authProvider || w.authProvider,
-          socialName: existing.socialName || w.socialName,
-          socialEmail: existing.socialEmail || w.socialEmail,
-        };
-      }
-    } else {
-      seenAddresses.set(dedupeKey, deduped.length);
-      seenRawAddresses.set(addrKey, deduped.length);
-      deduped.push(w);
-    }
+    // Only exact family/address matches can share verified display data.
+    const reconciled = reconcileWalletDisplay(displayWallets,
+      activeOverride?.address ?? (evmConnected ? evmAddress : undefined));
+    displayWallets.length = 0;
+    displayWallets.push(...reconciled);
+    return displayWallets;
   }
-
-  // Replace raw list with deduped
-  displayWallets.length = 0;
-  displayWallets.push(...deduped);
-
-  // Hard guarantee: max ONE active wallet.
-  const forcedActiveAddress = activeOverride?.address?.toLowerCase()
-    ?? (evmConnected && evmAddress ? evmAddress.toLowerCase() : undefined);
-  if (forcedActiveAddress) {
-    let activated = false;
-    for (const wallet of displayWallets) {
-      const matches = wallet.address.toLowerCase() === forcedActiveAddress;
-      wallet.isActive = !activated && matches;
-      if (wallet.isActive) activated = true;
-    }
-  } else {
-    let found = false;
-    for (const wallet of displayWallets) {
-      if (wallet.isActive && !found) {
-        found = true;
-      } else {
-        wallet.isActive = false;
-      }
-    }
-  }
+  const displayWallets = collectDisplayWallets();
 
   // No sort — wallets stay in connection order (addedAt).
   // Active wallet gets green styling but doesn't move.
@@ -3266,7 +2826,6 @@ export default function SidebarWalletPanel({
     })();
 
     return () => { alive = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localRpcAddrKey]);
 
   const handleAddLocalRpcWallet = async (opts?: { chainId?: number; addAll?: boolean; address?: string }) => {
@@ -3327,6 +2886,9 @@ export default function SidebarWalletPanel({
 
       saveRegistryToStorage(walletRegistryRef.current);
       forceRegistryUpdate((value) => value + 1);
+      if (!activeOverride && !evmConnected && accountsToAdd[0]) {
+        handleActivateRpcAccount(accountsToAdd[0].address, accountsToAdd[0].chainId);
+      }
       const chainLabel = opts?.chainId ? localChainName(opts.chainId) ?? "Local chain" : "Local chains";
       setLocalRpcNotice(
         opts?.addAll
@@ -3549,6 +3111,25 @@ export default function SidebarWalletPanel({
       )
     : [];
 
+  // The active wallet is what signs; choosing another live wallet activates it first.
+  // Local dev accounts sign over RPC and can be chosen freely.
+  const transferSources = displayWallets.filter((wallet) => wallet.family === "EVM" && (wallet.isLive || wallet.connectorType === 'LOCAL_RPC'));
+  const transferDestinationWallet = hasTransferDestination
+    ? displayWallets.find((wallet) => wallet.address.toLowerCase() === normalizedTransferDestinationAddress.toLowerCase()) ?? null
+    : null;
+  const walletMenuLabel = (wallet: DisplayWallet) => wallet.customLabel
+    ?? (wallet.connectorType === "AUTH" || wallet.connectorName === "Auth"
+      ? (wallet.authProvider ? `Reown via ${authProviderLabel(wallet.authProvider.trim().toLowerCase())}` : "Reown")
+      : wallet.connectorName ? connectorLabel(wallet.connectorName) : wallet.label);
+  const chooseTransferSource = async (wallet: DisplayWallet) => {
+    if (wallet.address.toLowerCase() === (transferSourceAddress ?? "").toLowerCase()) return;
+    if (!wallet.isActive && wallet.connectorType !== 'LOCAL_RPC') await handleSetActive(wallet);
+    setTransferSourceAddress(wallet.address);
+    if (normalizedTransferDestinationAddress.toLowerCase() === wallet.address.toLowerCase()) setTransferDestinationAddress("");
+  };
+  const transferPickerClass = "inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 text-xs text-foreground transition-[border-color,background-color] duration-200 hover:border-border hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const transferMenuClass = "z-[130] w-72 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl";
+
   const incompatibleDestinationsCount = transferSourceAddress
     ? displayWallets.filter(
         (wallet) =>
@@ -3560,7 +3141,7 @@ export default function SidebarWalletPanel({
       ).length
     : 0;
 
-  const openTransferFlow = (sourceAddress: string) => {
+  const openTransferFlow = (sourceAddress: string, destinationAddress?: string) => {
     const sourceWallet = displayWallets.find(
       (wallet) => wallet.address.toLowerCase() === sourceAddress.toLowerCase(),
     );
@@ -3573,7 +3154,7 @@ export default function SidebarWalletPanel({
     resetTransfer();
     setTransferInput("");
     setTransferSourceAddress(sourceAddress);
-    setTransferDestinationAddress(destinations[0]?.address ?? "");
+    setTransferDestinationAddress(destinationAddress ?? destinations[0]?.address ?? "");
     setTransferOpen(true);
   };
 
@@ -3795,7 +3376,7 @@ export default function SidebarWalletPanel({
    * NOTE: Switching wallets NEVER touches the NextAuth web2 session.
    * The user stays logged in regardless of which wallet is active.
    */
-  const handleSetActive = async (w: DisplayWallet) => {
+  const activateWallet = async (w: DisplayWallet) => {
     if (w.isActive || w.family !== "EVM") return;
 
     // LOCAL_RPC wallets: Just set the active wallet override — NO MetaMask/Coinbase prompt!
@@ -3855,9 +3436,6 @@ export default function SidebarWalletPanel({
       return;
     }
 
-    // Activating a non-LOCAL_RPC wallet — clear any local override
-    clearOverride();
-
     // Try finding in live connections first
     const conn = connections.find((c) =>
       c.accounts.some(
@@ -3870,7 +3448,9 @@ export default function SidebarWalletPanel({
       const isAuthSwitch = conn.connector.type === 'AUTH' || conn.connector.id === 'auth';
       let switchSucceeded = false;
       try {
+        if (!isAuthSwitch) await ensureWalletAccount(conn.connector, w.address);
         await switchAccountAsync({ connector: conn.connector });
+        clearOverride();
         switchSucceeded = true;
         if (isAuthSwitch) {
           toast.success(`Switched to ${w.authProvider ? authProviderLabel(w.authProvider) : 'Reown'} wallet`);
@@ -3883,8 +3463,7 @@ export default function SidebarWalletPanel({
           log.warn('AUTH switchAccount failed, session may be expired:', switchErr);
           toast.info('Wallet session expired — reconnecting…');
         } else {
-          fetchLinked();
-          return;
+          throw switchErr;
         }
       }
       // If switch worked (AUTH or not), we're done
@@ -3904,21 +3483,50 @@ export default function SidebarWalletPanel({
       );
 
       // Find the target connector by registry info, connectorName, or ID
-      const allConnectors = getConnectors(wagmiConfig);
+      const configConnectors = getConnectors(wagmiConfig);
+      const allConnectors = [...liveConnectors, ...configConnectors.filter((c) => !liveConnectors.some((l) => l.uid === c.uid))];
+      const norm = (value?: string | null) => (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const fuzzy = (needle?: string | null) => {
+        const n = norm(needle);
+        if (n.length < 3) return undefined;
+        return allConnectors.find((c) => c.type !== "AUTH" && c.id !== "walletConnect"
+          && [c.name, c.id, connectorLabel(c.name)].some((v) => { const m = norm(v); return m.length >= 3 && (m.includes(n) || n.includes(m)); }));
+      };
 
+      const byLabel = (name?: string | null) => {
+        if (!name) return undefined;
+        const want = connectorLabel(name).toLowerCase();
+        return allConnectors.find((c) => c.type !== 'AUTH' && c.id !== 'walletConnect' && connectorLabel(c.name).toLowerCase() === want);
+      };
       // Strict match: prefer exact UID, then ID+name, then name+type, then ID alone, then name alone
       const connector =
         allConnectors.find((c) => c.uid === (regEntry?.connectorUid ?? w.connectorUid)) ||
         allConnectors.find((c) => c.id === (regEntry?.connectorId ?? '') && c.name === w.connectorName) ||
         allConnectors.find((c) => c.name === w.connectorName && c.type === (w.connectorType ?? regEntry?.connectorType)) ||
         allConnectors.find((c) => c.id === (regEntry?.connectorId ?? '')) ||
-        allConnectors.find((c) => c.name === w.connectorName);
+        allConnectors.find((c) => c.name === w.connectorName) ||
+        // Registry uids change every page load and DB-linked wallets carry only a
+        // label: match the extension by its friendly name as the last resort.
+        byLabel(w.connectorName) ||
+        byLabel(w.label) ||
+        fuzzy(w.connectorName) ||
+        fuzzy(regEntry?.connectorId) ||
+        fuzzy(w.label);
 
       // For AUTH connectors, also try matching by type (they get new UIDs on re-init)
       const authConnector = !connector && (w.connectorType === 'AUTH' || regEntry?.connectorType === 'AUTH')
         ? allConnectors.find((c) => c.type === 'AUTH' || c.id === 'auth' || c.name === 'Auth')
         : undefined;
-      const resolvedConnector = connector ?? authConnector;
+      // Prefer the extension's own EIP-6963 connector over the shared
+      // window.ethereum one ("injected"): the shared connector holds one
+      // extension at a time, so switching through it means disconnecting the
+      // other extension, and wagmi's disconnect revokes that site permission.
+      // That is the "connect twice" loop when two extensions are installed.
+      const announcedTwin = connector && connector.id === 'injected'
+        ? allConnectors.find((c) => c.id !== 'injected' && c.type !== 'AUTH' && c.id !== 'walletConnect'
+            && connectorLabel(c.name).toLowerCase() === connectorLabel(connector.name).toLowerCase())
+        : undefined;
+      const resolvedConnector = announcedTwin ?? connector ?? authConnector;
 
       // ── AUTH / Social wallets: always use the AppKit modal ──────
       // wagmiConnect with AUTH connectors hangs when the social session
@@ -4087,13 +3695,22 @@ export default function SidebarWalletPanel({
         return;
       }
 
-      if (!resolvedConnector) return;
+      if (!resolvedConnector) {
+        const here = allConnectors.filter((c) => c.type !== "AUTH" && c.id !== "walletConnect").map((c) => connectorLabel(c.name)).join(", ");
+        throw new WalletActivationError(`No extension for ${w.customLabel ?? w.label} is installed in this browser (found: ${here || "none"}). Open "Connect a wallet" below to connect another way.`);
+      }
 
-      // For injected/EIP-6963 wallets: disconnect the currently active
-      // injected wallet first, otherwise wagmiConnect returns the same provider.
+      await ensureWalletAccount(resolvedConnector, w.address);
+
+      // Only the legacy window.ethereum connector ("injected") collides with
+      // another extension; EIP-6963 extensions each own their provider and stay
+      // connected side by side. Disconnecting one would also revoke the site
+      // permission (wagmi calls wallet_revokePermissions), which is why every
+      // switch used to re-prompt "Connect this website".
       const currentInjectedConn = connections.find(
         (c) => (c.connector.type === 'injected' || c.connector.type === 'announced')
           && c.connector.uid !== resolvedConnector.uid
+          && resolvedConnector.id === 'injected'
       );
 
       if (currentInjectedConn) {
@@ -4108,15 +3725,25 @@ export default function SidebarWalletPanel({
       }
 
       await wagmiConnect(wagmiConfig, { connector: resolvedConnector });
+      clearOverride();
 
       // AppKit may disconnect the previous wallet — registry keeps it visible.
       setTimeout(() => {
         forceRegistryUpdate((v) => v + 1);
         fetchLinked();
       }, 600);
-    } catch {
+    } catch (error) {
       forceRegistryUpdate((v) => v + 1);
+      throw error;
     }
+  };
+
+  const handleSetActive = async (wallet: DisplayWallet) => {
+    if (activationLock.current) return;
+    activationLock.current = true; setActivationPending(true); setActivationError(null);
+    try { await activateWallet(wallet); }
+    catch (error) { setActivationError(walletActivationMessage(error)); }
+    finally { activationLock.current = false; setActivationPending(false); }
   };
 
   /**
@@ -4167,12 +3794,12 @@ export default function SidebarWalletPanel({
     <div>
       {/* Section label */}
       <div className="flex items-center gap-2 px-1 pb-2">
-        <FiZap className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500 shrink-0" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+        <FiZap className="h-3.5 w-3.5 text-brand-accent shrink-0" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
           Wallets
         </span>
         {hasAnyWallet && (
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+          <span className="text-[10px] text-muted-foreground/80 tabular-nums">
             {displayWallets.length}
           </span>
         )}
@@ -4182,7 +3809,7 @@ export default function SidebarWalletPanel({
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-mono ${
               activeDisplayWallet.connectorType === 'LOCAL_RPC'
                 ? "bg-orange-500/10 text-orange-500 dark:text-orange-300"
-                : "bg-sky-500/10 text-sky-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+                : "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
             }`}
             title={`Active wallet: ${activeDisplayWallet.address}`}
           >
@@ -4194,7 +3821,7 @@ export default function SidebarWalletPanel({
           <Link
             href="/settings?section=wallet"
             onClick={onClose}
-            className="ml-auto text-[10px] text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
+            className="ml-auto text-[10px] text-muted-foreground hover:text-brand-accent transition-colors"
           >
             Manage →
           </Link>
@@ -4203,6 +3830,8 @@ export default function SidebarWalletPanel({
 
       {/* Body */}
       <div className="space-y-1.5">
+        {activationPending && <p role="status" className="rounded-lg border border-border p-3 text-sm text-muted-foreground">Check your wallet extension. Activation never requests a signature or payment.</p>}
+        {activationError && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{activationError}</p>}
         {/* Wallet list */}
         <AnimatePresence initial={false}>
         {displayWallets.map((w) => (
@@ -4291,10 +3920,16 @@ export default function SidebarWalletPanel({
                 ? () => handleSetActive(w)
                 : undefined
             }
+            activationPending={activationPending}
             onTransfer={
               // Active wallets: "Transfer" button. Inactive EVM wallets: "Fund" button.
               (w.isActive && w.isLive && w.family === "EVM") || w.connectorType === 'LOCAL_RPC' || (!w.isActive && w.family === "EVM")
-                ? () => openTransferFlow(w.address)
+                ? () => {
+                    // An inactive wallet is funded FROM the active one; active and local accounts send.
+                    const active = displayWallets.find((x) => x.isActive && x.family === "EVM" && x.address.toLowerCase() !== w.address.toLowerCase());
+                    if (!w.isActive && w.connectorType !== 'LOCAL_RPC' && active) openTransferFlow(active.address, w.address);
+                    else openTransferFlow(w.address);
+                  }
                 : undefined
             }
             onRename={(newName) => handleRenameWallet(w.address, newName)}
@@ -4307,10 +3942,10 @@ export default function SidebarWalletPanel({
         {!hasAnyWallet && !loading && (
           <div className="text-center py-4 space-y-1.5">
             <span className="text-lg">🔗</span>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p className="text-[11px] text-muted-foreground">
               Connect a wallet to get started
             </p>
-            <p className="text-[9px] text-zinc-400 dark:text-zinc-500">
+            <p className="text-[9px] text-muted-foreground/80">
               Extension, WalletConnect, or social login
             </p>
           </div>
@@ -4319,12 +3954,9 @@ export default function SidebarWalletPanel({
         {/* Loading */}
         {loading && !hasAnyWallet && (
           <div className="flex justify-center py-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-sky-500 dark:border-emerald-500 border-t-transparent" />
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-accent border-t-transparent" />
           </div>
         )}
-
-        {/* Dev Chain Status — only in development */}
-        {localRpcFeatureEnabled && <DevChainStatusIndicator />}
 
         {/* Connect wallets — collapsible section with all options */}
         {/* Gate behind web3Enabled — if disabled, show enable prompt */}
@@ -4377,7 +4009,7 @@ export default function SidebarWalletPanel({
           <Link
             href="/dashboard/trading"
             onClick={onClose}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-emerald-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-muted-foreground hover:text-brand-accent hover:bg-muted transition-colors"
           >
             <FiExternalLink className="h-3 w-3" />
             Trading
@@ -4400,101 +4032,104 @@ export default function SidebarWalletPanel({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="mx-auto mt-6 w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
+              className="mx-auto mt-6 w-full max-w-lg rounded-2xl border border-border bg-card p-4 shadow-2xl dark:bg-surface-1"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-start gap-2.5">
-                  <div className="relative mt-0.5">
-                    <WalletIcon
-                      src={
-                        transferSourceIsAuth
-                          ? REOWN_ICON_DATA_URI
-                          : connectorIconUrl(
-                              transferSourceWallet.connectorName ?? transferSourceWallet.family,
-                              transferSourceWallet.connectorIcon,
-                            )
-                      }
-                      alt={transferSourceLabel}
-                      size={20}
-                    />
-                    {transferSourceIsAuth &&
-                      normalizedTransferSourceProvider &&
-                      AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider] && (
-                        <div className="absolute -bottom-1 -right-1 rounded-full border border-white dark:border-zinc-900 bg-white dark:bg-zinc-900" style={{ padding: 1 }}>
-                          <WalletIcon
-                            src={AUTH_PROVIDER_ICONS[normalizedTransferSourceProvider]}
-                            alt={transferSourceProviderName ?? "Provider"}
-                            size={10}
-                          />
-                        </div>
-                      )}
-                  </div>
-                  <div>
-                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Transfer</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {transferSourceLabel} · {trimAddress(transferSourceWallet.address)}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    Chain: {transferSourceWallet.chainName ?? nativeSymbol} ·{" "}
-                    Balance: {sourceBalanceNative.toFixed(6)} {nativeSymbol}
-                    {nativeUsdPrice > 0 ? ` (~${(sourceBalanceNative * nativeUsdPrice).toFixed(2)} kr)` : ""}
-                  </p>
-                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Transfer</p>
+                  <p className="text-[11px] text-muted-foreground">Native {nativeSymbol} between your wallets, or to any address.</p>
                 </div>
                 <button
                   type="button"
                   onClick={closeTransferFlow}
-                  className="rounded-md px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
                 >
                   Close
                 </button>
               </div>
 
               <div className="space-y-3">
+                {/* From: the active wallet signs; picking another live wallet activates it first. */}
                 <div>
-                  <p className="mb-2 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Destination account</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {transferDestinations.map((wallet) => {
-                      const selected = wallet.address.toLowerCase() === transferDestinationAddress.toLowerCase();
-                      const isAuthDestination = wallet.connectorType === "AUTH" || wallet.connectorName === "Auth";
-                      const normalizedDestinationProvider = wallet.authProvider?.trim().toLowerCase();
-                      const destinationProvider =
-                        isAuthDestination && normalizedDestinationProvider
-                          ? authProviderLabel(normalizedDestinationProvider)
-                          : null;
-                      const destinationLabel = wallet.customLabel
-                        ?? (isAuthDestination
-                          ? (destinationProvider ? `Reown via ${destinationProvider}` : "Reown")
-                          : wallet.connectorName
-                            ? connectorLabel(wallet.connectorName)
-                            : wallet.label);
-                      return (
-                        <button
-                          key={wallet.key}
-                          type="button"
-                          onClick={() => setTransferDestinationAddress(wallet.address)}
-                          className={`rounded-lg border p-2 text-left transition-colors ${
-                            selected
-                              ? "border-sky-500 bg-sky-50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                              : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-                          }`}
-                        >
-                          <p className="truncate text-[11px] font-medium text-zinc-900 dark:text-zinc-100">{destinationLabel}</p>
-                          <p className="truncate font-mono text-[10px] text-zinc-500 dark:text-zinc-400">{trimAddress(wallet.address)}</p>
+                  <p className="mb-1.5 text-[11px] font-medium text-foreground/85">From</p>
+                  <div className="flex items-center gap-1.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className={transferPickerClass} aria-label="Choose the wallet to send from">
+                          <WalletIcon
+                            src={transferSourceIsAuth ? REOWN_ICON_DATA_URI : connectorIconUrl(transferSourceWallet.connectorName ?? transferSourceWallet.family, transferSourceWallet.connectorIcon)}
+                            alt=""
+                            size={16}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-left">
+                            <span className="font-medium">{transferSourceLabel}</span>{" "}
+                            <span className="font-mono text-muted-foreground">{trimAddress(transferSourceWallet.address)}</span>
+                          </span>
+                          <FiChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
                         </button>
-                      );
-                    })}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className={transferMenuClass}>
+                        {transferSources.map((wallet) => (
+                          <DropdownMenuItem
+                            key={wallet.key}
+                            onSelect={() => void chooseTransferSource(wallet)}
+                            className={`min-h-10 gap-2 rounded-lg px-2.5 text-xs ${wallet.address.toLowerCase() === transferSourceWallet.address.toLowerCase() ? "bg-brand-accent/[0.08]" : ""}`}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{walletMenuLabel(wallet)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</span>
+                            {wallet.isActive && <span className="rounded-full bg-brand-accent/15 px-1.5 text-[9px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">Active</span>}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <CopyChip text={transferSourceWallet.address} label="Copy source address" size="xs" />
                   </div>
-                  <input
-                    type="text"
-                    value={transferDestinationAddress}
-                    onChange={(event) => setTransferDestinationAddress(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-[11px] text-zinc-900 outline-none focus:border-sky-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500"
-                    placeholder="Or enter destination address (0x...)"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {transferSourceWallet.chainName ?? nativeSymbol} · Balance {sourceBalanceNative.toFixed(6)} {nativeSymbol}
+                    {nativeUsdPrice > 0 ? ` (~${(sourceBalanceNative * nativeUsdPrice).toFixed(2)} kr)` : ""}
+                  </p>
+                </div>
+
+                {/* To: one of your other wallets, or any address typed or pasted. */}
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium text-foreground/85">To</p>
+                  <div className="flex items-center gap-1.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className={`${transferPickerClass} w-auto max-w-[45%] shrink-0`} aria-label="Choose a destination wallet">
+                          <span className="truncate">{transferDestinationWallet ? walletMenuLabel(transferDestinationWallet) : "Your wallets"}</span>
+                          <FiChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className={transferMenuClass}>
+                        {transferDestinations.length === 0 && (
+                          <p className="px-2.5 py-2 text-xs text-muted-foreground">No other wallet on this network. Paste an address instead.</p>
+                        )}
+                        {transferDestinations.map((wallet) => (
+                          <DropdownMenuItem
+                            key={wallet.key}
+                            onSelect={() => setTransferDestinationAddress(wallet.address)}
+                            className={`min-h-10 gap-2 rounded-lg px-2.5 text-xs ${wallet.address.toLowerCase() === normalizedTransferDestinationAddress.toLowerCase() ? "bg-brand-accent/[0.08]" : ""}`}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{walletMenuLabel(wallet)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{trimAddress(wallet.address)}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input
+                      type="text"
+                      value={transferDestinationAddress}
+                      onChange={(event) => setTransferDestinationAddress(event.target.value)}
+                      className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 font-mono text-[11px] text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
+                      placeholder="0x… any address"
+                      aria-label="Destination address"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    {hasTransferDestination && <CopyChip text={normalizedTransferDestinationAddress} label="Copy destination address" size="xs" />}
+                  </div>
                   {!isManualDestinationValid && (
                     <p className="mt-1 text-[10px] text-red-500">Enter a valid EVM address (0x...).</p>
                   )}
@@ -4506,16 +4141,16 @@ export default function SidebarWalletPanel({
                 </div>
 
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Amount ({nativeSymbol} or kr)</p>
+                  <p className="mb-1 text-[11px] font-medium text-foreground/85">Amount ({nativeSymbol} or kr)</p>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={transferInput}
                     onChange={(event) => setTransferInput(event.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-sky-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-brand-accent dark:bg-surface-3"
                     placeholder={`e.g. 0.05 ${nativeSymbol} or 100 kr`}
                   />
-                  <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-1 text-[10px] text-muted-foreground">
                     ≈ {parsedNokAmount > 0 ? `${parsedNokAmount.toFixed(2)} kr` : "0.00 kr"} · {parsedNativeAmount > 0 ? `${parsedNativeAmount.toFixed(8)} ${nativeSymbol}` : `0 ${nativeSymbol}`}
                   </p>
                   <div className="mt-2 flex items-center gap-1">
@@ -4524,7 +4159,7 @@ export default function SidebarWalletPanel({
                         key={pct}
                         type="button"
                         onClick={() => setTransferInput((maxTransferNative * (pct / 100)).toFixed(8))}
-                        className="rounded-md border border-zinc-200 px-2 py-1 text-[10px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-foreground/[0.05] dark:text-foreground/80 dark:hover:bg-surface-3"
                       >
                         {pct}%
                       </button>
@@ -4532,12 +4167,12 @@ export default function SidebarWalletPanel({
                     <button
                       type="button"
                       onClick={() => setTransferInput(maxTransferNative > 0 ? maxTransferNative.toFixed(8) : "")}
-                      className="rounded-md border border-zinc-200 px-2 py-1 text-[10px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-foreground/[0.05] dark:text-foreground/80 dark:hover:bg-surface-3"
                     >
                       Max
                     </button>
                   </div>
-                  <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[10px] text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+                  <div className="mt-2 rounded-md border border-border bg-foreground/[0.05] px-2 py-1.5 text-[10px] text-muted-foreground dark:bg-surface-3 dark:text-foreground/80">
                     <p>Estimated network fee: {estimatedFeeNative.toFixed(6)} {nativeSymbol}{nativeUsdPrice > 0 ? ` (~${estimatedFeeNok.toFixed(2)} kr)` : ""}</p>
                     <p>Total cost: {(parsedNativeAmount + estimatedFeeNative).toFixed(8)} {nativeSymbol}</p>
                   </div>
@@ -4554,7 +4189,7 @@ export default function SidebarWalletPanel({
                   <p className="text-[11px] font-medium text-amber-500">Step 1/3 · Signing in wallet…</p>
                 )}
                 {transferStep === "confirming" && (
-                  <div className="text-[11px] font-medium text-sky-500 dark:text-emerald-400">
+                  <div className="text-[11px] font-medium text-brand-accent">
                     <p>Step 2/3 · Broadcasted, waiting for confirmation…</p>
                     {transferTxHash && (
                       <p className="mt-0.5 font-mono text-[10px]">Tx: {trimAddress(transferTxHash, 10, 8)}</p>
@@ -4562,14 +4197,14 @@ export default function SidebarWalletPanel({
                   </div>
                 )}
                 {transferStep === "success" && (
-                  <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-[11px] dark:border-emerald-700 dark:bg-emerald-950/30">
-                    <p className="font-semibold text-emerald-700 dark:text-emerald-300">Step 3/3 · Transfer complete</p>
-                    <p className="mt-0.5 text-emerald-700/90 dark:text-emerald-300/90">
+                  <div className="rounded-lg border border-brand-accent bg-brand-accent/10 p-2 text-[11px] dark:bg-brand-accent/30">
+                    <p className="font-semibold text-brand-accent-hover dark:text-brand-accent-light">Step 3/3 · Transfer complete</p>
+                    <p className="mt-0.5 text-brand-accent-hover/90">
                       {parsedNativeAmount.toFixed(8)} {nativeSymbol} sent
                     </p>
                     {transferTxHash && (
                       <div className="mt-1 flex items-center gap-2">
-                        <p className="font-mono text-emerald-700/90 dark:text-emerald-300/90">{trimAddress(transferTxHash, 10, 8)}</p>
+                        <p className="font-mono text-brand-accent-hover/90">{trimAddress(transferTxHash, 10, 8)}</p>
                         {explorerTxUrl(transferSourceWallet.chainId ?? evmChainId, transferTxHash) && (
                           <a
                             href={explorerTxUrl(transferSourceWallet.chainId ?? evmChainId, transferTxHash) ?? "#"}
@@ -4593,7 +4228,7 @@ export default function SidebarWalletPanel({
                         const details = `from=${transferSourceAddress};to=${transferDestinationAddress};input=${transferInput};error=${transferError ?? "unknown"}`;
                         navigator.clipboard.writeText(details).catch(() => undefined);
                       }}
-                      className="text-[10px] text-zinc-500 underline"
+                      className="text-[10px] text-muted-foreground underline"
                     >
                       Copy details
                     </button>
@@ -4601,11 +4236,11 @@ export default function SidebarWalletPanel({
                 )}
 
                 {transferHistory.length > 0 && (
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Recent transfers</p>
+                  <div className="rounded-lg border border-border bg-foreground/[0.05] p-2 dark:bg-surface-3">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Recent transfers</p>
                     <div className="space-y-1">
                       {transferHistory.slice(0, 3).map((item) => (
-                        <p key={item.id} className="text-[10px] text-zinc-600 dark:text-zinc-300">
+                        <p key={item.id} className="text-[10px] text-foreground/80">
                           {trimAddress(item.sourceAddress)} → {trimAddress(item.destinationAddress)} · {Number(item.amountNative).toFixed(6)} {item.nativeSymbol}
                         </p>
                       ))}
@@ -4617,7 +4252,7 @@ export default function SidebarWalletPanel({
                   <button
                     type="button"
                     onClick={closeTransferFlow}
-                    className="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                    className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
                   >
                     {transferStep === "success" ? "Done" : "Cancel"}
                   </button>
@@ -4628,7 +4263,7 @@ export default function SidebarWalletPanel({
                         resetTransfer();
                         setTransferInput("");
                       }}
-                      className="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-border px-3 py-1.5 text-[11px] text-foreground hover:bg-foreground/[0.05] dark:hover:bg-surface-3"
                     >
                       Make another
                     </button>
@@ -4647,7 +4282,7 @@ export default function SidebarWalletPanel({
                       sameAddress ||
                       hasInsufficientFunds
                     }
-                    className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600"
+                    className="inline-flex items-center gap-1 rounded-md bg-brand-accent-hover px-3 py-1.5 text-[11px] font-semibold text-brand-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <FiSend className="h-3 w-3" />
                     Send

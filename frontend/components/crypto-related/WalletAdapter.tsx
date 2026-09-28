@@ -86,7 +86,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
           <DialogTrigger asChild>
 						<Button
 							variant="outline"
-							className="h-10 rounded-xl border border-black/10 bg-white/60 px-3 text-sm font-medium text-zinc-900 hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10]"
+							className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05]"
 						>
 							{busy.evm || busy.sol ? (
 								"Connecting..."
@@ -103,7 +103,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
             <DropdownMenuTrigger asChild>
               <Button
 								variant="outline"
-								className="h-10 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 text-sm font-medium text-zinc-900 hover:bg-emerald-500/20 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-zinc-100 dark:hover:bg-emerald-500/20 flex items-center gap-2"
+								className="h-10 rounded-xl border border-brand-accent/30 bg-brand-accent/10 px-3 text-sm font-medium text-foreground hover:bg-brand-accent/20 flex items-center gap-2"
                 title={address || "Not connected"}
               >
 								{/* Wallet icon based on brand */}
@@ -114,7 +114,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
 									<Image src="/wallets/coinbase.webp" alt="Coinbase" width={18} height={18} className="rounded shrink-0" />
 								)}
 								{evmConnected && !evm.brand && (
-									<div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+									<div className="h-2 w-2 rounded-full bg-brand-accent-light shrink-0" />
 								)}
 								{/* Address - longer on desktop */}
 								<span className="sm:hidden font-mono text-xs">{address ? trimMobile(address) : "Connected"}</span>
@@ -122,15 +122,15 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                 <IoChevronDownCircleOutline className="h-4 w-4 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
-						<DropdownMenuContent className="w-[400px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl p-4">
+						<DropdownMenuContent className="w-[400px] bg-surface-1/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-4">
 							{/* Connected Status Header */}
-							<div className="flex items-center gap-2 mb-4 pb-3 border-b border-black/10 dark:border-white/10">
-								<div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-								<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Wallet Connected</span>
+							<div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
+								<div className="h-2.5 w-2.5 rounded-full bg-brand-accent-light animate-pulse" />
+								<span className="text-sm font-semibold text-brand-accent-hover dark:text-brand-accent-light">Wallet Connected</span>
 							</div>
 
               {/* EVM row */}
-							<div className="mb-3 p-4 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
+							<div className="mb-3 p-4 rounded-xl border border-border bg-surface-1/70">
 								<div className="flex items-center gap-2 mb-2">
 									{evm.brand === "MetaMask" && (
 										<Image src="/metamask/metamask.webp" alt="MetaMask" width={20} height={20} className="rounded" />
@@ -138,15 +138,15 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
 									{evm.brand === "Coinbase Wallet" && (
 										<Image src="/wallets/coinbase.webp" alt="Coinbase" width={20} height={20} className="rounded" />
 									)}
-									<span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">EVM {evm.brand ? `(${evm.brand})` : ""}</span>
+									<span className="text-xs font-semibold text-foreground/85">EVM {evm.brand ? `(${evm.brand})` : ""}</span>
 									{evmConnected && (
-										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-											<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-brand-accent/10 px-2 py-0.5 text-[10px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
+											<span className="h-1.5 w-1.5 rounded-full bg-brand-accent-light" />
 											Connected
 										</span>
 									)}
 								</div>
-								<div className="text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all">
+								<div className="text-sm font-mono text-foreground break-all">
                   {evmConnected ? evm.address : "Not connected"}
                 </div>
                 <div className="mt-3 flex gap-2">
@@ -172,17 +172,17 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
               </div>
 
               {/* Solana row */}
-							<div className="p-4 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06]">
+							<div className="p-4 rounded-xl border border-border bg-surface-1/70">
 								<div className="flex items-center gap-2 mb-2">
-									<span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Solana</span>
+									<span className="text-xs font-semibold text-foreground/85">Solana</span>
 									{publicKey && (
-										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-											<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+										<span className="ml-auto inline-flex items-center gap-1 rounded-full bg-brand-accent/10 px-2 py-0.5 text-[10px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
+											<span className="h-1.5 w-1.5 rounded-full bg-brand-accent-light" />
 											Connected
 										</span>
 									)}
 								</div>
-								<div className="text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all">
+								<div className="text-sm font-mono text-foreground break-all">
                   {publicKey ? publicKey.toBase58() : "Not connected"}
                 </div>
                 <div className="mt-3 flex gap-2">
@@ -212,7 +212,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
         <DialogTrigger asChild>
           <Button
             variant="outline"
-            className="h-10 rounded-xl border border-black/10 bg-white/60 px-3 text-sm font-medium text-zinc-900 hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.10] flex items-center gap-2"
+            className="h-10 rounded-xl border border-border bg-surface-1/60 px-3 text-sm font-medium text-foreground hover:bg-surface-1/80 dark:bg-foreground/[0.05] dark:hover:bg-foreground/[0.05] flex items-center gap-2"
             title={address || "Not connected"}
           >
             <span className="truncate max-w-[180px]">{address ? trim(address) : "Not connected"}</span>
@@ -222,15 +222,15 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
         )}
 
         {/* Modal */}
-				<DialogContent className="max-w-[520px] bg-white/95 dark:bg-zinc-950/95 rounded-2xl border border-black/10 dark:border-white/10 backdrop-blur-lg">
+				<DialogContent className="max-w-[520px] bg-surface-1/95 rounded-2xl border border-border backdrop-blur-lg">
           <DialogTitle className="sr-only">Select a Wallet &amp; Connect</DialogTitle>
           <div className="flex w-full justify-center items-center">
             <div className="flex flex-col justify-start items-stretch space-y-4 w-[320px] md:w-[480px] overflow-y-auto">
-							<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Select a Wallet &amp; Connect</div>
+							<div className="text-sm font-semibold text-foreground">Select a Wallet &amp; Connect</div>
 
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              On desktop: choose <span className="font-medium text-zinc-700 dark:text-zinc-200">MetaMask</span> (browser extension).
-               On mobile: choose <span className="font-medium text-zinc-700 dark:text-zinc-200">WalletConnect</span> and scan the QR.
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              On desktop: choose <span className="font-medium text-foreground/85">MetaMask</span> (browser extension).
+               On mobile: choose <span className="font-medium text-foreground/85">WalletConnect</span> and scan the QR.
             </div>
 
             {!walletConnectEnabled ? (
@@ -242,9 +242,9 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
 
             {anyConnected ? (
               <div className="space-y-3">
-                <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06] p-3">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">EVM</div>
-                  <div className="text-sm text-zinc-900 dark:text-zinc-100 break-all">
+                <div className="rounded-xl border border-border bg-surface-1/70 p-3">
+                  <div className="text-xs text-muted-foreground mb-1">EVM</div>
+                  <div className="text-sm text-foreground break-all">
                     {evmConnected ? evm.address : "Not connected"}
                   </div>
                   <div className="mt-2 flex gap-2">
@@ -263,9 +263,9 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.06] p-3">
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Solana</div>
-                  <div className="text-sm text-zinc-900 dark:text-zinc-100 break-all">
+                <div className="rounded-xl border border-border bg-surface-1/70 p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Solana</div>
+                  <div className="text-sm text-foreground break-all">
                     {publicKey ? publicKey.toBase58() : "Not connected"}
                   </div>
                   <div className="mt-2 flex gap-2">
@@ -299,7 +299,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                         setOpen(false);
                       }}
                       variant="ghost"
-									className="h-[50px] border border-black/10 bg-black/5 hover:bg-black/10 text-zinc-900 font-semibold rounded-xl transition-colors gap-3 justify-start dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10] dark:text-zinc-100"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors gap-3 justify-start dark:hover:bg-foreground/[0.05]"
                       title={`Connect with ${w.adapter.name}`}
                       disabled={busy.sol}
                     >
@@ -314,7 +314,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
               {/* EVM connectors with proper logos */}
               {evmConnectorGroups.recommended.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Recommended
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -327,7 +327,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                           setOpen(false);
                         }}
                         variant="ghost"
-									className="h-[50px] border border-black/10 bg-black/5 hover:bg-black/10 text-zinc-900 font-semibold rounded-xl transition-colors justify-start dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10] dark:text-zinc-100"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-foreground/[0.05]"
                         title={`Connect with ${label}`}
                         disabled={busy.evm}
                       >
@@ -335,12 +335,12 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                           <Image src={icon} alt={label} height={22} width={22} className="rounded shrink-0" />
                           <span className="flex-1 min-w-0 truncate">{label}</span>
                           {isMetaMask ? (
-                            <span className="shrink-0 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:text-sky-300">
+                            <span className="shrink-0 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-2 py-0.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                               Desktop
                             </span>
                           ) : null}
                           {isWalletConnect ? (
-                            <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                            <span className="shrink-0 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-2 py-0.5 text-[11px] font-semibold text-brand-accent-hover dark:text-brand-accent-light">
                               Mobile
                             </span>
                           ) : null}
@@ -354,7 +354,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
 
               {evmConnectorGroups.more.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     More wallets
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -367,7 +367,7 @@ export default function WalletConnection({ variant = "default", mode = "auto" }:
                           setOpen(false);
                         }}
                         variant="ghost"
-									className="h-[50px] border border-black/10 bg-black/5 hover:bg-black/10 text-zinc-900 font-semibold rounded-xl transition-colors justify-start dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.10] dark:text-zinc-100"
+									className="h-[50px] border border-border bg-foreground/[0.05] hover:bg-muted text-foreground font-semibold rounded-xl transition-colors justify-start dark:hover:bg-foreground/[0.05]"
                         title={`Connect with ${label}`}
                         disabled={busy.evm}
                       >

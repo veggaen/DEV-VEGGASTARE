@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { SecurityActionType } from '@/generated/prisma/browser';
+import { authOrigin } from '@/lib/auth-navigation';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const LOG_PREFIX = '[mail.ts]';
@@ -21,13 +21,19 @@ async function sendEmailViaResend(payload: Parameters<typeof resend.emails.send>
   }
 }
 // Simplified environment detection (no trailing slash; callers add leading '/')
-const whatENV =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://www.veggat.com";
+const whatENV = authOrigin();
+
+export async function sendAccountSecurityCode(email: string, code: string): Promise<void> {
+  if (!/^\d{6}$/.test(code)) throw new Error('Invalid security code');
+  await sendEmailViaResend({
+    from: 'Veggat-Security@veggat.com', to: email,
+    subject: 'Confirm your Veggat security change',
+    text: `Your security confirmation code is ${code}. It expires in 5 minutes and approves only the change you requested in Settings. Never share it. If you did not request this, do not approve the change.`,
+  });
+}
 
 export const sendTwoFactorTokenEmail = async (email: string, token: string): Promise<void> => {
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',
     to: email,
     subject: 'Your Veggat 2FA Code',
@@ -54,7 +60,7 @@ export const sendTwoFactorTokenEmail = async (email: string, token: string): Pro
 */
 export const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
 	const resetLink = `${whatENV}/auth/new-password?token=${token}`;
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-PasswordReset@veggat.com',
     to: email,
     subject: 'Reset Your Veggat Password',
@@ -81,7 +87,7 @@ export const sendPasswordResetEmail = async (email: string, token: string): Prom
 */
 export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
 	const confirmLink = `${whatENV}/auth/new-verification?token=${token}`;
-  await resend.emails.send({
+  await sendEmailViaResend({
     from: 'Veggat-Registration@veggat.com',
     to: email,
     subject: 'Welcome to Veggat - Confirm Your Email',
@@ -98,39 +104,13 @@ export const sendVerificationEmail = async (email: string, token: string): Promi
   });
 }
 
-export const sendSecurityActionEmail = async (
-  email: string,
-  token: string,
-  action: SecurityActionType
-): Promise<void> => {
-  const actionLabel =
-    action === "WEB3_MODE_ENABLE" ? "Enable Web3 Mode" : "Disable Web3 Mode";
-  const confirmLink = `${whatENV}/auth/security-action?token=${token}`;
-
-  await resend.emails.send({
-    from: "Veggat-Security@veggat.com",
-    to: email,
-    subject: `Confirm: ${actionLabel}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Security Action Required</h2>
-        <p>You requested to <strong>${actionLabel.toLowerCase()}</strong> on your Veggat account.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmLink}" style="background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">${actionLabel}</a>
-        </div>
-        <p style="color: #666; font-size: 14px;">This link expires in 15 minutes. If you didn't request this, please secure your account immediately.</p>
-      </div>
-    `,
-  });
-};
 
 // ─── OAuth Link Confirmation Email (pending → verified) ─────────────────────
 
 /**
  * Sent when a user links a new OAuth provider.
- * They must click the button to actually confirm the link — the flag stays
- * false (yellow in UI) until they do. This prevents a rogue session from
- * silently linking an attacker's account.
+ * They must review and confirm the email link before it counts toward their
+ * verification score. Account linking itself is handled separately by Auth.js.
  */
 export const sendOauthLinkConfirmationEmail = async (
   email: string,
@@ -148,6 +128,7 @@ export const sendOauthLinkConfirmationEmail = async (
 
   const confirmUrl = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}`;
   const denyUrl   = `${whatENV}/api/auth/confirm-oauth-link?token=${encodeURIComponent(data.token)}&deny=1`;
+  const safeName = data.userName?.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 
   await sendEmailViaResend({
     from: 'Veggat-Security@veggat.com',
@@ -160,25 +141,25 @@ export const sendOauthLinkConfirmationEmail = async (
         </div>
 
         <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-          <p style="color: #333;">Hi${data.userName ? ` ${data.userName}` : ''},</p>
+          <p style="color: #333;">Hi${safeName ? ` ${safeName}` : ''},</p>
 
           <p style="color: #555;">
             Someone just linked a <strong>${providerLabel}</strong> account to your Veggat profile.
-            <br/>Before this takes effect, you need to confirm it was you.
+            <br/>Confirm it was you before it counts toward your verification score.
           </p>
 
           <div style="background: #fef9c3; border: 1px solid #fde047; padding: 14px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 600;">⚠️ If this wasn't you, click "Deny &amp; Secure" below immediately.</p>
+            <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 600;">If this wasn't you, review the link below and secure your account.</p>
           </div>
 
           <div style="text-align: center; margin: 28px 0;">
             <a href="${confirmUrl}"
                style="background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">
-              ✅ Yes, confirm this link
+              Review and confirm
             </a>
             <a href="${denyUrl}"
                style="background: #dc2626; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; margin-left: 12px;">
-              ❌ Deny &amp; Secure
+              Review removal
             </a>
           </div>
 
@@ -797,8 +778,9 @@ export const sendPaypalVerificationEmail = async (
   token: string,
   entityType: 'user' | 'company',
   entityId: string,
+  origin: string,
 ): Promise<void> => {
-  const verifyLink = `${whatENV}/settings/verify-paypal?token=${token}&type=${entityType}&id=${entityId}`;
+  const verifyLink = `${origin}/settings/verify-paypal?token=${token}&type=${entityType}&id=${entityId}`;
   const targetLabel = entityType === 'company' ? 'your company' : 'your account';
 
   await sendEmailViaResend({
@@ -808,8 +790,8 @@ export const sendPaypalVerificationEmail = async (
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">PayPal Email Verification</h2>
-        <p>You added this email as the PayPal receiving address for ${targetLabel} on Veggat.</p>
-        <p>Click below to confirm ownership:</p>
+        <p>You requested this receiving email for ${targetLabel} on Veggat. Your current address stays unchanged until you confirm.</p>
+        <p>Open the link to review and verify this address. This verifies inbox access, not PayPal merchant onboarding.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${verifyLink}" style="background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Verify PayPal Email</a>
         </div>

@@ -1,10 +1,10 @@
 'use client'
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub, FaDiscord } from "react-icons/fa";
-import { signIn } from 'next-auth/react'
+import { getProviders, signIn } from 'next-auth/react'
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Provider = 'google' | 'github' | 'discord';
 
@@ -19,37 +19,72 @@ const PROVIDERS: { id: Provider; label: string; Icon: React.ComponentType<{ clas
  * users guess), with a busy state on the one that was clicked so the redirect
  * gap never feels dead.
  */
-export const MySocialAuth = () => {
+import { useClientReady } from '@/hooks/use-client-ready';
+
+export const MySocialAuth = ({ redirectTo }: { redirectTo?: string } = {}) => {
+  const ready = useClientReady();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const [pending, setPending] = useState<Provider | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [available, setAvailable] = useState<Set<string> | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
-  const onClick = (provider: Provider) => {
+  useEffect(() => {
+    let active = true;
+    getProviders().then(providers => {
+      if (!active) return;
+      if (!providers) { setLoadFailed(true); return; }
+      setAvailable(new Set(Object.keys(providers)));
+    }).catch(() => { if (active) setLoadFailed(true); });
+    return () => { active = false; };
+  }, [attempt]);
+
+  const onClick = async (provider: Provider) => {
+    if (!available?.has(provider)) return;
+    setError(null);
     setPending(provider);
-    signIn(provider, {
-      callbackUrl: callbackUrl || DEFAULT_LOGIN_REDIRECT
-    })
+    try {
+      await signIn(provider, {
+        callbackUrl: redirectTo || callbackUrl || DEFAULT_LOGIN_REDIRECT
+      });
+    } catch {
+      setError("Couldn't connect to sign-in. Check your connection and try again.");
+    } finally {
+      setPending(null);
+    }
   }
 
   return (
-    <div className="grid w-full grid-cols-3 gap-2">
-      {PROVIDERS.map(({ id, label, Icon }) => (
+    <div className="space-y-3">
+    <div className="grid w-full grid-flow-col auto-cols-fr gap-2">
+      {PROVIDERS.filter(({ id }) => !available || available.has(id)).map(({ id, label, Icon }) => (
         <button
           key={id}
           type="button"
-          disabled={pending !== null}
+          disabled={!ready || !available || pending !== null}
+          aria-busy={pending === id}
           onClick={() => onClick(id)}
           aria-label={`Continue with ${label}`}
-          className="group flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border/70 bg-surface-1/60 text-sm font-medium text-foreground/80 transition-all duration-200 ease-out hover:border-brand-accent/40 hover:bg-accent hover:text-foreground motion-safe:hover:-translate-y-px hover:shadow-e1 motion-safe:active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60"
+          className="flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60 sm:gap-2 sm:text-sm"
         >
           {pending === id ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
           ) : (
             <Icon className={id === 'discord' ? 'h-4.5 w-4.5 text-[#5865F2]' : 'h-4.5 w-4.5'} />
           )}
-          <span className="hidden sm:inline">{label}</span>
+          <span>{label}</span>
         </button>
       ))}
+    </div>
+    {loadFailed && <p role="alert" className="text-sm text-muted-foreground">
+      Social sign-in is unavailable.{' '}
+      <button type="button" className="underline underline-offset-4" onClick={() => {
+        setLoadFailed(false); setAttempt(value => value + 1);
+      }}>Retry</button>
+    </p>}
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   )
 }

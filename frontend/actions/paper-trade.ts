@@ -10,6 +10,7 @@
 import { dbPrisma as db } from "@/lib/db";
 import { MyLibUserAuth } from "@/lib/user-auth";
 import { getTokenPrice, getTokenPrices, isStablecoin } from "@/lib/paper/price-feed";
+import { readPaperPortfolio, readPaperHistory, type PaperHistoryOptions } from '@/lib/paper/read';
 import { z } from "zod";
 import { PaperTradeType } from "@/generated/prisma/client";
 import { createTradeRecord } from "@/lib/trade-record";
@@ -121,94 +122,8 @@ export async function createPaperPortfolio(
 /**
  * Get the user's paper portfolio with positions and current prices.
  */
-export async function getPaperPortfolio(): Promise<
-  ActionResult<{
-    portfolio: {
-      id: string;
-      startingBalance: number;
-      cashBalance: number;
-      resetCount: number;
-    };
-    positions: Array<{
-      tokenSymbol: string;
-      tokenAddress: string;
-      chainId: number;
-      displayAmount: string;
-      avgEntryPrice: number;
-      currentPriceUsd: number;
-      valueUsd: number;
-      pnlUsd: number;
-      pnlPercent: number;
-    }>;
-    totalValueUsd: number;
-    totalPnlUsd: number;
-    totalPnlPercent: number;
-  }>
-> {
-  const user = await MyLibUserAuth();
-  if (!user?.id) return unauthorized();
-
-  const portfolio = await db.paperPortfolio.findUnique({
-    where: { userId: user.id },
-    include: { Positions: true },
-  });
-
-  if (!portfolio) {
-    return { success: false, error: "No paper portfolio. Create one first." };
-  }
-
-  // Fetch current prices for all positions
-  const symbols = portfolio.Positions.map((p) => p.tokenSymbol);
-  const prices = await getTokenPrices(symbols);
-
-  let totalValueUsd = portfolio.cashBalance;
-  const positions = portfolio.Positions.filter(
-    (p) => BigInt(p.amount) > BigInt(0),
-  ).map((pos) => {
-    const displayAmt = parseFloat(pos.displayAmount);
-    const quote = prices.get(pos.tokenSymbol.toUpperCase());
-    const currentPriceUsd = quote?.usd ?? 0;
-    const valueUsd = displayAmt * currentPriceUsd;
-    const costBasis = pos.totalCostBasis;
-    const pnlUsd = valueUsd - costBasis;
-    const pnlPercent = costBasis > 0 ? (pnlUsd / costBasis) * 100 : 0;
-
-    totalValueUsd += valueUsd;
-
-    return {
-      tokenSymbol: pos.tokenSymbol,
-      tokenAddress: pos.tokenAddress,
-      chainId: pos.chainId,
-      displayAmount: pos.displayAmount,
-      avgEntryPrice: pos.avgEntryPrice,
-      currentPriceUsd,
-      valueUsd,
-      pnlUsd,
-      pnlPercent,
-    };
-  });
-
-  const totalPnlUsd = totalValueUsd - portfolio.startingBalance;
-  const totalPnlPercent =
-    portfolio.startingBalance > 0
-      ? (totalPnlUsd / portfolio.startingBalance) * 100
-      : 0;
-
-  return {
-    success: true,
-    data: {
-      portfolio: {
-        id: portfolio.id,
-        startingBalance: portfolio.startingBalance,
-        cashBalance: portfolio.cashBalance,
-        resetCount: portfolio.resetCount,
-      },
-      positions,
-      totalValueUsd,
-      totalPnlUsd,
-      totalPnlPercent,
-    },
-  };
+export async function getPaperPortfolio() {
+  return readPaperPortfolio();
 }
 
 /**
@@ -776,56 +691,6 @@ export async function paperSwap(
 /**
  * Get paper trade history for the current user.
  */
-export async function getPaperTradeHistory(opts?: {
-  limit?: number;
-  type?: PaperTradeType;
-}): Promise<
-  ActionResult<
-    Array<{
-      id: string;
-      type: PaperTradeType;
-      sellToken: string | null;
-      sellDisplayAmt: string | null;
-      sellPriceUsd: number | null;
-      buyToken: string | null;
-      buyDisplayAmt: string | null;
-      buyPriceUsd: number | null;
-      feeUsd: number | null;
-      executedAt: Date;
-    }>
-  >
-> {
-  const user = await MyLibUserAuth();
-  if (!user?.id) return unauthorized();
-
-  const portfolio = await db.paperPortfolio.findUnique({
-    where: { userId: user.id },
-    select: { id: true },
-  });
-  if (!portfolio) return { success: false, error: "No paper portfolio found." };
-
-  const limit = Math.min(opts?.limit ?? 50, 200);
-
-  const trades = await db.paperTrade.findMany({
-    where: {
-      portfolioId: portfolio.id,
-      ...(opts?.type ? { type: opts.type } : {}),
-    },
-    orderBy: { executedAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      type: true,
-      sellToken: true,
-      sellDisplayAmt: true,
-      sellPriceUsd: true,
-      buyToken: true,
-      buyDisplayAmt: true,
-      buyPriceUsd: true,
-      feeUsd: true,
-      executedAt: true,
-    },
-  });
-
-  return { success: true, data: trades };
+export async function getPaperTradeHistory(opts?: PaperHistoryOptions) {
+  return readPaperHistory(opts);
 }

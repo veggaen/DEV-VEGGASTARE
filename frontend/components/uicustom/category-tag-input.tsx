@@ -26,6 +26,9 @@ interface HierarchicalCategory {
 }
 
 interface CategoryTagInputProps {
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
   value: CategoryTag[];
   onChange: (tags: CategoryTag[]) => void;
   disabled?: boolean;
@@ -49,6 +52,9 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function CategoryTagInput({
+  id,
+  'aria-describedby': describedBy,
+  'aria-invalid': invalid,
   value = [],
   onChange,
   disabled = false,
@@ -310,11 +316,12 @@ export function CategoryTagInput({
             {!disabled && (
               <button
                 type="button"
+                aria-label={`Remove category ${tag.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   removeTag(idx);
                 }}
-                className="ml-1 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+                className="ml-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -325,6 +332,12 @@ export function CategoryTagInput({
         {/* Input */}
         {value.length < maxTags && (
           <input
+            id={id}
+            name="categories"
+            autoComplete="off"
+            aria-label={id ? undefined : 'Categories'}
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
             ref={inputRef}
             type="text"
             value={inputValue}
@@ -339,7 +352,7 @@ export function CategoryTagInput({
             disabled={disabled}
             placeholder={value.length === 0 ? placeholder : ''}
             className={cn(
-              'flex-1 min-w-[120px] bg-transparent outline-none text-sm',
+              'h-11 flex-1 min-w-[120px] bg-transparent outline-none text-base',
               'placeholder:text-muted-foreground'
             )}
           />
@@ -463,7 +476,7 @@ export function CategoryTagInput({
 
       {/* Hierarchical Category Browser */}
       {showBrowser && (
-        <div className="mt-2 p-3 rounded-md border border-border bg-muted/30 max-h-[300px] overflow-y-auto">
+        <div className="mt-2 p-3 rounded-md border border-border bg-foreground/[0.04] max-h-[300px] overflow-y-auto">
           <p className="text-xs font-medium text-muted-foreground mb-2">
             Browse categories (click to add, expand for subcategories)
           </p>

@@ -1,0 +1,112 @@
+/** Search privacy checked against real PostgreSQL in a disposable Preview-only schema. */
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { Client } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client';
+import { previewDatabaseUrl } from '@/lib/preview-database';
+const state = vi.hoisted(() => ({ db: null as unknown, viewer: { id: 'viewer', role: 'USER' } }));
+vi.mock('@/lib/db', () => ({ get dbPrisma() { return state.db; } }));
+vi.mock('@/lib/user-auth', () => ({ MyLibUserAuth: async () => state.viewer }));
+vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: async () => ({ success: true }) }));
+import { GET } from '@/app/api/users/search/route';
+import { POST as exactLookup } from '@/app/api/validate-user/route';
+import { GET as suggestions } from '@/app/api/users/suggestions/route';
+
+describe.skipIf(process.env.TEST_USER_SEARCH_DATABASE !== '1')('people search database privacy', () => {
+  const schema = 'qa_people_search_' + randomUUID().replaceAll('-', '');
+  let admin: Client, db: PrismaClient;
+  beforeAll(async () => {
+    if (process.env.VERCEL_ENV !== 'preview') throw new Error('Isolated Preview required');
+    const url = new URL(previewDatabaseUrl({ DATABASE_URL_MAINPREVIEW: process.env.DATABASE_URL_MAINPREVIEW, DATABASE_URL_MAINLIVE: process.env.DATABASE_URL_MAINLIVE }));
+    url.hostname = url.hostname.replace('-pooler.', '.'); url.searchParams.set('sslmode', 'verify-full');
+    if (!/^qa_people_search_[a-f0-9]{32}$/.test(schema)) throw new Error('Invalid disposable schema');
+    admin = new Client({ connectionString: url.toString() }); await admin.connect();
+    await admin.query(`CREATE SCHEMA "${schema}"`); await admin.query(`SET search_path TO "${schema}"`);
+    await admin.query(`CREATE TYPE "EmailDisplayMode" AS ENUM ('PRIMARY','HIDE');
+      CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "name" TEXT, "email" TEXT, "emailDisplayMode" "EmailDisplayMode", "role" TEXT NOT NULL DEFAULT 'USER', "image" TEXT, "bio" TEXT);
+      CREATE TABLE "Follow" ("id" TEXT PRIMARY KEY, "followerId" TEXT, "followingId" TEXT, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());
+      CREATE TYPE "ConversationType" AS ENUM ('PRIVATE_DM','GROUP');
+      CREATE TABLE "Conversation" ("id" TEXT PRIMARY KEY, "userId" TEXT, "participants" TEXT[], "type" "ConversationType", "lastActivityAt" TIMESTAMP NOT NULL DEFAULT NOW());
+      CREATE TABLE "Friendship" ("id" TEXT PRIMARY KEY, "userAId" TEXT, "userBId" TEXT, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());
+      CREATE TABLE "Employee" ("id" TEXT PRIMARY KEY, "userId" TEXT, "companyId" TEXT);
+      INSERT INTO "User" ("id","name","email","emailDisplayMode") VALUES
+      ('viewer','Alex Viewer','own-hidden@example.test','HIDE'),
+      ('hidden','Alex Hidden','secret-only@example.test','HIDE'),
+      ('public','Alex Public','public-only@example.test','PRIMARY'),
+      ('demo_fixture','Alex Demo','demo-only@example.test','PRIMARY'),
+      ('demoxperson','Alex Real','real@example.test','HIDE'),
+      ('literal','Design 50%_off','literal@example.test','HIDE');
+      INSERT INTO "Follow" ("id","followerId","followingId") VALUES ('follow-one','viewer','public'),('follow-two','hidden','public'),('follow-demo','viewer','demo_fixture');
+      INSERT INTO "Conversation" ("id","userId","participants","type") VALUES ('conversation','viewer',ARRAY['hidden','viewer','demo_fixture'],'PRIVATE_DM');
+      INSERT INTO "Friendship" ("id","userAId","userBId") VALUES ('friend','viewer','public');
+      INSERT INTO "Employee" ("id","userId","companyId") VALUES ('own-job','viewer','company'),('colleague','demoxperson','company'),('demo-job','demo_fixture','company');`);
+    url.searchParams.set('options', '-c search_path=' + schema);
+    db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), max: 4 }, { schema }) }); state.db = db;
+    expect((await db.$queryRaw<{ current_schema: string }[]>`SELECT current_schema()`)[0].current_schema).toBe(schema);
+  }, 30_000);
+  afterAll(async () => {
+    await db?.$disconnect();
+    if (admin && /^qa_people_search_[a-f0-9]{32}$/.test(schema)) {
+      await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      expect((await admin.query('SELECT 1 FROM information_schema.schemata WHERE schema_name=$1',[schema])).rowCount).toBe(0);
+      await admin.end();
+    }
+  });
+  beforeEach(() => {state.viewer = {id:'viewer',role:'USER'};});
+  const search = async (q: string, extras = '') => {
+    const response = await GET(new Request('http://localhost:3000/api/users/search?q=' + encodeURIComponent(q) + extras));
+    expect(response.status).toBe(200); return response.json();
+  };
+  it('name search hides private emails/roles, excludes only exact demo prefix and self', async () => {
+    const data = await search('alex'); expect(data.users.map((u: {id:string})=>u.id)).toEqual(['hidden','public','demoxperson']);
+    expect(data.users[0]).toMatchObject({email:null,role:null});
+    expect(data.users[1]).toMatchObject({email:'public-only@example.test',followerCount:2,isFollowing:true});
+  });
+  it('hidden email cannot be inferred by matching while shared email is searchable', async () => {
+    expect((await search('secret-only')).users).toEqual([]);
+    expect((await search('PUBLIC-ONLY')).users[0].id).toBe('public');
+  });
+  it('includes own hidden email only when requested', async () => {
+    expect((await search('own-hidden')).users).toEqual([]);
+    expect((await search('own-hidden','&excludeSelf=false')).users[0].email).toBe('own-hidden@example.test');
+  });
+  it('current privileged viewer retains email search without exposing demos', async () => {
+    state.viewer.role='ADMIN'; expect((await search('secret-only')).users[0].email).toBe('secret-only@example.test');
+    expect((await search('demo-only')).users).toEqual([]);
+  });
+  it('demo reader receives no directory rows', async () => {
+    state.viewer.id='demo_fixture'; expect((await search('alex')).users).toEqual([]);
+  });
+  it('limits results deterministically', async () => {
+    expect((await search('alex','&limit=1')).users.map((u:{id:string})=>u.id)).toEqual(['hidden']);
+  });
+  it('treats percent and underscore literally, not SQL wildcards', async () => {
+    expect((await search('%%')).users).toEqual([]);
+    expect((await search('50%_')).users.map((u:{id:string})=>u.id)).toEqual(['literal']);
+  });
+  const exact = (input: string) => exactLookup(new Request('http://localhost:3000/api/validate-user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input})}));
+  it('exact lookup cannot confirm a hidden email, but can find public names/IDs', async () => {
+    const hidden = await exact('secret-only@example.test'), absent = await exact('absent@example.test');
+    expect(hidden.status).toBe(404); expect(await hidden.json()).toEqual(await absent.json());
+    expect((await (await exact('Alex Hidden')).json()).user).toEqual({id:'hidden',name:'Alex Hidden',email:null});
+    expect((await (await exact('hidden')).json()).user.email).toBeNull();
+    expect((await (await exact('public-only@example.test')).json()).user.id).toBe('public');
+    expect((await (await exact('own-hidden@example.test')).json()).user.id).toBe('viewer');
+  });
+  it('exact lookup keeps privileged visibility and excludes demos',async()=>{
+    state.viewer.role='OWNER'; expect((await (await exact('secret-only@example.test')).json()).user.id).toBe('hidden');
+    expect((await exact('demo_fixture')).status).toBe(404); state.viewer.id='demo_fixture'; expect((await exact('hidden')).status).toBe(404);
+  });
+  it('suggestions follow actual relationship priority without exposing demos or hidden emails',async()=>{
+    const response=await suggestions(new Request('http://localhost:3000/api/users/suggestions?limit=10'));
+    expect(response.status).toBe(200); const data=await response.json();
+    expect(data.suggestions.map((row:{id:string;reason:string})=>[row.id,row.reason])).toEqual([['hidden','Recent chat'],['public','Friend'],['demoxperson','Colleague']]);
+    expect(data.suggestions[0].email).toBeNull(); expect(data.suggestions[1]).toMatchObject({email:'public-only@example.test',isFollowing:true,followerCount:2});
+  });
+  it('suggestions respect result limits, privilege and demo isolation',async()=>{
+    state.viewer.role='ADMIN'; const limited=await suggestions(new Request('http://localhost:3000/api/users/suggestions?limit=1'));
+    expect((await limited.json()).suggestions).toMatchObject([{id:'hidden',email:'secret-only@example.test'}]);
+    state.viewer.id='demo_fixture'; expect(await (await suggestions(new Request('http://localhost:3000/api/users/suggestions'))).json()).toEqual({suggestions:[]});
+  });
+});

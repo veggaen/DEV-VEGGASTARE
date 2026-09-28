@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import type { OrderDto } from '@/lib/types/orders';
+import PreferredMoney from '@/components/checkout/preferred-money';
 
 const statusKeys = ['paymentFailed', 'paymentCancelled'];
 
@@ -59,18 +60,18 @@ const OrderConfirmationPage = () => {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+      <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Loading order</p>
           <h1 className="mt-3 text-2xl font-semibold text-foreground">Finding your confirmation...</h1>
         </div>
-      </main>
+      </section>
     );
   }
 
   if (error || orders.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
+      <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-6">
         <section className="w-full border-y border-border py-10">
           <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
             {error ? 'Order lookup failed' : 'No recent orders'}
@@ -84,7 +85,7 @@ const OrderConfirmationPage = () => {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
-              className="border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+              className="border border-brand-accent px-4 py-2 text-sm font-semibold text-brand-accent-light transition-colors hover:bg-brand-accent hover:text-foreground"
               href="/my-orders"
             >
               Open My orders
@@ -97,12 +98,12 @@ const OrderConfirmationPage = () => {
             </Link>
           </div>
         </section>
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+    <section className="mx-auto w-full max-w-4xl px-6 py-10">
       <div className="mb-8 border-b border-border pb-6">
         <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Order confirmation</p>
         <h1 className="mt-3 text-3xl font-semibold text-foreground">Choose an order to inspect</h1>
@@ -112,7 +113,7 @@ const OrderConfirmationPage = () => {
           <Link
             href={`/order-confirmation/${order.id}`}
             key={order.id}
-            className="group block py-5 transition-colors hover:bg-white/[0.03]"
+            className="group block py-5 transition-colors hover:bg-foreground/[0.05]"
           >
             <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -122,14 +123,14 @@ const OrderConfirmationPage = () => {
                 </p>
               </div>
               <div className="text-left sm:text-right">
-                <p className="text-lg font-semibold text-foreground">${order.totalAmount.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-foreground"><PreferredMoney amount={order.checkout?.environment === 'DEMO' ? 0 : order.totalAmount} currency={order.currency ?? null} /></p>
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{order.status}</p>
               </div>
             </div>
           </Link>
         ))}
       </div>
-    </main>
+    </section>
   );
 };
 

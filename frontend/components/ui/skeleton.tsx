@@ -12,7 +12,7 @@ function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-muted",
+        "animate-pulse motion-reduce:animate-none rounded-md bg-muted",
         className
       )}
       {...props}
@@ -147,7 +147,7 @@ function FeedPostSkeleton({ className, style }: { className?: string; style?: Re
     <div
       style={style}
       className={cn(
-        "rounded-2xl border border-border/50 bg-card/70 dark:bg-zinc-900/70 p-4 sm:p-5",
+        "rounded-2xl border border-border/50 bg-card/70 dark:bg-surface-3/70 p-4 sm:p-5",
         className
       )}
     >
@@ -204,20 +204,21 @@ function FeedSkeleton({
 
 /**
  * Skeleton for a single conversation-list row.
- * Mirrors the real row (rounded-xl px-3 py-3, 12×12 avatar, title + preview),
+ * Mirrors the inbox row (44px avatar, title + preview + timestamp + actions),
  * so the skeleton→list swap doesn't reflow.
  */
 function ConversationRowSkeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div style={style} className={cn("flex items-start gap-4 rounded-xl px-3 py-3", className)}>
-      <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
-      <div className="flex-1 space-y-2 py-0.5">
-        <div className="flex items-center justify-between gap-3">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-3 w-12" />
+    <div aria-hidden style={style} className={cn("flex min-w-0 items-center gap-1 rounded-xl py-1", className)}>
+      <div className="flex min-w-0 flex-1 items-start gap-3 px-2 py-4 sm:px-3">
+        <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1">
+          <div className="flex h-6 items-center"><Skeleton className="h-4 w-40 max-w-full" /></div>
+          <div className="flex h-5 items-center"><Skeleton className="h-3 w-3/4" /></div>
+          <div className="mt-1 flex h-4 items-center"><Skeleton className="h-3 w-20 max-w-full" /></div>
         </div>
-        <Skeleton className="h-3 w-3/4" />
       </div>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center"><Skeleton className="h-4 w-4" /></div>
     </div>
   );
 }
@@ -227,11 +228,12 @@ function ConversationRowSkeleton({ className, style }: { className?: string; sty
  */
 function ConversationListSkeleton({ count = 6, className }: { count?: number; className?: string }) {
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div role="status" className={cn("flex flex-col divide-y divide-border/60", className)}>
+      <span className="sr-only">Loading conversations…</span>
       {Array.from({ length: count }).map((_, i) => (
         <ConversationRowSkeleton
           key={i}
-          className="animate-pulse"
+          className="motion-safe:animate-pulse"
           style={{ opacity: Math.max(0.3, 1 - i * 0.13) }}
         />
       ))}
@@ -279,7 +281,7 @@ function TableSkeleton({
   return (
     <div className={cn("flex flex-col divide-y", className)}>
       {/* Header */}
-      <TableRowSkeleton columns={columns} className="bg-muted/50" />
+      <TableRowSkeleton columns={columns} className="bg-foreground/[0.06]" />
       {/* Rows */}
       {Array.from({ length: rows }).map((_, i) => (
         <TableRowSkeleton key={i} columns={columns} />

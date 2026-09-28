@@ -1,26 +1,25 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
-import Link from "next/link";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import dynamic from 'next/dynamic';
+import Link from "@/components/ui/navigation-link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { motion, useReducedMotion } from "framer-motion";
-import WalletConnection from "../crypto-related/WalletAdapter"; // Your wallet UI (legacy)
-import SidebarWalletPanel from "../crypto-related/SidebarWalletPanel";
+import { useClientReady } from "@/hooks/use-client-ready";
 import AppKitButton from "../crypto-related/AppKitButton";
 import NetworkSyncBridge from "@/components/crypto-related/NetworkSyncBridge";
 import { MyDialogbarNavigator } from "@/app/(protected)/_components/dialog-bar";
-import { useTheme } from "next-themes";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FaUser, FaDiscord, FaGithub } from "react-icons/fa";
+import { MySocialAuth } from '@/components/uicustom/auth/buttons/social';
 import { FcGoogle } from "react-icons/fc";
-import useSWR from "swr";
+import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 import { TbHexagons } from "react-icons/tb";
-import { FiShoppingCart, FiUser, FiMessageSquare, FiImage, FiSliders, FiShield, FiBell, FiLock, FiDollarSign, FiSun, FiMoon, FiMonitor, FiTrash2, FiEye, FiEyeOff, FiBellOff, FiVolume2, FiVolumeX, FiKey, FiCamera, FiEdit2, FiExternalLink, FiCopy, FiLink, FiRefreshCw, FiCheck, FiPackage, FiZap, FiHome, FiGrid, FiCreditCard, FiSettings, FiHelpCircle } from "react-icons/fi";
-import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
+import { FiUser, FiImage, FiShield, FiBell, FiLock, FiCopy, FiLink, FiCheck, FiPackage, FiChevronDown } from "react-icons/fi";
 import { IS_WEB3_CONFIGURED } from "@/lib/web3-config";
 import {
 	Sheet,
@@ -30,52 +29,38 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import EvmWalletVerify from "@/components/crypto-related/EvmWalletVerify";
-import EvmWalletList from "@/components/crypto-related/EvmWalletList";
-import ThemeToggleMenu from "@/components/uicustom/ThemeToggleMenu";
 import { CurrencySelector } from "@/components/uicustom/currency-selector";
+import { AppHeader } from "@/components/uicustom/chrome/app-header";
+import { AppRail, RailDivider, RailSlot } from "@/components/uicustom/chrome/app-rail";
+import { ThemeToggle } from "@/components/uicustom/chrome/theme-toggle";
+import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 import { NotificationDropdown } from "@/components/uicustom/notifications/notification-dropdown";
 import { useNotifications } from "@/hooks/use-notifications";
-import { useUiPreferences } from "@/components/providers/ui-preferences";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { isDemoUserId } from '@/lib/demo-policy';
 import usePusher from "@/hooks/usePusher";
 import { MiniCartDropdown } from "@/components/uicustom/mini-cart-dropdown";
 import { ChatLiteDropdown } from "@/components/uicustom/chat-lite-dropdown";
 import { useCleanLogout } from "@/hooks/use-clean-logout";
-import { useAccount, useChainId, useChains, useSwitchChain, useConnections, useDisconnect } from "wagmi";
+import { useAccount, useChainId, useChains, useSwitchChain, useConnections } from "wagmi";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { CopyChip } from "@/components/uicustom/CopyChip";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { isLocalChain } from "@/lib/is-local-chain";
+import { FiMenu } from 'react-icons/fi';
+import { getNavigationGroups, getPrimaryNavigation, isActiveNavigationPath as isActivePath } from './site-navigation';
 
-type NavLinkProps = {
-	href: string;
-	children: ReactNode;
-	isActive: boolean;
-};
+// These panels are only mounted inside the open navigation/settings sheet.
+// Keep connection providers stable; defer optional UI, not the entire app tree.
+/** Borderless round icon chip inside the header pill (the rail chaser is the hover). */
+const PILL_ICON_CHIP = "size-9 rounded-full hover:bg-transparent";
 
-const NavLink = ({ href, children, isActive, ...rest }: NavLinkProps & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-	<Link
-		href={href}
-		aria-current={isActive ? "page" : undefined}
-		{...rest}
-		className={`relative px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-			isActive
-				? "text-zinc-900 dark:text-zinc-100"
-				: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-		}`}
-	>
-		{children}
-	</Link>
-);
-
-function isActivePath(pathname: string, href: string) {
-	if (href === "/") return pathname === "/";
-	return pathname === href || pathname.startsWith(`${href}/`);
+function WalletPanelLoading() {
+	return <div role="status" className="min-h-24 rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">Loading wallet controls…</div>;
 }
-
-// Fetcher for SWR
-const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { items: [] });
+const SidebarWalletPanel = dynamic(() => import('../crypto-related/SidebarWalletPanel'), { ssr: false, loading: WalletPanelLoading });
+const EvmWalletVerify = dynamic(() => import('@/components/crypto-related/EvmWalletVerify'), { ssr: false, loading: WalletPanelLoading });
+const EvmWalletList = dynamic(() => import('@/components/crypto-related/EvmWalletList'), { ssr: false, loading: WalletPanelLoading });
 
 /** Key for sessionStorage flag that prevents OAuth redirect loops */
 const OAUTH_BRIDGE_KEY_PREFIX = 'veggat_oauth_bridge_';
@@ -126,7 +111,6 @@ function AppKitOAuthBridge() {
 
 		// Small delay to let wallet registry finish saving to sessionStorage
 		const timer = setTimeout(() => {
-			console.log(`[AppKitOAuthBridge] Auto-bridging AppKit ${appKitAuthProvider ?? 'unknown'} → NextAuth ${bridgeProvider}:`, appKitEmail);
 			sessionStorage.setItem(bridgeKey, String(Date.now()));
 			signIn(bridgeProvider, { callbackUrl: window.location.pathname || '/products' });
 		}, 1200);
@@ -138,26 +122,24 @@ function AppKitOAuthBridge() {
 }
 
 const MyTopBar = () => {
+	const clientReady = useClientReady();
 	const pathname = usePathname();
 	const clientUser = useCurrentUser();
-	const prefersReducedMotion = useReducedMotion();
 
 	// Fetch notifications for logged-in users
 	const { 
 		notifications, 
 		unreadCount, 
 		isLoading: notificationsLoading,
+		isError: notificationsError,
+		pending: notificationsPending,
+		refresh: refreshNotifications,
 		markAsRead,
 		markAllAsRead 
-	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser });
+	} = useNotifications({ refreshInterval: 60000, enabled: !!clientUser, userId: clientUser?.id, readOnly: isDemoUserId(clientUser?.id) });
 
-	// Fetch cart count for logged-in users
-	const { data: cartData, mutate: mutateCart } = useSWR(
-		clientUser?.id ? `/api/cart/${clientUser.id}` : null,
-		fetcher,
-		{ refreshInterval: 60000, dedupingInterval: 5000, revalidateOnFocus: true }
-	);
-	const cartCount = cartData?.items?.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0) || 0;
+	// One shared cart cache: mutations update the badge without a poll or reload.
+	const { itemCount: cartCount, refreshCart: mutateCart } = useCart();
 
 	// Real-time cart updates via Pusher
 	usePusher<{ userId: string }>(
@@ -173,23 +155,38 @@ const MyTopBar = () => {
 	// Re-add when server-side notification triggers are implemented.
 
 	const headerRef = useRef<HTMLElement | null>(null);
-	const [menuOpen, setMenuOpen] = useState(false);
-	// Which OAuth provider is mid-redirect, so its button can show a spinner
-	// instead of feeling unresponsive while the browser navigates to the provider.
-	const [oauthPending, setOauthPending] = useState<null | 'google' | 'discord' | 'github'>(null);
-	const startOauth = (provider: 'google' | 'discord' | 'github') => {
-		setOauthPending(provider);
-		signIn(provider, { callbackUrl: '/products' });
+	const [menuOpen, updateMenuOpen] = useState(false);
+	const [walletOpening, setWalletOpening] = useState(false);
+	const walletOpeningRequest = useRef(0);
+	const setMenuOpen = useCallback((open: boolean) => {
+		walletOpeningRequest.current++;
+		updateMenuOpen(open);
+		if (!open) setWalletOpening(false);
+	}, []);
+	useEffect(() => () => { walletOpeningRequest.current++; }, []);
+	const openGuestWallet = async () => {
+		if (walletOpening || !IS_WEB3_CONFIGURED) return;
+		const request = ++walletOpeningRequest.current;
+		setWalletOpening(true);
+		try {
+			const { ensureAppKit } = await import('../crypto-related/AppKitInit');
+			const appKit = await ensureAppKit();
+			if (request !== walletOpeningRequest.current) return;
+			await appKit.open({ view: 'Connect' });
+			if (request !== walletOpeningRequest.current) { await appKit.close(); return; }
+			setMenuOpen(false);
+		} catch {
+			if (request === walletOpeningRequest.current) toast.error('Wallet connect is unavailable. Try again or use email, Google, GitHub or Discord.');
+		} finally {
+			if (request === walletOpeningRequest.current) setWalletOpening(false);
+		}
 	};
 	const [isMobile, setIsMobile] = useState(false);
-	const [productsTopbarVisible, setProductsTopbarVisible] = useState(true);
-	const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>(72);
 	const [nexusOpen, setNexusOpen] = useState(false);
 	const [web3ModeEnabled, setWeb3ModeEnabled] = useState(false);
 	const [walletRefreshToken, setWalletRefreshToken] = useState(0);
 	const [menuPane, setMenuPane] = useState<"nav" | "settings">("nav");
 	const cleanLogout = useCleanLogout();
-	const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
 	const menuSwipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
 	const onMenuTouchStart = (e: React.TouchEvent) => {
 		if (!isMobile) return;
@@ -226,17 +223,13 @@ const MyTopBar = () => {
 		}
 	}, []);
 
-	// For logged-in users, honor EITHER the session value OR the local flag.
-	// The local flag is set synchronously when they click "Enable Web3", so the
-	// UI flips instantly and correctly even before the JWT round-trip catches up
-	// (which is why the toggle "did nothing" before — it waited on a stale token).
+	// A signed-in account's disabled setting must override an old browser opt-in.
 	const effectiveWeb3ModeEnabled = clientUser
-		? (!!(clientUser as any).web3ModeEnabled || web3ModeEnabled)
+		? clientUser.web3ModeEnabled === true
 		: web3ModeEnabled;
 
-	const isLandingPage = pathname === "/";
 	const [isScrolled, setIsScrolled] = useState(false);
-	const showTopbarChrome = !isLandingPage && isScrolled;
+	const showTopbarChrome = isScrolled;
 
 	useEffect(() => {
 		const scrollEl = document.querySelector<HTMLElement>(
@@ -285,117 +278,35 @@ const MyTopBar = () => {
 		};
 	}, [pathname]);
 
-	// Keep a CSS variable in sync with the actual rendered header height.
-	// This avoids overlap/gaps for components that need to sit *below* the sticky
-	// header (e.g. /products sidebar overlay).
+	// Measure the mounted header only on actual resize, never animate its geometry.
 	useLayoutEffect(() => {
-		const headerEl = headerRef.current;
-		if (!headerEl) return;
-		// Desktop should NEVER collapse the topbar; only mobile on /products can collapse
-		const collapseForProducts = pathname.startsWith("/products") && isMobile && !productsTopbarVisible;
-
+		const header = headerRef.current;
+		if (!header) return;
 		const update = () => {
-			// Desktop always shows header offset
-			if (collapseForProducts && isMobile) {
-				document.documentElement.style.setProperty("--app-header-offset", "0px");
-				return;
-			}
-			const h = headerEl.getBoundingClientRect().height;
-			if (Number.isFinite(h) && h > 0) {
-				setMeasuredHeaderHeight(Math.round(h));
-				document.documentElement.style.setProperty(
-					"--app-header-offset",
-					`${h}px`
-				);
-			}
+			const height = header.getBoundingClientRect().height;
+			if (height > 0) document.documentElement.style.setProperty("--app-header-offset", `${height}px`);
 		};
-
 		update();
-		const ro = new ResizeObserver(() => update());
-		ro.observe(headerEl);
-		return () => ro.disconnect();
-	}, [pathname, isScrolled, isMobile, productsTopbarVisible]);
+		const observer = new ResizeObserver(update);
+		observer.observe(header);
+		return () => observer.disconnect();
+	}, [pathname]);
 
-	const morphTransition = prefersReducedMotion
-		? { duration: 0 }
-		: { type: "tween", duration: 0.18, ease: "easeOut" };
+	// Chips in the floating rail; everything else lives in the grouped menu.
+	const railItems = getPrimaryNavigation(clientUser, "header");
+	const menuGroups = getNavigationGroups(clientUser);
 
-	// Simplified desktop nav - main discovery paths only
-	// Messages is now an icon in the topbar, not a text link
-	const nav: Array<{ href: string; label: string }> = [
-		{ href: "/", label: "Home" },
-		{ href: "/products", label: "Products" },
-		{ href: "/pulse", label: "Pulse" },
-		...(clientUser
-			? [
-				{ href: "/ai", label: "AI" },
-			]
-			: []),
-	];
-
-	const menuGroups = useMemo(() => {
-		if (clientUser) {
-			return [
-				{
-					label: "Explore",
-					items: [
-						{ href: "/", label: "Home", icon: FiHome },
-						{ href: "/products", label: "Products", icon: FiPackage },
-						{ href: "/pulse", label: "Pulse", icon: PulseHeart },
-						{ href: "/ai", label: "AI Chat", icon: FiZap },
-					],
-				},
-				{
-					label: "Account",
-					items: [
-						{ href: "/dashboard", label: "Dashboard", icon: FiGrid },
-						{ href: "/conversations", label: "Messages", icon: FiMessageSquare },
-						{ href: "/cart", label: "Cart", icon: FiShoppingCart },
-						{ href: "/checkout", label: "Checkout", icon: FiCreditCard },
-						{ href: "/settings", label: "Settings", icon: FiSettings },
-					],
-				},
-				{
-					label: "Info",
-					items: [
-						{ href: "/info", label: "Contact", icon: FiHelpCircle },
-						{ href: "/privacy", label: "Privacy", icon: FiLock },
-					],
-				},
-			];
-		}
-		return [
-			{
-				label: "Explore",
-				items: [
-					{ href: "/", label: "Home", icon: FiHome },
-					{ href: "/products", label: "Products", icon: FiPackage },
-					{ href: "/pulse", label: "Pulse", icon: PulseHeart },
-				],
-			},
-			{
-				label: "Info",
-				items: [
-					{ href: "/info", label: "Contact", icon: FiHelpCircle },
-					{ href: "/privacy", label: "Privacy", icon: FiLock },
-				],
-			},
-		];
-	}, [clientUser]);
-
+	const cookieAfterClose = useRef(false);
 	const openCookieSettings = () => {
-		try {
-			window.dispatchEvent(new Event("veggat:cookie-consent-open"));
-		} catch {
-			// ignore
-		}
+		cookieAfterClose.current = true;
+		setMenuOpen(false);
 	};
 
 	useEffect(() => {
 		const onOpenMenu = () => setMenuOpen(true);
 		window.addEventListener("veggat:open-menu", onOpenMenu as any);
 		return () => window.removeEventListener("veggat:open-menu", onOpenMenu as any);
-	}, []);
+	}, [setMenuOpen]);
 
 	useEffect(() => {
 		try {
@@ -413,7 +324,7 @@ const MyTopBar = () => {
 		const onCloseMenu = () => setMenuOpen(false);
 		window.addEventListener("veggat:close-menu", onCloseMenu as any);
 		return () => window.removeEventListener("veggat:close-menu", onCloseMenu as any);
-	}, []);
+	}, [setMenuOpen]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -423,98 +334,6 @@ const MyTopBar = () => {
 		mq?.addEventListener?.("change", update);
 		return () => mq?.removeEventListener?.("change", update);
 	}, []);
-
-	// Reset topbar visibility when navigating away from /products, switching to desktop,
-	// or navigating to a different page within /products/* (like /products/create)
-	useEffect(() => {
-		// Always reset topbar visibility on pathname change - the ProductProvider will
-		// re-hide it if needed based on scroll position
-		const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
-		return () => window.clearTimeout(timeoutId);
-	}, [pathname]);
-
-	// Also reset when switching to desktop
-	useEffect(() => {
-		if (!isMobile) {
-			const timeoutId = window.setTimeout(() => setProductsTopbarVisible(true), 0);
-			return () => window.clearTimeout(timeoutId);
-		}
-	}, [isMobile]);
-
-	useEffect(() => {
-		const onChrome = (e: Event) => {
-			if (!pathname.startsWith("/products")) return;
-			const ce = e as CustomEvent<{ topbarVisible?: boolean }>;
-			setProductsTopbarVisible(Boolean(ce?.detail?.topbarVisible ?? true));
-		};
-		window.addEventListener("veggat:products-chrome", onChrome as any);
-		return () => window.removeEventListener("veggat:products-chrome", onChrome as any);
-	}, [pathname]);
-
-	// ── Nav sliding indicator ─────────────────────────────────────────────
-	const navBarRef = useRef<HTMLDivElement>(null);
-	const [navIndicator, setNavIndicator] = useState<{
-		left: number; top: number; width: number; height: number; radius: number;
-	} | null>(null);
-	const navHoverRef = useRef(false);
-
-	const computeNavPos = useCallback((el: HTMLElement | null) => {
-		const container = navBarRef.current;
-		if (!container || !el) return null;
-		const cr = container.getBoundingClientRect();
-		const er = el.getBoundingClientRect();
-		return {
-			left: er.left - cr.left,
-			top: er.top - cr.top,
-			width: er.width,
-			height: er.height,
-			radius: el.dataset.navRound === "true" ? Math.min(er.width, er.height) / 2 : 0,
-		};
-	}, []);
-
-	const snapNavToActive = useCallback(() => {
-		const container = navBarRef.current;
-		if (!container) return;
-		const activeEl = container.querySelector('[data-nav-active="true"]') as HTMLElement | null;
-		if (activeEl) {
-			const pos = computeNavPos(activeEl);
-			if (pos) setNavIndicator(pos);
-		}
-	}, [computeNavPos]);
-
-	const handleNavHover = useCallback((e: React.MouseEvent<HTMLElement>) => {
-		navHoverRef.current = true;
-		const pos = computeNavPos(e.currentTarget);
-		if (pos) setNavIndicator(pos);
-	}, [computeNavPos]);
-
-	const handleNavBarLeave = useCallback(() => {
-		navHoverRef.current = false;
-		snapNavToActive();
-	}, [snapNavToActive]);
-
-	// Snap to active route on mount, route change, scroll state change
-	useEffect(() => {
-		const raf = requestAnimationFrame(() => {
-			if (!navHoverRef.current) snapNavToActive();
-		});
-		return () => cancelAnimationFrame(raf);
-	}, [pathname, isScrolled, snapNavToActive]);
-
-	// Recompute on container resize
-	useEffect(() => {
-		const container = navBarRef.current;
-		if (!container) return;
-		const ro = new ResizeObserver(() => {
-			if (!navHoverRef.current) snapNavToActive();
-		});
-		ro.observe(container);
-		return () => ro.disconnect();
-	}, [snapNavToActive]);
-
-	// Avoid rendering the full navigation on auth screens.
-	const hideOnAuthPages = pathname.startsWith("/auth/");
-	if (hideOnAuthPages) return <><NetworkSyncBridge /><AppKitOAuthBridge /></>;
 
 	return (
 		<>
@@ -527,497 +346,327 @@ const MyTopBar = () => {
 				hideTrigger
 				onOpen={() => setMenuOpen(false)}
 			/>
-			<motion.header
-				ref={headerRef}
-				className="sticky top-0 z-60 w-full"
-				style={{
-					pointerEvents: collapseForProducts ? "none" : "auto",
-				}}
-				initial={false}
-				animate={
-					prefersReducedMotion
-						? {}
-						: collapseForProducts
-							? { opacity: 0, y: -10 }
-							: { opacity: 1, y: 0 }
-				}
-				transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
-			>
-				<motion.div
-					initial={false}
-					animate={
-						prefersReducedMotion
-							? {}
-							: {
-								paddingLeft: isScrolled ? 0 : 12,
-								paddingRight: isScrolled ? 0 : 12,
-								borderRadius: isScrolled ? 0 : 24,
-							}
+			<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+				<AppHeader
+					ref={headerRef}
+					scrolled={showTopbarChrome}
+					rail={
+						<AppRail id="header-rail" items={railItems}>
+							{/* Utilities live INSIDE the pill: same surface, same hover chaser. */}
+							<RailDivider />
+							<RailSlot id="currency" data-nav-key="currency">
+								<HeaderTip label="Currency">
+									<div className="relative">
+										<CurrencySelector variant="ghost" size="sm" className="min-h-9 rounded-full px-2.5 hover:bg-transparent" />
+									</div>
+								</HeaderTip>
+							</RailSlot>
+							{clientUser && (
+								<>
+									<RailSlot id="alerts" data-nav-key="notifications">
+										<HeaderTip label="Alerts">
+											<div className="relative">
+												<NotificationDropdown
+													notifications={notifications}
+													unreadCount={unreadCount}
+													isLoading={notificationsLoading}
+													isError={notificationsError}
+													pending={notificationsPending}
+													readOnly={isDemoUserId(clientUser?.id)}
+													onRefresh={refreshNotifications}
+													onMarkRead={markAsRead}
+													onMarkAllRead={markAllAsRead}
+													bellClassName={PILL_ICON_CHIP}
+												/>
+											</div>
+										</HeaderTip>
+									</RailSlot>
+									<RailSlot id="cart" data-nav-key="cart">
+										<HeaderTip label="Cart">
+											<div className="relative">
+												<MiniCartDropdown key={clientUser?.id ?? 'guest'} userId={clientUser?.id} cartCount={cartCount} triggerClassName={PILL_ICON_CHIP} />
+											</div>
+										</HeaderTip>
+									</RailSlot>
+									<RailSlot id="messages" data-nav-key="conversations">
+										<HeaderTip label="Messages">
+											<div className="relative">
+												<ChatLiteDropdown className={PILL_ICON_CHIP} />
+											</div>
+										</HeaderTip>
+									</RailSlot>
+								</>
+							)}
+							<RailSlot id="theme">
+								<ThemeToggle variant="chip" />
+							</RailSlot>
+							{/* The account circle is taller than the pill and hangs off its end. */}
+							<RailSlot id="account" className="-my-3 -mr-3 ml-0.5">
+								<HeaderTip label={clientUser ? "Account" : "Menu"}>
+									<SheetTrigger asChild>
+										<button
+											type="button"
+											data-nav-key="avatar"
+											data-nav-round="true"
+											aria-label="Open menu"
+											disabled={!clientReady}
+											className={`group grid size-[3.25rem] shrink-0 place-items-center overflow-hidden rounded-full text-foreground shadow-e1 transition-[transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:shadow-e2 hover:ring-2 hover:ring-brand-accent/50 motion-safe:hover:scale-[1.04] motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:size-14 ${clientUser ? "bg-transparent" : "border border-border/60 bg-surface-1"}`}
+										>
+											{clientUser ? (
+												<Avatar className="size-full rounded-full transition-transform duration-300 group-hover:scale-105">
+													<AvatarImage src={clientUser.image || "/users/avatar.webp"} alt="User" className="object-cover" />
+													<AvatarFallback className="bg-muted text-sm text-muted-foreground"><FaUser className="size-5" /></AvatarFallback>
+												</Avatar>
+											) : (
+												<TbHexagons aria-hidden="true" className="size-5 text-muted-foreground transition-[color,transform] duration-300 group-hover:rotate-12 group-hover:text-brand-accent" />
+											)}
+										</button>
+									</SheetTrigger>
+								</HeaderTip>
+							</RailSlot>
+						</AppRail>
 					}
-					transition={morphTransition}
-					style={{ transformOrigin: "50% 0%", willChange: "padding, border-radius", maxHeight: collapseForProducts ? 0 : measuredHeaderHeight }}
-					className="relative w-full overflow-hidden transition-[max-height] duration-200 ease-out"
-				>
-					{/* Center-out background reveal (prevents the sudden square flash) */}
-					<motion.div
-						aria-hidden
-						className="pointer-events-none absolute inset-0"
-						initial={false}
-						animate={
-							prefersReducedMotion
-								? { opacity: showTopbarChrome ? 1 : 0 }
-								: showTopbarChrome
-									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
-									: { opacity: 0, clipPath: "inset(50% 50% 50% 50%)" }
-						}
-						transition={{ duration: 0.22, ease: "easeOut" }}
-						style={{ willChange: "clip-path, opacity" }}
+					utilities={<ThemeToggle />}
+					account={
+					<HeaderTip label="Menu">
+					<SheetTrigger asChild>
+						<button
+							type="button"
+							aria-label="Open menu"
+							disabled={!clientReady}
+							className="group inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-3.5 text-sm font-medium text-foreground backdrop-blur-xl transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:border-border hover:bg-surface-3 hover:shadow-e1 motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						>
+							<FiMenu aria-hidden="true" className="size-5" /><span>Menu</span>
+						</button>
+					</SheetTrigger>
+					</HeaderTip>
+					}
+				/>
+					<SheetContent
+						side="right"
+						className="w-[calc(100%-2rem)] max-w-[380px] h-dvh overflow-hidden overscroll-contain border-l border-border bg-popover pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
+						onTouchStart={onMenuTouchStart}
+						onTouchEnd={onMenuTouchEnd}
+						accessibleTitle="Navigation Menu"
+						onCloseAutoFocus={event => {
+							if (!cookieAfterClose.current) return;
+							cookieAfterClose.current = false;
+							event.preventDefault();
+							requestAnimationFrame(() => window.dispatchEvent(new Event("veggat:cookie-consent-open")));
+						}}
 					>
-						<div className="absolute inset-0 bg-white/75 dark:bg-black/70 backdrop-blur-xl" />
-					</motion.div>
-
-					{/* Bottom line reveals after the fill finishes */}
-					<motion.div
-						aria-hidden
-						className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-black/10 dark:bg-white/10"
-						initial={false}
-						animate={
-							prefersReducedMotion
-								? { opacity: showTopbarChrome ? 1 : 0 }
-								: showTopbarChrome
-									? { opacity: 1, clipPath: "inset(0% 0% 0% 0%)" }
-									: { opacity: 0, clipPath: "inset(0% 50% 0% 50%)" }
-						}
-						transition={
-							prefersReducedMotion
-								? { duration: 0 }
-								: showTopbarChrome
-									? { duration: 0.18, ease: "easeOut", delay: 0.18 }
-									: { duration: 0.12, ease: "easeOut", delay: 0 }
-						}
-					/>
-					<div
-						ref={navBarRef}
-						className="relative mx-auto flex h-[var(--app-header)] max-w-screen-2xl items-center justify-between px-3 sm:px-4 md:px-6"
-						onMouseLeave={handleNavBarLeave}
-					>
-						{/* ── Sliding accent indicator ── */}
-						{navIndicator && (
-							<div
-								aria-hidden
-								className="hidden"
-								style={{
-									left: navIndicator.left,
-									top: navIndicator.top,
-									width: navIndicator.width,
-									height: navIndicator.height,
-									borderRadius: navIndicator.radius,
-									transition: "left 0.35s cubic-bezier(0.22,1,0.36,1), top 0.35s cubic-bezier(0.22,1,0.36,1), width 0.35s cubic-bezier(0.22,1,0.36,1), height 0.35s cubic-bezier(0.22,1,0.36,1), border-radius 0.35s cubic-bezier(0.22,1,0.36,1)",
-								}}
-							/>
-						)}
-
-						<div className="flex min-w-0 items-center gap-6">
-							<Link
-								href="/"
-								data-nav-key="logo"
-								onMouseEnter={handleNavHover}
-								className="shrink-0 text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 px-1.5 py-1"
-							>
-								VeggaStare
-							</Link>
-
-							<nav className="hidden md:flex items-center gap-1">
-								{nav.map((item) => (
-									<NavLink
-										key={item.href}
-										href={item.href}
-										isActive={isActivePath(pathname, item.href)}
-										data-nav-key={item.href}
-										data-nav-active={isActivePath(pathname, item.href) ? "true" : undefined}
-										onMouseEnter={handleNavHover}
+						<div className="flex h-full min-h-0 flex-col">
+							{/* User Profile Header */}
+							{clientUser ? (
+								<>
+									<Link
+										href="/profile"
+										onClick={() => setMenuOpen(false)}
+										className="flex items-center gap-3 px-4 py-3 hover:bg-foreground/[0.07] transition-colors group"
+										title="View Profile"
 									>
-										{item.href === "/pulse" ? (
-											<span className="inline-flex items-center gap-1.5">
-												<span className="relative flex h-2 w-2">
-													<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
-													<span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500 dark:bg-emerald-500" />
-												</span>
-												<span>{item.label}</span>
-											</span>
-										) : (
-											item.label
-										)}
-									</NavLink>
-								))}
-							</nav>
-						</div>
-
-						<div className="flex shrink-0 items-center gap-2">
-							{/* Desktop quick actions */}
-							<TooltipProvider delayDuration={200}>
-							<div className="hidden md:flex items-center gap-1">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<div data-nav-key="currency" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
-											<CurrencySelector variant="ghost" size="sm" />
+										<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-brand-accent/50 transition-[box-shadow] duration-200">
+											<AvatarImage
+												src={clientUser.image || "/users/avatar.webp"}
+												alt="User"
+											/>
+											<AvatarFallback className="bg-muted text-muted-foreground text-sm">
+												<FaUser className="h-4 w-4" />
+											</AvatarFallback>
+										</Avatar>
+										<div className="min-w-0 flex-1">
+											<div className="text-sm font-semibold text-foreground truncate">
+												{clientUser.name ?? "Account"}
+											</div>
+											<div className="text-[11px] text-muted-foreground/80 group-hover:text-brand-accent-hover dark:group-hover:text-brand-accent-light transition-colors">
+												View profile →
+											</div>
 										</div>
-									</TooltipTrigger>
-									<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Currency</TooltipContent>
-								</Tooltip>
+									</Link>
+									{/* Quick-copy strips: email + active wallet */}
+									<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
+									<div className="border-b border-border" />
+								</>
+							) : (
+							<>
+							<SheetHeader className="border-b border-border p-6">
+								<SheetTitle className="text-base font-semibold text-foreground">
+									Welcome
+								</SheetTitle>
+								<SheetDescription className="text-xs text-muted-foreground">
+									Sign in to unlock all features
+								</SheetDescription>
+							</SheetHeader>
+							</>
+							)}
 
-								{clientUser && (
-									<>
-										{/* Notification Bell */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div data-nav-key="notifications" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
-													<NotificationDropdown
-														notifications={notifications}
-														unreadCount={unreadCount}
-														isLoading={notificationsLoading}
-														onMarkRead={markAsRead}
-														onMarkAllRead={markAllAsRead}
-														onNotificationClick={(notif) => {
-															if (notif.type === 'TRADE_REQUEST' && notif.metadata?.tradeId) {
-																window.location.href = `/trade/${notif.metadata.tradeId}`;
-															} else if (notif.conversationId) {
-																window.location.href = `/conversations/${notif.conversationId}`;
-															} else if (notif.pulseId) {
-																window.location.href = `/pulse/${notif.pulseId}`;
-															} else if (notif.actorId) {
-																window.location.href = `/profile/${notif.actorId}`;
-															}
-														}}
-														condensed
-													/>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Notifications</TooltipContent>
-										</Tooltip>
-										
-										{/* Mini Cart Dropdown */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div data-nav-key="cart" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
-													<MiniCartDropdown
-														userId={clientUser?.id}
-														cartCount={cartCount}
-														onCartUpdate={() => mutateCart()}
-													/>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Cart</TooltipContent>
-										</Tooltip>
-
-										{/* Chat lite dropdown */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div data-nav-key="conversations" onMouseEnter={handleNavHover} className="relative [&_button:hover]:!bg-transparent">
-													<ChatLiteDropdown />
-												</div>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6} className="text-[11px] font-medium">Messages</TooltipContent>
-										</Tooltip>
-									</>
-								)}
-							</div>
-							</TooltipProvider>
-							<Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-								<SheetTrigger asChild>
+							{/* Two-Pane Tab Navigation */}
+							{clientUser && (
+								<div className="flex border-b border-border">
 									<button
 										type="button"
-										data-nav-key="avatar"
-										data-nav-round="true"
-										onMouseEnter={handleNavHover}
-										className={`flex items-center justify-center rounded-full transition-all duration-200 hover:scale-105 ${clientUser
-											? "h-14 w-14"
-											: "h-14 w-14 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+										onClick={() => setMenuPane("nav")}
+										aria-pressed={menuPane === "nav"}
+										className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "nav"
+											? "text-foreground border-b-2 border-foreground"
+											: "text-muted-foreground hover:text-foreground"
 											}`}
-										aria-label="Open menu"
 									>
-										{clientUser ? (
-											<Avatar className="h-14 w-14">
-												<AvatarImage
-													src={clientUser.image || "/users/avatar.webp"}
-													alt="User"
-												/>
-												<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-base">
-													<FaUser className="h-6 w-6" />
-												</AvatarFallback>
-											</Avatar>
-										) : (
-											<TbHexagons className="h-6 w-6" />
-										)}
+										Navigate
 									</button>
-								</SheetTrigger>
+									<button
+										type="button"
+										onClick={() => setMenuPane("settings")}
+										aria-pressed={menuPane === "settings"}
+										className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "settings"
+											? "text-foreground border-b-2 border-foreground"
+											: "text-muted-foreground hover:text-foreground"
+											}`}
+									>
+										Settings
+									</button>
+								</div>
+							)}
 
-								<SheetContent
-									side="right"
-									className="w-[92vw] max-w-[380px] bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800"
-									onTouchStart={onMenuTouchStart}
-									onTouchEnd={onMenuTouchEnd}
-									accessibleTitle="Navigation Menu"
-								>
-									<div className="flex h-full flex-col">
-										{/* User Profile Header */}
-										{clientUser ? (
-											<>
-												<Link
-													href="/profile"
-													onClick={() => setMenuOpen(false)}
-													className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors group"
-													title="View Profile"
-												>
-													<Avatar className="h-10 w-10 shrink-0 ring-2 ring-background shadow-sm group-hover:ring-sky-400/50 transition-all">
-														<AvatarImage
-															src={clientUser.image || "/users/avatar.webp"}
-															alt="User"
-														/>
-														<AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm">
-															<FaUser className="h-4 w-4" />
-														</AvatarFallback>
-													</Avatar>
-													<div className="min-w-0 flex-1">
-														<div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-															{clientUser.name ?? "Account"}
-														</div>
-														<div className="text-[11px] text-zinc-400 dark:text-zinc-500 group-hover:text-sky-500 transition-colors">
-															View profile →
-														</div>
+							{/* Main scrollable content */}
+							<div data-navigation-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+								{/* Navigation Pane */}
+								{(!clientUser || menuPane === "nav") && (
+									<div className="p-3">
+										{/* Grouped navigation — compact tiles, two per row, icon in a soft well */}
+										<nav className="space-y-5" aria-label="Menu">
+											{menuGroups.map((group) => (
+												<div key={group.label}>
+													<div className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
+														{group.label}
 													</div>
-												</Link>
-												{/* Quick-copy strips: email + active wallet */}
-												<SidebarQuickCopyStrips email={clientUser.email ?? undefined} />
-												<div className="border-b border-zinc-100 dark:border-zinc-800" />
-											</>
-										) : (
-										<>
-										<SheetHeader className="border-b border-zinc-100 dark:border-zinc-800 p-6">
-											<SheetTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-												Welcome
-											</SheetTitle>
-											<SheetDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-												Sign in to unlock all features
-											</SheetDescription>
-										</SheetHeader>
-										</>
-										)}
+													<HoverChaser className="grid grid-cols-2 gap-1.5">
+														{group.items.map((item) => {
+															const active = isActivePath(pathname, item.href);
+															const Icon = item.icon;
+															return (
+																<Link
+																	key={item.href}
+																	href={item.href}
+																	onClick={() => setMenuOpen(false)}
+																	aria-current={active ? 'page' : undefined}
+																	data-chase
+																	className={`group/navitem relative flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-[13px] font-medium transition-[color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "border-brand-accent/40 bg-brand-accent/10 text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+																>
+																	<span className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${active ? "bg-brand-accent/15 text-brand-accent" : "bg-foreground/[0.05] text-muted-foreground group-hover/navitem:text-foreground"}`}>
+																		<Icon className="h-4 w-4" />
+																	</span>
+																	<span className="min-w-0 truncate">{item.label}</span>
+																	{item.href === "/pulse" && (
+																		<span className="ml-auto flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand-accent" aria-hidden="true" />
+																	)}
+																</Link>
+															);
+														})}
+													</HoverChaser>
+												</div>
+											))}
+										</nav>
 
-										{/* Two-Pane Tab Navigation */}
+										{/* Nexus — flat command palette shortcut */}
 										{clientUser && (
-											<div className="flex border-b border-zinc-100 dark:border-zinc-800">
+											<div className="mt-3 border-t border-border pt-3">
 												<button
 													type="button"
-													onClick={() => setMenuPane("nav")}
-													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "nav"
-														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
-														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-														}`}
+													onClick={() => {
+														setMenuOpen(false);
+														setTimeout(() => setNexusOpen(true), 0);
+													}}
+													className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground transition-colors"
 												>
-													Navigate
-												</button>
-												<button
-													type="button"
-													onClick={() => setMenuPane("settings")}
-													className={`flex-1 py-3 text-sm font-medium transition-colors ${menuPane === "settings"
-														? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100"
-														: "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-														}`}
-												>
-													Settings
+													<TbHexagons className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+													<span>Nexus</span>
+													<kbd className="ml-auto text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
 												</button>
 											</div>
 										)}
 
-										{/* Main scrollable content */}
-										<div className="flex-1 overflow-y-auto">
-											{/* Navigation Pane */}
-											{(!clientUser || menuPane === "nav") && (
-												<div className="p-3">
-													{/* Grouped navigation */}
-													<nav className="space-y-4">
-														{menuGroups.map((group) => (
-															<div key={group.label}>
-																<div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-																	{group.label}
-																</div>
-																<div className="space-y-0.5">
-																	{group.items.map((item) => {
-																		const active = isActivePath(pathname, item.href);
-																		const Icon = item.icon;
-																		return (
-																			<Link
-																				key={item.href}
-																				href={item.href}
-																				onClick={() => setMenuOpen(false)}
-																				className={`group/navitem relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${active ? "bg-brand-accent/10 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-																			>
-																				{active && (<span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-brand-accent" />)}
-																					<Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-brand-accent" : "text-muted-foreground/70 group-hover/navitem:text-foreground"}`} />
-																				<span>{item.label}</span>
-																				{item.href === "/pulse" && (
-																					<span className="relative flex h-1.5 w-1.5 ml-0.5 shrink-0">
-																						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 dark:bg-emerald-400 opacity-75" />
-																						<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-emerald-500" />
-																					</span>
-																				)}
-																			</Link>
-																		);
-																	})}
-																</div>
-															</div>
-														))}
-													</nav>
-
-													{/* Nexus — flat command palette shortcut */}
-													{clientUser && (
-														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-															<button
-																type="button"
-																onClick={() => {
-																	setMenuOpen(false);
-																	setTimeout(() => setNexusOpen(true), 0);
-																}}
-																className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-															>
-																<TbHexagons className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
-																<span>Nexus</span>
-																<kbd className="ml-auto text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
-															</button>
-														</div>
-													)}
-
-													{/* Web3 Wallets — only for logged-in users */}
-													{clientUser && (
-														<div className="mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-															<SidebarWalletPanel
-																isLoggedIn={!!clientUser}
-																web3Enabled={effectiveWeb3ModeEnabled}
-																onClose={() => setMenuOpen(false)}
-																userName={clientUser?.name}
-															/>
-														</div>
-													)}
-												</div>
-											)}
-											{/* Settings Pane - Lite Mode with Hover Dropdowns */}
-											{clientUser && menuPane === "settings" && (
-												<SettingsPaneLite 
-													setMenuOpen={setMenuOpen}
-													effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
-													walletRefreshToken={walletRefreshToken}
-													setWalletRefreshToken={setWalletRefreshToken}
-													openCookieSettings={openCookieSettings}
+										{/* Web3 Wallets — only for logged-in users */}
+										{clientUser && (
+											<div className="mt-3 border-t border-border pt-3">
+												{/* Reserve the disconnected panel's geometry while its
+												    optional bundle/data loads; do not move a scrolled drawer. */}
+												<div data-navigation-wallet-slot className="min-h-66">
+												<SidebarWalletPanel
+													isLoggedIn={!!clientUser}
+													web3Enabled={effectiveWeb3ModeEnabled}
+													onClose={() => setMenuOpen(false)}
+													userName={clientUser?.name}
 												/>
-											)}
-
-										</div>
-
-										{/* Footer actions */}
-										<div className="border-t border-zinc-100 dark:border-zinc-800 p-4 space-y-2">
-											{clientUser ? (
-												<button
-													type="button"
-													onClick={() => cleanLogout()}
-													className="w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-												>
-													Sign out
-												</button>
-											) : (
-												<>
-													{/* Web3 connect — top option */}
-													<button
-														type="button"
-														onClick={async () => {
-															try {
-																const { ModalController } = await import('@reown/appkit-controllers');
-																// If AppKit hasn't initialized yet (it's lazy-loaded), opening
-																// can no-op silently. Open, then verify it actually opened and
-																// give feedback / fall back to the email login route otherwise.
-																ModalController.open({ view: 'Connect' });
-																setMenuOpen(false);
-																setTimeout(() => {
-																	const isOpen = (ModalController as unknown as { state?: { open?: boolean } })?.state?.open;
-																	if (!isOpen) {
-																		import('sonner').then(({ toast }) =>
-																			toast.error('Wallet connect is still loading — please try again in a moment, or use Google / GitHub / Discord.')
-																		);
-																	}
-																}, 600);
-															} catch {
-																import('sonner').then(({ toast }) =>
-																	toast.error('Wallet connect unavailable right now. Try Google / GitHub / Discord instead.')
-																);
-															}
-														}}
-														disabled={!IS_WEB3_CONFIGURED} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-4 py-3 text-sm font-medium text-white dark:text-zinc-900 enabled:hover:bg-zinc-800 dark:enabled:hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-													>
-														<FiLink className="w-4 h-4" />
-														{IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
-													</button>
-
-													{/* OAuth providers row */}
-													<div className="flex gap-2">
-														<button
-															type="button"
-															onClick={() => startOauth("google")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with Google"
-														>
-															{oauthPending === 'google' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FcGoogle className="h-4 w-4" />}
-															Google
-														</button>
-														<button
-															type="button"
-															onClick={() => startOauth("discord")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with Discord"
-														>
-															{oauthPending === 'discord' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaDiscord className="h-4 w-4 text-[#5865F2]" />}
-															Discord
-														</button>
-														<button
-															type="button"
-															onClick={() => startOauth("github")}
-															disabled={oauthPending !== null}
-															className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-															title="Continue with GitHub"
-														>
-															{oauthPending === 'github' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <FaGithub className="h-4 w-4" />}
-															GitHub
-														</button>
-													</div>
-
-													{/* Sign in / Sign up links */}
-													<div className="flex gap-2 pt-1">
-														<Link
-															href="/auth/login"
-															onClick={() => setMenuOpen(false)}
-															className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-														>
-															Sign in
-														</Link>
-														<Link
-															href="/auth/register"
-															onClick={() => setMenuOpen(false)}
-															className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-														>
-															Sign up
-														</Link>
-													</div>
-												</>
-											)}
-										</div>
+												</div>
+											</div>
+										)}
 									</div>
-								</SheetContent>
-							</Sheet>
+								)}
+								{/* Settings pane with visible touch/keyboard controls */}
+								{clientUser && menuPane === "settings" && (
+									<SettingsPaneLite 
+										setMenuOpen={setMenuOpen}
+										effectiveWeb3ModeEnabled={effectiveWeb3ModeEnabled}
+										walletRefreshToken={walletRefreshToken}
+										setWalletRefreshToken={setWalletRefreshToken}
+									/>
+								)}
+								{/* Privacy choices must remain reachable without an account. */}
+								<div className="border-t border-border p-4">
+									<button type="button" onClick={openCookieSettings} className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cookie preferences</button>
+								</div>
+
+							</div>
+
+							{/* Footer actions */}
+							<div className="shrink-0 border-t border-border p-4 space-y-2">
+								{clientUser ? (
+									<button
+										type="button"
+										onClick={() => cleanLogout()}
+										className="w-full rounded-xl bg-muted px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-3 transition-colors"
+									>
+										Sign out
+									</button>
+								) : (
+									<>
+										{/* Web3 connect — top option */}
+										<button
+											type="button"
+											onClick={openGuestWallet}
+											disabled={!IS_WEB3_CONFIGURED || walletOpening} aria-busy={walletOpening} title={IS_WEB3_CONFIGURED ? "Connect a crypto wallet" : "Wallet connect coming soon"} className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground enabled:hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											<FiLink className="w-4 h-4" />
+											{walletOpening ? 'Opening wallet…' : IS_WEB3_CONFIGURED ? 'Connect with Web3' : 'Web3 wallet — coming soon'}
+										</button>
+
+										{/* OAuth providers row */}
+										<MySocialAuth redirectTo="/products" />
+
+										{/* Sign in / Sign up links */}
+										<div className="flex gap-2 pt-1">
+											<Link
+												href="/auth/login"
+												onClick={() => setMenuOpen(false)}
+												className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+											>
+												Sign in
+											</Link>
+											<Link
+												href="/auth/register"
+												onClick={() => setMenuOpen(false)}
+												className="flex-1 rounded-xl px-4 py-2.5 text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+											>
+												Sign up
+											</Link>
+										</div>
+									</>
+								)}
+							</div>
 						</div>
-					</div>
-				</motion.div>
-			</motion.header>
+				</SheetContent>
+			</Sheet>
 		</>
 	);
 };
@@ -1100,11 +749,11 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 		<div className="mx-3 mb-2 space-y-1">
 			{/* Email row */}
 			{hasEmail && (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
-					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-border bg-foreground/[0.05]">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Email
 					</span>
-					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1">
+					<span className="text-xs text-foreground/85 truncate font-mono min-w-0 flex-1">
 						{displayEmail}
 					</span>
 					<CopyChip text={displayEmail!} label="Copy email" size="xs" />
@@ -1112,24 +761,24 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 			)}
 			{/* Active wallet row */}
 			{hasWallet && trimmed ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-sky-500/30 dark:border-emerald-500/30">
-					<span className="h-1.5 w-1.5 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-foreground/[0.05]">
+					<span className="h-1.5 w-1.5 rounded-full bg-brand-accent-light shrink-0" />
 					{walletName && (
-						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-emerald-400 shrink-0">
+						<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-accent-hover dark:text-brand-accent-light shrink-0">
 							{isAuthConnector && normalizedAuthProvider === "google" ? <FcGoogle className="h-3 w-3" /> : null}
 							{isAuthConnector && normalizedAuthProvider === "discord" ? <FaDiscord className="h-3 w-3 text-[#5865F2]" /> : null}
 							{isAuthConnector && normalizedAuthProvider === "github" ? <FaGithub className="h-3 w-3" /> : null}
 							{walletName}
 						</span>
 					)}
-					<span className="text-xs text-zinc-600 dark:text-zinc-300 truncate font-mono min-w-0 flex-1" title={effectiveAddress}>
+					<span className="text-xs text-foreground/85 truncate font-mono min-w-0 flex-1" title={effectiveAddress}>
 						{trimmed}
 					</span>
 					{chain && (
 						<span className={`text-[9px] rounded px-1.5 py-0.5 shrink-0 inline-flex items-center gap-1 ${
 							isLocalChain(chain.id)
 								? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700"
-								: "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+								: "bg-muted text-muted-foreground"
 						}`}>
 							{isLocalChain(chain.id) && <span className="font-mono font-bold">&gt;_RPC</span>}
 							{chain.name}
@@ -1138,11 +787,11 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 					<CopyChip text={effectiveAddress!} label="Copy wallet address" size="xs" />
 				</div>
 			) : nextAuthEmail ? (
-				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50 border border-dashed border-zinc-200 dark:border-zinc-700">
-					<span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 shrink-0 w-10">
+				<div className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-dashed border-border bg-foreground/[0.05]">
+					<span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 shrink-0 w-10">
 						Wallet
 					</span>
-					<span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic">
+					<span className="text-[11px] text-muted-foreground/80 italic">
 						No active wallet — connect below ↓
 					</span>
 				</div>
@@ -1160,9 +809,9 @@ function SidebarQuickCopyStrips({ email: nextAuthEmail }: { email?: string }) {
 							sessionStorage.removeItem(`${OAUTH_BRIDGE_KEY_PREFIX}${appKitEmail}`);
 							signIn(fallbackProvider, { callbackUrl: window.location.pathname || '/products' });
 						}}
-						className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-[11px] font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
+						className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 border border-brand-accent/30 bg-brand-accent/10 text-[11px] font-medium text-brand-accent-hover hover:bg-brand-accent/15 dark:text-brand-accent-light transition-colors"
 					>
-						<span className="h-1.5 w-1.5 rounded-full bg-sky-400 shrink-0 animate-pulse" />
+						<span className="h-1.5 w-1.5 rounded-full bg-brand-accent shrink-0 animate-pulse" />
 						Sign in with {providerLabel} to unlock all features →
 					</button>
 				);
@@ -1201,54 +850,67 @@ function SidebarWalletInfo() {
 	};
 
 	return (
-		<div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-2.5 space-y-2">
+		<div className="rounded-lg border border-border p-2.5 space-y-2">
 			{/* Address row */}
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-1.5 min-w-0">
-					<span className="h-2 w-2 rounded-full bg-sky-400 dark:bg-emerald-400 shrink-0" />
-					<span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate" title={effectiveAddress}>
+					<span className="h-2 w-2 rounded-full bg-brand-accent-light shrink-0" />
+					<span className="text-xs font-mono text-foreground/85 truncate" title={effectiveAddress}>
 						{trimmed}
 					</span>
 				</div>
 				<button
 					type="button"
 					onClick={copyAddress}
-					className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+						className="flex size-11 shrink-0 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					title="Copy full address"
 				>
 					{copied ? (
-						<FiCheck className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
+						<FiCheck className="h-3.5 w-3.5 text-brand-accent" />
 					) : (
-						<FiCopy className="h-3.5 w-3.5 text-zinc-400" />
+						<FiCopy className="h-3.5 w-3.5 text-muted-foreground/80" />
 					)}
 				</button>
 			</div>
 
 			{/* Network row */}
 			<div className="flex items-center justify-between gap-2">
-				<span className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+				<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
 					Network
 				</span>
-				<select
-					className="text-xs rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-zinc-700 dark:text-zinc-300 max-w-[140px]"
-					value={effectiveChainId ?? ""}
-					onChange={(e) => {
-						const id = Number(e.target.value);
-						if (id !== effectiveChainId) switchChain({ chainId: id });
-					}}
-					disabled={switchStatus === "pending"}
-				>
-					{chains.map((c) => (
-						<option key={c.id} value={c.id}>
-							{c.name}{switchStatus === "pending" && c.id !== activeChainId ? " …" : ""}
-						</option>
-					))}
-				</select>
+				{/* Styled menu instead of a native select: same tokens as every other chip in the drawer. */}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							aria-label="Wallet network"
+							disabled={switchStatus === "pending"}
+							className="inline-flex min-h-10 min-w-0 max-w-[200px] items-center gap-2 rounded-lg border border-border/60 bg-foreground/[0.04] px-3 text-sm font-medium text-foreground transition-[border-color,background-color] duration-200 hover:border-border hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+						>
+							{activeChain && isLocalChain(activeChain.id) && <span className="font-mono text-[10px] font-bold text-amber-500 dark:text-amber-400">&gt;_</span>}
+							<span className="truncate">{switchStatus === "pending" ? "Switching…" : activeChain?.name ?? "Select network"}</span>
+							<FiChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="z-[120] w-56 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl">
+						{chains.map((c) => (
+							<DropdownMenuItem
+								key={c.id}
+								onSelect={() => { if (c.id !== effectiveChainId) switchChain({ chainId: c.id }); }}
+								className={`min-h-10 gap-2 rounded-lg px-2.5 text-sm ${c.id === effectiveChainId ? "bg-brand-accent/[0.08] font-medium" : ""}`}
+							>
+								{isLocalChain(c.id) && <span className="font-mono text-[10px] font-bold text-amber-500 dark:text-amber-400">&gt;_RPC</span>}
+								<span className="min-w-0 flex-1 truncate">{c.name}</span>
+								{c.id === effectiveChainId && <FiCheck className="size-3.5 text-brand-accent-hover dark:text-brand-accent-light" aria-hidden="true" />}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
 			{/* Current chain indicator */}
 			{activeChain && (
-				<div className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right">
+				<div className="text-[10px] text-muted-foreground/80 text-right">
 					Chain ID: {activeChain.id}
 				</div>
 			)}
@@ -1256,418 +918,95 @@ function SidebarWalletInfo() {
 	);
 }
 
-// Settings Pane Lite Component with Hover Dropdowns
+// Settings tab of the account drawer. Appearance and currency are not repeated
+// here (both sit in the header); this pane is a launcher plus one wallet card.
 function SettingsPaneLite({
-	setMenuOpen,
-	effectiveWeb3ModeEnabled,
-	walletRefreshToken,
-	setWalletRefreshToken,
-	openCookieSettings,
+  setMenuOpen, effectiveWeb3ModeEnabled, walletRefreshToken, setWalletRefreshToken,
 }: {
-	setMenuOpen: (open: boolean) => void;
-	effectiveWeb3ModeEnabled: boolean;
-	walletRefreshToken: number;
-	setWalletRefreshToken: (fn: (t: number) => number) => void;
-	openCookieSettings: () => void;
+  setMenuOpen: (open: boolean) => void;
+  effectiveWeb3ModeEnabled: boolean;
+  walletRefreshToken: number;
+  setWalletRefreshToken: (fn: (t: number) => number) => void;
 }) {
-	const { resolvedTheme, setTheme } = useTheme();
-	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-	const clientUser = useCurrentUser();
+  const settingsItems = [
+    { id: 'profile', icon: FiImage, label: 'Profile', desc: 'Avatar, banner & bio' },
+    { id: 'account', icon: FiUser, label: 'Account', desc: 'Name, email & sign-in' },
+    { id: 'security', icon: FiShield, label: 'Security', desc: 'Password & two-factor' },
+    { id: 'notifications', icon: FiBell, label: 'Notifications', desc: 'Alerts & sounds' },
+    { id: 'privacy', icon: FiLock, label: 'Privacy', desc: 'Visibility & data' },
+    { id: 'wallet', icon: FiLink, label: 'Wallet', desc: 'Web3 & local chains' },
+  ];
+  const tileClass = "group relative flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-foreground/[0.03] px-3 py-2.5 transition-[border-color,transform] duration-200 motion-reduce:transition-none hover:border-transparent motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-	// Settings items with quick actions on hover
-	const settingsItems = [
-		{ 
-			id: 'profile', 
-			href: '/settings?section=profile', 
-			icon: FiImage, 
-			label: 'Profile', 
-			desc: 'Avatar, banner & bio',
-			quickActions: [
-				{ id: 'view', icon: FiExternalLink, label: 'View', actionType: 'link', link: `/profile/${clientUser?.id}` },
-				{ id: 'avatar', icon: FiCamera, label: 'Avatar', actionType: 'link', link: '/settings?section=profile' },
-				{ id: 'edit', icon: FiEdit2, label: 'Edit Bio', actionType: 'link', link: '/settings?section=profile' },
-			],
-		},
-		{ 
-			id: 'account', 
-			href: '/settings?section=account', 
-			icon: FiUser, 
-			label: 'Account', 
-			desc: 'Name & email',
-			quickActions: [
-				{ id: 'edit', icon: FiEdit2, label: 'Edit Name', actionType: 'link', link: '/settings?section=account' },
-				// Only show email edit for non-OAuth users (credential-based accounts)
-				...(!clientUser?.isOAuth ? [
-					{ id: 'editEmail', icon: FiEdit2, label: 'Change Email', actionType: 'link', link: '/settings?section=account' },
-				] : []),
-			],
-		},
-		{ 
-			id: 'appearance', 
-			href: '/settings?section=appearance', 
-			icon: FiSliders, 
-			label: 'Appearance', 
-			desc: 'Theme & effects',
-			quickActions: [
-				{ id: 'light', icon: FiSun, label: 'Light', actionType: 'theme' },
-				{ id: 'dark', icon: FiMoon, label: 'Dark', actionType: 'theme' },
-				{ id: 'system', icon: FiMonitor, label: 'System', actionType: 'theme' },
-			],
-			currentValue: resolvedTheme,
-		},
-		{ 
-			id: 'currency', 
-			href: '/settings?section=currency', 
-			icon: FiDollarSign, 
-			label: 'Currency', 
-			desc: 'Display currency',
-			quickActions: [
-				{ id: 'USD', icon: () => <span className="text-sm font-medium">$</span>, label: 'USD', actionType: 'currency' },
-				{ id: 'EUR', icon: () => <span className="text-sm font-medium">€</span>, label: 'EUR', actionType: 'currency' },
-				{ id: 'GBP', icon: () => <span className="text-sm font-medium">£</span>, label: 'GBP', actionType: 'currency' },
-				{ id: 'NOK', icon: () => <span className="text-sm font-medium">kr</span>, label: 'NOK', actionType: 'currency' },
-			],
-		},
-		{ 
-			id: 'security', 
-			href: '/settings?section=security', 
-			icon: FiShield, 
-			label: 'Security', 
-			desc: 'Password & 2FA',
-			quickActions: [
-				{ id: 'password', icon: FiKey, label: 'Password', actionType: 'link', link: '/settings?section=security' },
-				{ id: '2fa', icon: FiShield, label: '2FA', actionType: 'link', link: '/settings?section=security' },
-			],
-		},
-		{ 
-			id: 'notifications', 
-			href: '/settings?section=notifications', 
-			icon: FiBell, 
-			label: 'Notifications', 
-			desc: 'Alerts & sounds',
-			quickActions: [
-				{ id: 'mute', icon: FiBellOff, label: 'Mute All', actionType: 'notification', action: 'mute' },
-				{ id: 'unmute', icon: FiVolume2, label: 'Unmute', actionType: 'notification', action: 'unmute' },
-			],
-		},
-		{ 
-			id: 'privacy', 
-			href: '/settings?section=privacy', 
-			icon: FiLock, 
-			label: 'Privacy', 
-			desc: 'Visibility & data',
-			quickActions: [
-				{ id: 'clearCookies', icon: FiTrash2, label: 'Clear Cookies', actionType: 'privacy', action: 'clearCookies' },
-				{ id: 'clearCache', icon: FiTrash2, label: 'Clear Cache', actionType: 'privacy', action: 'clearCache' },
-			],
-		},
-	];
+  return (
+    <div className="space-y-4 p-4">
+      <nav aria-label="Quick settings">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quick settings</p>
+        <HoverChaser className="grid grid-cols-2 gap-1.5">
+          {settingsItems.map(({ id, icon: Icon, label, desc }) => (
+            <Link key={id} href={`/settings?section=${id}`} onClick={() => setMenuOpen(false)} data-chase className={tileClass}>
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground transition-colors duration-200 group-hover:bg-brand-accent/15 group-hover:text-brand-accent">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-medium text-foreground">{label}</span>
+                <span className="block truncate text-[11px] leading-snug text-muted-foreground">{desc}</span>
+              </span>
+            </Link>
+          ))}
+        </HoverChaser>
+      </nav>
 
-	return (
-		<div className="p-4 space-y-3">
-			{/* Quick Settings Links with Hover Dropdowns */}
-			<div className="space-y-1">
-				<div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 px-2 mb-2">
-					Quick Access
-				</div>
-				{settingsItems.map((item) => (
-					<SettingsItemWithHover
-						key={item.id}
-						item={item}
-						isHovered={hoveredItem === item.id}
-						onHover={() => setHoveredItem(item.id)}
-						onLeave={() => setHoveredItem(null)}
-						setMenuOpen={setMenuOpen}
-					/>
-				))}
-			</div>
+      {effectiveWeb3ModeEnabled && (
+        <section aria-labelledby="drawer-wallet-title" className="rounded-2xl border border-border/60 bg-foreground/[0.03] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 id="drawer-wallet-title" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Wallet</h3>
+            <Link
+              href="/settings?section=wallet"
+              onClick={() => setMenuOpen(false)}
+              className="inline-flex min-h-9 items-center rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Manage →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {/* Connected address, copy and network — renders nothing while disconnected */}
+            <SidebarWalletInfo />
+            <div className="flex justify-center py-1">
+              <AppKitButton size="md" />
+            </div>
+            <Link
+              href="/dashboard/trading"
+              onClick={() => setMenuOpen(false)}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-border/60 px-3 text-xs font-medium text-foreground transition-[border-color,background-color] duration-200 hover:border-brand-accent/40 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <FiPackage className="size-3.5 text-brand-accent" aria-hidden="true" />
+              Open trading
+              <span className="ml-auto text-muted-foreground" aria-hidden="true">→</span>
+            </Link>
+            {/* Ownership verification and the saved-wallet list stay reachable, folded away. */}
+            <details className="group/tools rounded-xl border border-border/60">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                Verify & manage wallets
+                <FiChevronDown aria-hidden="true" className="size-3.5 transition-transform duration-200 group-open/tools:rotate-180" />
+              </summary>
+              <div className="space-y-2 border-t border-border/60 p-3">
+                <EvmWalletVerify
+                  enabled={effectiveWeb3ModeEnabled}
+                  onVerified={() => setWalletRefreshToken((t) => t + 1)}
+                />
+                <EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
+              </div>
+            </details>
+          </div>
+        </section>
+      )}
 
-			{/* Wallet Section */}
-			{effectiveWeb3ModeEnabled && (
-				<div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 p-3">
-					<div className="flex items-center justify-between mb-2">
-						<div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-							Wallet
-						</div>
-						<Link
-							href="/settings?section=wallet"
-							onClick={() => setMenuOpen(false)}
-							className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-sky-500 dark:hover:text-emerald-400 transition-colors"
-						>
-							Manage →
-						</Link>
-					</div>
-					<div className="space-y-2">
-						{/* AppKit button for polished wallet modal with QR codes & social logins */}
-						<div className="flex justify-center py-1">
-							<AppKitButton size="md" />
-						</div>
-
-						{/* Connected wallet info: address, copy, network */}
-						<SidebarWalletInfo />
-
-						{/* Trading shortcut */}
-						<Link
-							href="/dashboard/trading"
-							onClick={() => setMenuOpen(false)}
-							className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-						>
-							<FiPackage className="h-3.5 w-3.5 text-sky-500 dark:text-emerald-500" />
-							<span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Trading</span>
-							<span className="ml-auto text-[10px] text-zinc-400">→</span>
-						</Link>
-
-						<EvmWalletVerify
-							enabled={effectiveWeb3ModeEnabled}
-							onVerified={() => setWalletRefreshToken((t) => t + 1)}
-						/>
-						<EvmWalletList enabled={effectiveWeb3ModeEnabled} refreshToken={walletRefreshToken} />
-					</div>
-				</div>
-			)}
-
-			{/* All Settings & Cookie Preferences */}
-			<div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
-				<Link
-					href="/settings"
-					onClick={() => setMenuOpen(false)}
-					className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				>
-					All Settings
-				</Link>
-				<button
-					type="button"
-					onClick={() => {
-						setMenuOpen(false);
-						setTimeout(() => openCookieSettings(), 0);
-					}}
-					className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs text-zinc-500 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-				>
-					Cookie preferences
-				</button>
-			</div>
-		</div>
-	);
-}
-
-// Individual settings item with flip card animation
-function SettingsItemWithHover({
-	item,
-	isHovered,
-	onHover,
-	onLeave,
-	setMenuOpen,
-}: {
-	item: any;
-	isHovered: boolean;
-	onHover: () => void;
-	onLeave: () => void;
-	setMenuOpen: (open: boolean) => void;
-}) {
-	const { resolvedTheme, setTheme } = useTheme();
-	const { prefs, setPrefs } = useUiPreferences();
-	const [isClearing, setIsClearing] = useState(false);
-	
-	const hasQuickActions = item.quickActions && item.quickActions.length > 0;
-	
-	// Get current value for highlighting
-	const getCurrentValue = () => {
-		if (item.id === 'appearance') return resolvedTheme;
-		if (item.id === 'currency') return prefs.preferredFiatCurrency;
-		return null;
-	};
-	
-	// Clear non-essential cookies while preserving auth
-	const clearNonEssentialCookies = async () => {
-		setIsClearing(true);
-		try {
-			const cookies = document.cookie.split(';');
-			const essentialPrefixes = ['next-auth', 'authjs', '__Secure-', '__Host-', 'csrf'];
-			let clearedCount = 0;
-			
-			cookies.forEach(cookie => {
-				const [name] = cookie.split('=').map(c => c.trim());
-				const isEssential = essentialPrefixes.some(prefix => 
-					name.toLowerCase().startsWith(prefix.toLowerCase())
-				);
-				if (!isEssential && name) {
-					document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
-					clearedCount++;
-				}
-			});
-			
-			const essentialStorage = ['veggastare:', 'next-auth', 'ui-preferences'];
-			const keysToRemove: string[] = [];
-			for (let i = 0; i < localStorage.length; i++) {
-				const key = localStorage.key(i);
-				if (key && !essentialStorage.some(prefix => key.startsWith(prefix))) {
-					keysToRemove.push(key);
-				}
-			}
-			keysToRemove.forEach(key => localStorage.removeItem(key));
-			
-			toast.success(`Cleared ${clearedCount} cookies and ${keysToRemove.length} cached items`, {
-				description: 'Your session remains active',
-			});
-		} catch (err) {
-			toast.error('Failed to clear cookies');
-		} finally {
-			setIsClearing(false);
-		}
-	};
-	
-	// Clear browser cache
-	const clearBrowserCache = async () => {
-		setIsClearing(true);
-		try {
-			if ('caches' in window) {
-				const cacheNames = await caches.keys();
-				await Promise.all(cacheNames.map(name => caches.delete(name)));
-			}
-			sessionStorage.clear();
-			toast.success('Cache cleared successfully', {
-				description: 'Page may reload to apply changes',
-			});
-			setTimeout(() => window.location.reload(), 1000);
-		} catch (err) {
-			toast.error('Failed to clear cache');
-		} finally {
-			setIsClearing(false);
-		}
-	};
-	
-	// Toggle notification mute
-	const toggleNotificationMute = async (mute: boolean) => {
-		try {
-			const res = await fetch('/api/notifications/settings', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ inAppEnabled: !mute, pushEnabled: !mute }),
-			});
-			if (res.ok) {
-				toast.success(mute ? 'Notifications muted' : 'Notifications enabled');
-			} else {
-				toast.error('Failed to update notifications');
-			}
-		} catch (err) {
-			toast.error('Failed to update notifications');
-		}
-	};
-	
-	const handleQuickAction = (action: any, e: React.MouseEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		
-		switch (action.actionType) {
-			case 'theme':
-				setTheme(action.id);
-				break;
-			case 'currency':
-				setPrefs({ preferredFiatCurrency: action.id });
-				break;
-			case 'link':
-				setMenuOpen(false);
-				window.location.href = action.link;
-				break;
-			case 'notification':
-				if (action.action === 'mute') toggleNotificationMute(true);
-				if (action.action === 'unmute') toggleNotificationMute(false);
-				break;
-			case 'privacy':
-				if (action.action === 'clearCookies') clearNonEssentialCookies();
-				if (action.action === 'clearCache') clearBrowserCache();
-				break;
-		}
-	};
-
-	// Click on front card navigates to settings
-	const handleFrontClick = () => {
-		setMenuOpen(false);
-		window.location.href = item.href;
-	};
-
-	return (
-		<div
-			className="relative h-[52px]"
-			style={{ perspective: '1000px' }}
-			onMouseEnter={onHover}
-			onMouseLeave={onLeave}
-		>
-			{/* Card container with 3D flip */}
-			<div
-				className="relative w-full h-full transition-transform duration-300 ease-out"
-				style={{ 
-					transformStyle: 'preserve-3d',
-					transform: hasQuickActions && isHovered ? 'rotateX(180deg)' : 'rotateX(0deg)',
-				}}
-			>
-				{/* Front of card - Normal view */}
-				<div
-					className="absolute inset-0 w-full h-full rounded-lg px-3 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-					style={{ backfaceVisibility: 'hidden' }}
-					onClick={handleFrontClick}
-				>
-					<div className="flex items-center gap-3 h-full">
-						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-							<item.icon className="h-4 w-4" />
-						</div>
-						<div className="flex-1 min-w-0">
-							<div className="font-medium text-sm text-zinc-700 dark:text-zinc-200">{item.label}</div>
-							<div className="text-[11px] text-zinc-500 dark:text-zinc-500 truncate">{item.desc}</div>
-						</div>
-						{item.currentValue && (
-							<div className="text-[10px] text-zinc-400 dark:text-zinc-600">
-								{item.currentValue}
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* Back of card - Quick actions */}
-				{hasQuickActions && (
-					<div
-						className="absolute inset-0 w-full h-full rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2 py-1.5"
-						style={{ 
-							backfaceVisibility: 'hidden',
-							transform: 'rotateX(180deg)',
-						}}
-					>
-						<div className="flex items-center justify-center gap-1 h-full">
-							{item.quickActions.map((action: any) => {
-								const isActive = getCurrentValue() === action.id;
-								const IconComponent = action.icon;
-								const isDanger = action.action === 'clearCookies' || action.action === 'clearCache';
-								
-								return (
-									<button
-										key={action.id}
-										type="button"
-										disabled={isClearing}
-										onClick={(e) => handleQuickAction(action, e)}
-										className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-											isActive
-												? 'bg-sky-500 dark:bg-emerald-500 text-white shadow-sm'
-												: isDanger
-													? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60'
-													: 'bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-600 shadow-sm'
-										} ${isClearing ? 'opacity-50 cursor-wait' : ''}`}
-										title={action.label}
-									>
-										{typeof IconComponent === 'function' ? (
-											<IconComponent className="h-3.5 w-3.5" />
-										) : (
-											<IconComponent className="h-3.5 w-3.5" />
-										)}
-										<span>{action.label}</span>
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				)}
-			</div>
-		</div>
-	);
+      <div className="border-t border-border pt-3">
+        <Link href="/settings" onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl bg-foreground/[0.05] px-4 text-sm font-medium text-foreground transition-colors hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All settings</Link>
+      </div>
+    </div>
+  );
 }
 
 export default MyTopBar;

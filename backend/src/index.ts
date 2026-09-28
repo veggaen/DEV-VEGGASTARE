@@ -2,25 +2,14 @@ import dotenv from 'dotenv';
 dotenv.config(); // Load env vars FIRST before any other imports that use them
 
 import Hapi from '@hapi/hapi';
-import { z } from 'zod';
 import { initWebSocketServer } from './websocket';
 import registerRoutes from './routes';
 import http from 'http';
-import { isPusherConfigured, triggerEvent } from './pusher';
-import { dbbPrisma } from './db';
-import { isDbConfigured } from './db';
 const LOG_PREFIX = '[backend/src/index.ts]';
 const shouldLogRequests =
   process.env.LOG_REQUESTS === '1' ||
   process.env.LOG_HTTP === '1' ||
   process.env.BACKEND_LOG_REQUESTS === '1';
-
-// Zod schema for pusher trigger
-const pusherTriggerSchema = z.object({
-  channel: z.string().min(1, 'channel is required'),
-  event: z.string().min(1, 'event is required'),
-  data: z.unknown(),
-});
 
 const init = async (): Promise<void> => {
   const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || '').toLowerCase();
@@ -81,44 +70,16 @@ const init = async (): Promise<void> => {
     });
   }
 
-  if (isDbConfigured) {
-    try {
-      const prismaConnectStart = Date.now();
-      await dbbPrisma.$connect();
-      console.log(LOG_PREFIX, `Prisma connected in ${Date.now() - prismaConnectStart}ms`);
-    } catch (err) {
-      console.error(LOG_PREFIX, 'Prisma failed to initialize/connect. Continuing without DB.', err);
-    }
-  } else {
-    console.log(LOG_PREFIX, 'DATABASE_URL_MAINLIVE missing: skipping Prisma connection (shipping demo mode).');
-  }
+  // Shipping adapters need no application DB. Retired warehouse prototypes must
+  // not open a privileged connection or publish inventory on public channels.
+  registerRoutes(server);
 
-  registerRoutes(server, dbbPrisma);
-
-  const httpServer = http.createServer(server.listener);
+  const httpServer = http.createServer((_request, response) => {
+    response.writeHead(410, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ error: 'Legacy realtime is unavailable.' }));
+  });
 
   initWebSocketServer(httpServer);
-
-  server.route({
-    method: 'POST',
-    path: '/api/pusher-trigger',
-    handler: (request, h) => {
-      if (!isPusherConfigured) {
-        return h
-          .response({ error: 'Pusher is not configured on this server.' })
-          .code(503);
-      }
-      const parsed = pusherTriggerSchema.safeParse(request.payload);
-      if (!parsed.success) {
-        return h
-          .response({ error: 'Invalid payload', details: parsed.error.flatten() })
-          .code(400);
-      }
-      const { channel, event, data } = parsed.data;
-      triggerEvent(channel, event, data);
-      return h.response({ status: 'success' }).code(200);
-    },
-  });
 
   await server.start();
   httpServer.listen(wsPort, () => {
@@ -128,8 +89,8 @@ const init = async (): Promise<void> => {
   console.log(LOG_PREFIX, `Hapi Server running on ${server.info.uri}`);
 };
 
-process.on('unhandledRejection', (err) => {
-  console.log(LOG_PREFIX, err);
+process.on('unhandledRejection', () => {
+  console.error(LOG_PREFIX, 'Unhandled rejection; stopping integration service.');
   process.exit(1);
 });
 

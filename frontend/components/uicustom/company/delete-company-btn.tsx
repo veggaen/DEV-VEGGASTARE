@@ -70,12 +70,12 @@ const DeleteCompanyBtn = ({ companyId, companyName, onCompanyDeleted, employeePe
                 return;
               }
             }}
-            className="bg-black/10 dark:bg-black/10 font-semibold"
+            className="bg-muted font-semibold"
           >
             Delete
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px] dark:bg-black bg-white">
+        <DialogContent className="sm:max-w-[425px] dark:bg-background bg-card">
           <DialogHeader>
             <DialogTitle className='text-red-500'>Confirm Deletion</DialogTitle>
             <DialogDescription className='text-yellow-500'>

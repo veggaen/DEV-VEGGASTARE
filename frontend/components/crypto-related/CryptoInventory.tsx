@@ -276,8 +276,8 @@ export function CryptoInventory({
   if (!isConnected) {
     return (
       <div className={`flex flex-col items-center justify-center py-12 text-center ${className}`}>
-        <FiPackage className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mb-3" />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Connect a wallet to view your inventory</p>
+        <FiPackage className="h-12 w-12 text-muted-foreground/70 mb-3" />
+        <p className="text-sm text-muted-foreground">Connect a wallet to view your inventory</p>
       </div>
     );
   }
@@ -285,12 +285,12 @@ export function CryptoInventory({
   return (
     <div className={`flex flex-col ${className}`} ref={inventoryRef}>
       {/* ── Header: Chain Selector + Actions ── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
         {/* Chain Selector (bag tab) */}
         <div className="flex items-center gap-2">
           <div className="relative">
             <select
-              className="appearance-none bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="appearance-none bg-surface-2 border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs font-semibold text-foreground/90 cursor-pointer focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent transition"
               value={chainId}
               onChange={(e) => switchChain({ chainId: Number(e.target.value) })}
               disabled={switchStatus === "pending"}
@@ -301,7 +301,7 @@ export function CryptoInventory({
                 </option>
               ))}
             </select>
-            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-400 pointer-events-none" />
+            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
           </div>
           {switchStatus === "pending" && (
             <motion.div
@@ -322,16 +322,16 @@ export function CryptoInventory({
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-24 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-7 pr-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-emerald-500/50 focus:w-36 transition-all"
+              className="w-24 bg-surface-2 border border-border rounded-lg pl-7 pr-2 py-1 text-xs text-foreground/85 placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-accent/50 focus:w-36 transition"
             />
-            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-400" />
+            <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           </div>
 
           {/* Merge */}
           <button
             type="button"
             onClick={handleMerge}
-            className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400 hover:text-emerald-500"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Merge all split stacks"
           >
             <FiLayers className="h-3.5 w-3.5" />
@@ -344,7 +344,7 @@ export function CryptoInventory({
               setSlots([]);
               refetch();
             }}
-            className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400 hover:text-emerald-500"
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"
             title="Refresh balances"
           >
             <FiRefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -353,20 +353,20 @@ export function CryptoInventory({
       </div>
 
       {/* ── Inventory Grid ── */}
-      <div className="relative flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+      <div className="relative flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border">
         {loading && filteredSlots.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
             >
-              <FiRefreshCw className="h-6 w-6 text-zinc-400" />
+              <FiRefreshCw className="h-6 w-6 text-muted-foreground" />
             </motion.div>
           </div>
         ) : filteredSlots.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <FiPackage className="h-8 w-8 text-zinc-400 dark:text-zinc-600 mb-2" />
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <FiPackage className="h-8 w-8 text-muted-foreground/70 mb-2" />
+            <p className="text-xs text-muted-foreground">
               {searchQuery ? "No tokens match your search" : "No tokens found on this chain"}
             </p>
           </div>
@@ -399,12 +399,12 @@ export function CryptoInventory({
       </div>
 
       {/* ── Status Bar ── */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border bg-background">
+        <span className="text-[10px] text-muted-foreground/80">
           {filteredSlots.length} token{filteredSlots.length !== 1 ? "s" : ""} · {activeChain?.name ?? `Chain ${chainId}`}
         </span>
         {address && (
-          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 truncate max-w-25">
+          <span className="text-[10px] font-mono text-muted-foreground/80 truncate max-w-25">
             {address.slice(0, 6)}…{address.slice(-4)}
           </span>
         )}
@@ -499,8 +499,8 @@ function InventorySlotCard({
           flex flex-col items-center justify-center gap-0.5 p-1
           ${
             isSelected
-              ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-[0_0_12px_rgba(16,185,129,0.3)]"
-              : "border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600"
+              ? "border-brand-accent bg-brand-accent/10 shadow-[0_0_12px_rgba(16,185,129,0.3)]"
+              : "border-border bg-surface-2 hover:border-border"
           }
           ${tradeMode ? "ring-1 ring-amber-500/30" : ""}
         `}
@@ -526,7 +526,7 @@ function InventorySlotCard({
         </div>
 
         {/* Symbol */}
-        <span className="text-[8px] sm:text-[9px] font-medium text-zinc-500 dark:text-zinc-400 truncate max-w-full leading-none">
+        <span className="text-[8px] sm:text-[9px] font-medium text-muted-foreground truncate max-w-full leading-none">
           {slot.token.symbol}
         </span>
 
@@ -539,18 +539,18 @@ function InventorySlotCard({
               exit={{ opacity: 0, y: 4 }}
               className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
             >
-              <div className="bg-zinc-900 dark:bg-zinc-800 text-white rounded-lg px-2.5 py-1.5 shadow-xl border border-zinc-700 whitespace-nowrap">
+              <div className="bg-surface-3 text-white rounded-lg px-2.5 py-1.5 shadow-xl border border-border whitespace-nowrap">
                 <div className="text-[10px] font-semibold">{slot.token.symbol}</div>
-                <div className="text-[9px] text-zinc-300">
+                <div className="text-[9px] text-foreground/80">
                   {formatFullBalance(BigInt(slot.rawAmount), slot.token.decimals)} {slot.token.symbol}
                 </div>
-                <div className="text-[8px] text-zinc-500 font-mono mt-0.5">
+                <div className="text-[8px] text-muted-foreground font-mono mt-0.5">
                   {slot.token.address === "0x0000000000000000000000000000000000000000"
                     ? "Native"
                     : `${slot.token.address.slice(0, 8)}…${slot.token.address.slice(-6)}`}
                 </div>
                 {/* Arrow */}
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 dark:bg-zinc-800 rotate-45 border-r border-b border-zinc-700" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-surface-3 rotate-45 border-r border-b border-border" />
               </div>
             </motion.div>
           )}
@@ -602,14 +602,14 @@ function InventoryContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden min-w-40">
+      <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-w-40">
         {/* Header */}
         {slot && (
-          <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="px-3 py-2 border-b border-border/60 bg-background">
+            <span className="text-xs font-semibold text-foreground/85">
               {slot.token.symbol}
             </span>
-            <span className="text-[10px] text-zinc-400 ml-1.5">{slot.amount}</span>
+            <span className="text-[10px] text-muted-foreground ml-1.5">{slot.amount}</span>
           </div>
         )}
         {/* Items */}
@@ -618,7 +618,7 @@ function InventoryContextMenu({
             key={item.label}
             type="button"
             onClick={item.action}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground/85 hover:bg-brand-accent/10 hover:text-brand-accent-hover hover:dark:text-brand-accent-light transition-colors"
           >
             <item.icon className="h-3.5 w-3.5" />
             {item.label}
@@ -667,15 +667,15 @@ function SplitDialog({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl p-5 w-80"
+        className="bg-card rounded-2xl border border-border shadow-2xl p-5 w-80"
       >
         <div className="flex items-center gap-2 mb-1">
-          <FiScissors className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+          <FiScissors className="h-4 w-4 text-brand-accent" />
+          <h3 className="text-sm font-semibold text-foreground/90">
             Split {slot.token.symbol}
           </h3>
         </div>
-        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-3">
+        <p className="text-[10px] text-muted-foreground mb-3">
           Stack: {slot.amount} {slot.token.symbol} &middot; Split will attach to your cursor
         </p>
 
@@ -690,10 +690,10 @@ function SplitDialog({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             autoFocus
-            className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500/50 transition-all pr-14"
+            className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground/90 focus:ring-2 focus:ring-brand-accent/50 transition pr-14"
             onKeyDown={(e) => e.key === "Enter" && onConfirm()}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-zinc-400">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground">
             {slot.token.symbol}
           </span>
         </div>
@@ -708,7 +708,7 @@ function SplitDialog({
                 const val = (maxAmount * pct) / 100;
                 onChange(val.toFixed(slot.token.decimals > 4 ? 6 : slot.token.decimals));
               }}
-              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 hover:border-emerald-300 transition-colors"
+              className="flex-1 py-1 rounded-md text-[10px] font-medium border border-border text-muted-foreground hover:bg-brand-accent/10 hover:text-brand-accent-hover hover:dark:text-brand-accent-light hover:border-brand-accent transition-colors"
             >
               {pct}%
             </button>
@@ -719,14 +719,14 @@ function SplitDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 text-xs py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex-1 text-xs py-2 rounded-xl border border-border text-muted-foreground hover:bg-muted transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 text-xs py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 transition-all font-semibold flex items-center justify-center gap-1.5"
+            className="flex-1 text-xs py-2 rounded-xl bg-brand-accent-hover text-brand-accent-foreground hover:bg-brand-accent shadow-lg shadow-brand-accent/25 transition font-semibold flex items-center justify-center gap-1.5"
           >
             <FiScissors className="h-3 w-3" />
             Split &amp; Grab
@@ -766,7 +766,7 @@ function FloatingGhostItem({
     >
       {/* Pulsing ring */}
       <motion.div
-        className="absolute inset-0 rounded-xl border-2 border-emerald-500"
+        className="absolute inset-0 rounded-xl border-2 border-brand-accent"
         animate={{
           boxShadow: [
             "0 0 0 0 rgba(16,185,129,0.4)",
@@ -777,7 +777,7 @@ function FloatingGhostItem({
       />
 
       {/* Card */}
-      <div className="relative w-14 h-14 rounded-xl border-2 border-emerald-500 bg-emerald-500/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/30">
+      <div className="relative w-14 h-14 rounded-xl border-2 border-brand-accent bg-brand-accent/10 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl shadow-brand-accent/30">
         {/* Token icon */}
         <div className="w-5 h-5 flex items-center justify-center">
           <TokenIcon
@@ -788,14 +788,14 @@ function FloatingGhostItem({
             size={20}
           />
         </div>
-        <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+        <span className="text-[8px] font-bold text-brand-accent-hover dark:text-brand-accent-light mt-0.5">
           {item.amount}
         </span>
-        <span className="text-[7px] text-emerald-500/80">{item.token.symbol}</span>
+        <span className="text-[7px] text-brand-accent/80">{item.token.symbol}</span>
 
         {/* Placement indicator */}
         <motion.div
-          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-emerald-500 font-medium whitespace-nowrap"
+          className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[8px] text-brand-accent font-medium whitespace-nowrap"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
@@ -817,20 +817,20 @@ function getStackColor(display: string): string {
   const upper = stripped.toUpperCase();
 
   if (upper.includes("B") || upper.includes("G"))
-    return "text-emerald-400"; // billions — green
+    return "text-brand-accent"; // billions — green
 
   if (upper.includes("M")) {
     const num = parseFloat(upper.replace("M", ""));
     return num >= 10
-      ? "text-emerald-400" // 10M+ — green
-      : "text-white"; // <10M — white
+      ? "text-brand-accent" // 10M+ — green
+      : "text-foreground"; // <10M — white
   }
 
   if (upper.includes("K")) {
     const num = parseFloat(upper.replace("K", ""));
     return num >= 100
       ? "text-amber-300" // 100K+ — yellow
-      : "text-white";
+      : "text-foreground";
   }
 
   return "text-amber-100"; // small stacks — soft yellow/white

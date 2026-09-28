@@ -1,242 +1,151 @@
 import Image from "next/image";
+import PriceAmount from '@/components/crypto-related/PriceAmount';
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, ArrowRight, BadgeCheck, Globe, LayoutDashboard, Package, Settings, ShieldAlert, Star, Users } from "lucide-react";
 
 import { dbPrisma } from "@/lib/db";
 import { auth } from "@/auth";
 import CompanyReachChart from "@/components/uicustom/company/CompanyReachChart";
 import BannerThemeWrapper from "@/components/uicustom/banner/BannerThemeWrapper";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function CompanyPublicPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const heroBtn = "inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3.5 text-sm font-medium text-white backdrop-blur-md transition-[background-color,border-color] duration-200 hover:border-white/30 hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+export default async function CompanyPublicPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: companyId } = await params;
   const session = await auth();
-
   if (!companyId) notFound();
 
   const company = await dbPrisma.company.findUnique({
     where: { id: companyId },
     select: {
-      id: true,
-      name: true,
-      description: true,
-      websiteUrl: true,
-      orgNumber: true,
-      logo: true,
-      bannerImage: true,
-      ownerId: true,
-      creatorId: true,
-      Employee: {
-        select: { userId: true },
-      },
+      id: true, name: true, description: true, websiteUrl: true, orgNumber: true, orgType: true, logo: true, bannerImage: true, ownerId: true, creatorId: true, createdAt: true,
+      Employee: { select: { userId: true } },
       Product: {
+        where: { visibility: 'PUBLIC' },
         orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          image: true,
-          category: true,
-          viewCount: true,
-          Review: {
-            select: { rating: true },
-          },
-        },
+        select: { id: true, title: true, price: true, priceCurrency: true, image: true, category: true, viewCount: true, Review: { select: { rating: true } } },
       },
-      orgVerification: {
-        select: { status: true },
-      },
+      orgVerification: { select: { status: true } },
     },
   });
-
   if (!company) notFound();
 
   const banner = company.bannerImage?.[0] ?? null;
   const logo = company.logo?.[0] ?? null;
-  
-  // Check if current user can manage this company
   const userId = session?.user?.id;
-  const canManage = userId && (
-    company.ownerId === userId ||
-    company.creatorId === userId ||
-    company.Employee.some(e => e.userId === userId)
-  );
+  const canManage = userId && (company.ownerId === userId || session?.user?.role === 'ADMIN' || session?.user?.role === 'OWNER' || company.Employee.some(e => e.userId === userId));
+  const verified = company.orgVerification?.status === 'VERIFIED' && !!company.orgNumber;
 
-  // Calculate company reach stats from real product data
   const totalProductViews = company.Product.reduce((sum, p) => sum + p.viewCount, 0);
   const allRatings = company.Product.flatMap(p => p.Review.map(r => r.rating));
-  const averageRating = allRatings.length > 0
-    ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length
-    : 0;
-
-  // Unique visitors estimate (70% of total views)
-  const uniqueVisitors = Math.floor(totalProductViews * 0.7);
+  const averageRating = allRatings.length > 0 ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length : 0;
+  let website: string | null = null;
+  try { const url = new URL(company.websiteUrl ?? ''); if (['https:', 'http:'].includes(url.protocol)) website = url.href; } catch { /* no public website */ }
+  const founded = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(company.createdAt);
 
   return (
     <BannerThemeWrapper bannerUrl={banner} className="w-full">
-      {/* Full-bleed hero */}
+      {/* Hero: the banner with the identity block over its lower edge */}
       <div className="relative w-full">
         <div className="absolute inset-0">
           {banner ? (
             <>
-              <Image src={banner} alt={`${company.name} banner`} fill className="object-cover" priority />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.40), rgba(0,0,0,0.70))," +
-                    "radial-gradient(circle at top left, rgba(var(--theme-primary-rgb, 16, 185, 129), 0.28), transparent 55%)," +
-                    "radial-gradient(circle at bottom right, rgba(var(--theme-secondary-rgb, 56, 189, 248), 0.22), transparent 45%)",
-                }}
-              />
+              <Image src={banner} alt="" fill sizes="100vw" className="object-cover" priority />
+              <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.45),rgba(0,0,0,0.35)_50%,rgba(0,0,0,0.75))]" />
             </>
           ) : (
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(var(--theme-primary-rgb, 16, 185, 129), 0.18), rgba(var(--theme-secondary-rgb, 56, 189, 248), 0.14), rgba(var(--theme-accent-rgb, 217, 70, 239), 0.16))",
-              }}
-            />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--brand-accent)/0.35),hsl(var(--brand-accent)/0.08)_55%,hsl(var(--muted)))]" />
           )}
         </div>
 
-        <div className="relative mx-auto w-full max-w-screen-2xl px-4 pb-10 pt-10 md:pb-14 md:pt-14">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div className="flex items-end gap-4">
-                <div className="relative h-16 w-16 md:h-20 md:w-20 overflow-hidden border border-white/20 bg-black/20 shadow-sm rounded-lg">
-                  {logo ? <Image src={logo} alt={`${company.name} logo`} fill className="object-cover" /> : null}
-                </div>
-
-                <div className="min-w-0">
-                  <h1 className="text-balance text-3xl md:text-4xl font-semibold tracking-tight text-white">
-                    {company.name}
-                  </h1>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/80">
-                    {company.websiteUrl ? (
-                      <a
-                        className="truncate underline underline-offset-4 hover:text-white"
-                        href={company.websiteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {company.websiteUrl}
-                      </a>
-                    ) : null}
-                    <span className="opacity-70">•</span>
-                    <span>{company.Product.length} products</span>
-                    <span className="opacity-70">•</span>
-                    {company.orgVerification?.status === 'VERIFIED' && company.orgNumber ? (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
-                        title="Verified organization: company ownership confirmed via official registered email"
-                      >
-                        ✓ Verified organization
-                      </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2 py-0.5 text-amber-100"
-                        title="Unverified organization: no confirmed legal ownership link yet"
-                      >
-                        ⚠ Unverified organization
-                      </span>
-                    )}
-                  </div>
+        <div className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8 md:pb-10 md:pt-8">
+          <Link href="/companies" className={`${heroBtn} mb-6`}><ArrowLeft aria-hidden="true" className="size-4" />Back to companies</Link>
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="flex min-w-0 items-end gap-4">
+              <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border-2 border-white/20 bg-card shadow-e2 md:size-24">
+                {logo ? <Image src={logo} alt="" fill sizes="96px" className="object-cover" /> : <span className="grid h-full w-full place-items-center text-3xl font-semibold text-foreground">{company.name[0]?.toUpperCase()}</span>}
+              </div>
+              <div className="min-w-0 pb-1">
+                <h1 className="text-balance text-3xl font-semibold tracking-tight text-white drop-shadow-sm md:text-4xl">{company.name}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/85">
+                  {verified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-brand-accent/50 bg-brand-accent/25 px-2.5 py-0.5 text-xs font-semibold text-white" title="Verified organization: ownership confirmed through the registered email"><BadgeCheck aria-hidden="true" className="size-3.5" />Verified organization</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/35 px-2.5 py-0.5 text-xs font-medium text-white/90" title="No confirmed legal ownership link yet"><ShieldAlert aria-hidden="true" className="size-3.5" />Unverified organization</span>
+                  )}
+                  {company.orgType && <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-0.5 text-xs font-medium">{company.orgType}</span>}
+                  <span className="inline-flex items-center gap-1 text-xs"><Package aria-hidden="true" className="size-3.5" />{company.Product.length} products</span>
+                  <span className="inline-flex items-center gap-1 text-xs"><Users aria-hidden="true" className="size-3.5" />{company.Employee.length + 1} people</span>
+                  <span className="text-xs">Since {founded}</span>
                 </div>
               </div>
-
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {website && <a className={heroBtn} href={website} target="_blank" rel="noreferrer"><Globe aria-hidden="true" className="size-4" />Website</a>}
               {canManage && (
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/companies/${company.id}/hub`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Hub
-                  </Link>
-                  <Link
-                    href={`/companies/${company.id}/settings`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                    Settings
-                  </Link>
-                </div>
+                <>
+                  <Link href={`/companies/${company.id}/hub`} className={heroBtn}><LayoutDashboard aria-hidden="true" className="size-4" />Hub</Link>
+                  <Link href={`/companies/${company.id}/settings`} className={heroBtn}><Settings aria-hidden="true" className="size-4" />Settings</Link>
+                </>
               )}
             </div>
-
-            {company.description ? (
-              <p className="max-w-4xl text-pretty text-sm md:text-base text-white/85">
-                {company.description}
-              </p>
-            ) : null}
           </div>
+          {company.description && <p className="mt-5 max-w-3xl text-pretty text-sm leading-relaxed text-white/85 md:text-base">{company.description}</p>}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-12">
-        <div className="pt-8">
-          <div className="flex items-end justify-between gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-700 dark:text-zinc-200">
-              Products
-            </h2>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">
-              Latest first
+      <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+        {/* Stat strip */}
+        <HoverChaser as="div" className="grid grid-cols-2 gap-3 lg:grid-cols-4" boxClassName="rounded-2xl">
+          {[
+            { label: 'Products', value: company.Product.length.toLocaleString(), icon: Package },
+            { label: 'Product views', value: totalProductViews.toLocaleString(), icon: Users },
+            { label: 'Average rating', value: allRatings.length ? averageRating.toFixed(1) : '—', icon: Star },
+            { label: 'Reviews', value: allRatings.length.toLocaleString(), icon: BadgeCheck },
+          ].map((stat) => (
+            <div key={stat.label} data-chase className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><stat.icon aria-hidden="true" className="size-3.5 text-brand-accent" />{stat.label}</p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{stat.value}</p>
+            </div>
+          ))}
+        </HoverChaser>
+
+        <section aria-labelledby="company-products">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h2 id="company-products" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Products</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Latest first. Open a product to see files, price and reviews.</p>
             </div>
           </div>
-
           {company.Product.length ? (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <HoverChaser className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" boxClassName="rounded-2xl">
               {company.Product.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.id}`}
-                  className="group border border-black/10 bg-white/40 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-lg dark:border-white/10 dark:bg-white/3 dark:hover:bg-white/5 rounded-lg hover:rounded-2xl"
-                >
-                  <div className="flex gap-4 p-4">
-                    <div className="relative h-20 w-20 flex-none overflow-hidden bg-black/5 dark:bg-white/3 rounded-md transition-[border-radius] duration-200 group-hover:rounded-xl">
-                      {p.image?.[0] ? (
-                        <Image src={p.image[0]} alt={p.title} fill className="object-cover" />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                        {p.category}
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        {p.title}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                        ${p.price.toFixed(2)}
-                      </div>
-                    </div>
+                <Link key={p.id} href={`/products/${p.id}`} data-chase className="group flex min-w-0 gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl transition-[transform] duration-200 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <div className="relative size-20 flex-none overflow-hidden rounded-xl bg-muted">
+                    {p.image?.[0] ? <Image src={p.image[0]} alt="" fill sizes="80px" className="object-cover" /> : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{p.category}</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-semibold text-foreground">{p.title}</p>
+                    <p className="mt-2 flex items-center justify-between gap-2 text-sm font-semibold text-brand-accent-hover dark:text-brand-accent-light">
+                      <PriceAmount amount={p.price} currency={p.priceCurrency} />
+                      <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
+                    </p>
                   </div>
                 </Link>
               ))}
-            </div>
+            </HoverChaser>
           ) : (
-            <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">No products yet.</div>
+            <p className="rounded-2xl border border-dashed border-border/70 px-5 py-10 text-center text-sm text-muted-foreground">No products yet.</p>
           )}
+        </section>
 
-          {/* Company Reach Analytics */}
-          <CompanyReachChart 
-            companyName={company.name}
-            stats={{
-              totalProductViews,
-              uniqueVisitors,
-              productCount: company.Product.length,
-              averageRating,
-            }}
-          />
-        </div>
+        <CompanyReachChart companyName={company.name} stats={{ totalProductViews, productCount: company.Product.length, averageRating, reviewCount: allRatings.length }} />
       </div>
     </BannerThemeWrapper>
   );

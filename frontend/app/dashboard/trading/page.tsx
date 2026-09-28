@@ -20,14 +20,16 @@
  * @stability experimental
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OsrsInventory } from "@/components/crypto-related/OsrsInventory";
 import {
   OsrsTradeWindow,
   type TradePartner,
 } from "@/components/crypto-related/OsrsTradeWindow";
+import Link from "next/link";
 import { useAccount, useConnections } from "wagmi";
+import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { useWalletAddressBook } from "@/hooks/use-wallet-address-book";
 import { useTradeMode, MODE_META, MODE_ORDER, type TradeMode } from "@/contexts/trade-mode-context";
 import {
@@ -41,8 +43,12 @@ import {
   FiRefreshCw,
   FiClock,
 } from "react-icons/fi";
-import { ArrowLeftRight, Zap, FileText, Monitor, Users, Repeat } from "lucide-react";
+import { ArrowLeftRight, Zap, FileText, Monitor, Users, Repeat, Hexagon, PieChart } from "lucide-react";
 import { DexSwapPanel } from "@/components/crypto-related/DexSwapPanel";
+import { HexStakes } from "@/components/crypto-related/HexStakes";
+import { LiquidityPanel } from "@/components/crypto-related/LiquidityPanel";
+import { PortfolioPanel } from "@/components/crypto-related/PortfolioPanel";
+import { MarketTerminal } from "@/components/trading/terminal/MarketTerminal";
 import { TradeHistory } from "@/components/crypto-related/TradeHistory";
 
 // ── Mode icons mapping ──────────────────────────────────────────────────────
@@ -52,6 +58,8 @@ const MODE_ICONS: Record<TradeMode, React.ReactNode> = {
   self:       <ArrowLeftRight className="h-3.5 w-3.5" />,
   dex:        <Repeat className="h-3.5 w-3.5" />,
   paper:      <FileText className="h-3.5 w-3.5" />,
+  hex:        <Hexagon className="h-3.5 w-3.5" />,
+  portfolio:  <PieChart className="h-3.5 w-3.5" />,
   localchain: <Monitor className="h-3.5 w-3.5" />,
 };
 
@@ -60,23 +68,40 @@ const MODE_COLORS: Record<TradeMode, string> = {
   self:       "purple",
   dex:        "sky",
   paper:      "amber",
+  hex:        "pink",
+  portfolio:  "sky",
   localchain: "orange",
 };
 
 const MODE_RING_CLASSES: Record<TradeMode, string> = {
-  p2p:        "ring-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+  p2p:        "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   self:       "ring-purple-500/20 bg-purple-500/10 text-purple-400",
-  dex:        "ring-sky-500/20 bg-sky-500/10 text-sky-400",
+  dex:        "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   paper:      "ring-amber-500/20 bg-amber-500/10 text-amber-400",
+  hex:        "ring-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-500 dark:text-fuchsia-300",
+  portfolio:  "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   localchain: "ring-orange-500/20 bg-orange-500/10 text-orange-400",
 };
 
+/** Glow behind the active mode chip — matches the chip's own colour, never the accent by default. */
+const MODE_GLOW: Record<TradeMode, string> = {
+  p2p:        "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
+  self:       "shadow-[0_0_24px_-6px_rgb(168_85_247/0.5)]",
+  dex:        "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
+  paper:      "shadow-[0_0_24px_-6px_rgb(245_158_11/0.5)]",
+  hex:        "shadow-[0_0_24px_-6px_rgb(217_70_239/0.5)]",
+  portfolio:  "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
+  localchain: "shadow-[0_0_24px_-6px_rgb(249_115_22/0.5)]",
+};
+
 const MODE_BTN_ACTIVE: Record<TradeMode, string> = {
-  p2p:        "border-emerald-500/60 bg-emerald-500/10 text-emerald-300",
-  self:       "border-purple-500/60 bg-purple-500/10 text-purple-300",
-  dex:        "border-sky-500/60 bg-sky-500/10 text-sky-300",
-  paper:      "border-amber-500/60 bg-amber-500/10 text-amber-300",
-  localchain: "border-orange-500/60 bg-orange-500/10 text-orange-300",
+  p2p:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
+  self:       "ring-1 ring-inset ring-purple-500/30 bg-purple-500/12 text-purple-700 dark:text-purple-300",
+  dex:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
+  paper:      "ring-1 ring-inset ring-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300",
+  hex:        "ring-1 ring-inset ring-fuchsia-500/30 bg-fuchsia-500/12 text-fuchsia-700 dark:text-fuchsia-300",
+  portfolio:  "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
+  localchain: "ring-1 ring-inset ring-orange-500/30 bg-orange-500/12 text-orange-700 dark:text-orange-300",
 };
 
 type UserSearchResult = {
@@ -86,8 +111,26 @@ type UserSearchResult = {
   email: string | null;
 };
 
+const noopSubscribe = () => () => {};
+
 export default function TradingPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, status: accountStatus } = useAccount();
+  // Extensions reconnect silently right after load; during that second the
+  // account is "reconnecting", not absent, so the hub must not flash its
+  // "No wallet connected" call to action and remount everything twice.
+  // Before hydration the server and client must paint the same thing, and the
+  // server has no wallet state at all: treat "not hydrated yet" as settling.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  // The extension reconnect starts in an effect after hydration; until it has
+  // had a moment, "disconnected" only means "not yet".
+  const [graceOver, setGraceOver] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setGraceOver(true), 1800); return () => window.clearTimeout(t); }, []);
+  const walletSettling = !hydrated || !graceOver || accountStatus === "reconnecting" || accountStatus === "connecting";
+  // A local dev-chain account activated from the wallet panel (Ganache/Anvil
+  // "temporary wallet") is a usable wallet here even without an injected one:
+  // the inventory and the trade window already read the same override.
+  const { override } = useActiveWalletOverride();
+  const walletReady = isConnected || Boolean(override);
   const connections = useConnections();
   const addressBook = useWalletAddressBook();
   const { mode, setMode, modeLabel, isSimulated } = useTradeMode();
@@ -100,6 +143,8 @@ export default function TradingPage() {
   const [partnerResults, setPartnerResults] = useState<UserSearchResult[]>([]);
   const [searchingPartners, setSearchingPartners] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  /** DEX tab: route swaps through the aggregator, or add/remove liquidity on a V2 pool. */
+  const [dexView, setDexView] = useState<"swap" | "liquidity">("swap");
 
   // Auto-open correct trade panel when mode changes
   useEffect(() => {
@@ -167,39 +212,59 @@ export default function TradingPage() {
   const alwaysShowTradeArea = true;
 
   /* ── Not connected — but paper mode works without wallet ────── */
-  if (!isConnected && mode !== "paper") {
+  if (!walletReady && mode !== "paper" && mode !== "portfolio" && walletSettling) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+      <section aria-busy="true" aria-label="Connecting your wallet" className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">
+        <div className="size-10 animate-spin rounded-full border-2 border-brand-accent/30 border-t-brand-accent motion-reduce:animate-none" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">Connecting your wallet…</p>
+      </section>
+    );
+  }
+
+  if (!walletReady && mode !== "paper" && mode !== "portfolio") {
+    return (
+      <section aria-labelledby="trading-empty-title" className="page-rise flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="relative mb-6">
-          <div className="h-20 w-20 rounded-2xl bg-zinc-900/40 flex items-center justify-center">
-            <FiWifi className="h-8 w-8 text-zinc-600" />
+          <div className="grid size-20 place-items-center rounded-2xl bg-foreground/[0.05] ring-1 ring-border/60">
+            <FiWifi className="size-8 text-muted-foreground" />
           </div>
-          <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <FiAlertCircle className="h-3.5 w-3.5 text-amber-400" />
-          </div>
+          <span className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-amber-500/15 ring-1 ring-amber-500/30">
+            <FiAlertCircle className="size-3.5 text-amber-600 dark:text-amber-300" />
+          </span>
         </div>
-        <h2 className="text-lg font-semibold text-zinc-200 mb-1">
-          Wallet Not Connected
-        </h2>
-        <p className="text-sm text-zinc-400 text-center max-w-sm mb-4">
-          Connect a wallet from the sidebar to view your inventory and start trading.
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-accent-hover dark:text-brand-accent-light">Trading</p>
+        <h2 id="trading-empty-title" className="text-xl font-semibold tracking-tight text-foreground">No wallet connected</h2>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Connect a wallet from the account menu to see your inventory and trade with others, or open the terminal: live prices, paper money, no wallet needed.
         </p>
-        <button
-          type="button"
-          onClick={() => setMode("paper")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Try Paper Trading (no wallet needed)
-        </button>
-      </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("paper")}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-accent px-5 text-sm font-semibold text-brand-accent-foreground shadow-e2 transition-[background-color,transform,box-shadow] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.6)] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <FileText className="size-4" />
+            Open the terminal
+          </button>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("veggat:open-menu"))}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border/60 bg-surface-1/75 px-5 text-sm font-medium text-foreground backdrop-blur-xl transition-[border-color,background-color,transform] duration-200 hover:border-border hover:bg-foreground/[0.06] motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            Connect a wallet
+          </button>
+        </div>
+        <Link href="/help/local-chains" className="mt-4 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground">
+          No wallet? Set up a free local test chain in five minutes
+        </Link>
+      </section>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-zinc-950">
+    <div className="flex h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px))] min-h-[560px] w-full flex-col bg-surface-1">
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 shrink-0 bg-zinc-950/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-20 shrink-0 bg-surface-1/80 backdrop-blur-xl">
         {/* Top row: title + actions */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2.5">
@@ -207,12 +272,12 @@ export default function TradingPage() {
               {MODE_ICONS[mode]}
             </div>
             <div>
-              <h1 className="text-sm font-bold text-zinc-200 leading-tight">
-                Trading Hub
+              <h1 className="text-sm font-semibold leading-tight text-foreground">
+                Trading
               </h1>
-              <p className="text-[10px] text-zinc-500 leading-tight">
+              <p className="text-[10px] text-muted-foreground leading-tight">
                 {modeLabel}
-                {isSimulated && " · Simulated"}
+                {mode === "paper" ? " · Live & paper" : isSimulated ? " · Simulated" : null}
               </p>
             </div>
           </div>
@@ -222,24 +287,24 @@ export default function TradingPage() {
           {/* Partner search — only in P2P mode */}
           {mode === "p2p" && !tradePartner && (
             <div className="relative">
-              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
                 value={partnerQuery}
                 onChange={(event) => setPartnerQuery(event.target.value)}
                 placeholder="Search user to trade..."
-                className="w-44 sm:w-56 rounded-lg border border-zinc-700/60 bg-zinc-900/60 pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:w-64 transition-all"
+                className="w-44 sm:w-56 rounded-lg border border-border/60 bg-surface-3/60 pl-8 pr-3 py-1.5 text-xs text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-accent/40 focus:w-64 transition"
               />
 
               {partnerQuery.trim().length >= 2 && (
-                <div className="absolute top-[calc(100%+4px)] right-0 z-40 w-72 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
+                <div className="absolute top-[calc(100%+4px)] right-0 z-40 w-72 rounded-xl border border-border bg-surface-3 shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
                   {/* Address book matches */}
                   {(() => {
                     const abResults = addressBook.search(partnerQuery.trim(), 3);
                     if (abResults.length === 0) return null;
                     return (
                       <>
-                        <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50 flex items-center gap-1">
+                        <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50 flex items-center gap-1">
                           <FiBookOpen className="h-2.5 w-2.5" />
                           Address Book
                         </div>
@@ -259,10 +324,10 @@ export default function TradingPage() {
                               setPartnerQuery("");
                               setPartnerResults([]);
                             }}
-                            className="w-full px-3 py-2 text-left text-xs hover:bg-emerald-800/20 transition-colors"
+                            className="w-full px-3 py-2 text-left text-xs hover:bg-brand-accent/20 transition-colors"
                           >
-                            <p className="font-medium text-emerald-300 truncate">{entry.nickname}</p>
-                            <p className="text-zinc-500 truncate text-[10px] font-mono">
+                            <p className="font-medium text-brand-accent-light truncate">{entry.nickname}</p>
+                            <p className="text-muted-foreground truncate text-[10px] font-mono">
                               {entry.address.slice(0, 10)}…{entry.address.slice(-6)}
                             </p>
                           </button>
@@ -273,13 +338,13 @@ export default function TradingPage() {
 
                   {/* User search results */}
                   {searchingPartners && (
-                    <p className="px-3 py-2 text-[11px] text-zinc-500">Searching…</p>
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground">Searching…</p>
                   )}
                   {!searchingPartners && partnerResults.length === 0 && addressBook.search(partnerQuery.trim(), 1).length === 0 && (
-                    <p className="px-3 py-2 text-[11px] text-zinc-500">No users found</p>
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground">No users found</p>
                   )}
                   {!searchingPartners && partnerResults.length > 0 && (
-                    <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-zinc-600 bg-zinc-950/50">
+                    <div className="px-3 py-1 text-[9px] uppercase tracking-widest text-muted-foreground bg-surface-1/50">
                       Users
                     </div>
                   )}
@@ -295,10 +360,10 @@ export default function TradingPage() {
                           setPartnerQuery("");
                           setPartnerResults([]);
                         }}
-                        className="w-full px-3 py-2 text-left text-xs hover:bg-zinc-800/80 transition-colors"
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-foreground/[0.09] transition-colors"
                       >
-                        <p className="font-medium text-zinc-200 truncate">{user.name ?? "Unknown user"}</p>
-                        <p className="text-zinc-500 truncate text-[10px]">{user.email ?? user.id}</p>
+                        <p className="font-medium text-foreground/80 truncate">{user.name ?? "Unknown user"}</p>
+                        <p className="text-muted-foreground truncate text-[10px]">{user.email ?? user.id}</p>
                       </button>
                     ))}
                 </div>
@@ -311,7 +376,7 @@ export default function TradingPage() {
             <button
               type="button"
               onClick={() => { setTradePartner(null); setSelfTradeOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/15 border border-purple-700/30 text-xs font-semibold text-purple-300 hover:bg-purple-600/25 hover:border-purple-600/50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/15 border border-purple-700/30 text-xs font-semibold text-purple-300 hover:bg-purple-600/25 hover:border-purple-600/50 transition"
               title="Transfer between your connected wallets"
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -321,13 +386,13 @@ export default function TradingPage() {
 
           {/* Active partner badge */}
           {tradePartner && (mode === "p2p" || mode === "localchain") && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-700/60 bg-emerald-900/20 text-[11px] text-emerald-300">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-brand-accent/60 bg-brand-accent/20 text-[11px] text-brand-accent-light">
               <FiUserPlus className="h-3 w-3" />
               <span className="max-w-24 truncate">{tradePartner.name ?? "Partner"}</span>
               <button
                 type="button"
                 onClick={handleCloseTradeWindow}
-                className="rounded p-0.5 hover:bg-emerald-800/40"
+                className="rounded p-0.5 hover:bg-brand-accent/40"
                 aria-label="Clear selected partner"
               >
                 <FiX className="h-2.5 w-2.5" />
@@ -340,7 +405,7 @@ export default function TradingPage() {
             <button
               type="button"
               onClick={handleCloseTradeWindow}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted hover:text-foreground/80 transition"
             >
               <FiX className="h-3 w-3" />
               Close Trade
@@ -351,12 +416,11 @@ export default function TradingPage() {
           <button
             type="button"
             onClick={() => setShowHistory((p) => !p)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border ${
               showHistory
-                ? "border-sky-500/50 bg-sky-500/10 text-sky-400"
-                : "border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
+                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground/80"
             }`}
-            title="Trade History"
           >
             <FiClock className="h-3 w-3" />
             History
@@ -365,31 +429,32 @@ export default function TradingPage() {
         </div>
 
         {/* Mode Switcher — flat tab bar */}
-        <div className="px-4 sm:px-6 pb-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-0.5">
+        <div className="no-scrollbar flex justify-center overflow-x-auto px-4 pb-3 sm:px-6">
+          <div role="tablist" aria-label="Trading mode" className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border/60 bg-surface-1/75 p-1 shadow-e1 backdrop-blur-xl">
             {MODE_ORDER.map((m) => (
               <button
                 key={m}
                 type="button"
+                role="tab"
+                aria-selected={mode === m}
                 onClick={() => setMode(m)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap ${
+                className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   mode === m
-                    ? MODE_BTN_ACTIVE[m]
-                    : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                    ? `${MODE_BTN_ACTIVE[m]} ${MODE_GLOW[m]}`
+                    : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                 }`}
-                title={MODE_META[m].label}
               >
                 {MODE_ICONS[m]}
                 <span>{MODE_META[m].label}</span>
               </button>
             ))}
           </div>
-          <div className="mt-2 h-px bg-zinc-800/40" />
+          <div className="mt-2 h-px bg-foreground/[0.05]" />
         </div>
       </header>
 
       {/* ── Main Content ───────────────────────────────────── */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 lg:p-6">
+      <section aria-label="Trading workspace" className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 lg:p-6">
         <AnimatePresence mode="wait">
         {showHistory ? (
           /* ── Trade History View ─────────────────────── */
@@ -405,21 +470,29 @@ export default function TradingPage() {
         ) : (
           /* ── Normal Trading View ────────────────────── */
           <motion.div
-            key="trading-panel"
+            key={mode === "paper" ? "paper-terminal" : mode === "hex" || mode === "portfolio" ? `${mode}-panel` : "trading-panel"}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
+            className={mode === "paper" ? "h-full" : undefined}
           >
+        {mode === "paper" ? (
+          <MarketTerminal className="h-full min-h-[560px] lg:h-full" />
+        ) : mode === "hex" ? (
+          <HexStakes className="mx-auto max-w-5xl" />
+        ) : mode === "portfolio" ? (
+          <PortfolioPanel className="mx-auto max-w-5xl" />
+        ) : (
         <div
-          className="grid gap-4 lg:gap-5 items-start lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
+          className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[380px_minmax(0,1fr)_380px]"
         >
           {/* ── Inventory panel ─────────────────────────── */}
-          {(isConnected || mode !== "paper") && (
+          {(
             <section className="min-h-0">
               <div className="pb-2 flex items-center gap-2">
-                <FiPackage className="h-3.5 w-3.5 text-zinc-500" />
-                <h2 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Inventory</h2>
+                <FiPackage className="h-3.5 w-3.5 text-muted-foreground" />
+                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Inventory</h2>
               </div>
               <div>
                 <OsrsInventory
@@ -434,8 +507,8 @@ export default function TradingPage() {
             </section>
           )}
 
-          {/* ── Trade panels — mode-dependent ──────── */}
-          <section className="min-h-0">
+          {/* ── Trade panels — mode-dependent (centred, capped so grids stay hand-sized) ── */}
+          <section className="mx-auto w-full min-w-0 max-w-[1040px] min-h-0">
           <AnimatePresence mode="wait">
             {/* P2P / Self / Local Chain → OSRS Trade Window */}
             {showOsrsTrade && (
@@ -468,21 +541,17 @@ export default function TradingPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3"
               >
-                <DexSwapPanel />
-              </motion.div>
-            )}
-
-            {/* Paper Mode → Paper Swap Panel */}
-            {mode === "paper" && (
-              <motion.div
-                key="paper-panel"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <PaperTradingInline />
+                <div role="tablist" aria-label="DEX action" className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-foreground/[0.04] p-0.5">
+                  {(["swap", "liquidity"] as const).map((v) => (
+                    <button key={v} type="button" role="tab" aria-selected={dexView === v} onClick={() => setDexView(v)}
+                      className={`min-h-8 rounded-full px-3.5 text-[11px] font-semibold uppercase tracking-wider transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dexView === v ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light" : "text-muted-foreground hover:text-foreground"}`}>
+                      {v === "swap" ? "Swap" : "Liquidity"}
+                    </button>
+                  ))}
+                </div>
+                {dexView === "swap" ? <DexSwapPanel /> : <LiquidityPanel />}
               </motion.div>
             )}
 
@@ -496,79 +565,33 @@ export default function TradingPage() {
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="flex flex-col items-center justify-center min-h-70 py-12 px-6 gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-zinc-800/20 flex items-center justify-center">
-                    <ArrowLeftRight className="h-5 w-5 text-zinc-600" />
+                  <div className="h-12 w-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center">
+                    <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <h3 className="text-sm font-semibold text-zinc-400">No Active Trade</h3>
-                  <p className="text-[11px] text-zinc-500 text-center max-w-xs leading-relaxed">
+                  <h3 className="text-sm font-semibold text-muted-foreground">No Active Trade</h3>
+                  <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
                     {mode === "p2p" || mode === "localchain"
                       ? "Search for a user above to start a P2P trade, or click Transfer for an internal swap."
                       : mode === "self"
                         ? "Open a transfer window to move tokens between your connected wallets."
                         : "Select a trade mode to get started."}
                   </p>
-                  <p className="text-[9px] text-zinc-600 mt-1">
-                    💡 Drag items from inventory or <kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[8px]">Shift</kbd>+click to add
+                  <p className="text-[9px] text-muted-foreground mt-1">
+                    💡 Drag items from inventory or <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[8px]">Shift</kbd>+click to add
                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
           </section>
+          {/* Mirror of the inventory column so the trade area sits on the centre line of the screen. */}
+          <div aria-hidden="true" className="hidden xl:block" />
         </div>
+        )}
           </motion.div>
         )}
         </AnimatePresence>
-      </main>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ── Inline Sub-panels (embedded right in the trading page) ───────────────────
-// ══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Paper Trading Inline — compact version that lives inside the trading page.
- * Links to the full paper trading dashboard for portfolio management.
- */
-function PaperTradingInline() {
-  return (
-    <div className="w-full max-w-md space-y-4">
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-zinc-200">Paper Trading</h3>
-          <span className="text-[9px] font-semibold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded">
-            Simulated
-          </span>
-        </div>
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Trade crypto with virtual USD at real market prices. Zero risk, real learning.
-          Track your P&L, sharpen your strategy, then go live.
-        </p>
-        <div className="space-y-2 py-2">
-          <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Prices</span>
-            <span className="text-zinc-400">CoinGecko (live)</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Fee simulation</span>
-            <span className="text-zinc-400">0.3% (like Uniswap V3)</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className="text-zinc-500">Daily limit</span>
-            <span className="text-zinc-400">200 trades/day</span>
-          </div>
-        </div>
-        <a
-          href="/dashboard/paper-trading"
-          className="flex items-center justify-center gap-2 w-full rounded-lg bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/15 transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Open Paper Trading Dashboard
-        </a>
-      </div>
+      </section>
     </div>
   );
 }

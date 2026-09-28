@@ -24,14 +24,13 @@ setup("authenticate", async ({ page }) => {
         "skipping auth setup. Authenticated tests will be skipped at runtime.",
     );
     // Create an empty storage state so Playwright doesn't crash
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.context().storageState({ path: AUTH_FILE });
     return;
   }
 
   // Navigate to login page (gate cookie is already set via storageState from "gate" project)
-  await page.goto("/auth/login");
-  await page.waitForLoadState("networkidle");
+  await page.goto("/auth/login", { waitUntil: "domcontentloaded" });
 
   // Fill in the login form (shadcn FormControl wraps inputs in a <div>,
   // so getByLabel doesn't work — use placeholder/type selectors instead)
@@ -39,10 +38,10 @@ setup("authenticate", async ({ page }) => {
   await page.locator('input[type="password"]').fill(password);
 
   // Submit
-  await page.getByRole("button", { name: /sign in|log in|continue/i }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
   // Wait for redirect to authenticated area (products page or dashboard)
-  await page.waitForURL(/\/(products|dashboard|feed)/, { timeout: 30_000 });
+  await page.waitForURL(/\/(nexus|products|dashboard|pulse)(?:[/?#]|$)/, { timeout: 30_000 });
 
   // Save signed-in state (includes both gate + auth cookies)
   await page.context().storageState({ path: AUTH_FILE });

@@ -5,6 +5,7 @@ import { MyLibUserAuth } from '@/lib/user-auth';
 import { parseJsonOrError } from '@/lib/api-validate';
 import { OrderDtoSchema } from '@/lib/types/orders';
 import { z } from 'zod';
+import { legacyCheckoutPaused } from '@/lib/checkout-release';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
   }
 
   const userId = session.id;
+  if (legacyCheckoutPaused()) return NextResponse.json({ error: 'CHECKOUT_UPGRADING', message: 'Checkout is being upgraded. No payment has been taken.' }, { status: 503 });
 
   const bodyResult = await parseJsonOrError(
     req,

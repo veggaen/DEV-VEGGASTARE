@@ -41,6 +41,8 @@ export interface DexSwapQuoteInput {
   sellAmount: string; // raw units (wei)
   taker?: string;     // optional for price-only
   slippageBps?: number;
+  /** Comma-separated DEX ids to route through exclusively; omit for best price across all. */
+  sources?: string;
 }
 
 export interface DexSwapExecuteInput extends DexSwapQuoteInput {

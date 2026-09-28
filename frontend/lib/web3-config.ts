@@ -10,9 +10,9 @@
  * in the Vercel environment.
  */
 export const WEB3_PROJECT_ID =
-  process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID ??
-  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
-  process.env.NEXT_PUBLIC_PROJECT_ID ??
+  process.env.NEXT_PUBLIC_APPKIT_PROJECT_ID?.trim() ||
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ||
+  process.env.NEXT_PUBLIC_PROJECT_ID?.trim() ||
   "";
 
 export const IS_WEB3_CONFIGURED = WEB3_PROJECT_ID.length > 0;

@@ -16,7 +16,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitedResponse } from "@/lib/
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  mode: z.enum(["P2P", "SELF", "DEX", "PAPER", "LOCAL", "ALL"]).default("ALL"),
+  mode: z.enum(["P2P", "SELF", "DEX", "PAPER", "LOCAL", "ALL", "LIVE"]).default("ALL"),
   status: z.enum(["PENDING", "COMPLETED", "FAILED", "REVERTED", "ALL"]).default("ALL"),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
@@ -51,7 +51,9 @@ export async function GET(req: NextRequest) {
   // Build where clause — user can only see their own trades
   const where: Record<string, unknown> = { userId: me.id };
 
-  if (mode !== "ALL") where.mode = mode;
+  // LIVE = every real-money mode, i.e. everything but the paper account.
+  if (mode === "LIVE") where.mode = { not: "PAPER" };
+  else if (mode !== "ALL") where.mode = mode;
   if (status !== "ALL") where.status = status;
   if (from || to) {
     where.executedAt = {

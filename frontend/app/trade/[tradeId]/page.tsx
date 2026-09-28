@@ -10,7 +10,7 @@ interface TradeFullPageProps {
 export default function TradeFullPage({ params }: TradeFullPageProps) {
   const { tradeId } = use(params);
   return (
-    <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-zinc-950 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <TradeModal tradeId={tradeId} isFullPage />
     </div>
   );

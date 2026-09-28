@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { dbPrisma } from '@/lib/db';
 import { CompanyWarehouseStockResponseSchema } from '@/lib/types/company';
 
-const isDev = process.env.NODE_ENV !== 'production';
-const LOG_PREFIX = '[frontend/app/api/companies/[companyId]/warehouses/stock/route.ts]';
+import { companyPrivateJson, companyReadScope, companyReadViewer } from '@/lib/company-read-access';
 
 type CompanyParams = { companyId?: string; companyid?: string };
 
@@ -12,21 +11,25 @@ export async function GET(
     { params }: { params: Promise<CompanyParams> }
 ) {
     try {
+        const viewer = await companyReadViewer();
+        if (!viewer) return companyPrivateJson({ message: 'Sign in to view company stock.' }, 401);
         const resolvedParams = await params;
         const companyId = resolvedParams.companyId ?? resolvedParams.companyid;
 
         if (!companyId) {
-            return NextResponse.json({ message: 'Invalid request parameters' }, { status: 400 });
+            return companyPrivateJson({ message: 'Invalid request parameters' }, 400);
         }
 
-        const warehouses = await dbPrisma.warehouseLocation.findMany({
-            where: { companyId: companyId },
-            include: {
-                Inventory: true,
-            },
+        const company = await dbPrisma.company.findFirst({
+            where: { id: companyId, ...companyReadScope(viewer) },
+            select: { WarehouseLocation: { select: {
+                id: true, address: true, city: true, country: true,
+                Inventory: { select: { quantity: true, stock: true } },
+            } } },
         });
+        if (!company) return companyPrivateJson({ message: 'Company unavailable or access restricted.' }, 404);
 
-        const warehouseData = warehouses.map(warehouse => ({
+        const warehouseData = company.WarehouseLocation.map(warehouse => ({
             id: warehouse.id,
             address: warehouse.address,
             city: warehouse.city,
@@ -37,16 +40,13 @@ export async function GET(
 
         const parsed = CompanyWarehouseStockResponseSchema.safeParse({ warehouses: warehouseData });
         if (!parsed.success) {
-            console.error(LOG_PREFIX, 'Invalid GET DTO:', parsed.error);
-            return NextResponse.json(
-                { message: 'Internal Server Error', ...(isDev ? { issues: parsed.error.issues } : {}) },
-                { status: 500 }
-            );
+            console.error('Company stock response validation failed');
+            return companyPrivateJson({ message: 'Stock could not be loaded. Try again.' }, 500);
         }
 
-        return NextResponse.json(parsed.data, { status: 200 });
-    } catch (error) {
-        console.error('Error fetching warehouse stock details:', error);
-        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+        return companyPrivateJson(parsed.data);
+    } catch {
+        console.error('Company stock read failed');
+        return companyPrivateJson({ message: 'Stock could not be loaded. Try again.' }, 500);
     }
 }

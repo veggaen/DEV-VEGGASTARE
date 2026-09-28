@@ -1,8 +1,19 @@
 'use client';
 
+/**
+ * @fileOverview  Access gate — the first thing a visitor sees while the site is
+ *                in private preview. Same DNA as the landing: quiet star field,
+ *                the Veggat™ mark as the only focal point, one glass card, one
+ *                job (the password). Tokens only; outside the app shell.
+ * @stability     stable
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { FiArrowRight, FiLock } from 'react-icons/fi';
+import { BrandMark } from '@/components/uicustom/chrome/brand-mark';
+import { Atmosphere } from '@/components/uicustom/chrome/atmosphere';
 
 export default function GatePage() {
   const searchParams = useSearchParams();
@@ -11,11 +22,12 @@ export default function GatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
 
-  // Get redirect URL from query params
+  // Only same-origin paths may be used as the post-gate destination.
   const rawRedirectTo = searchParams.get('redirect') || '/';
-  const redirectTo = rawRedirectTo.startsWith('/') ? rawRedirectTo : '/';
+  const redirectTo = rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//') && !rawRedirectTo.includes('\\')
+    ? rawRedirectTo : '/';
 
-  // Check if already authenticated on mount
+  // Already through the gate? Go straight to the destination.
   useEffect(() => {
     const checkAuth = async () => {
       if (redirectTo.startsWith('/auth')) return;
@@ -23,7 +35,7 @@ export default function GatePage() {
         const res = await fetch('/api/access-gate');
         if (res.ok) window.location.href = redirectTo;
       } catch {
-        // Not authenticated, stay on gate
+        // Not authenticated, stay on the gate.
       }
     };
     checkAuth();
@@ -33,133 +45,124 @@ export default function GatePage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
       const res = await fetch('/api/access-gate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-
       if (res.ok) {
         window.location.href = redirectTo;
       } else {
         const data = await res.json();
-        setError(data.error || 'Incorrect password');
+        setError(data.error || 'That password is not right. Try again.');
         setShake(true);
         setTimeout(() => setShake(false), 500);
         setPassword('');
       }
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('Something went wrong on our side. Please try again.');
     } finally {
       setIsLoading(false);
     }
   }, [password, redirectTo]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950">
-      {/* Clean solid background */}
-      <div 
-        className="fixed inset-0 pointer-events-none bg-neutral-950"
-      />
+    <div className="relative flex min-h-dvh flex-col bg-background text-foreground">
+      <Atmosphere variant="quiet" />
 
-      {/* Main content - centered */}
-      <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-12">
-        <div 
-          className={`w-full max-w-md p-8 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl ${
-            shake ? 'animate-shake' : ''
+      <main id="main-content" className="relative z-10 flex flex-1 items-center justify-center px-4 py-12">
+        <section
+          aria-labelledby="gate-title"
+          className={`auth-card-enter w-full max-w-md rounded-3xl border border-border/70 bg-surface-1/85 p-8 shadow-e3 backdrop-blur-xl sm:p-10 ${
+            shake ? 'motion-safe:animate-[gateShake_0.5s_ease-in-out]' : ''
           }`}
         >
-          {/* Logo/Brand */}
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-4">🔐</div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">VeggaStare</h1>
-            <p className="text-sm text-neutral-400 mt-3">
-              This site is currently in private testing mode.
+          <div className="mb-8 flex flex-col items-center text-center">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-accent-hover dark:text-brand-accent-light">
+              Private preview
+            </p>
+            <h1 id="gate-title" className="m-0 leading-none">
+              <BrandMark size="hero" as="span" entrance className="text-4xl sm:text-5xl" />
+            </h1>
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Veggat is being tested with a closed group. Enter the access password to continue.
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="access-password" className="block text-sm font-medium text-neutral-300 mb-2">
-                Access Password
+              <label htmlFor="access-password" className="mb-2 block text-sm font-medium text-foreground/85">
+                Access password
               </label>
-              <input
-                id="access-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-neutral-600 transition-all"
-                autoComplete="off"
-                autoFocus
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <FiLock aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="access-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'gate-error' : undefined}
+                  className="h-12 w-full rounded-xl border border-border/70 bg-input pl-11 pr-4 text-foreground placeholder:text-muted-foreground/70 transition-[border-color,box-shadow] duration-200 focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.14)] aria-[invalid=true]:border-destructive/60"
+                  autoComplete="off"
+                  autoFocus
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <p className="text-red-400 text-sm text-center">{error}</p>
-              </div>
+              <p id="gate-error" role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive">
+                {error}
+              </p>
             )}
 
             <button
               type="submit"
               disabled={isLoading || !password.trim()}
-              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-accent px-6 text-[15px] font-semibold text-brand-accent-foreground shadow-e2 transition-[background-color,box-shadow,transform] duration-200 hover:bg-brand-accent-hover hover:shadow-[0_8px_30px_-12px_hsl(var(--brand-accent)/0.6)] motion-safe:hover:-translate-y-px motion-safe:active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50"
             >
               {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Verifying...
-                </span>
+                <>
+                  <span aria-hidden="true" className="size-4 rounded-full border-2 border-brand-accent-foreground/40 border-t-brand-accent-foreground motion-safe:animate-spin" />
+                  Checking…
+                </>
               ) : (
-                'Enter Site'
+                <>
+                  Enter site
+                  <FiArrowRight aria-hidden="true" className="size-4 transition-transform duration-300 motion-safe:group-hover:translate-x-1" />
+                </>
               )}
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-zinc-500 text-center">
-            Contact administrator for access credentials.
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Need access? Ask the administrator for the preview password.
           </p>
-        </div>
+        </section>
       </main>
 
-      {/* Minimal footer with legal links */}
-      <footer className="relative z-10 py-6 border-t border-zinc-800/50">
-        <div className="max-w-md mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-500">
-            <Link href="/privacy" className="hover:text-zinc-300 transition-colors">
-              Personvern
-            </Link>
-            <span className="text-zinc-700">•</span>
-            <Link href="/terms" className="hover:text-zinc-300 transition-colors">
-              Salgsvilkår
-            </Link>
-            <span className="text-zinc-700">•</span>
-            <Link href="/info" className="hover:text-zinc-300 transition-colors">
-              Om oss
-            </Link>
-          </div>
-          <p className="mt-3 text-center text-xs text-zinc-600">
+      <footer className="relative z-10 border-t border-border/60 py-6">
+        <div className="mx-auto max-w-md px-4">
+          <nav aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+            <Link href="/privacy" className="min-h-11 inline-flex items-center rounded-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4">Personvern</Link>
+            <Link href="/terms" className="min-h-11 inline-flex items-center rounded-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4">Salgsvilkår</Link>
+            <Link href="/info" className="min-h-11 inline-flex items-center rounded-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4">Om oss</Link>
+          </nav>
+          <p className="mt-2 text-center text-xs text-muted-foreground/80">
             © {new Date().getFullYear()} THORSEN SOFTWARE · Org.nr 937 051 107
           </p>
         </div>
       </footer>
 
-      {/* Shake animation */}
       <style jsx global>{`
-        @keyframes shake {
+        @keyframes gateShake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
           20%, 40%, 60%, 80% { transform: translateX(6px); }
         }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
       `}</style>
     </div>
   );

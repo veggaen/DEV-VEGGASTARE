@@ -1,0 +1,98 @@
+# Route rendering and storage resilience — 24 September 2026
+
+## Scope and result
+
+Source `ac82106`: local production build and strict TypeScript pass; touched-file
+lint passes. **24 storage units** pass. Local focused browser batch **4/4** passes
+in 1.9 minutes, including gate setup, controlled storage outage, production-only
+preview gating and a static-route inventory.
+
+The app has **101 page files**. This inventory visits **77 static routes at 390px
+and 2560px** with a retained demo session, sends real wheel input, records final
+URLs/headings, and checks page errors, server 500s and document-width overflow.
+The accepted run has 154 observations: 152 HTTP 200 and two intentional 404s.
+All observations have a main element. This is NOT acceptance of every button,
+every role, scroll stability, loading completion, native zoom, or all features.
+The 24 dynamic page files (including intercepted variants) still need concrete
+fixtures; existing PDP/receipt/profile/warehouse tests cover only some of them.
+
+## Findings and changes
+
+1. `/dev/chat-preview` threw `notFound()` inside its client preview during
+   production SSR, producing React #419 in the baseline inventory. The guard now
+   lives in a server page; the interactive preview remains development-only.
+   Real Chrome confirms the unavailable page. The focused regression passes
+   at 390/1280/2560. Its first draft used a guest and correctly reached sign-in;
+   the regression now uses a retained demo session, without weakening auth.
+2. The longer rerun found `EdgeStoreApiClientError` on otherwise readable pages.
+   A controlled `/api/edgestore/init` 503 reliably reproduced an unhandled
+   rejection. The installed SDK's mount effect called `void init()` while its
+   initializer rethrew after setting error state. A versioned patch catches only
+   that unattended mount promise. `state.error` remains true, failed explicit
+   resets still reject, later resets recover, and upload/security routes are
+   unchanged. Tests verify those distinctions. No global error suppression and
+   no rate-limit relaxation were introduced.
+3. The first patched build reused the old vendor behavior. The patch file is now
+   a webpack build dependency, so changes invalidate cached dependency chunks.
+   The subsequent build passes the controlled outage regression.
+
+The SDK correction uses `patch-package --error-on-fail` in postinstall, affecting
+both ESM/CJS distributions. It applied successfully during Preview installation.
+See [patch maintenance notes](../frontend/patches/README.md). No migration is needed.
+
+## Other evidence and limitations
+
+- Real Chrome Jobs loads its empty state; Post request shows a read-only demo
+  explanation. No request or upload was submitted.
+- A Chrome zoom shortcut through the browser connection did not alter DPR or
+  viewport width. **Actual 125% browser zoom remains unverified.**
+- Before adding patch-package, this release's `npm audit --omit=dev` reported
+  25 moderate, zero high/critical advisories. This is not a clean-security claim;
+  GitHub's larger warning refers to the default branch, not this release.
+- Local artifact folders: `test-results-release-route-inventory-local*`,
+  `test-results-release-preview-gate-local`, `test-results-release-storage-init-baseline`.
+  Accepted inventory data is embedded in the JSON report attachment.
+- Payment status remains unchanged: **Live capture/refund is untested**. The
+  owner restored Railway Hobby; see the separate backend deployment evidence.
+
+Preview `dpl_Hc7CysK2G1ULmihSvFGiTRKXs7wm` is READY at
+`https://dev-veggastare-jwpa7952p-v3ggas-projects.vercel.app`, assigned to the
+existing isolated Preview alias. Patch application, strict build/TypeScript and
+49 existing migrations (none pending) pass. The controlled outage passes there.
+
+Final Preview batch: **3/3 pass**, including 154 static-route observations.
+The earlier inventory failure on `/nexus/company/job-ask` was an execution-context
+destruction while its server redirect completed. Source explicitly redirects to
+`/jobs/post`; the audit now asserts that destination before measuring geometry.
+No general error swallowing/retries were added. Results are in
+`test-results-release-route-inventory-preview-final/results.json`.
+The first focused preview-gate check timed out waiting for global network idle;
+it now checks the unavailable heading and an enabled hydrated Open menu instead.
+A first readiness selector used the desktop Basket control, which is absent on
+mobile; corrected to the shared menu. The corrected three-size regression passes
+locally and on Preview (2/2 including setup each). Application code did not change
+for these test corrections.
+
+## Production deployment and verification
+
+Production `dpl_99ac3nJpvGP48cqbTZhg7BzNxY9p` (source `83b23bb`) built with
+the SDK patch applied, strict TypeScript passing and no pending migrations.
+It was promoted to `www.veggat.com`; Vercel inspect resolves that domain to this
+deployment. Live focused regressions pass **3/3** in 2.7 minutes, including
+154 static-route observations, the controlled storage outage and preview guard.
+Results: `test-results-release-route-inventory-live/results.json`.
+The redirect-aware local rerun also passes with 154 observations.
+
+Real Chrome confirms the product gallery moves to its second image; actual
+page scrolling reaches the footer below the specifications without overlapping
+content. At 390px the sticky add-to-basket control remains visible. The browser
+viewport override was reset. These are scoped observations, not complete
+all-button/all-role acceptance or a physical-phone keyboard test.
+
+An extra local fresh-demo checkout attempt was refused with the existing
+"Demo is busy" error before sign-in. A read-only isolated Preview DB check found
+eight demos today, grouped 5 and 3 per fingerprint; one group is at the existing
+five-per-day limit. No limit, fingerprint or account was changed to force a pass.
+That fresh-demo run is **not passing**, and this release does not claim a new
+full checkout acceptance result. Retained-session route checks pass. Actual
+uploads and owner Live capture/refund still require their separate acceptance.

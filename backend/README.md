@@ -1,8 +1,11 @@
 # Backend — Integration Core
 
-> Standalone Hapi.js service providing shipping, warehouse sync, and a stable versioned API surface.
+> Standalone Hapi.js shipping integration. Legacy warehouse writes/realtime are retired.
 
-The backend acts as an **Integration Core** — it owns external connectors (Bring shipping), real-time broadcasting (Socket.IO + Pusher), and database operations that need to stay framework-independent. The Next.js frontend in `frontend/` behaves like a **reference client**, consuming this API the same way any third-party integrator would.
+The backend isolates Bring shipping from the Next.js reference client. Current
+HTTP handlers do not open the application database or publish Pusher events.
+Warehouse mutations stay in the authenticated Next.js application. Do not enable
+the old socket prototype until a scoped authorization protocol is implemented.
 
 **Ports:** HTTP API on `3001`, WebSocket on `3002`
 
@@ -12,7 +15,7 @@ The backend acts as an **Integration Core** — it owns external connectors (Bri
 
 ```bash
 cd backend
-npm install
+npm ci
 cp .env.example .env   # Configure your env vars (see below)
 npm run dev             # Starts with nodemon + ts-node
 ```
@@ -24,6 +27,7 @@ npm run dev             # Starts with nodemon + ts-node
 | `dev` | `nodemon --watch src --ext ts --exec ts-node src/index.ts` | Hot-reload dev server |
 | `build` | `tsc` | Compile TypeScript to `dist/` |
 | `start` | `node dist/index.js` | Run production build |
+| `test` | Build, then Node test runner | Endpoint retirement, socket refusal, mock shipping |
 
 ---
 
@@ -59,7 +63,7 @@ backend/
 |-----------|---------|---------|
 | **Hapi.js** | ^21.3.10 | HTTP server framework |
 | **Socket.IO** | ^4.7.5 | WebSocket server (warehouse real-time sync) |
-| **Prisma Client** | ^6.16.3 | Database ORM |
+| **Prisma Client** | ^7.4.0 (lockfile: 7.8.0) | Legacy database modules; not loaded by current handlers |
 | **Pusher** | ^5.2.0 | Event broadcasting to frontend |
 | **Zod** | ^4.3.6 | Runtime input validation |
 | **TypeScript** | ^5.5.4 | Type safety |
@@ -76,18 +80,17 @@ All routes are prefixed with `/v1/`. Full spec in [openapi/v1.yaml](openapi/v1.y
 | `GET` | `/v1/health` | Health check (`{ ok, service, time }`) |
 | `POST` | `/v1/shipping/rates` | Get shipping rate options (Bring or mock) |
 | `GET` | `/v1/shipping/postal-codes/suggestions` | Postal code autocomplete |
-| `POST` | `/api/update` | Update warehouse inventory (legacy) |
-| `POST` | `/api/pusher/trigger` | Trigger a Pusher event |
+| `POST` | `/api/update` | Retired; 410, no database mutation |
+| `POST` | `/api/pusher-trigger` | Retired; 410, no broadcast |
 
-Preferred stable surface is `/v1/*`. Legacy routes under `/api/*` are retained for backward compatibility and should not be used for new integrations.
+Preferred surface is `/v1/*`. Retired routes always fail closed, including when
+database/Pusher credentials exist or requests supply an allowed Origin header.
 
 ### Input Validation
 
 All request payloads are validated with Zod schemas:
 - `shippingRatesSchema` — from/to postal codes, packages (dimensions/weight), language, customer number
-- `updateWarehouseSchema` — warehouseId, inventoryId, stock count
 - `postalSuggestionsSchema` — query string, country code, page number
-- `pusherTriggerSchema` — channel, event, data
 
 ---
 
@@ -102,12 +105,12 @@ All request payloads are validated with Zod schemas:
 | `BRING_API_UID` | Live only | — | Bring API user ID |
 | `BRING_SHIPPING_API_KEY` | Live only | — | Bring API key |
 | `BRING_CLIENT_URL` | No | `localhost` | Client URL for Bring headers |
-| `DATABASE_URL` | No | — | PostgreSQL connection string (for warehouse ops) |
+| `DATABASE_URL_MAINLIVE` | No | — | Legacy module only; not used by current HTTP/socket handlers |
 | `PUSHER_APP_ID` | No | — | Pusher app ID |
 | `PUSHER_KEY` | No | — | Pusher key |
 | `PUSHER_SECRET` | No | — | Pusher secret |
 | `PUSHER_CLUSTER` | No | — | Pusher cluster |
-| `CORS_ORIGINS` | Prod only | `*` | Comma-separated allowed origins |
+| `CORS_ORIGINS` | Prod browser access | Disabled in production; `*` in development | Comma-separated allowed origins; CORS is not authentication |
 | `LOG_REQUESTS` | No | `0` | Enable request logging (`1` to enable) |
 
 ---
@@ -129,22 +132,38 @@ Proxies requests to Bring's real API. Requires `BRING_API_UID` and `BRING_SHIPPI
 
 ## WebSocket Events
 
-The Socket.IO server on port 3002 handles real-time warehouse inventory synchronization:
-
-- **`warehouse:update`** — Broadcasts stock changes to all connected clients
-- **`warehouse:subscribe`** — Client subscribes to a specific warehouse's updates
+The old server on port 3002 refuses both polling and WebSocket handshakes.
+It no longer accepts client-triggered database reads or broadcasts inventory to
+public listeners. CORS alone is not authentication. Frontend Pusher features are
+separate and must enforce their own data-access boundaries.
 
 ---
 
 ## Deployment
 
-Deployed on **Railway** using the `Dockerfile`. The `railway.toml` configures the build and start commands.
+Configured for **Railway** using the `Dockerfile`, with `/backend` as the service
+root. The `railway.toml` configures the build, start command and `/v1/health` check.
+Configuration is not evidence of an active deployment: on 24 September 2026 the
+connected VeggaStare workspace showed an expired trial and no active deployment.
+
+The multi-stage image uses Node 22 on Debian Bookworm, runs the five backend
+security tests during its build, and starts the runtime as the non-root `node`
+user. Local environment files and host-generated Prisma output are excluded from
+the build context. No database or provider secrets are required to build it.
+
+```bash
+docker build -t veggat-backend:local .
+docker run --rm -p 127.0.0.1:3001:3001 -e BRING_MODE=mock veggat-backend:local
+```
+
+Use a different host port if your existing development server occupies 3001.
 
 Production considerations:
 - Set `NODE_ENV=production`
 - Configure `CORS_ORIGINS` to whitelist frontend domains
-- Set `BRING_MODE=live` with valid API credentials
-- Ensure `DATABASE_URL` points to production PostgreSQL
+- Keep `BRING_MODE=mock` for the showcase unless live shipping access controls,
+  provider limits and credentials have been separately verified.
+- No database/Pusher credentials are needed by the current backend runtime.
 
 ---
 
@@ -153,8 +172,8 @@ Production considerations:
 The frontend (`frontend/`) communicates with this backend via:
 
 1. **HTTP** — Server actions and API routes call `/v1/*` endpoints
-2. **Socket.IO** — Real-time warehouse stock updates
-3. **Pusher** — The backend triggers Pusher events that the frontend subscribes to for notifications, trade updates, and Pulse events
+2. **Socket.IO** — Legacy backend path paused; no active frontend caller found
+3. **Pusher** — Active application events are published by Next.js, not this service
 
 > See [frontend/README.md](../frontend/README.md) for the frontend side of this integration.
 

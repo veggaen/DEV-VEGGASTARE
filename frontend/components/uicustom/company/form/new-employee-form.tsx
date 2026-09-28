@@ -1,242 +1,66 @@
 'use client';
-
-import React, { useState, useRef, useCallback, useEffect, startTransition } from 'react';
-import { SubmitHandler, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { EmployeeRole, User, UserRole } from '@/generated/prisma/browser';
-import { employeeSchema } from '@/schemas';
-import { MyAddEmployeeAction } from '@/actions/create-company-employee';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { TEAM_ROLES, teamRoleLabel } from '@/lib/company-team-policy';
+import { submitTeamChange, TeamClientError } from '@/lib/company-team-client';
 import type { ExtendedEmployee } from '@/lib/types/company-management';
-
-
-interface MyNewEmployeeFormProps {
-  companyId: string;
-  handleNewEmployee?: (newEmployee: ExtendedEmployee) => void; // Correctly typed
-  change: boolean;
-  setChange: React.Dispatch<React.SetStateAction<boolean>>;
+type Candidate = { id: string; name: string; email?: string | null };
+export function MyNewEmployeeForm({ companyId, handleNewEmployee, allowedRoles = [...TEAM_ROLES], excludedUserIds = [] }: {
+  companyId: string; handleNewEmployee?: (employee: ExtendedEmployee) => void;
+  allowedRoles?: readonly string[]; excludedUserIds?: string[];
+}) {
+  const id = useId(), lock = useRef(false), searchSequence = useRef(0), input = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState(''), [users, setUsers] = useState<Candidate[]>([]), [selected, setSelected] = useState<Candidate | null>(null);
+  const [role, setRole] = useState('USER'), [jobTitle, setJobTitle] = useState('');
+  const [searching, setSearching] = useState(false), [open, setOpen] = useState(false), [highlight, setHighlight] = useState(-1);
+  const [pending, setPending] = useState(false), [blocked, setBlocked] = useState(false), [error, setError] = useState(''), [searchError, setSearchError] = useState(''), [success, setSuccess] = useState('');
+  useEffect(() => {
+    const sequence = ++searchSequence.current;
+    if (selected || query.trim().length < 2) { setUsers([]); setSearching(false); setSearchError(''); return; }
+    const controller = new AbortController(); setSearching(true); setSearchError(''); setUsers([]);
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/users/search?q=' + encodeURIComponent(query.trim()) + '&limit=10', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12_000)]) });
+        const result = await response.json();
+        if (!response.ok || !Array.isArray(result.users)) throw new Error('Search unavailable');
+        if (sequence === searchSequence.current && !controller.signal.aborted) { setUsers(result.users.filter((user: Candidate) => !excludedUserIds.includes(user.id))); setHighlight(-1); }
+      } catch { if (!controller.signal.aborted && sequence === searchSequence.current) setSearchError('Search could not load. Edit the name to try again.'); }
+      finally { if (sequence === searchSequence.current && !controller.signal.aborted) setSearching(false); }
+    }, 250);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [query, selected, excludedUserIds]);
+  const choose = (user: Candidate) => { setSelected(user); setQuery(user.name); setOpen(false); setError(''); };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); if (lock.current || blocked) return;
+    if (!selected) { setError('Select a person from the search results.'); input.current?.focus(); return; }
+    lock.current = true; setPending(true); setError(''); setSuccess('');
+    try {
+      const row = await submitTeamChange({ kind: 'add', companyId, userId: selected.id, role: role as typeof TEAM_ROLES[number], jobTitle });
+      if (row) handleNewEmployee?.(row);
+      setSuccess('Team member added.'); setSelected(null); setQuery(''); setJobTitle(''); setRole('USER');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to add member.'); setBlocked(cause instanceof TeamClientError && cause.refreshRequired); }
+    finally { lock.current = false; setPending(false); }
+  };
+  const field = 'min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  return <form onSubmit={submit} className="grid min-w-0 gap-4 md:grid-cols-2" aria-label="Add team member">
+    <div className="relative min-w-0 md:col-span-2" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <label htmlFor={id + 'search'} className="mb-2 block text-sm font-medium">Search user</label>
+      <input ref={input} id={id + 'search'} name="teamMemberSearch" autoComplete="off" spellCheck={false} maxLength={100} className={field} placeholder="Type a name…" role="combobox" aria-expanded={open && query.trim().length >= 2 && !selected} aria-controls={id + 'results'} aria-autocomplete="list" aria-activedescendant={open && highlight >= 0 ? id + 'option' + highlight : undefined} value={query} disabled={pending || blocked}
+        onFocus={() => setOpen(true)} onChange={event => { setSelected(null); setQuery(event.target.value); setUsers([]); setOpen(true); setHighlight(-1); setSuccess(''); }}
+        onKeyDown={event => {
+          if (event.key === 'Escape') { setOpen(false); return; }
+          if (open && users.length && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setHighlight(value => event.key === 'ArrowDown' ? (value + 1) % users.length : (value <= 0 ? users.length - 1 : value - 1)); }
+          if (event.key === 'Enter' && open && !selected) { event.preventDefault(); if (highlight >= 0 && users[highlight]) choose(users[highlight]); }
+        }} />
+      {open && query.trim().length >= 2 && !selected && <div className="absolute z-20 mt-2 max-h-48 w-full overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg">
+        <div role="listbox" id={id + 'results'} aria-label="Matching people">{users.map((user, index) => <button type="button" role="option" aria-selected={highlight === index} id={id + 'option' + index} key={user.id} onMouseDown={event => event.preventDefault()} onClick={() => choose(user)} className={'flex min-h-11 w-full min-w-0 flex-col items-start rounded-md px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring ' + (highlight === index ? 'bg-accent' : 'hover:bg-accent')}><span className="max-w-full truncate font-medium">{user.name}</span>{user.email && <span className="max-w-full truncate text-muted-foreground">{user.email}</span>}</button>)}</div>
+        {(searching || searchError || !users.length) && <p role={searchError ? 'alert' : 'status'} className="px-3 py-2 text-sm text-muted-foreground">{searching ? 'Searching…' : searchError || 'No matching people.'}</p>}
+      </div>}
+    </div>
+    <label className="space-y-2 text-sm font-medium"><span>Role</span><select name="newTeamRole" value={role} disabled={pending || blocked} onChange={event => setRole(event.target.value)} className={field}>{allowedRoles.map(value => <option key={value} value={value}>{teamRoleLabel(value)}</option>)}</select></label>
+    <label className="space-y-2 text-sm font-medium"><span>Job title (optional)</span><input name="teamJobTitle" autoComplete="off" maxLength={80} value={jobTitle} onChange={event => setJobTitle(event.target.value)} disabled={pending || blocked} className={field} /></label>
+    <div className="flex flex-wrap items-center gap-3 md:col-span-2"><Button type="submit" className="min-h-11" disabled={pending || blocked}>{pending ? 'Adding…' : 'Add employee'}</Button>{selected && <p className="min-w-0 break-words text-sm text-muted-foreground">Selected: {selected.name}</p>}</div>
+    {error && <p role="alert" className="text-sm text-destructive md:col-span-2">{error}</p>}
+    {success && <p role="status" className="text-sm text-brand-accent-hover dark:text-brand-accent-light md:col-span-2">{success}</p>}
+  </form>;
 }
-
-export const MyNewEmployeeForm: React.FC<MyNewEmployeeFormProps> = ({
-  companyId,
-  handleNewEmployee,
-  setChange,
-  change,
-}) => {
-  const clientUser = useCurrentUser();
-  const [users, setUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
-
-  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm({
-    resolver: zodResolver(employeeSchema),
-  });
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const response = await fetch('/api/users');
-      const data = await response.json();
-      setUsers(data);
-    };
-
-    fetchUsers();
-  }, []);
-
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const handleUserSelect = useCallback((user: User) => {
-    setSearchTerm(user.name || '');
-    setSelectedUser(user);
-    setValue('userId', user.id);
-    setShowDropdown(false);
-  }, [setValue]);
-
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-      setShowDropdown(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [handleClickOutside]);
-
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-    setShowDropdown(true);
-    //setShowDropdown((prevShowDropdown) => !prevShowDropdown);
-    setHighlightedIndex(null);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      if (highlightedIndex === null) {
-        setHighlightedIndex(0);
-      } else {
-        setHighlightedIndex((prevIndex) => (prevIndex !== null && prevIndex < users.length - 1 ? prevIndex + 1 : 0));
-      }
-    } else if (event.key === 'ArrowUp') { // Add handling for ArrowUp key
-      event.preventDefault();
-      if (highlightedIndex === null) {
-        setHighlightedIndex(users.length - 1);
-      } else {
-        setHighlightedIndex((prevIndex) => (prevIndex !== null && prevIndex > 0 ? prevIndex - 1 : users.length - 1));
-      }
-    } else if (event.key === 'Enter') {
-      event.preventDefault();
-      if (highlightedIndex !== null) {
-        handleUserSelect(users[highlightedIndex]);
-      } else if (users.length > 0) {
-        handleUserSelect(users[0]);
-      }
-    }
-  };
-
-  const forceReset = () => {
-    reset();
-    setSearchTerm('');
-    setSelectedUser(null);
-  };
-
-  if (isLoading) {
-    console.log('Adding new user to company... Loading...');
-  }
-
-  const onSubmit: SubmitHandler<Record<string, any>> = async (data) => {
-    const formData = { ...data, companyId, clientUser };
-
-    startTransition(() => {
-      setIsLoading(true);
-      MyAddEmployeeAction(formData)
-        .then((data) => {
-          if ('error' in data) {
-            setError(data.error)
-          }
-          if (data.success) {
-            setSuccess(data.message || '');
-            setChange(!change);
-            forceReset();
-          }
-          setTimeout(() => {
-            setSuccess('');
-            setError('');
-          }, 30000);
-        })
-        .catch((error) => {
-          console.error('Unexpected error occurred while adding employee:', error);
-          setError('An unexpected error occurred');
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    });
-  };
-
-  return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-5 border border-black/10 bg-white/40 p-5 backdrop-blur-sm transition-[border-radius,box-shadow,background-color] duration-200 hover:bg-white/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05] rounded-lg hover:rounded-2xl"
-    >
-      <div className="relative">
-        <label htmlFor="userSearch" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-          Search user
-        </label>
-        <input
-          id="userSearch"
-          type="text"
-          ref={searchInputRef}
-          placeholder="Type a name…"
-          value={searchTerm}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
-        />
-        {showDropdown && searchTerm && (
-          <div
-            ref={dropdownRef}
-            className="absolute z-10 mt-2 w-full overflow-auto rounded-lg border border-black/10 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-950 max-h-[160px]"
-          >
-            {users
-              .filter((user) => user.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map((user, index) => (
-                <div
-                  key={user.id}
-                  onClick={() => handleUserSelect(user)}
-                  className={
-                    "cursor-pointer px-3 py-2 text-sm text-zinc-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/[0.06] " +
-                    (highlightedIndex === index ? "bg-black/5 dark:bg-white/[0.06]" : "")
-                  }
-                >
-                  {user.name}
-                </div>
-              ))}
-            {users.length === 0 && (
-              <div className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">No users found</div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {selectedUser ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Selected</p>
-            <p className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-white">{selectedUser.name}</p>
-          </div>
-
-          <div>
-            <label htmlFor="roleSelect" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-              Role
-            </label>
-            <select
-              id="roleSelect"
-              {...register('role')}
-              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
-            >
-              {Object.values(EmployeeRole).map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-            {errors.role && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{`${errors.role.message}`}</p>}
-          </div>
-
-          <div className="md:col-span-2">
-            <label htmlFor="jobTitle" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
-              Job title (optional)
-            </label>
-            <input
-              id="jobTitle"
-              type="text"
-              placeholder="e.g. Operations Lead"
-              {...register('jobTitle')}
-              className="mt-1 h-10 w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-radius,box-shadow] focus:ring-2 focus:ring-sky-500/30 dark:border-white/10 dark:bg-zinc-900 dark:text-white hover:rounded-2xl"
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {error ? <div className="text-sm text-red-600 dark:text-red-400">{error}</div> : null}
-      {success ? <div className="text-sm text-emerald-700 dark:text-emerald-300">{success}</div> : null}
-
-      <button
-        type="submit"
-        disabled={!selectedUser || isLoading}
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-[border-radius,background-color,opacity] hover:bg-zinc-800 hover:rounded-2xl disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-white/90"
-      >
-        {isLoading ? 'Adding…' : 'Add Employee'}
-      </button>
-    </form>
-  );
-};

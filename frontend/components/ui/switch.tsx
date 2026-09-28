@@ -11,7 +11,8 @@ const Switch = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
     className={cn(
-      `peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 data-[state=checked]:bg-brand-accent data-[state=unchecked]:bg-black/30 dark:data-[state=unchecked]:bg-white/30`,
+      // Unchecked stays visible in both themes (a tinted track), checked is the accent.
+      `peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 data-[state=checked]:bg-brand-accent data-[state=unchecked]:bg-foreground/20`,
       className
     )}
     {...props}
@@ -19,7 +20,7 @@ const Switch = React.forwardRef<
   >
     <SwitchPrimitives.Thumb
       className={cn(
-        `pointer-events-none block h-5 w-5 rounded-full bg-black/50 dark:bg-white/50 shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0`
+        `pointer-events-none block h-5 w-5 rounded-full bg-card shadow-e1 ring-1 ring-foreground/10 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0`
       )}
     />
   </SwitchPrimitives.Root>

@@ -131,16 +131,16 @@ export function PersonalTaxSummary() {
     : 0;
 
   return (
-    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/20 overflow-hidden">
+    <div className="rounded-2xl border border-border/60 bg-surface-3/20 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-zinc-800/40 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-brand-accent/10 text-brand-accent">
             <Calculator className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-zinc-200">Crypto Tax Summary</h3>
-            <p className="text-[9px] text-zinc-500">Skatteetaten · RF-1159</p>
+            <h3 className="text-xs font-bold text-foreground/80">Crypto Tax Summary</h3>
+            <p className="text-[9px] text-muted-foreground">Skatteetaten · RF-1159</p>
           </div>
         </div>
 
@@ -149,7 +149,7 @@ export function PersonalTaxSummary() {
           <select
             value={taxYear}
             onChange={(e) => setTaxYear(Number(e.target.value))}
-            className="rounded-lg border border-zinc-700/60 bg-zinc-800/60 px-2 py-1 text-[10px] text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+            className="rounded-lg border border-border/60 bg-foreground/[0.07] px-2 py-1 text-[10px] text-foreground/80 focus:outline-none focus:ring-1 focus:ring-brand-accent/40"
           >
             {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
               <option key={y} value={y}>
@@ -164,8 +164,8 @@ export function PersonalTaxSummary() {
             onClick={() => setShowSettings((p) => !p)}
             className={`p-1.5 rounded-lg border transition-colors ${
               showSettings
-                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                : "border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
+                ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent"
+                : "border-border/60 text-muted-foreground hover:text-foreground/80"
             }`}
           >
             <FiSettings className="h-3 w-3" />
@@ -176,7 +176,7 @@ export function PersonalTaxSummary() {
             type="button"
             onClick={fetchSummary}
             disabled={loading}
-            className="p-1.5 rounded-lg border border-zinc-700/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground/80 transition-colors"
           >
             <FiRefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -190,10 +190,10 @@ export function PersonalTaxSummary() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-zinc-800/40"
+            className="overflow-hidden border-b border-border/40"
           >
             <div className="p-3 space-y-2">
-              <p className="text-[10px] text-zinc-400 font-semibold">Cost Basis Method</p>
+              <p className="text-[10px] text-muted-foreground font-semibold">Cost Basis Method</p>
               <div className="flex gap-2">
                 {(["FIFO", "AVERAGE"] as const).map((method) => (
                   <button
@@ -203,8 +203,8 @@ export function PersonalTaxSummary() {
                     disabled={savingMethod}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold border transition-colors ${
                       costBasisMethod === method
-                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                        : "border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
+                        ? "border-brand-accent/50 bg-brand-accent/10 text-brand-accent-light"
+                        : "border-border text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.05]"
                     }`}
                   >
                     {costBasisMethod === method && <FiCheck className="h-2.5 w-2.5" />}
@@ -212,7 +212,7 @@ export function PersonalTaxSummary() {
                   </button>
                 ))}
               </div>
-              <p className="text-[9px] text-zinc-600">
+              <p className="text-[9px] text-muted-foreground">
                 Both methods are accepted by Skatteetaten. FIFO is standard.
               </p>
             </div>
@@ -224,7 +224,7 @@ export function PersonalTaxSummary() {
       <div className="p-3 space-y-3">
         {loading ? (
           <div className="flex justify-center py-8">
-            <FiRefreshCw className="h-4 w-4 text-zinc-600 animate-spin" />
+            <FiRefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />
           </div>
         ) : error ? (
           <div className="text-center py-8">
@@ -232,9 +232,9 @@ export function PersonalTaxSummary() {
           </div>
         ) : !summary || summary.completedTradesCount === 0 ? (
           <div className="text-center py-8 space-y-2">
-            <FiFileText className="h-6 w-6 text-zinc-700 mx-auto" />
-            <p className="text-xs text-zinc-500">No trades for {taxYear}</p>
-            <p className="text-[10px] text-zinc-600">
+            <FiFileText className="h-6 w-6 text-foreground mx-auto" />
+            <p className="text-xs text-muted-foreground">No trades for {taxYear}</p>
+            <p className="text-[10px] text-muted-foreground">
               Trade records will appear here to help with tax reporting.
             </p>
           </div>
@@ -243,17 +243,17 @@ export function PersonalTaxSummary() {
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2">
               {/* Gains */}
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+              <div className="rounded-xl border border-brand-accent/20 bg-brand-accent/5 px-3 py-2">
                 <div className="flex items-center gap-1 mb-1">
-                  <TrendingUp className="h-3 w-3 text-emerald-400" />
-                  <span className="text-[9px] uppercase tracking-wider text-emerald-500 font-semibold">
+                  <TrendingUp className="h-3 w-3 text-brand-accent" />
+                  <span className="text-[9px] uppercase tracking-wider text-brand-accent font-semibold">
                     Gains
                   </span>
                 </div>
-                <p className="text-sm font-bold text-emerald-300">
+                <p className="text-sm font-bold text-brand-accent-light">
                   {formatNok(summary.totalGainNok)}
                 </p>
-                <p className="text-[9px] text-zinc-500">
+                <p className="text-[9px] text-muted-foreground">
                   {formatUsd(summary.totalGainUsd)}
                 </p>
               </div>
@@ -269,19 +269,19 @@ export function PersonalTaxSummary() {
                 <p className="text-sm font-bold text-red-300">
                   {formatNok(summary.totalLossNok)}
                 </p>
-                <p className="text-[9px] text-zinc-500">
+                <p className="text-[9px] text-muted-foreground">
                   {formatUsd(summary.totalLossUsd)}
                 </p>
               </div>
 
               {/* Net */}
-              <div className="rounded-xl border border-zinc-700/40 bg-zinc-800/30 px-3 py-2">
-                <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
+              <div className="rounded-xl border border-border/40 bg-foreground/[0.04] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
                   Net Gain/Loss
                 </p>
                 <p
                   className={`text-sm font-bold ${
-                    summary.netGainNok >= 0 ? "text-emerald-300" : "text-red-300"
+                    summary.netGainNok >= 0 ? "text-brand-accent-light" : "text-red-300"
                   }`}
                 >
                   {summary.netGainNok >= 0 ? "+" : ""}
@@ -300,14 +300,14 @@ export function PersonalTaxSummary() {
                 <p className="text-sm font-bold text-amber-300">
                   {formatNok(estimatedTaxNok)}
                 </p>
-                <p className="text-[9px] text-zinc-600">
+                <p className="text-[9px] text-muted-foreground">
                   Capital gains tax on crypto
                 </p>
               </div>
             </div>
 
             {/* Meta info */}
-            <div className="flex items-center justify-between text-[9px] text-zinc-500">
+            <div className="flex items-center justify-between text-[9px] text-muted-foreground">
               <span>{summary.completedTradesCount} completed trades</span>
               <span>
                 {summary.unexportedCount > 0
@@ -319,15 +319,15 @@ export function PersonalTaxSummary() {
             {/* Disclaimer */}
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
               <FiAlertTriangle className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-[9px] text-zinc-400 leading-relaxed">
+              <div className="text-[9px] text-muted-foreground leading-relaxed">
                 <p>
-                  <strong className="text-zinc-300">Estimation only</strong> — not
+                  <strong className="text-foreground/80">Estimation only</strong> — not
                   tax advice. Verify with{" "}
                   <a
                     href={SKATTEETATEN_CRYPTO_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-emerald-400 hover:underline inline-flex items-center gap-0.5"
+                    className="text-brand-accent hover:underline inline-flex items-center gap-0.5"
                   >
                     Skatteetaten
                     <FiExternalLink className="h-2 w-2" />
@@ -347,7 +347,7 @@ export function PersonalTaxSummary() {
                   "_blank"
                 );
               }}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-zinc-800/60 border border-zinc-700/60 py-2 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700/60 transition-colors"
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-foreground/[0.07] border border-border/60 py-2 text-[11px] font-semibold text-foreground/80 hover:bg-foreground/[0.07] transition-colors"
             >
               <FiDownload className="h-3 w-3" />
               Export {taxYear} Trade Data (JSON)

@@ -1,0 +1,44 @@
+/** @fileOverview Shared cart credit validation and authoritative display quotes for both cart endpoints. @stability experimental */
+import { z } from 'zod';
+import { SHOWCASE_PRODUCTS } from './showcase-catalog';
+import { DEFAULT_PURCHASE_CREDITS, isPurchasableCreditAmount, quoteCreditPurchase } from './ai-credit-purchase';
+import { MinorUnits, SettlementCurrency } from './payments/settlement-money';
+
+export const cartCreditAmountSchema = z.number().int().refine(isPurchasableCreditAmount).optional();
+export class CartCreditError extends Error {}
+export function creditCartData(productId: string, quantity: number, creditAmount?: number) {
+  if (productId !== SHOWCASE_PRODUCTS.credits.id) {
+    if (creditAmount !== undefined) throw new CartCreditError('Credit amounts apply only to AI credits.');
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000) throw new CartCreditError('Quantity must be between 1 and 1,000.');
+    return { quantity };
+  }
+  if (quantity !== 1) throw new CartCreditError('Enter the number of credits instead of changing pack quantity.');
+  const credits = creditAmount ?? DEFAULT_PURCHASE_CREDITS;
+  if (!cartCreditAmountSchema.safeParse(credits).success) throw new CartCreditError('Choose the 10-credit starter pack or a whole number from 100 to 10,000 credits.');
+  // Count-mode writes from either cart endpoint must supersede any previous
+  // exact-spend intent. Otherwise a later checkout could resurrect an old budget.
+  return { quantity: 1, creditAmount: credits, creditSpendMinor: null, creditSpendCurrency: null };
+}
+
+type StoredCartItem = { id: string; quantity: number; creditAmount?: number | null; updatedAt?: Date;
+  creditSpendMinor?: number | null; creditSpendCurrency?: string | null; Product: {
+  id: string; title: string; price: number; priceCurrency?: string; image: string[]; productType?: string;
+  shipFromPostalId?: string | null; freeShippingEnabled?: boolean; freeShippingThreshold?: number | null;
+} };
+export function cartItemDto(item: StoredCartItem) {
+  const isCredit = item.Product.id === SHOWCASE_PRODUCTS.credits.id;
+  const spend = item.creditSpendMinor != null || item.creditSpendCurrency != null;
+  if (spend && (!isCredit || item.quantity !== 1 || !MinorUnits.safeParse(item.creditSpendMinor).success || !item.creditSpendMinor ||
+      !SettlementCurrency.safeParse(item.creditSpendCurrency).success || (item.creditAmount ?? 0) < 100)) throw new CartCreditError('Saved credit amount is unavailable. Refresh your cart.');
+  const quote = isCredit ? quoteCreditPurchase(item.creditAmount ?? DEFAULT_PURCHASE_CREDITS) : null;
+  return { id: item.id, quantity: item.quantity,
+    ...(item.updatedAt ? { updatedAt: item.updatedAt.toISOString() } : {}),
+    ...(quote ? { creditAmount: quote.credits, ...(spend ? { creditSpendMinor: item.creditSpendMinor!, creditSpendCurrency: item.creditSpendCurrency! }
+      : { creditDiscountOre: quote.discountOre, creditSpendMinor: null, creditSpendCurrency: null }) } : {}),
+    product: { id: item.Product.id, title: item.Product.title,
+      price: spend ? item.creditSpendMinor! / 100 : quote ? quote.amountOre / 100 : item.Product.price,
+      priceCurrency: spend ? item.creditSpendCurrency! : quote ? 'NOK' : item.Product.priceCurrency ?? 'USD', image: item.Product.image ?? [],
+      productType: item.Product.productType, shipFromPostalId: item.Product.shipFromPostalId ?? undefined,
+      freeShippingEnabled: item.Product.freeShippingEnabled, freeShippingThreshold: item.Product.freeShippingThreshold ?? null,
+    } };
+}

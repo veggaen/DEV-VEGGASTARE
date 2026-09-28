@@ -94,6 +94,7 @@ export async function GET(
         id: o.id,
         createdAt: o.createdAt,
         totalAmount: o.totalAmount,
+        currency: o.currency,
         status: o.status,
         fulfilmentStatus: o.fulfilmentStatus,
         claimedByUserId: o.claimedByUserId,

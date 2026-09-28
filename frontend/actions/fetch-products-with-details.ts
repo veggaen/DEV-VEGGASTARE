@@ -1,7 +1,12 @@
-'use server';
+/** @fileOverview Internal bounded catalog read; API validates request parameters. @stability stable */
+import 'server-only';
 
 import { dbPrisma } from '@/lib/db';
 import type { ProductsListItem } from '@/lib/types/products';
+import { publicCatalogWhere } from '@/lib/public-catalog';
+import { catalogPriceWhere } from '@/lib/catalog-price-filter';
+import { getExchangeRates } from '@/lib/currency-rates';
+import { publicProductSpecifications } from '@/lib/product-specifications';
 
 const toIsoString = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString();
@@ -15,6 +20,7 @@ interface FetchProductsParams {
   categories: string[];
   minPrice: number;
   maxPrice?: number;  // make maxPrice optional
+  priceCurrency?: string;
   searchTerm: string;
   sellerIds?: string[]; // Add sellerIds as an optional property
 }
@@ -28,6 +34,7 @@ export const fetchProductsWithDetails = async ({
   categories,
   minPrice,
   maxPrice,
+  priceCurrency = 'USD',
   searchTerm,
   sellerIds = [], // Add sellerIds with a default empty array
 }: FetchProductsParams): Promise<ProductsListItem[]> => {
@@ -44,19 +51,12 @@ export const fetchProductsWithDetails = async ({
     const skip = (page - 1) * perPage;
 
     const whereClause: any = {
-      visibility: 'PUBLIC',
-      price: {
-        gte: minPrice,
-      },
-      OR: [
-        { productType: 'DIGITAL', downloadsEnabled: true },
-        { productType: 'HYBRID', downloadsEnabled: true, stock: { gt: 0 } },
-        { productType: 'PHYSICAL', stock: { gt: 0 } },
-      ],
+      ...publicCatalogWhere(),
+      AND: [],
     };
 
-    if (maxPrice !== undefined && maxPrice !== Infinity) {
-      whereClause.price.lte = maxPrice;
+    if (minPrice > 0 || (maxPrice !== undefined && Number.isFinite(maxPrice))) {
+      whereClause.AND.push(catalogPriceWhere(minPrice, maxPrice, priceCurrency, await getExchangeRates()));
     }
 
     if (categories.length > 0) {
@@ -159,11 +159,12 @@ export const fetchProductsWithDetails = async ({
         stock: typeof p.stock === 'number' ? p.stock : Number(p.stock),
         shipFromPostalId: String(p.shipFromPostalId),
         image: Array.isArray(p.image) ? p.image : [],
-        specifications: (p as any).specifications ?? null,
+        specifications: publicProductSpecifications(p.specifications),
         userId: String(p.userId),
         companyId: p.companyId ? String(p.companyId) : null,
         productType: p.productType ?? 'PHYSICAL',
         visibility: p.visibility ?? 'PUBLIC',
+        downloadsEnabled: p.downloadsEnabled,
         createdAt: toIsoString(p.createdAt),
         updatedAt: toIsoString(p.updatedAt),
         user,
@@ -183,6 +184,6 @@ export const fetchProductsWithDetails = async ({
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching products with details:`, error);
-    return [];
+    throw error;
   }
 };

@@ -15,8 +15,10 @@ import { MyAuthNewPasswordSchema } from '@/schemas';
 import { useSearchParams } from 'next/navigation';
 import { CardWrapper } from '@/components/uicustom/auth/card-wrapper';
 
-const MyLogPrefix = '[frontend/components/uicustom/auth/forms/new-password-form.tsx]'
+import { useClientReady } from '@/hooks/use-client-ready';
+
 export const MyNewPasswordForm = () => {
+  const ready = useClientReady();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
@@ -32,28 +34,19 @@ export const MyNewPasswordForm = () => {
   );
 
   const onSubmit = (values: z.infer<typeof MyAuthNewPasswordSchema>) => {
-    console.log(`${MyLogPrefix} onSubmit 1/2 (values)`, values)
-    let isMounted = true;
       setError('');
       setSuccess('');
-    startTransition(() => {
-      MyNewPasswordAction(values, token)
-      .then ((data) =>{
-        if (!isMounted) return;
+    startTransition(async () => {
+      try {
+        const data = await MyNewPasswordAction(values, token);
         if ('success' in data) {
           setSuccess(data.success)
-          console.log(`${MyLogPrefix} onSubmit 2/2 (success)`, data)
         }
         if ('error' in data){
-          if (!isMounted) return;
           setError(data.error)
-          console.log(`${MyLogPrefix} onSubmit 2/2 (data.error)`, data)
         }
-      })
+      } catch { setError('Password reset is temporarily unavailable. Please try again.'); }
     });
-    return () => {
-      isMounted = false;
-    };
   };
 
   return (
@@ -65,14 +58,14 @@ export const MyNewPasswordForm = () => {
       <Form {...form}>
         <form 
           onSubmit={form.handleSubmit(onSubmit)}
-          className='space-y-6'
+          className='space-y-6' aria-busy={!ready || isPending}
         >
           <div className='space-y-4'>
             <FormField control={form.control} name='password' render={({field}) => (
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled={isPending} placeholder='******' type='password'/>
+                    <Input {...field} disabled={!ready || isPending} placeholder='At least 8 characters' type='password' autoComplete='new-password' className='h-12 text-base'/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -80,8 +73,8 @@ export const MyNewPasswordForm = () => {
           </div>
           <MyFormError message={error}/>
           <MyFormSuccess message={success}/>
-          <Button type='submit' disabled={isPending} className='w-full' variant='vegaEmeraldBtn'>
-            Reset Password
+          <Button type='submit' disabled={!ready || isPending || Boolean(success)} className='w-full min-h-12' variant='vegaEmeraldBtn'>
+            {isPending ? 'Updating…' : 'Reset Password'}
           </Button>
         </form>
       </Form>

@@ -13,15 +13,23 @@ export type ExtendedUser = DefaultSession['user'] & {
     productsListed: Product[]
     reviews: Review[]
     isOAuth: boolean;
+    isDemo?: boolean;
     employee?: Employee[];
   	web3ModeEnabled: boolean;
     identityNameSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
     identityImageSource?: 'AUTO' | 'MANUAL' | 'GOOGLE' | 'GITHUB' | 'DISCORD';
     emailDisplayMode?: 'PRIMARY' | 'HIDE';
+    /** How this session signed in; resolves the AUTO picture/name source. */
+    lastAuthProvider?: 'google' | 'github' | 'discord';
     /** Impersonation – present when an OWNER is viewing as another user */
     isImpersonating?: boolean;
     impersonatingFromId?: string;
     impersonatingFromName?: string;
+    sessionVersion?: number;
+    impersonationOwnerVersion?: number;
+    impersonationStartedAt?: number;
+    impersonationExpiresAt?: number;
+    impersonationSessionId?: string;
 }
 
 declare module "next-auth" {

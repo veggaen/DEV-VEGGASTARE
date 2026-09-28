@@ -4,9 +4,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { authErrorMessage } from '@/lib/auth-errors';
+import { isOAuthProvider, OAUTH_PROVIDERS, oauthLinkState, oauthLinkFeedback, type OAuthProvider } from '@/lib/oauth-link-state';
+import { confirmOauthLink, resendOauthConfirmation, unlinkOauthProvider } from '@/actions/oauth-links';
+import { SectionHeader } from '@/components/uicustom/settings/settings-primitives';
 import {
   FiCheckCircle, FiCircle, FiRefreshCw, FiArrowRight,
   FiMail, FiSmartphone, FiShield, FiLock, FiXCircle,
@@ -39,14 +43,14 @@ interface VerificationData {
 // ─── Tier display metadata ───────────────────────────────────────────────────
 
 const TIER_DISPLAY: Record<string, { label: string; icon: string; color: string; description: string }> = {
-  ANONYMOUS:        { label: 'Anonymous',         icon: '👤', color: '#6b7280', description: 'Not logged in'                   },
+  ANONYMOUS:        { label: 'Unverified',        icon: '👤', color: '#6b7280', description: 'No verification tier recorded yet' },
   WALLET_ONLY:      { label: 'Wallet Connected',  icon: '🔗', color: '#8b5cf6', description: 'Web3 wallet connected'           },
   WEB2_BASIC:       { label: 'Email Verified',    icon: '📧', color: '#3b82f6', description: 'Email address confirmed'          },
   WEB3_BASIC:       { label: 'Web3 Basic',        icon: '⛓️', color: '#7c3aed', description: 'Wallet with signed message'      },
   SOCIAL_BASIC:     { label: 'Social Connected',  icon: '🔵', color: '#06b6d4', description: 'Discord or GitHub OAuth'         },
   SOCIAL_VERIFIED:  { label: 'Social Verified',   icon: '✓',  color: '#10b981', description: 'Google OAuth verified'           },
   MULTI_SOCIAL:     { label: 'Multi-Social',      icon: '🔗', color: '#14b8a6', description: '2+ OAuth providers linked'       },
-  WEB2_PAYMENT:     { label: 'Payment Verified',  icon: '💳', color: '#f59e0b', description: 'Card payment on file'            },
+  WEB2_PAYMENT:     { label: 'Payment Verified',  icon: '💳', color: '#f59e0b', description: 'Verified Live PayPal purchase'   },
   WEB3_VERIFIED:    { label: 'Web3 Verified',     icon: '🏆', color: '#8b5cf6', description: 'Google + Verified wallet'        },
   WEB3_PAYMENT:     { label: 'Crypto Payments',   icon: '₿',  color: '#f97316', description: 'Crypto transaction verified'     },
   PAYMENT_VERIFIED: { label: 'Full Payment',      icon: '💰', color: '#eab308', description: 'Multiple payment methods'        },
@@ -78,8 +82,8 @@ const CHECKLIST: ChecklistItem[] = [
   { key: 'hasGithubAuth',      label: 'Link GitHub',            description: 'Connect your GitHub account',                   points: 12,  icon: '⚫', action: 'github' },
   { key: 'hasDiscordAuth',     label: 'Link Discord',           description: 'Connect your Discord account',                  points: 10,  icon: '🟣', action: 'discord' },
   { key: 'hasVerifiedWallet',  label: 'Verify Wallet',          description: 'Connect and sign with your crypto wallet',      points: 15,  icon: '⛓️', action: 'wallet' },
-  { key: 'hasWeb2Payment',     label: 'Make a Card Purchase',   description: 'Complete a purchase with Vipps/Klarna/PayPal',  points: 15,  icon: '💳', action: 'purchase' },
-  { key: 'hasWeb3Payment',     label: 'Make a Crypto Purchase', description: 'Complete a purchase with cryptocurrency',       points: 15,  icon: '₿',  action: 'purchase' },
+  { key: 'hasWeb2Payment',     label: 'Make a PayPal Purchase', description: 'Complete a verified PayPal purchase',          points: 15,  icon: '💳', action: 'purchase' },
+  { key: 'hasWeb3Payment',     label: 'Crypto payment verification', description: 'Unavailable — server verification is not configured', points: 15, icon: '₿' },
   { key: 'phoneVerified',      label: 'Verify Phone',           description: 'Confirm your phone number via SMS',             points: 20,  icon: '📱', action: 'phone' },
   { key: 'isTwoFactorEnabled', label: 'Enable 2FA',             description: 'Enable two-factor authentication',              points: 5,   icon: '🔐', action: '2fa' },
 ];
@@ -171,8 +175,10 @@ function PhoneVerificationFlow({
         <div className="flex gap-2">
           <select
             value={countryCode}
+            aria-label="Country calling code"
+            autoComplete="tel-country-code"
             onChange={(e) => setCountryCode(e.target.value)}
-            className="w-24 rounded-lg border border-border bg-white/70 px-2 py-2 text-sm dark:bg-white/5 dark:border-white/10"
+            className="w-24 rounded-lg border border-border bg-surface-1/70 px-2 py-2 text-sm dark:bg-foreground/[0.05]"
           >
             <option value="+47">🇳🇴 +47</option>
             <option value="+46">🇸🇪 +46</option>
@@ -183,9 +189,13 @@ function PhoneVerificationFlow({
           </select>
           <Input
             value={phone}
+            aria-label="Phone number"
+            type="tel"
+            autoComplete="tel-national"
+            inputMode="tel"
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
             placeholder="Phone number"
-            className="flex-1 bg-white/70 border-border dark:bg-white/5 dark:border-white/10"
+            className="flex-1 bg-surface-1/70 border-border dark:bg-foreground/[0.05]"
             maxLength={15}
           />
         </div>
@@ -193,7 +203,7 @@ function PhoneVerificationFlow({
           size="sm"
           onClick={handleSend}
           disabled={isPending || cooldown > 0}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
+          className="w-full bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
         >
           {isPending ? 'Sending...' : cooldown > 0 ? `Retry in ${cooldown}s` : 'Send Code'}
         </Button>
@@ -205,12 +215,15 @@ function PhoneVerificationFlow({
     <div className="space-y-3 mt-3">
       <Input
         value={code}
+        aria-label="Verification code"
+        autoComplete="one-time-code"
+        inputMode="numeric"
         onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
         placeholder="6-digit code"
-        className="text-center text-lg tracking-widest bg-white/70 border-border dark:bg-white/5 dark:border-white/10"
+        className="text-center text-lg tracking-widest bg-surface-1/70 border-border dark:bg-foreground/[0.05]"
         maxLength={6}
       />
-      <p className="text-xs text-muted-foreground dark:text-white/40">
+      <p className="text-xs text-muted-foreground">
         {attemptsRemaining} attempt{attemptsRemaining !== 1 ? 's' : ''} remaining
       </p>
       <div className="flex gap-2">
@@ -226,7 +239,7 @@ function PhoneVerificationFlow({
           size="sm"
           onClick={handleVerify}
           disabled={isPending || code.length !== 6}
-          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+          className="flex-1 bg-brand-accent-hover hover:bg-brand-accent text-brand-accent-foreground"
         >
           {isPending ? 'Verifying...' : 'Verify'}
         </Button>
@@ -253,16 +266,22 @@ export function VerificationDashboard() {
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<Record<string, boolean>>({});
   const [unlinking, setUnlinking] = useState<string | null>(null);
+  const [linking, setLinking] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const reducedMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledOauthFeedbackRef = useRef(false);
+  const oauthToken = searchParams.get('oauthToken');
+  const denyLink = searchParams.get('oauthIntent') === 'deny';
 
   const fetchVerification = useCallback(async () => {
     try {
-      const res = await fetch('/api/users/verification');
+      const res = await fetch('/api/users/verification', { cache: 'no-store' });
       if (!res.ok) throw new Error();
       const json = await res.json();
       setData(json);
+      return json as VerificationData;
     } catch {
       toast.error('Failed to load verification data');
     } finally {
@@ -299,7 +318,7 @@ export function VerificationDashboard() {
 
   // Handle OAuth error redirects (from proxy.ts intercept) and email-confirmed links
   useEffect(() => {
-    if (handledOauthFeedbackRef.current) return;
+    if (handledOauthFeedbackRef.current || !data) return;
 
     const oauthError   = searchParams.get('oauthError');
     const oauthConfirm = searchParams.get('oauthConfirm');
@@ -308,71 +327,57 @@ export function VerificationDashboard() {
     handledOauthFeedbackRef.current = true;
 
     if (oauthError) {
-      const errorMessageMap: Record<string, string> = {
-        OAuthCallbackError: 'OAuth callback failed. Check provider credentials and callback URL configuration.',
-        CallbackRouteError: 'OAuth provider rejected the callback. This often means invalid client ID/secret.',
-        AccessDenied:       'OAuth access was denied by the provider.',
-        Configuration:      'OAuth configuration error. Check provider credentials.',
-      };
-      toast.error(errorMessageMap[oauthError] || `OAuth linking failed: ${oauthError}`);
+      setFeedback(authErrorMessage(oauthError) ?? 'Linking did not finish. Please try again.');
     }
 
     if (oauthConfirm) {
-      if (oauthConfirm === 'expired') {
-        toast.error('Confirmation link has expired. Please link the provider again.');
-      } else if (oauthConfirm === 'invalid') {
-        toast.error('Invalid confirmation link.');
-      } else if (oauthConfirm === 'denied') {
-        toast.warning('Account link denied. The OAuth account has been removed from your profile.');
-      } else {
-        // oauthConfirm = provider name (e.g. "discord")
-        const label = oauthConfirm.charAt(0).toUpperCase() + oauthConfirm.slice(1);
-        toast.success(`${label} linked and verified! Your score has been updated.`);
-        fetchVerification();
-      }
+      setFeedback(isOAuthProvider(oauthConfirm) ? oauthLinkFeedback(oauthConfirm, data)
+        : oauthConfirm === 'denied' ? 'Review your connected accounts below.'
+        : 'This confirmation link is invalid or expired. Request a new confirmation email.');
     }
 
     router.replace('/settings?section=verification', { scroll: false });
-  }, [fetchVerification, router, searchParams]);
+  }, [data, router, searchParams]);
 
   // Detect that user just returned from Discord/GitHub/Google OAuth flow
   useEffect(() => {
-    const pending = sessionStorage.getItem('pendingOauthLink');
-    if (!pending) return;
+    if (!data || searchParams.get('oauthError') || searchParams.get('oauthConfirm')) return;
+    try {
+      const pending = sessionStorage.getItem('pendingOauthLink');
+      sessionStorage.removeItem('pendingOauthLink');
+      if (isOAuthProvider(pending)) setFeedback(oauthLinkFeedback(pending, data));
+    } catch { /* Storage may be disabled; server state still renders correctly. */ }
+  }, [data, searchParams]);
 
-    fetch('/api/users/verification')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (!json) return;
-        sessionStorage.removeItem('pendingOauthLink');
-        // Check if this provider is now pending (email sent) or already confirmed
-        const isPending  = (json.pendingProviders ?? []).includes(pending);
-        const flagKey    = `has${pending.charAt(0).toUpperCase() + pending.slice(1)}Auth` as keyof typeof json.flags;
-        const isVerified = json.flags?.[flagKey] === true;
+  const handleEmailConfirmation = async () => {
+    if (!oauthToken || linking) return;
+    setLinking('confirmation');
+    try {
+      const result = await confirmOauthLink({ token: oauthToken, deny: denyLink });
+      if (!result.ok) { setFeedback(result.error); return; }
+      setFeedback(`${OAUTH_PROVIDERS[result.provider].label} ${denyLink ? 'was disconnected.' : 'is now verified.'}`);
+      router.replace('/settings?section=verification', { scroll: false });
+      await fetchVerification();
+    } catch { setFeedback('The link could not be updated. Please try again.'); }
+    finally { setLinking(null); }
+  };
 
-        if (isPending) {
-          const label = pending.charAt(0).toUpperCase() + pending.slice(1);
-          toast.info(`Check your email to confirm the ${label} link — it will show yellow until verified.`);
-          setData(json);
-        } else if (isVerified) {
-          const label = pending.charAt(0).toUpperCase() + pending.slice(1);
-          toast.success(`${label} linked and verified!`);
-          setData(json);
-        } else {
-          toast.info('Provider linking was not completed. Try again if needed.');
-        }
-      })
-      .catch(() => sessionStorage.removeItem('pendingOauthLink'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleResend = async (provider: OAuthProvider) => {
+    if (linking) return;
+    setLinking(provider);
+    try {
+      const result = await resendOauthConfirmation(provider);
+      setFeedback(result.ok ? result.verified ? `${OAUTH_PROVIDERS[provider].label} is already verified.`
+        : 'Confirmation email requested. Check your inbox and spam folder.' : result.error);
+      await fetchVerification();
+    } catch { setFeedback('The confirmation email could not be sent. Please try again shortly.'); }
+    finally { setLinking(null); }
+  };
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
-      const res = await fetch('/api/users/verification', { method: 'POST' });
-      if (!res.ok) throw new Error();
-      toast.success('Verification recalculated');
-      await fetchVerification();
+      if (await fetchVerification()) toast.success('Verification refreshed');
     } catch {
       toast.error('Recalculation failed');
     } finally {
@@ -381,19 +386,13 @@ export function VerificationDashboard() {
   };
 
   const handleUnlink = async (provider: string) => {
-    const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+    if (!isOAuthProvider(provider)) return;
+    const label = OAUTH_PROVIDERS[provider].label;
     if (!confirm(`Unlink ${label}? This will remove the OAuth connection and lower your verification score.`)) return;
     setUnlinking(provider);
     try {
-      const res = await fetch('/api/auth/unlink-oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || 'Failed to unlink');
-      }
+      const result = await unlinkOauthProvider(provider);
+      if (!result.ok) { setFeedback(result.error); return; }
       toast.success(`${label} unlinked successfully`);
       await fetchVerification();
     } catch (err) {
@@ -403,7 +402,7 @@ export function VerificationDashboard() {
     }
   };
 
-  const handleAction = (item: ChecklistItem) => {
+  const handleAction = async (item: ChecklistItem) => {
     const verificationCallbackUrl = '/settings?section=verification';
     const requireProvider = (provider: 'google' | 'github' | 'discord') => {
       if (!availableProviders[provider]) {
@@ -413,31 +412,25 @@ export function VerificationDashboard() {
       return true;
     };
 
+    if (isOAuthProvider(item.action)) {
+      if (linking || !requireProvider(item.action)) return;
+      setLinking(item.action);
+      try {
+        try { sessionStorage.setItem('pendingOauthLink', item.action); } catch { /* Optional UI hint. */ }
+        await signIn(item.action, { callbackUrl: verificationCallbackUrl });
+      } catch { setFeedback('Could not start account linking. Please try again.'); setLinking(null); }
+      return;
+    }
     switch (item.action) {
-      case 'google':
-        if (!requireProvider('google')) break;
-        sessionStorage.setItem('pendingOauthLink', 'google');
-        signIn('google', { callbackUrl: verificationCallbackUrl });
-        break;
-      case 'github':
-        if (!requireProvider('github')) break;
-        sessionStorage.setItem('pendingOauthLink', 'github');
-        signIn('github', { callbackUrl: verificationCallbackUrl });
-        break;
-      case 'discord':
-        if (!requireProvider('discord')) break;
-        sessionStorage.setItem('pendingOauthLink', 'discord');
-        signIn('discord', { callbackUrl: verificationCallbackUrl });
-        break;
       case 'wallet':
-        window.location.href = '/settings?section=wallet';
+        router.push('/settings?section=wallet');
         toast.info('Connect and verify your wallet in the Wallet section');
         break;
       case 'purchase':
-        window.location.href = '/products';
+        router.push('/products');
         break;
       case '2fa':
-        window.location.href = '/settings?section=security';
+        router.push('/settings?section=security');
         break;
       case 'phone':
         setExpandedAction(expandedAction === 'phone' ? null : 'phone');
@@ -448,15 +441,15 @@ export function VerificationDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-white/5 rounded-xl" />
-        <div className="h-48 bg-white/5 rounded-xl" />
+        <div className="h-32 bg-foreground/[0.05] rounded-xl" />
+        <div className="h-48 bg-foreground/[0.05] rounded-xl" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="text-center py-12 text-muted-foreground dark:text-white/40">
+      <div className="text-center py-12 text-muted-foreground">
         <p>Unable to load verification data.</p>
         <Button variant="outline" size="sm" onClick={fetchVerification} className="mt-4">
           Retry
@@ -467,43 +460,47 @@ export function VerificationDashboard() {
 
   const tierInfo = TIER_DISPLAY[data.tier] ?? TIER_DISPLAY.ANONYMOUS;
   const tierIndex = TIER_ORDER.indexOf(data.tier);
-  const completedSteps = CHECKLIST.filter(i => data.flags[i.key]).length;
+  const completedSteps = CHECKLIST.filter(i => isOAuthProvider(i.action) ? oauthLinkState(i.action, data) === 'verified' : data.flags[i.key]).length;
   const totalSteps = CHECKLIST.length;
 
   return (
     <div className="space-y-6">
+      {feedback && <p role="status" aria-live="polite" className="rounded-xl border border-border bg-foreground/[0.05] p-4 text-sm text-foreground">{feedback}</p>}
+      {oauthToken && (
+        <section aria-label="Review account link" className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <h3 className="font-semibold">{denyLink ? 'Remove this account link?' : 'Confirm this account link?'}</h3>
+          <p className="text-sm text-muted-foreground">Continue only if you requested this change. Opening the email link does not change your account.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" disabled={Boolean(linking)} onClick={handleEmailConfirmation} className="min-h-11">{linking === 'confirmation' ? 'Updating…' : denyLink ? 'Remove account link' : 'Confirm account link'}</Button>
+            <Button type="button" variant="outline" disabled={Boolean(linking)} onClick={() => router.replace('/settings?section=verification', { scroll: false })} className="min-h-11">Cancel</Button>
+          </div>
+        </section>
+      )}
       {/* Header */}
-      <div className="border-b border-border pb-6 dark:border-white/10">
-        <h2 className="text-xl font-semibold text-foreground dark:text-white flex items-center gap-2">
-          <FiShield className="text-emerald-500" />
-          Verification & Trust
-        </h2>
-        <p className="text-sm text-muted-foreground dark:text-white/50 mt-1">
-          Increase your verification level to boost your Reach multiplier and unlock more features
-        </p>
-      </div>
+      <SectionHeader icon={FiShield} title="Verification & Trust" description="Raise your verification level to boost your Reach multiplier and unlock more features." />
 
       {/* Tier Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border p-6"
+        transition={{ duration: 0.18 }}
+        className="relative overflow-hidden rounded-2xl border p-4 sm:p-5"
         style={{
           borderColor: tierInfo.color + '40',
           background: `linear-gradient(135deg, ${tierInfo.color}08, ${tierInfo.color}15)`,
         }}
       >
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div
-              className="flex items-center justify-center w-16 h-16 rounded-2xl text-3xl"
+              className="flex size-12 items-center justify-center rounded-xl text-2xl"
               style={{ backgroundColor: tierInfo.color + '20' }}
             >
               {tierInfo.icon}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold" style={{ color: tierInfo.color }}>
+                <h3 className="text-base font-semibold" style={{ color: tierInfo.color }}>
                   {tierInfo.label}
                 </h3>
                 <span
@@ -516,7 +513,7 @@ export function VerificationDashboard() {
                   {data.multiplier}x
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground dark:text-white/50 mt-0.5">
+              <p className="text-sm text-muted-foreground mt-0.5">
                 {tierInfo.description}
               </p>
             </div>
@@ -528,35 +525,36 @@ export function VerificationDashboard() {
             onClick={handleRecalculate}
             disabled={isRecalculating}
             className="text-muted-foreground hover:text-foreground"
-            title="Recalculate verification tier"
+            title="Refresh verification"
+            aria-label="Refresh verification"
           >
             <FiRefreshCw className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
         {/* Score progress bar */}
-        <div className="mt-5">
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-muted-foreground dark:text-white/40">
+        <div className="mt-3">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground">
               Verification Score
             </span>
             <span className="font-mono font-bold" style={{ color: tierInfo.color }}>
               {data.score}/100
             </span>
           </div>
-          <div className="w-full h-2.5 bg-white/10 dark:bg-white/5 rounded-full overflow-hidden">
+          <div className="w-full h-2.5 bg-foreground/[0.05] rounded-full overflow-hidden">
             <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${data.score}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
+              initial={false}
+              animate={{ scaleX: Math.max(0, Math.min(1, data.score / 100)) }}
+              transition={{ duration: reducedMotion ? 0 : 0.18 }}
               className="h-full rounded-full"
-              style={{ backgroundColor: tierInfo.color }}
+              style={{ backgroundColor: tierInfo.color, transformOrigin: 'left' }}
             />
           </div>
         </div>
 
         {/* Tier Progress Strip */}
-        <div className="mt-4 flex items-center gap-1">
+        <div className="mt-3 flex items-center gap-1">
           {TIER_ORDER.map((t, i) => {
             const info = TIER_DISPLAY[t];
             const isCurrent = t === data.tier;
@@ -570,7 +568,7 @@ export function VerificationDashboard() {
                 ).toFixed(2)}x`}
               >
                 <div
-                  className={`h-1.5 rounded-full transition-all ${
+                  className={`h-1.5 rounded-full transition ${
                     isCurrent ? 'ring-2 ring-offset-1' : ''
                   }`}
                   style={{
@@ -589,65 +587,65 @@ export function VerificationDashboard() {
             );
           })}
         </div>
-        <div className="flex justify-between text-[10px] text-muted-foreground dark:text-white/30 mt-1">
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
           <span>0.1x</span>
           <span>1.2x</span>
         </div>
       </motion.div>
 
-      {/* Verification Checklist */}
+      {/* Verification Checklist: two columns on wide screens so the whole list fits one view */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground dark:text-white/80 mb-3">
-          Verification Checklist — {completedSteps}/{totalSteps} complete
+        <h3 className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <span>Checklist</span><span className="tabular-nums">{completedSteps}/{totalSteps} complete</span>
         </h3>
-
+        <div className="grid gap-2 lg:grid-cols-2">
         {CHECKLIST.map((item) => {
-          const isComplete = data.flags[item.key];
+          const provider = isOAuthProvider(item.action) ? item.action : null;
+          const providerState = provider ? oauthLinkState(provider, data) : null;
+          const isComplete = provider ? providerState === 'verified' : data.flags[item.key];
           // Yellow/pending: OAuth provider linked but email confirmation not yet clicked
-          const isPending  = !isComplete &&
-            (item.action === 'google' || item.action === 'github' || item.action === 'discord') &&
-            (data.pendingProviders ?? []).includes(item.action);
+          const isPending = providerState === 'pending' || providerState === 'unconfirmed';
           const isExpanded = expandedAction === item.action;
 
           return (
             <div key={item.key}>
               <div
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                className={`flex min-h-12 flex-wrap items-center gap-2.5 rounded-xl border px-3 py-2 transition-colors ${
                   isComplete
-                    ? 'bg-emerald-500/5 border-emerald-500/20'
+                    ? 'bg-brand-accent/5 border-brand-accent/20'
                     : isPending
-                      ? 'bg-yellow-500/5 border-yellow-500/30 dark:bg-yellow-500/5 dark:border-yellow-500/25'
-                      : 'bg-white/50 border-border hover:border-blue-500/30 dark:bg-white/2 dark:border-white/10 dark:hover:border-white/20'
+                      ? 'bg-amber-500/5 border-amber-500/30'
+                      : 'bg-card/60 border-border/60 hover:border-brand-accent/40'
                 }`}
               >
                 {/* Status icon */}
                 <div className="shrink-0">
                   {isComplete ? (
-                    <FiCheckCircle className="w-5 h-5 text-emerald-500" />
+                    <FiCheckCircle className="size-4 text-brand-accent" />
                   ) : isPending ? (
-                    <FiCheckCircle className="w-5 h-5 text-yellow-500" />
+                    <FiMail className="size-4 text-amber-600 dark:text-amber-400" />
                   ) : (
-                    <FiCircle className="w-5 h-5 text-muted-foreground/40 dark:text-white/20" />
+                    <FiCircle className="size-4 text-muted-foreground/40" />
                   )}
                 </div>
 
                 {/* Icon */}
-                <span className="text-lg shrink-0">{item.icon}</span>
+                <span className="shrink-0 text-base leading-none">{item.icon}</span>
 
                 {/* Label & description */}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${
                     isComplete
-                      ? 'text-emerald-600 dark:text-emerald-400 line-through'
+                      ? 'text-brand-accent-hover dark:text-brand-accent-light line-through'
                       : isPending
-                        ? 'text-yellow-600 dark:text-yellow-400'
-                        : 'text-foreground dark:text-white/90'
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-foreground'
                   }`}>
                     {item.label}
                   </p>
-                  <p className="text-xs text-muted-foreground dark:text-white/40 truncate">
+                  <p className="text-xs text-muted-foreground">
                     {isPending
-                      ? '📧 Confirmation email sent — check inbox (and spam folder)'
+                      ? providerState === 'pending' ? 'Email confirmation required' : 'Connected · not yet verified'
                       : isComplete && (item.action === 'google' || item.action === 'github' || item.action === 'discord')
                         ? `Linked and verified ✓`
                         : item.description}
@@ -655,12 +653,12 @@ export function VerificationDashboard() {
                 </div>
 
                 {/* Points badge */}
-                <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] ${
                   isComplete
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                     : isPending
-                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                      : 'bg-white/80 text-muted-foreground dark:bg-white/5 dark:text-white/40'
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                      : 'bg-surface-1/80 text-muted-foreground dark:bg-foreground/[0.05]'
                 }`}>
                   +{item.points}
                 </span>
@@ -671,9 +669,20 @@ export function VerificationDashboard() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleAction(item)}
-                    className="shrink-0 text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                    disabled={Boolean(linking)}
+                    className="h-9 min-h-9 shrink-0 px-2.5 text-xs text-brand-accent-hover hover:bg-brand-accent/10 dark:text-brand-accent-light"
                   >
-                    {item.action === 'phone' && isExpanded ? 'Close' : 'Start'}
+                    {linking === item.action
+                      ? 'Opening…'
+                      : item.action === 'phone'
+                        ? (isExpanded ? 'Close' : 'Verify phone')
+                        : item.action === 'wallet'
+                          ? 'Verify wallet'
+                          : item.action === 'purchase'
+                            ? 'Shop now'
+                            : item.action === '2fa'
+                              ? 'Enable 2FA'
+                              : `Link ${OAUTH_PROVIDERS[item.action].label}`}
                     <FiArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 )}
@@ -684,10 +693,12 @@ export function VerificationDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleAction(item)}
-                      className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                      onClick={() => provider && handleResend(provider)}
+                      disabled={Boolean(linking)}
+                      aria-label={`Send ${provider ? OAUTH_PROVIDERS[provider].label : ''} confirmation email`}
+                      className="h-9 min-h-9 px-2.5 text-xs text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
                     >
-                      Resend
+                      {linking === provider ? 'Sending…' : 'Send email'}
                       <FiMail className="w-3.5 h-3.5 ml-1" />
                     </Button>
                     <Button
@@ -695,10 +706,11 @@ export function VerificationDashboard() {
                       size="sm"
                       onClick={() => handleUnlink(item.action!)}
                       disabled={unlinking === item.action}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="size-9 min-h-9 min-w-9 p-0 text-destructive hover:bg-destructive/10"
                       title="Cancel pending link"
+                      aria-label={`Disconnect ${provider ? OAUTH_PROVIDERS[provider].label : ''}`}
                     >
-                      {unlinking === item.action ? '...' : <FiXCircle className="w-3.5 h-3.5" />}
+                      {unlinking === item.action ? '…' : <FiXCircle className="w-3.5 h-3.5" />}
                     </Button>
                   </div>
                 )}
@@ -710,9 +722,10 @@ export function VerificationDashboard() {
                     size="sm"
                     onClick={() => handleUnlink(item.action!)}
                     disabled={unlinking === item.action}
-                    className="shrink-0 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 text-xs"
+                    aria-label={`Disconnect ${provider ? OAUTH_PROVIDERS[provider].label : ''}`}
+                    className="h-9 min-h-9 shrink-0 px-2.5 text-xs text-destructive hover:bg-destructive/10"
                   >
-                    {unlinking === item.action ? '...' : 'Unlink'}
+                    {unlinking === item.action ? '…' : 'Unlink'}
                   </Button>
                 )}
               </div>
@@ -727,7 +740,7 @@ export function VerificationDashboard() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden px-3 pb-3"
                   >
-                    <div className="ml-11 border-l-2 border-emerald-500/20 pl-4">
+                    <div className="ml-11 border-l-2 border-brand-accent/20 pl-4">
                       <PhoneVerificationFlow
                         onVerified={() => {
                           setExpandedAction(null);
@@ -741,43 +754,37 @@ export function VerificationDashboard() {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Linked Accounts Overview */}
       {data.linkedProviders.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-white/50 dark:border-white/10 dark:bg-white/2">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-white/40 mb-3">
-            Linked Accounts
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/70 px-3 py-2 shadow-e1">
+          <h4 className="mr-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Linked
           </h4>
           <div className="flex flex-wrap gap-2">
             {data.linkedProviders.map((p) => {
-              const isPending = (data.pendingProviders ?? []).includes(p);
+              const state = oauthLinkState(p, data);
+              const verified = state === 'verified';
+              const label = isOAuthProvider(p) ? OAUTH_PROVIDERS[p].label : p;
+              const status = verified ? 'Verified' : state === 'pending' ? 'Confirmation required' : 'Connected · not verified';
               return (
                 <span
                   key={p}
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                    isPending
-                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    verified
+                      ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
+                      : 'bg-muted text-foreground'
                   }`}
-                  title={isPending ? 'Pending email confirmation — click to cancel' : 'Verified — click to unlink'}
+                  aria-label={`${label}: ${status}`}
                 >
-                  {isPending ? (
-                    <FiMail className="w-3 h-3" />
+                  {!verified ? (
+                    <FiMail className="w-3 h-3" aria-hidden="true" />
                   ) : (
-                    <FiCheckCircle className="w-3 h-3" />
+                    <FiCheckCircle className="w-3 h-3" aria-hidden="true" />
                   )}
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                  {isPending && <span className="ml-0.5 opacity-70">(pending)</span>}
-                  <button
-                    type="button"
-                    onClick={() => handleUnlink(p)}
-                    disabled={unlinking === p}
-                    className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
-                    title={isPending ? 'Cancel pending link' : 'Unlink this provider'}
-                  >
-                    <FiXCircle className="w-3 h-3" />
-                  </button>
+                  {label} · {status}
                 </span>
               );
             })}
@@ -786,12 +793,9 @@ export function VerificationDashboard() {
       )}
 
       {/* Reach Impact Explainer */}
-      <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-        <h4 className="text-sm font-semibold text-blue-400 flex items-center gap-2 mb-2">
-          <FiShield className="w-4 h-4" />
-          How Verification Affects Your Reach
-        </h4>
-        <div className="text-xs text-muted-foreground dark:text-white/50 space-y-1.5">
+      <details className="p-4 rounded-xl border border-border bg-foreground/[0.03]">
+        <summary className="cursor-pointer text-sm font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring">About your Reach score</summary>
+        <div className="text-xs text-muted-foreground space-y-1.5">
           <p>
             Your verification tier directly multiplies your <strong>Reach score</strong>. 
             Higher tiers mean your views, engagements, and poll votes carry more weight.
@@ -801,12 +805,11 @@ export function VerificationDashboard() {
             you generate is worth <strong>{(data.multiplier * 100).toFixed(0)}%</strong> of 
             its base value. Fully verified users get a <strong>1.2x bonus</strong>.
           </p>
-          <p className="text-blue-400/60">
-            Cross-verifying with multiple methods (OAuth + wallet + payment + phone) 
-            makes your identity exponentially harder to fake.
+          <p>
+            These checks contribute to the experimental Reach score. They are not a guarantee of a person’s identity or trustworthiness.
           </p>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f0f3ed"/>
+  <text x="84" y="100" fill="#3b6255" font-family="Arial,sans-serif" font-size="22" letter-spacing="4">VEGGAT INTERVIEW PACK</text>
+  <text x="80" y="190" fill="#122c23" font-family="Arial,sans-serif" font-size="66" font-weight="700">Two files. One complete flow.</text>
+  <rect x="80" y="260" width="490" height="370" rx="24" fill="#fff" stroke="#ccd9cf"/>
+  <rect x="610" y="260" width="510" height="370" rx="24" fill="#fff" stroke="#ccd9cf"/>
+  <text x="116" y="350" fill="#14785a" font-family="Arial,sans-serif" font-size="44" font-weight="700">JPG</text>
+  <text x="116" y="450" fill="#122c23" font-family="Arial,sans-serif" font-size="34" font-weight="700">Fjord Study</text>
+  <text x="116" y="512" fill="#52685e" font-family="Arial,sans-serif" font-size="27">1536 × 1024 pixels</text>
+  <text x="116" y="565" fill="#52685e" font-family="Arial,sans-serif" font-size="25">AI-generated digital artwork</text>
+  <text x="646" y="350" fill="#14785a" font-family="Arial,sans-serif" font-size="44" font-weight="700">TXT</text>
+  <text x="646" y="450" fill="#122c23" font-family="Arial,sans-serif" font-size="34" font-weight="700">Architecture notes</text>
+  <text x="646" y="512" fill="#52685e" font-family="Arial,sans-serif" font-size="27">The product and its decisions</text>
+  <text x="646" y="565" fill="#52685e" font-family="Arial,sans-serif" font-size="25">Plain text. No special software.</text>
+  <text x="80" y="718" fill="#52685e" font-family="Arial,sans-serif" font-size="25">Reviewer test listing · Digital files only · No physical shipping</text>
+</svg>

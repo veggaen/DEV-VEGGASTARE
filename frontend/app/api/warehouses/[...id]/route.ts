@@ -3,6 +3,7 @@ import { dbPrisma } from '@/lib/db';
 import { parseQueryOrError } from '@/lib/api-validate';
 import { z } from 'zod';
 import { WarehouseDetailsResponseSchema } from '@/lib/types/warehouses';
+import { MyLibUserAuth } from '@/lib/user-auth';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -17,6 +18,9 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const session = await MyLibUserAuth();
+  if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const canReadInventory = session.role === 'ADMIN' || session.role === 'OWNER';
   const queryResult = parseQueryOrError(req, querySchema);
   if (!queryResult.ok) return queryResult.response;
   const { id } = queryResult.data;
@@ -39,6 +43,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
     }
 
+    // Match the list endpoint: ordinary accounts may inspect basic locations,
+    // not private inventory. Authentication is enforced here, not just in UI.
+    const visibleInventory = canReadInventory ? warehouse.Inventory : [];
     const warehouseDetails = {
       warehouse: {
         id: warehouse.id,
@@ -52,7 +59,7 @@ export async function GET(req: NextRequest) {
         longitude: warehouse.longitude ?? null,
         createdAt: toIsoString(warehouse.createdAt),
         updatedAt: toIsoString(warehouse.updatedAt),
-        inventory: warehouse.Inventory.map((inv) => ({
+        inventory: visibleInventory.map((inv) => ({
           id: inv.id,
           stock: inv.stock,
           product: {
@@ -64,7 +71,7 @@ export async function GET(req: NextRequest) {
           },
         })),
       },
-      products: warehouse.Inventory.map((inv) => ({
+      products: visibleInventory.map((inv) => ({
         product: {
           id: inv.Product.id,
           title: inv.Product.title,

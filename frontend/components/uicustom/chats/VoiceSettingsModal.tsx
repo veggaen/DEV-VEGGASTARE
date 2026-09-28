@@ -254,12 +254,12 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
-            className="relative z-10 flex max-h-[calc(100dvh-24px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-black/10 bg-background/95 shadow-2xl shadow-black/30 backdrop-blur-xl dark:border-white/10"
+            className="relative z-10 flex max-h-[calc(100dvh-24px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-background/95 shadow-2xl shadow-black/30 backdrop-blur-xl"
           >
-            <div className="flex items-center justify-between gap-4 border-b border-black/5 bg-background/85 px-5 py-4 backdrop-blur-xl dark:border-white/8 sm:px-6">
+            <div className="flex items-center justify-between gap-4 border-b border-border/50 bg-background/85 px-5 py-4 backdrop-blur-xl dark:border-border sm:px-6">
               <div className="min-w-0">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-500/12 text-emerald-500">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-accent/12 text-brand-accent">
                     <FiSliders className="h-4 w-4" />
                   </span>
                   Voice settings
@@ -273,7 +273,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
+                  className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                 >
                   <FiX className="h-4 w-4" />
                 </button>
@@ -282,7 +282,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
 
             <div className="grid min-h-0 gap-5 overflow-y-auto p-4 sm:p-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
               <div className="space-y-5">
-                <section className="rounded-3xl border border-black/8 bg-black/3 p-4 dark:border-white/10 dark:bg-white/3 sm:p-5">
+                <section className="rounded-3xl border border-border bg-foreground/[0.05] p-4 sm:p-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -293,7 +293,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                     <StatusBadge running={running} denied={micDenied} systemBlocked={micSystemBlocked} requesting={requesting} />
                   </div>
 
-                  <div className="relative overflow-hidden rounded-xl border border-black/5 bg-background/70 dark:border-white/8">
+                  <div className="relative overflow-hidden rounded-xl border border-border/50 bg-background/70 dark:border-border">
                     <MicWaveform bars={bars} height={96} />
                     <div
                       aria-hidden
@@ -306,7 +306,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                     <button
                       onClick={enableMic}
                       disabled={requesting}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-accent px-4 py-2.5 text-sm font-semibold text-foreground shadow-lg shadow-brand-accent/20 transition-colors hover:bg-brand-accent-light disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <FiMic className="h-4 w-4" />
                       {requesting ? "Opening microphone..." : running ? "Re-test mic" : granted ? "Start mic test" : "Allow microphone"}
@@ -317,8 +317,8 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                       className={cn(
                         "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         monitorActive
-                          ? "border-sky-400/40 bg-sky-400/15 text-sky-700 hover:bg-sky-400/20 dark:text-sky-300"
-                          : "border-black/10 bg-black/3 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:bg-white/4 dark:hover:bg-white/8",
+                          ? "border-brand-accent/40 bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light hover:bg-brand-accent/20"
+                          : "border-border bg-foreground/[0.05] text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
                       )}
                       aria-pressed={monitorActive}
                       title="Play your microphone back through the selected output"
@@ -333,7 +333,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                           setMonitorActive(false);
                           stop();
                         }}
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                         aria-label="Stop mic test"
                         title="Stop mic test"
                       >
@@ -343,7 +343,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                     )}
                     <button
                       onClick={() => void loadDevices()}
-                      className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:border-white/12 dark:hover:bg-white/8"
+                      className="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                       aria-label="Refresh devices"
                       title="Refresh devices"
                     >
@@ -358,7 +358,7 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                       message={error ?? deviceNotice ?? ""}
                     >
                       {debugInfo && (
-                        <div className="basis-full rounded-lg bg-black/5 px-2.5 py-1.5 font-mono text-[10px] text-current/75 dark:bg-white/8">
+                        <div className="basis-full rounded-lg bg-foreground/[0.05] px-2.5 py-1.5 font-mono text-[10px] text-current/75">
                           {debugInfo}
                         </div>
                       )}
@@ -440,14 +440,14 @@ export function VoiceSettingsModal({ open, onClose, onTestingChange }: VoiceSett
                   <button
                     onClick={chooseOutput}
                     disabled={!supportsAudioOutputPicker()}
-                    className="rounded-xl border border-black/10 bg-black/3 px-3 py-2 text-sm transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/12 dark:bg-white/4 dark:hover:bg-white/8"
+                    className="rounded-xl border border-border bg-foreground/[0.05] px-3 py-2 text-sm transition-colors hover:bg-foreground/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Choose speaker
                   </button>
                   <button
                     onClick={playOutputTest}
                     disabled={testingOutput}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/3 px-3 py-2 text-sm transition-colors hover:bg-black/5 disabled:opacity-60 dark:border-white/12 dark:bg-white/4 dark:hover:bg-white/8"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-foreground/[0.05] px-3 py-2 text-sm transition-colors hover:bg-foreground/[0.05] disabled:opacity-60"
                   >
                     <FiVolume2 className="h-4 w-4" /> {testingOutput ? "Playing" : "Test"}
                   </button>
@@ -539,8 +539,8 @@ function getMicStatus({
   sensitivity: number;
 }) {
   const mediaError = errorName;
-  if (running && level > sensitivity) return { label: "Hearing you", className: "text-emerald-600 dark:text-emerald-400" };
-  if (running) return { label: "Listening", className: "text-sky-600 dark:text-sky-400" };
+  if (running && level > sensitivity) return { label: "Hearing you", className: "text-brand-accent-hover dark:text-brand-accent-light" };
+  if (running) return { label: "Listening", className: "text-brand-accent-hover dark:text-brand-accent-light" };
   if (mediaError === "OverconstrainedError" || mediaError === "ConstraintNotSatisfiedError") {
     return { label: "Selected input unavailable", className: "text-amber-600 dark:text-amber-400" };
   }
@@ -568,14 +568,14 @@ function StatusBadge({
 }) {
   if (requesting) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/12 px-2 py-1 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-brand-accent/12 px-2 py-1 text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light">
         <span className="h-2 w-2 rounded-full bg-current animate-pulse" /> Asking
       </span>
     );
   }
   if (running) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-brand-accent/12 px-2 py-1 text-[10px] font-medium text-brand-accent-hover dark:text-brand-accent-light">
         <FiCheckCircle className="h-3 w-3" /> Active
       </span>
     );
@@ -595,7 +595,7 @@ function StatusBadge({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-1 text-[10px] font-medium text-muted-foreground dark:bg-white/8">
+    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.05] px-2 py-1 text-[10px] font-medium text-muted-foreground">
       <FiMic className="h-3 w-3" /> Idle
     </span>
   );
@@ -620,7 +620,7 @@ function Notice({
     tone === "red"
       ? "border-red-500/20 bg-red-500/8 text-red-600 dark:text-red-400"
       : tone === "green"
-        ? "border-emerald-500/20 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400"
+        ? "border-brand-accent/20 bg-brand-accent/8 text-brand-accent-hover dark:text-brand-accent-light"
         : "border-amber-500/20 bg-amber-500/8 text-amber-700 dark:text-amber-300";
 
   return (
@@ -680,7 +680,7 @@ function SliderRow({
         value={value}
         onChange={(event) => onChange(parseFloat(event.target.value))}
         aria-label={label}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full outline-none [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-black/10 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full outline-none [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-card [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-border [&::-webkit-slider-thumb]:bg-card [&::-webkit-slider-thumb]:shadow-md"
         style={{ background: `linear-gradient(to right, ${track} ${pct}%, rgba(120,120,120,0.25) ${pct}%)` }}
       />
     </div>
@@ -705,7 +705,7 @@ function ToggleRow({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-3 rounded-xl bg-black/3 px-3 py-2.5 text-left transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/55 dark:bg-white/4 dark:hover:bg-white/6"
+      className="flex w-full items-center justify-between gap-3 rounded-xl bg-foreground/[0.05] px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/55"
     >
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
@@ -716,13 +716,13 @@ function ToggleRow({
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full border p-0.5 transition-colors",
           checked
-            ? "border-emerald-400/40 bg-emerald-500 shadow-[0_0_18px_rgba(16,185,129,0.22)]"
-            : "border-black/10 bg-black/15 dark:border-white/10 dark:bg-white/14",
+            ? "border-brand-accent/40 bg-brand-accent shadow-[0_0_18px_rgba(16,185,129,0.22)]"
+            : "border-border bg-muted dark:bg-foreground/[0.07]",
         )}
       >
         <span
           className={cn(
-            "block h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out",
+            "block h-6 w-6 rounded-full bg-card shadow-sm transition-transform duration-200 ease-out",
             checked ? "translate-x-5" : "translate-x-0",
           )}
         />
@@ -738,8 +738,8 @@ function ModeButton({ active, onClick, title, desc }: { active: boolean; onClick
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
         active
-          ? "border-emerald-500/40 bg-emerald-500/12 text-foreground"
-          : "border-transparent bg-black/3 text-muted-foreground hover:bg-black/5 dark:bg-white/4 dark:hover:bg-white/6",
+          ? "border-brand-accent/40 bg-brand-accent/12 text-foreground"
+          : "border-transparent bg-foreground/[0.05] text-muted-foreground hover:bg-foreground/[0.05]",
       )}
     >
       <span className="text-sm font-medium">{title}</span>
@@ -769,8 +769,8 @@ function PttKeyCapture({ value, onChange }: { value: string; onChange: (code: st
       className={cn(
         "mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors",
         listening
-          ? "animate-pulse border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-          : "border-black/10 bg-black/3 hover:bg-black/5 dark:border-white/12 dark:bg-white/4 dark:hover:bg-white/6",
+          ? "animate-pulse border-brand-accent/50 bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light"
+          : "border-border bg-foreground/[0.05] hover:bg-foreground/[0.05]",
       )}
     >
       {listening ? "Press any key" : <>Hold key: <span className="font-semibold">{label}</span></>}

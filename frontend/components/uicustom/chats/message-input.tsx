@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { FiAlertTriangle, FiArrowUp, FiSmile, FiMic } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpeechToText } from './primitives/useSpeechToText';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface MessageInputProps {
   conversationId: string;
@@ -21,6 +22,7 @@ interface MessageInputProps {
   messageId?: string;
   onCancelEdit?: () => void;
   parentId?: string | null;
+  allowImages?: boolean;
 }
 
 interface DictationCorrection {
@@ -39,19 +41,22 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   messageId,
   onCancelEdit,
   parentId,
+  allowImages = true,
 }) => {
+  const currentUser = useCurrentUser();
   const { edgestore } = useEdgeStore();
   const MAX_CHARS = 2000;
   const TEXTAREA_MAX_HEIGHT = 180; // px
   const [content, setContent] = useState(initialContent);
   const [isSending, setIsSending] = useState(false);
+  const sendingRef = useRef(false);
+  const attemptRef = useRef<{ signature: string; image: File | null; requestId: string; uploaded?: string } | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initialImageUrl);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isTextareaScrollable, setIsTextareaScrollable] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const draftKey = useMemo(() => `chat_draft:${conversationId}`, [conversationId]);
+  const draftKey = useMemo(() => `chat_draft:${currentUser?.id ?? 'guest'}:${conversationId}`, [currentUser?.id, conversationId]);
   const lastContentRef = useRef(initialContent);
   const recentDictationUntilRef = useRef(0);
   const [pendingCorrection, setPendingCorrection] = useState<DictationCorrection | null>(null);
@@ -228,8 +233,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     el.style.height = 'auto';
     const nextHeight = Math.min(el.scrollHeight, TEXTAREA_MAX_HEIGHT);
     el.style.height = `${nextHeight}px`;
-    // Only show scrollbar when content exceeds our max height.
-    setIsTextareaScrollable(el.scrollHeight > TEXTAREA_MAX_HEIGHT + 1);
   };
 
   useEffect(() => {
@@ -237,6 +240,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }, [content]);
 
   const handleDrop = (acceptedFiles: File[]) => {
+    if (!allowImages) return;
     if (acceptedFiles.length > 0) {
       setImage(acceptedFiles[0]);
       setImagePreview(URL.createObjectURL(acceptedFiles[0]));
@@ -244,6 +248,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const { getRootProps, getInputProps, open } = useDropzone({
+    disabled: !allowImages || isSending,
     onDrop: handleDrop,
     accept: { 'image/*': [] },
     multiple: false,
@@ -257,22 +262,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSend || isSending || isTooLong) return;
+    if (!canSend || sendingRef.current || isTooLong) return;
+    sendingRef.current = true;
     setIsSending(true);
 
     try {
       let imageUrl = imagePreview;
+      const signature = JSON.stringify([conversationId, content, parentId, imagePreview]);
+      if (!attemptRef.current || attemptRef.current.signature !== signature || attemptRef.current.image !== image) {
+        attemptRef.current = { signature, image, requestId: crypto.randomUUID() };
+      }
+      const attempt = attemptRef.current;
 
-      if (image) {
-        const res = await edgestore.myPublicImages.upload({ file: image });
-        imageUrl = res.url;
+      if (image && allowImages) {
+        if (!attempt.uploaded) attempt.uploaded = (await edgestore.myPublicImages.upload({ file: image })).url;
+        imageUrl = attempt.uploaded;
       }
 
       const payload = {
         conversationId,
         content,
         imageUrl: imageUrl || null,
-        ...(parentId ? { parentId } : {}),
+        ...(!isEditing && parentId ? { parentId } : {}),
+        ...(!isEditing ? { requestId: attempt.requestId } : {}),
       };
 
       const apiEndpoint = isEditing && messageId ? `/api/messages/${messageId}` : '/api/messages';
@@ -285,6 +297,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       });
 
       if (response.ok) {
+        attemptRef.current = null;
         lastContentRef.current = '';
         setContent('');
         setImage(null);
@@ -324,6 +337,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       const { toast } = await import('sonner');
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
+      sendingRef.current = false;
       setIsSending(false);
     }
   };
@@ -336,10 +350,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <div
         {...getRootProps()}
         className={cn(
-          'group/composer relative rounded-[22px] border bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md',
-          'border-zinc-200/80 dark:border-white/10',
-          'shadow-sm transition-all duration-200',
-          'focus-within:border-sky-400/60 dark:focus-within:border-emerald-400/40',
+          'group/composer relative rounded-[22px] border bg-surface-1/90 backdrop-blur-md',
+          'border-border/80',
+          'shadow-sm transition-[border-color,box-shadow] duration-200',
+          'focus-within:border-brand-accent/60',
           'focus-within:shadow-[0_0_0_4px_rgba(56,189,248,0.10)] dark:focus-within:shadow-[0_0_0_4px_rgba(52,211,153,0.10)]',
           isTooLong && 'border-red-400/70 dark:border-red-500/50 focus-within:border-red-400/70',
         )}
@@ -356,11 +370,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 width={96}
                 height={96}
                 unoptimized
-                className="h-24 w-24 rounded-xl object-cover border border-black/10 dark:border-white/10"
+                className="h-24 w-24 rounded-xl object-cover border border-border"
               />
               <button
                 type="button"
-                className="absolute -top-2 -right-2 grid place-items-center h-6 w-6 rounded-full bg-zinc-900/90 text-white hover:bg-red-600 shadow-md transition-colors"
+                className="absolute -top-2 -right-2 grid place-items-center h-6 w-6 rounded-full bg-surface-3/90 text-white hover:bg-red-600 shadow-md transition-colors"
                 onClick={handleRemoveImage}
                 aria-label="Remove image"
               >
@@ -378,14 +392,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              className="absolute bottom-[calc(100%+8px)] left-2 z-20 flex flex-wrap gap-1 rounded-2xl border border-zinc-200/80 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/95"
+              className="absolute bottom-[calc(100%+8px)] left-2 z-20 flex flex-wrap gap-1 rounded-2xl border border-border/80 bg-surface-1/95 p-2 shadow-lg backdrop-blur-md dark:border-border dark:bg-surface-3/95"
             >
               {QUICK_EMOJI.map((e) => (
                 <button
                   key={e}
                   type="button"
                   onClick={() => insertEmoji(e)}
-                  className="rounded-lg px-1.5 py-1 text-lg transition-transform hover:scale-125 hover:bg-zinc-100 dark:hover:bg-white/10"
+                  className="rounded-lg px-1.5 py-1 text-lg transition-transform hover:scale-125 hover:bg-muted"
                   aria-label={`Insert ${e}`}
                 >
                   {e}
@@ -398,21 +412,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Textarea — flush in the surface, full width */}
         <textarea
           ref={textareaRef}
+          aria-label="Message"
           value={content}
           onChange={(e) => handleContentChange(e.target.value)}
           placeholder="Write a message…"
           className={cn(
-            'w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-relaxed',
-            'text-zinc-900 dark:text-white',
-            'placeholder:text-zinc-400 dark:placeholder:text-white/40 focus:outline-none',
-            isTextareaScrollable ? 'overflow-y-auto' : 'overflow-y-hidden',
+            'w-full max-h-[min(180px,25dvh)] resize-none overflow-y-auto bg-transparent px-4 pt-3.5 pb-1 text-base leading-relaxed',
+            'text-foreground',
+            'placeholder:text-muted-foreground focus:outline-none',
           )}
           disabled={isSending}
           rows={1}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void handleSubmit(e as unknown as React.FormEvent);
             }
@@ -438,15 +452,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                   'mb-1 flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs',
                   dictationError
                     ? 'border-red-500/20 bg-red-500/8 text-red-600 dark:text-red-300'
-                    : 'border-emerald-500/20 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+                    : 'border-brand-accent/20 bg-brand-accent/8 text-brand-accent-hover dark:text-brand-accent-light',
                 )}
               >
                 {dictationError ? (
                   <FiAlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 ) : (
-                  <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500/15">
+                  <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-accent/15">
                     <FiMic className="h-3.5 w-3.5" />
-                    <span className="absolute inset-0 rounded-full bg-emerald-400/25 animate-ping" />
+                    <span className="absolute inset-0 rounded-full bg-brand-accent/25 animate-ping" />
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">
@@ -466,21 +480,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               className="overflow-hidden px-3"
             >
-              <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/8 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
+              <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-accent/20 bg-brand-accent/8 px-3 py-2 text-xs text-brand-accent-hover dark:text-brand-accent-light">
                 <span className="min-w-0 flex-1">
-                  Did we mishear <span className="font-semibold">"{pendingCorrection.from}"</span> as <span className="font-semibold">"{pendingCorrection.to}"</span>?
+                  Did we mishear <span className="font-semibold">“{pendingCorrection.from}”</span> as <span className="font-semibold">“{pendingCorrection.to}”</span>?
                 </span>
                 <button
                   type="button"
                   onClick={savePendingCorrection}
-                  className="rounded-full bg-sky-500/15 px-2.5 py-1 font-medium transition-colors hover:bg-sky-500/25"
+                  className="rounded-full bg-brand-accent/15 px-2.5 py-1 font-medium transition-colors hover:bg-brand-accent/25"
                 >
                   Save
                 </button>
                 <button
                   type="button"
                   onClick={() => setPendingCorrection(null)}
-                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/8"
+                  className="rounded-full px-2.5 py-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06]"
                 >
                   Dismiss
                 </button>
@@ -490,8 +504,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </AnimatePresence>
 
         {/* Toolbar row — ghost icon controls left, hint + counter center, send right */}
-        <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">
-          <IconButton onClick={open} disabled={isSending} label="Attach image">
+        <div className="flex flex-wrap items-center gap-1 px-2.5 pb-2.5 pt-1">
+          <IconButton onClick={open} disabled={isSending || !allowImages} label={allowImages ? 'Attach image' : 'Private images temporarily unavailable'}>
             <FaFileUpload className="h-4.5 w-4.5" />
           </IconButton>
 
@@ -531,11 +545,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               aria-pressed={listening}
               title={listening ? 'Release to stop dictation' : 'Hold to dictate message'}
               className={cn(
-                'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
-                'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+                'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'hover:bg-muted active:scale-95 disabled:opacity-40',
                 listening
-                  ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-                  : 'text-zinc-500 dark:text-white/55',
+                  ? 'text-brand-accent bg-brand-accent/10'
+                  : 'text-muted-foreground',
               )}
             >
               {listening ? (
@@ -560,7 +574,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 exit={{ opacity: 0, scale: 0.8, width: 0 }}
                 onClick={handlePolish}
                 disabled={polishing || isSending}
-                className="shrink-0 inline-flex items-center gap-1 h-9 rounded-full px-3 text-xs font-medium text-sky-600 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10 hover:bg-sky-500/20 dark:hover:bg-emerald-400/20 transition-colors whitespace-nowrap overflow-hidden"
+                className="shrink-0 inline-flex items-center gap-1 h-9 rounded-full px-3 text-xs font-medium text-brand-accent-hover dark:text-brand-accent-light bg-brand-accent/10 hover:bg-brand-accent/20 transition-colors whitespace-nowrap overflow-hidden"
                 title="Clean up dictated text"
               >
                 {polishing ? (
@@ -576,7 +590,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           {/* Hint + counter — fade in once the field is active */}
           <div
             className={cn(
-              'ml-1 flex-1 min-w-0 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-white/35 transition-opacity duration-150',
+              'ml-1 flex-1 min-w-0 flex items-center gap-2 text-[11px] text-muted-foreground transition-opacity duration-150',
               showMeta ? 'opacity-100' : 'opacity-0',
             )}
           >
@@ -617,18 +631,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
 
           {/* Send — springs to brand accent the moment a message is sendable */}
-          <motion.button
+          <button
             type="submit"
             disabled={isSending || !canSend || isTooLong}
             aria-disabled={isSending || !canSend || isTooLong}
-            animate={{ scale: canSend && !isTooLong ? 1 : 0.9 }}
-            whileTap={canSend && !isTooLong ? { scale: 0.85 } : undefined}
-            transition={{ type: 'spring', stiffness: 600, damping: 22 }}
             className={cn(
-              'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
+              'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               canSend && !isTooLong && !isSending
-                ? 'bg-sky-500 text-white dark:bg-emerald-500 dark:text-zinc-900 hover:bg-sky-600 dark:hover:bg-emerald-400 shadow-md shadow-sky-500/25 dark:shadow-emerald-500/25'
-                : 'bg-zinc-200 text-zinc-400 dark:bg-white/10 dark:text-white/30 cursor-not-allowed',
+                ? 'bg-brand-accent text-brand-accent-foreground dark:text-foreground hover:bg-brand-accent-hover shadow-md shadow-brand-accent/25'
+                : 'bg-muted text-muted-foreground dark:bg-foreground/[0.05] cursor-not-allowed',
             )}
             aria-label={isEditing ? 'Save message' : 'Send message'}
             title={isEditing ? 'Save' : 'Send'}
@@ -638,7 +649,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             ) : (
               <FiArrowUp className="h-5 w-5" />
             )}
-          </motion.button>
+          </button>
         </div>
       </div>
     </form>
@@ -660,11 +671,11 @@ const IconButton: React.FC<{
     aria-label={label}
     title={label}
     className={cn(
-      'shrink-0 grid place-items-center h-9 w-9 rounded-full transition-colors',
-      'hover:bg-zinc-100 dark:hover:bg-white/10 active:scale-95 disabled:opacity-40',
+      'shrink-0 grid size-11 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'hover:bg-muted active:scale-95 disabled:opacity-40',
       active
-        ? 'text-sky-500 dark:text-emerald-400 bg-sky-500/10 dark:bg-emerald-400/10'
-        : 'text-zinc-500 dark:text-white/55',
+        ? 'text-brand-accent bg-brand-accent/10'
+        : 'text-muted-foreground',
     )}
   >
     {children}

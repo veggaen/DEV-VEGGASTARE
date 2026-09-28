@@ -13,11 +13,13 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { legacyCheckoutPaused } from '@/lib/checkout-release';
 import { dbPrisma } from '@/lib/db';
 import { getPaymentProvider } from '@/lib/payments/providers';
 import { completeFiatOrder, releaseReservedOrderStock } from '@/lib/payments/complete-fiat-order';
 
 export async function GET(req: Request) {
+  if (legacyCheckoutPaused()) return NextResponse.json({ error: 'CHECKOUT_UPGRADING', message: 'This legacy payment return cannot complete an order. No new payment has been taken.' }, { status: 503 });
   const url = new URL(req.url);
   const token = url.searchParams.get('token'); // PayPal Order ID
   const orderId = url.searchParams.get('orderId');

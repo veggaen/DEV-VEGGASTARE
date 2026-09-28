@@ -1,4 +1,6 @@
 import bcrypt from "bcryptjs"
+import { timingSafeEqual } from 'node:crypto';
+import { allowAuthAttempt } from '@/lib/auth-rate-limit';
 import type { NextAuthConfig } from "next-auth"
 import Credentials from 'next-auth/providers/credentials'
 import Discord from 'next-auth/providers/discord'
@@ -28,7 +30,7 @@ if (googleClientId && googleClientSecret) {
     Google({
       clientId: googleClientId,
       clientSecret: googleClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -43,7 +45,7 @@ if (githubClientId && githubClientSecret) {
     Github({
       clientId: githubClientId,
       clientSecret: githubClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -55,7 +57,7 @@ if (discordClientId && discordClientSecret) {
     Discord({
       clientId: discordClientId,
       clientSecret: discordClientSecret,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   )
 } else if (isDev) {
@@ -68,6 +70,13 @@ if (discordClientId && discordClientSecret) {
 export default {
   providers: [
   ...oauthProviders,
+  Credentials({
+    id: "demo", name: "Interview demo", credentials: {},
+    async authorize(_credentials, request) {
+      const { createDemoUser } = await import("@/lib/demo-user");
+      return createDemoUser(request);
+    },
+  }),
   // Magic-link login provider for auto-login after email verification
   Credentials({
     id: "email-login-token",
@@ -76,7 +85,7 @@ export default {
       email: { label: "Email", type: "email" },
       loginToken: { label: "Login Token", type: "text" }
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       const validateFields = MyEmailLoginTokenSchema.safeParse(credentials);
       if (!validateFields.success) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: invalid fields`);
@@ -84,6 +93,7 @@ export default {
       }
 
       const { email, loginToken } = validateFields.data;
+      if (!await allowAuthAttempt('email-login', email, request)) return null;
 
       // Find and validate the login token
       const existingToken = await getEmailLoginTokenByToken(loginToken);
@@ -97,38 +107,37 @@ export default {
       if (hasExpired) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: token expired`);
         // Clean up expired token
-        await dbPrisma.emailLoginToken.delete({ where: { id: existingToken.id } });
+        await dbPrisma.emailLoginToken.deleteMany({ where: { id: existingToken.id } });
         return null;
       }
 
       // Verify email matches
-      if (existingToken.email !== email) {
+      if (existingToken.email.toLowerCase() !== email.toLowerCase()) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: email mismatch`);
         return null;
       }
 
       // Get the user
       const user = await getUserByEmail(email);
-      if (!user) {
+      if (!user || !user.emailVerified || user.isTwoFactorEnabled) {
         if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: user not found`);
         return null;
       }
 
       // Delete the token (one-time use)
-      await dbPrisma.emailLoginToken.delete({ where: { id: existingToken.id } });
-
-      if (isDev) console.log(`${LOG_PREFIX} email-login-token authorize: success for ${email}`);
-      return user;
+      const consumed = await dbPrisma.emailLoginToken.deleteMany({ where: { id: existingToken.id, expires: { gt: new Date() } } });
+      return consumed.count === 1 ? user : null;
     }
   }),
   // Standard credentials provider for email/password login
   Credentials({
     id: "credentials",
     name: "Credentials",
-    async authorize(credentials){
+    async authorize(credentials, request){
         const validateFields = MyAuthLoginSchema.safeParse(credentials);
         if ( validateFields.success){
-            const { email, password } = validateFields.data
+            const { email, password, code } = validateFields.data
+            if (!await allowAuthAttempt('password-provider', email, request)) return null;
             
             const user = await getUserByEmail(email);
             
@@ -145,159 +154,47 @@ export default {
 
             // Return null for invalid credentials (user not found OR wrong password)
             // Use same error path to prevent user enumeration
-            if (!user || !user.password || !passwordMatch) {
+            if (!user || !user.password || !passwordMatch || !user.emailVerified) {
               if (isDev) console.log(`${LOG_PREFIX} credentials authorize: invalid credentials`);
               return null;
             }
 
+            // Validate and consume the second factor in this exact sign-in request.
+            // A shared per-user confirmation row must never authorize another request.
+            if (user.isTwoFactorEnabled) {
+              if (!code || !user.email) return null;
+              const token = await dbPrisma.twoFactorToken.findFirst({ where: { email: user.email, expires: { gt: new Date() } }, orderBy: { expires: 'desc' } });
+              if (!token || token.token.length !== code.length || !timingSafeEqual(Buffer.from(token.token), Buffer.from(code))) return null;
+              const consumed = await dbPrisma.twoFactorToken.deleteMany({ where: { id: token.id, expires: { gt: new Date() } } });
+              if (consumed.count !== 1) return null;
+            }
             return user;
         }
 
         return null;
     }
   }),
-  // Wallet sign-in (SIWE). Logged-out users authenticate by signing a nonce
-  // (issued by /api/auth/wallet/nonce). On success we log into the wallet's
-  // linked account, or create a low-reach WALLET_ONLY account. Trust/reach is
-  // computed by lib/reach (provenance-weighted), so a bare wallet is low reach.
+  // Server-issued, browser-bound proof. No arbitrary address lookup or replay fallback.
   Credentials({
     id: "wallet",
     name: "Wallet",
     credentials: {
-      address: { label: "Address", type: "text" },
+      challengeId: { label: "Challenge", type: "text" },
       signature: { label: "Signature", type: "text" },
+      code: { label: "Email code", type: "text" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       try {
-        const { getAddress, verifyMessage } = await import("viem");
-        const rawAddress = String(credentials?.address ?? "");
-        const signature = String(credentials?.signature ?? "");
-        if (!rawAddress || !signature) return null;
-
-        let address: string;
-        try { address = getAddress(rawAddress); } catch { return null; }
-        const addressKey = address.toLowerCase();
-
-        // Look up the active, unexpired nonce for this address.
-        const challenge = await dbPrisma.walletLoginNonce.findFirst({
-          where: { address: addressKey, usedAt: null, expires: { gt: new Date() } },
-          orderBy: { createdAt: "desc" },
-        });
-        if (!challenge) {
-          if (isDev) console.log(`${LOG_PREFIX} wallet authorize: no valid nonce`);
-          return null;
-        }
-
-        // Verify the signature against the exact issued message.
-        const ok = await verifyMessage({
-          address: address as `0x${string}`,
-          message: challenge.message,
-          signature: signature as `0x${string}`,
-        });
-        if (!ok) {
-          if (isDev) console.log(`${LOG_PREFIX} wallet authorize: bad signature`);
-          return null;
-        }
-
-        // One-time use.
-        await dbPrisma.walletLoginNonce.update({
-          where: { id: challenge.id },
-          data: { usedAt: new Date() },
-        });
-
-        // ── Resolve the account for this wallet ──────────────────────────────
-        // The signature proves ownership of `address`, so we can safely sign in.
-        // Look up ANY existing wallet row for this address (case-insensitive),
-        // not just verified+linked ones — otherwise we'd create a DUPLICATE user
-        // for an address that already has a (possibly unlinked/unverified) row.
-        const existingWallet = await dbPrisma.wallet.findFirst({
-          where: { address: { equals: address, mode: "insensitive" } },
-          select: {
-            id: true,
-            ownerUserId: true,
-            verifiedAt: true,
-            User: { select: { id: true, name: true, email: true, image: true } },
-          },
-        });
-
-        // Already owned → just sign into that account (mark verified if it wasn't).
-        if (existingWallet?.User) {
-          if (!existingWallet.verifiedAt) {
-            await dbPrisma.wallet.update({
-              where: { id: existingWallet.id },
-              data: { verifiedAt: new Date() },
-            }).catch(() => { /* non-fatal */ });
-          }
-          return existingWallet.User;
-        }
-
-        // A wallet row exists but is unowned → claim it onto a fresh account.
-        if (existingWallet && !existingWallet.ownerUserId) {
-          const claimUser = await dbPrisma.user.create({
-            data: {
-              name: `${address.slice(0, 6)}…${address.slice(-4)}`,
-              verificationTier: "WALLET_ONLY",
-              web3ModeEnabled: true,
-            },
-            select: { id: true, name: true, email: true, image: true },
-          });
-          await dbPrisma.wallet.update({
-            where: { id: existingWallet.id },
-            data: { ownerUserId: claimUser.id, verifiedAt: new Date(), riskTier: "fresh" },
-          });
-          return claimUser;
-        }
-
-        // No wallet row at all → create a low-reach WALLET_ONLY account + wallet.
-        //
-        // CONCURRENCY: `Wallet.address` has NO unique DB constraint, so a naive
-        // create-on-catch would NOT throw on a concurrent first-time login for
-        // the same address — it would silently mint a DUPLICATE user + wallet.
-        // We instead run a Serializable transaction that RE-CHECKS for the
-        // wallet inside the transaction boundary; under Serializable isolation
-        // one of two racing sign-ins sees the other's insert (or is aborted and
-        // retried by Prisma), so exactly one account is ever created.
-        try {
-          const created = await dbPrisma.$transaction(
-            async (tx) => {
-              const racedInside = await tx.wallet.findFirst({
-                where: { address: { equals: address, mode: "insensitive" } },
-                select: { User: { select: { id: true, name: true, email: true, image: true } } },
-              });
-              if (racedInside?.User) return racedInside.User;
-
-              return tx.user.create({
-                data: {
-                  name: `${address.slice(0, 6)}…${address.slice(-4)}`,
-                  verificationTier: "WALLET_ONLY",
-                  web3ModeEnabled: true,
-                  Wallet: {
-                    create: {
-                      label: "Wallet",
-                      family: "EVM",
-                      address,
-                      verifiedAt: new Date(),
-                      connectorType: "wallet-login",
-                      riskTier: "fresh",
-                    },
-                  },
-                },
-                select: { id: true, name: true, email: true, image: true },
-              });
-            },
-            { isolationLevel: "Serializable" }
-          );
-          return created;
-        } catch {
-          // Serialization abort or any failure → re-resolve once outside the tx.
-          const raced = await dbPrisma.wallet.findFirst({
-            where: { address: { equals: address, mode: "insensitive" } },
-            select: { User: { select: { id: true, name: true, email: true, image: true } } },
-          });
-          return raced?.User ?? null;
-        }
-      } catch (e) {
-        if (isDev) console.log(`${LOG_PREFIX} wallet authorize error:`, e);
+        const { walletLoginContext, walletLoginProofSchema } = await import("@/lib/wallet-login-request");
+        const { authenticateWalletLogin } = await import("@/lib/wallet-login");
+        const context = walletLoginContext(request);
+        const parsed = walletLoginProofSchema.safeParse({ challengeId: credentials?.challengeId, signature: credentials?.signature });
+        const code = credentials?.code;
+        if (!parsed.success || (code !== undefined && code !== "" && (typeof code !== "string" || !/^\d{6}$/.test(code)))) return null;
+        if (!await allowAuthAttempt("wallet-login-authorize", parsed.data.challengeId, request)) return null;
+        return await authenticateWalletLogin({ ...context, ...parsed.data, signature: parsed.data.signature as `0x${string}`, code: typeof code === "string" ? code : undefined });
+      } catch {
+        // No raw provider errors, signatures, challenges or codes in logs.
         return null;
       }
     },

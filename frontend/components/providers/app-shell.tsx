@@ -1,0 +1,141 @@
+"use client";
+/** @fileOverview Stable, server-rendered application providers and navigation shell. @stability stable */
+
+import * as React from "react";
+import type { Session } from "next-auth";
+import { SessionProvider } from "next-auth/react";
+import SiteTelemetry from "@/components/providers/site-telemetry";
+import { usePathname } from "next/navigation";
+
+import { EdgeStoreProvider } from "@/lib/edgestore";
+import StorageSessionSync from '@/components/providers/storage-session-sync';
+import { ThemeProvider } from "@/components/providers/themeprovider";
+import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog";
+import SkipToContent from "@/components/uicustom/skip-to-content";
+import { UiPreferencesProvider } from "@/components/providers/ui-preferences";
+import { ProfileThemeProvider } from "@/components/providers/profile-theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { FollowStateProvider } from "@/hooks/useFollowState";
+import { CurrencyRatesProvider } from "@/hooks/useCurrencyRates";
+import { CartProvider } from "@/contexts/cart-context";
+// Providers must not be lazy boundaries around the whole page: even with SSR
+// enabled, delayed client chunks replaced readable content with a boot skeleton.
+// Optional wallet UI remains lazy inside the drawer; provider identity is stable.
+import Web3Providers from "@/components/crypto-related/Web3Providers";
+
+import MyTopBar from "@/components/uicustom/topbar";
+import { MobileDock } from "@/components/uicustom/chrome/mobile-dock";
+import SiteFooter from "@/components/uicustom/site-footer";
+import CookieBanner from "@/components/uicustom/cookie-banner";
+import { ActiveWalletProvider } from "@/contexts/active-wallet-context";
+import { TradeModeProvider } from "@/contexts/trade-mode-context";
+import ImpersonationBanner from "@/components/uicustom/ImpersonationBanner";
+import { UpdateBanner } from "@/components/uicustom/UpdateBanner";
+import DemoSessionNotice from "@/components/uicustom/auth/demo-session-notice";
+import { restoreRouteScroll } from "@/lib/route-scroll";
+
+function PageScroller({ children, scrollKey, contained }: {
+  children: React.ReactNode;
+  scrollKey: string | null;
+  contained: boolean;
+}) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const previousRoute = React.useRef(scrollKey);
+  // Mount below the lazy providers, alongside the actual DOM node. An effect
+  // on AppShell can run before that node exists on a hard load.
+  React.useLayoutEffect(() => {
+    const routeChanged = previousRoute.current !== scrollKey;
+    previousRoute.current = scrollKey;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    // SSR content is already scrollable before hydration. Do not undo a user's
+    // early scroll/click just because the lazy providers finished downloading.
+    if (!routeChanged && !window.location.hash) return;
+    return restoreRouteScroll(scroller, window.location.hash);
+  }, [scrollKey]);
+  return <div ref={scrollRef} data-site-scroll="true" data-app-scroll-container={contained ? undefined : 'true'} className={`flex flex-1 flex-col min-h-0 min-w-0 overscroll-contain-y ${contained ? 'overflow-hidden' : 'overflow-auto'}`}>{children}</div>;
+}
+
+export default function AppShell({
+  session,
+  children,
+}: {
+  session?: Session | null;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const isAuthRoute = pathname?.startsWith('/auth/');
+	// The persistent shell owns this scroller, so Next's window scroll reset is
+	// insufficient. Keep Pulse's intercepted detail modal at the feed position.
+	const scrollKey = pathname?.startsWith('/pulse/') ? '/pulse' : pathname;
+	const isProductsRoute = pathname?.startsWith('/products');
+  // Immersive chat surfaces own the full viewport — no site footer or dev banner
+  // (which read as a fake "footer line" under the composer), and no reserved
+  // bottom padding. Matches /ai/[id] and a DM conversation (but NOT the /ai list).
+  const isImmersiveChat =
+    pathname === '/ai' || /^\/ai\/[^/]+$/.test(pathname ?? '') ||
+    (pathname !== '/conversations/new' && /^\/conversations\/[^/]+$/.test(pathname ?? ''));
+  // The floating mobile dock replaces the old sidebar. It stays out of the way
+  // of a chat composer and of the sign-in form's sticky submit button.
+  const showMobileDock = !isAuthRoute && !isImmersiveChat;
+  
+  return (
+    <SessionProvider session={session} refetchOnWindowFocus>
+      <EdgeStoreProvider>
+        <StorageSessionSync />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="veggat:theme"
+        >
+          <ProfileThemeProvider>
+            <UiPreferencesProvider>
+              <FollowStateProvider>
+                <CurrencyRatesProvider>
+                  <Web3Providers>
+                    <ActiveWalletProvider>
+                    <TradeModeProvider>
+                    <CartProvider>
+                    <ConfirmDialogProvider>
+                    {/* Only the page/drawer scroll. A document-level hash or
+                        focus jump must never move the header or demo notice. */}
+                    <div data-app-shell data-mobile-rail={showMobileDock ? 'true' : undefined} className="fixed inset-x-0 top-0 flex h-dvh min-h-0 min-w-0 flex-col overflow-clip">
+                    <SkipToContent />
+                    <UpdateBanner />
+                    <MyTopBar />
+                    <ImpersonationBanner />
+                    <DemoSessionNotice />
+                    <div className="flex min-h-0 min-w-0 flex-1">
+                    <PageScroller scrollKey={scrollKey} contained={Boolean(isProductsRoute || isImmersiveChat)}>
+                      {/* Use the actual remaining shell height, not header/demo
+                          measurements which only become available in effects.
+                          Scrolling pages also reserve the mobile dock's height
+                          (contained routes subtract it from their own height). */}
+                      <main id="main-content" tabIndex={-1} className={`min-w-0 outline-none ${isProductsRoute || isImmersiveChat ? 'flex flex-1 flex-col min-h-0' : 'shrink-0 min-h-full'} ${isImmersiveChat ? '' : isProductsRoute ? 'pb-[var(--cookie-banner-offset,0px)]' : 'pb-[calc(var(--cookie-banner-offset,0px)+var(--mobile-rail-offset,0px))]'}`}>
+                        {children}
+                      </main>
+                      {!isProductsRoute && !isImmersiveChat && pathname !== '/' && <SiteFooter />}
+                    </PageScroller>
+                    </div>
+                    {showMobileDock && <MobileDock />}
+                    <CookieBanner />
+                    <Toaster />
+                    </div>
+                    </ConfirmDialogProvider>
+                    </CartProvider>
+                    </TradeModeProvider>
+                    </ActiveWalletProvider>
+                  </Web3Providers>
+                </CurrencyRatesProvider>
+              </FollowStateProvider>
+            </UiPreferencesProvider>
+          </ProfileThemeProvider>
+          <SiteTelemetry />
+        </ThemeProvider>
+      </EdgeStoreProvider>
+    </SessionProvider>
+  );
+}
+

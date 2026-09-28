@@ -1,12 +1,6 @@
-import { 
-  Conversation, 
-  ConversationType, 
-  ConversationVisibility, 
-  ReplyPermission,
-  UserRole 
-} from '@/generated/prisma/browser';
+import type { Conversation, Prisma, UserRole } from '@/generated/prisma/browser';
 
-const LOG_PREFIX = '[conversation-permissions]';
+export const privateConversationTypes = ['PRIVATE_DM', 'GROUP'] as const;
 
 /** Minimal user shape needed for permission checks */
 export interface PermissionUser {
@@ -27,7 +21,7 @@ export type ConversationForPermissions = Pick<
   | 'customViewers'
   | 'visibleToUserIds'
   | 'isLocked'
->;
+> & Partial<Pick<Conversation, 'deletionVisibility' | 'deletionRequestedAt'>>;
 
 /**
  * Check if a user can READ/VIEW a conversation.
@@ -37,6 +31,14 @@ export function canViewConversation(
   user: PermissionUser | null,
   conversation: ConversationForPermissions
 ): boolean {
+  // A legacy visibility value must never turn a direct/group chat into a public post.
+  if ((conversation.type === 'PRIVATE_DM' || conversation.type === 'GROUP') &&
+    (!user || (conversation.userId !== user.id && user.role !== 'OWNER' && user.role !== 'ADMIN' && !conversation.participants.includes(user.id)))) {
+    return false;
+  }
+  if (conversation.deletionRequestedAt && conversation.deletionVisibility === 'PRIVATE') {
+    return !!user && (conversation.userId === user.id || user.role === 'OWNER' || user.role === 'ADMIN');
+  }
   // PUBLIC visibility: anyone can view (even guests)
   if (conversation.visibility === 'PUBLIC') {
     return true;
@@ -84,7 +86,7 @@ export function canViewConversation(
 
 /**
  * Check if a user can REPLY/POST messages to a conversation.
- * Assumes user can already view the conversation.
+ * Read access is required here as well; callers cannot accidentally bypass it.
  */
 export function canReplyToConversation(
   user: PermissionUser | null,
@@ -92,7 +94,7 @@ export function canReplyToConversation(
   mentionedUserIds: string[] = []
 ): boolean {
   // Must be authenticated to reply
-  if (!user) {
+  if (!user || !canViewConversation(user, conversation)) {
     return false;
   }
 
@@ -118,7 +120,7 @@ export function canReplyToConversation(
   // Check based on reply permission type
   switch (conversation.replyPermission) {
     case 'EVERYONE':
-      // Anyone who can view can reply (visibility check is assumed)
+      // Read access was checked above.
       return true;
 
     case 'PARTICIPANTS':
@@ -174,48 +176,27 @@ export function canModerateConversation(
  * Build a Prisma WHERE clause for fetching conversations visible to a user.
  * This is used for listing conversations.
  */
-export function buildVisibilityWhereClause(user: PermissionUser | null): object {
-  // Guest users can only see PUBLIC conversations
-  if (!user) {
-    return { visibility: 'PUBLIC' };
-  }
-
-  // OWNER/ADMIN can see everything
-  if (user.role === 'OWNER' || user.role === 'ADMIN') {
-    return {};
-  }
-
-  // Regular users: complex OR clause
-  return {
-    OR: [
-      // Public conversations
-      { visibility: 'PUBLIC' },
-      // Conversations they created
-      { userId: user.id },
-      // Conversations where they're a participant
-      { participants: { has: user.id } },
-      // Role-based visibility where their role is allowed
-      {
-        AND: [
-          { visibility: 'ROLE_BASED' },
-          { allowedRoles: { has: user.role } },
-        ],
-      },
-      // Custom visibility where they're in the viewer list
-      {
-        AND: [
-          { visibility: 'CUSTOM' },
-          { customViewers: { has: user.id } },
-        ],
-      },
-      // Specific users visibility where they're in the allowed list
-      {
-        AND: [
-          { visibility: 'SPECIFIC_USERS' },
-          { visibleToUserIds: { has: user.id } },
-        ],
-      },
-    ],
+export function buildVisibilityWhereClause(user: PermissionUser | null): Prisma.ConversationWhereInput {
+  if (user?.role === 'OWNER' || user?.role === 'ADMIN') return {};
+  const notPrivateType: Prisma.ConversationWhereInput = { type: { notIn: [...privateConversationTypes] } };
+  const notHiddenByDeletion: Prisma.ConversationWhereInput = {
+    OR: [{ deletionRequestedAt: null }, { deletionVisibility: { not: 'PRIVATE' } }],
   };
+  if (!user) return { AND: [notPrivateType, notHiddenByDeletion, { visibility: 'PUBLIC' }] };
+  // Mirrors canViewConversation, including narrower legacy PRIVATE visibility.
+  return { OR: [
+    { userId: user.id },
+    { AND: [
+      { OR: [notPrivateType, { participants: { has: user.id } }] },
+      notHiddenByDeletion,
+      { OR: [
+        { visibility: 'PUBLIC' },
+        { visibility: 'PARTICIPANTS', participants: { has: user.id } },
+        { visibility: 'ROLE_BASED', allowedRoles: { has: user.role } },
+        { visibility: 'CUSTOM', OR: [{ customViewers: { has: user.id } }, { participants: { has: user.id } }] },
+        { visibility: 'SPECIFIC_USERS', visibleToUserIds: { has: user.id } },
+      ] },
+    ] },
+  ] };
 }
 
