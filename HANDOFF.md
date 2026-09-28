@@ -1,6 +1,39 @@
 # Veggat development handoff — 27 September 2026
 
-## Release-check update — 28 September 2026
+## Main release — 28 September 2026
+
+**Application release `d48d446` is on GitHub `main` and Live.** PR #88 merged
+the release fixes into `dev`; PR #86 then merged `dev` into `main` on the owner's
+explicit “go main” instruction. The unsuffixed local folder is being returned to
+`main`. The older branch/folder and “not promoted” notes below are historical.
+
+- Vercel deployment `dpl_2XVwn7nvjNbdEe7rZdVRt9dN3aSP` is READY and serves
+  `https://www.veggat.com`; `/api/version` reports `d48d4460`.
+- All three pending migrations applied successfully: exact settlement quotes,
+  paper orders and paper-order notifications. Production now has 59 migrations.
+  A read-only preflight found no incompatible existing checkout rows. No reset,
+  historical receipt repricing or local use of Live credentials occurred.
+- Isolated Preview passed 18 focused checks. Live passed 20, including demo
+  sign-in, cart images/separate lines/reload/quantity/removal, product layouts at
+  eight viewport sizes, login controls, anonymous API rejection, malformed
+  session rejection and OAuth host/PKCE/cookie checks. Provider consent and real
+  payment acceptance are not implied by these checks; no new Live charge occurred.
+- Local build, TypeScript, lint, Prisma validation, backend TypeScript,
+  2,507 Vitest tests and five Node tests passed; 278 optional tests were skipped.
+- GitHub Actions is still blocked by the account billing lock, not marked green.
+  No billing, branch-protection or CI security settings were changed.
+- Railway's production source is aligned with `main` (previously
+  `release/showcase-september`); `/backend` and runtime settings are unchanged.
+  The backend source tree is identical to its previously deployed version.
+- Full business-workflow acceptance, the paper-order concurrency race and Live
+  merchant currency preferences remain open. This release is not a claim that
+  every feature is production-certified.
+
+[Release preflight and post-deployment evidence](https://github.com/veggaen/DEV-VEGGASTARE/pull/86).
+Use feature branches for further changes; do not commit directly to `main`.
+The other worktrees and the owner's untracked instruction files are preserved.
+
+## Earlier release-check update — 28 September 2026
 
 The unsuffixed folder is now on `feat/chrome-kernel`, committed HEAD `420369e`
 (also `origin/dev`), plus uncommitted release/auth fixes. The branch/folder table
