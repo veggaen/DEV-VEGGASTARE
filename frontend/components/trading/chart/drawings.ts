@@ -1,32 +1,62 @@
 /**
- * @fileOverview  Chart drawings for the paper terminal: types, geometry
- *                helpers and per-symbol persistence. Anchors are stored in
- *                data space (time + price) so a drawing survives timeframe
- *                changes and zooming.
+ * @fileOverview  Chart drawings for the terminal: tool catalogue (grouped the
+ *                way TradingView groups its toolbar), types, geometry helpers
+ *                and per-symbol persistence. Anchors are stored in data space
+ *                (time + price) so a drawing survives timeframe changes and
+ *                zooming.
  * @stability     experimental
  */
 
-export type DrawingTool = "cursor" | "trend" | "ray" | "extended" | "hline" | "vline" | "crossline" | "rect" | "fib";
+export type DrawingTool =
+  | "cursor"
+  | "trend" | "ray" | "extended" | "hline" | "hray" | "vline" | "crossline" | "channel"
+  | "rect" | "text"
+  | "fib"
+  | "measure" | "pricerange" | "daterange"
+  | "long" | "short"
+  | "avwap";
 export type DrawingType = Exclude<DrawingTool, "cursor">;
 export type Anchor = { t: number; p: number };
-export type Drawing = { id: string; type: DrawingType; points: Anchor[]; locked?: boolean };
+export type Drawing = { id: string; type: DrawingType; points: Anchor[]; text?: string; locked?: boolean };
 
-export const TOOLS: Array<{ id: DrawingTool; label: string; hint: string }> = [
+export type ToolGroup = "lines" | "shapes" | "fib" | "measure" | "positions" | "volume";
+
+export const TOOLS: Array<{ id: DrawingTool; label: string; hint: string; group?: ToolGroup }> = [
   { id: "cursor", label: "Cursor", hint: "Select, move and pan" },
-  { id: "trend", label: "Trend line", hint: "Two clicks, or press and drag" },
-  { id: "ray", label: "Ray", hint: "Trend line that extends right" },
-  { id: "extended", label: "Extended line", hint: "Trend line that extends both ways" },
-  { id: "hline", label: "Horizontal line", hint: "One click at a price" },
-  { id: "vline", label: "Vertical line", hint: "One click at a time" },
-  { id: "crossline", label: "Cross line", hint: "One click: a price and a time" },
-  { id: "rect", label: "Rectangle", hint: "Two corners" },
-  { id: "fib", label: "Fib retracement", hint: "From swing low to swing high (or the reverse)" },
+  { id: "trend", label: "Trend line", hint: "Two clicks, or press and drag", group: "lines" },
+  { id: "ray", label: "Ray", hint: "Trend line that extends right", group: "lines" },
+  { id: "extended", label: "Extended line", hint: "Trend line that extends both ways", group: "lines" },
+  { id: "hline", label: "Horizontal line", hint: "One click at a price", group: "lines" },
+  { id: "hray", label: "Horizontal ray", hint: "From a bar to the right, at a price", group: "lines" },
+  { id: "vline", label: "Vertical line", hint: "One click at a time", group: "lines" },
+  { id: "crossline", label: "Cross line", hint: "One click: a price and a time", group: "lines" },
+  { id: "channel", label: "Parallel channel", hint: "Two clicks for the first line, a third for the width", group: "lines" },
+  { id: "rect", label: "Rectangle", hint: "Two corners", group: "shapes" },
+  { id: "text", label: "Text", hint: "One click, then type", group: "shapes" },
+  { id: "fib", label: "Fib retracement", hint: "From swing low to swing high (or the reverse)", group: "fib" },
+  { id: "measure", label: "Date & price range", hint: "Two corners: change, bars and time", group: "measure" },
+  { id: "pricerange", label: "Price range", hint: "Two clicks: the price change between them", group: "measure" },
+  { id: "daterange", label: "Date range", hint: "Two clicks: bars and time between them", group: "measure" },
+  { id: "long", label: "Long position", hint: "Entry, then target; the stop starts at half the distance", group: "positions" },
+  { id: "short", label: "Short position", hint: "Entry, then target; the stop starts at half the distance", group: "positions" },
+  { id: "avwap", label: "Anchored VWAP", hint: "One click on the bar to anchor from", group: "volume" },
+];
+
+export const TOOL_GROUPS: Array<{ id: ToolGroup; label: string }> = [
+  { id: "lines", label: "Lines" },
+  { id: "shapes", label: "Shapes & text" },
+  { id: "fib", label: "Fibonacci" },
+  { id: "measure", label: "Measure" },
+  { id: "positions", label: "Positions" },
+  { id: "volume", label: "Volume" },
 ];
 
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 
 export function pointsNeeded(type: DrawingType): number {
-  return type === "hline" || type === "vline" || type === "crossline" ? 1 : 2;
+  if (type === "hline" || type === "vline" || type === "crossline" || type === "hray" || type === "text" || type === "avwap") return 1;
+  if (type === "channel") return 3;
+  return 2;
 }
 
 export function newDrawingId(): string {
@@ -82,4 +112,14 @@ export function formatCompact(value: number): string {
   if (abs >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
   if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
   return value.toFixed(0);
+}
+
+/** "3d 4h", "450d", "2h 15m": a duration the way a chart shows it. */
+export function formatDuration(ms: number): string {
+  const abs = Math.abs(ms);
+  const d = Math.floor(abs / 86_400_000), h = Math.floor((abs % 86_400_000) / 3_600_000), m = Math.floor((abs % 3_600_000) / 60_000);
+  if (d >= 30) return `${d}d`;
+  if (d > 0) return h ? `${d}d ${h}h` : `${d}d`;
+  if (h > 0) return m ? `${h}h ${m}m` : `${h}h`;
+  return `${m}m`;
 }

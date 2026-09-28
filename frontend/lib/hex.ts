@@ -44,6 +44,7 @@ export const hexAbi = [
   { type: 'function', name: 'dailyDataRange', stateMutability: 'view', inputs: [{ name: 'beginDay', type: 'uint256' }, { name: 'endDay', type: 'uint256' }], outputs: [{ name: 'list', type: 'uint256[]' }] },
   { type: 'function', name: 'stakeStart', stateMutability: 'nonpayable', inputs: [{ name: 'newStakedHearts', type: 'uint256' }, { name: 'newStakedDays', type: 'uint256' }], outputs: [] },
   { type: 'function', name: 'stakeEnd', stateMutability: 'nonpayable', inputs: [{ name: 'stakeIndex', type: 'uint256' }, { name: 'stakeIdParam', type: 'uint40' }], outputs: [] },
+  { type: 'function', name: 'stakeGoodAccounting', stateMutability: 'nonpayable', inputs: [{ name: 'stakerAddr', type: 'address' }, { name: 'stakeIndex', type: 'uint256' }, { name: 'stakeIdParam', type: 'uint40' }], outputs: [] },
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
 
@@ -63,7 +64,8 @@ export type HexStakeView = HexStake & {
   endDay: number;
   daysServed: number;
   progress: number;
-  status: 'pending' | 'active' | 'matured' | 'late' | 'ended';
+  /** `accounted` = good accounting has locked the payout in; the stake still needs ending to collect. */
+  status: 'pending' | 'active' | 'matured' | 'late' | 'accounted';
   tShares: number;
   principalHex: number;
   startDate: Date;
@@ -85,12 +87,14 @@ export function parseHex(input: string): bigint | null {
 
 export function describeStake(stake: HexStake, currentDay: number): HexStakeView {
   const endDay = stake.lockedDay + stake.stakedDays;
-  const ended = stake.unlockedDay > 0;
+  // A stake that has been ended leaves the list; one still listed with an
+  // unlockedDay has had good accounting run (payout locked in).
+  const accounted = stake.unlockedDay > 0;
   const started = currentDay >= stake.lockedDay;
-  const daysServed = ended ? Math.min(stake.unlockedDay, endDay) - stake.lockedDay : started ? Math.min(currentDay, endDay) - stake.lockedDay : 0;
+  const daysServed = accounted ? Math.min(stake.unlockedDay, endDay) - stake.lockedDay : started ? Math.min(currentDay, endDay) - stake.lockedDay : 0;
   const progress = stake.stakedDays > 0 ? Math.max(0, Math.min(1, daysServed / stake.stakedDays)) : 0;
   // HEX gives 14 days of grace after maturity before late penalties start.
-  const status: HexStakeView['status'] = ended ? 'ended' : !started ? 'pending' : currentDay < endDay ? 'active' : currentDay <= endDay + 14 ? 'matured' : 'late';
+  const status: HexStakeView['status'] = accounted ? 'accounted' : !started ? 'pending' : currentDay < endDay ? 'active' : currentDay <= endDay + 14 ? 'matured' : 'late';
   return { ...stake, endDay, daysServed, progress, status, tShares: sharesToTShares(stake.stakeShares), principalHex: heartsToHex(stake.stakedHearts), startDate: dayToDate(stake.lockedDay), endDate: dayToDate(endDay) };
 }
 

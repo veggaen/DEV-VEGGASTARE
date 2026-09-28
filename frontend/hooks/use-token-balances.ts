@@ -8,8 +8,24 @@ import { TOKEN_LOGO_FALLBACKS } from "@/lib/token-icons";
 import { rpcUrlFor } from "@/lib/evm-rpc";
 import { BLOCKSCOUT_HOSTS, mergeTokenCandidates, type DiscoveredToken, type TokenCandidate } from "@/lib/wallet-tokens";
 import { GECKO_NETWORKS } from "@/lib/token-prices";
-import { assessToken, valueCounts, type GoPlusSecurity, type TokenRisk } from "@/lib/token-risk";
-import { TRUSTED_TOKENS_EVENT, readTrustedTokens, trustedTokenKey } from "@/lib/trusted-tokens";
+import { assessToken, valueCounts, type GoPlusSecurity, type HoneypotVerdict, type TokenRisk } from "@/lib/token-risk";
+import { TRUSTED_TOKENS_EVENT, readFlaggedTokens, readTrustedTokens, trustedTokenKey } from "@/lib/trusted-tokens";
+
+/** The verdict for one inventory token given the user's current flags. */
+function assessInventoryToken(t: InventoryToken, flagged: Set<string>): TokenRisk {
+  return assessToken({
+    isNative: t.isNative,
+    isKnown: t.known,
+    flaggedByUser: flagged.has(trustedTokenKey(t.chainId, t.address)),
+    goplus: t.security ?? null,
+    honeypot: t.honeypot ?? null,
+    liquidityUsd: t.liquidityUsd,
+    volume24hUsd: t.volume24hUsd,
+    hasPrice: t.usdPrice !== undefined,
+  });
+}
+const HONEYPOT_CHAINS = new Set([1, 56, 8453]);
+const HONEYPOT_TTL = 6 * 60 * 60_000;
 
 /** Chain icon data URIs — simple coloured circles with chain abbreviation */
 export const CHAIN_LOGOS: Record<number, string> = {
@@ -40,7 +56,7 @@ function resolveTokenLogo(_symbol: string, providedLogo?: string): string | unde
 }
 
 // Well-known ERC-20 tokens per chain
-const KNOWN_TOKENS: Record<number, TokenMeta[]> = {
+export const KNOWN_TOKENS: Record<number, TokenMeta[]> = {
   // Ethereum Mainnet
   1: [
     { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6 },
@@ -126,6 +142,10 @@ export interface InventoryToken {
   volume24hUsd?: number;
   /** Contract red flags from GoPlus, when the chain is covered. */
   security?: GoPlusSecurity;
+  /** Honeypot.is sale simulation, when the chain is covered and the token was worth checking. */
+  honeypot?: HoneypotVerdict;
+  /** On the chain's known list (USDC, HEX, …). */
+  known?: boolean;
   /** The risk verdict built from the above. */
   risk?: TokenRisk;
   /** False when the price must not count toward totals (risky token the user has not trusted). */
@@ -184,16 +204,22 @@ export function useTokenBalances() {
   const [error, setError] = useState<string | null>(null);
   /** Flagged tokens the user chose to count anyway (localStorage); changes apply without a refetch. */
   const trustedRef = useRef<Set<string>>(new Set());
+  const flaggedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const apply = () => {
       trustedRef.current = readTrustedTokens();
+      flaggedRef.current = readFlaggedTokens();
       setTokensState((prev) => {
-        const next = prev.map((t) => ({ ...t, valueVerified: valueCounts(t.risk?.level, trustedRef.current.has(trustedTokenKey(t.chainId, t.address))) }));
+        const next = prev.map((t) => {
+          const risk = assessInventoryToken(t, flaggedRef.current);
+          return { ...t, risk, valueVerified: valueCounts(risk.level, trustedRef.current.has(trustedTokenKey(t.chainId, t.address))) };
+        });
         signatureRef.current = signatureOf(next);
         return next;
       });
     };
     trustedRef.current = readTrustedTokens();
+    flaggedRef.current = readFlaggedTokens();
     window.addEventListener(TRUSTED_TOKENS_EVENT, apply);
     return () => window.removeEventListener(TRUSTED_TOKENS_EVENT, apply);
   }, []);
@@ -210,6 +236,8 @@ export function useTokenBalances() {
   const pricesRef = useRef<{ key: string; ts: number; asked: Set<string>; prices: Record<string, number>; liquidity: Record<string, number>; volume: Record<string, number>; native: number | null } | null>(null);
   // GoPlus contract flags; a quarter of an hour is plenty, they rarely change.
   const securityRef = useRef<{ key: string; ts: number; asked: Set<string>; tokens: Record<string, GoPlusSecurity> } | null>(null);
+  // Honeypot.is sale simulations; six hours, only for tokens that could inflate the total.
+  const honeypotRef = useRef<{ key: string; ts: number; asked: Set<string>; tokens: Record<string, HoneypotVerdict> } | null>(null);
 
   // Determine effective address / chain / connection status
   const isLocalOverride = Boolean(override?.address);
@@ -470,16 +498,35 @@ export function useTokenBalances() {
         }
       }
 
-      // The verdict, and whether the price counts: "ok" always, anything else only when the user trusted it.
       const knownAddrs = new Set(knownTokens.map((t) => t.address.toLowerCase()));
+      for (const token of results) token.known = knownAddrs.has(token.address.toLowerCase());
+
+      // Pass 5: Honeypot.is sale simulation for priced, unknown tokens (the ones that could inflate the total).
+      if (!isLocalOverride && HONEYPOT_CHAINS.has(chainId)) {
+        try {
+          const cacheKey = `${chainId}:${address.toLowerCase()}`;
+          const suspects = results.filter((t) => !t.isNative && !t.known && (t.usdPrice ?? 0) > 0 && t.security?.trust_list !== "1").map((t) => t.address.toLowerCase());
+          const cached = honeypotRef.current;
+          let hp = cached && cached.key === cacheKey && Date.now() - cached.ts < HONEYPOT_TTL ? cached : null;
+          const fresh = suspects.filter((a) => !hp?.asked.has(a));
+          if (fresh.length) {
+            const res = await fetch(`/api/wallets/evm/honeypot?chainId=${chainId}&addresses=${fresh.slice(0, 40).join(",")}`, { signal: AbortSignal.timeout(30_000) });
+            if (!res.ok) throw new Error(`honeypot ${res.status}`);
+            const data = (await res.json()) as { tokens?: Record<string, HoneypotVerdict>; pending?: string[] };
+            const pending = new Set((data.pending ?? []).map((a) => a.toLowerCase()));
+            hp = { key: cacheKey, ts: hp?.ts ?? Date.now(), asked: new Set([...(hp?.asked ?? []), ...fresh.filter((a) => !pending.has(a))]), tokens: { ...(hp?.tokens ?? {}), ...(data.tokens ?? {}) } };
+            honeypotRef.current = hp;
+          }
+          if (version !== fetchVersionRef.current) return;
+          for (const token of results) if (!token.isNative) token.honeypot = hp?.tokens[token.address.toLowerCase()] ?? token.honeypot;
+        } catch (hpErr) {
+          console.warn("[useTokenBalances] honeypot check unavailable:", hpErr);
+        }
+      }
+
+      // The verdict, and whether the price counts: "ok" always, anything else only when the user trusted it.
       for (const token of results) {
-        token.risk = assessToken({
-          isNative: token.isNative,
-          isKnown: knownAddrs.has(token.address.toLowerCase()),
-          goplus: token.security ?? null,
-          liquidityUsd: token.liquidityUsd,
-          volume24hUsd: token.volume24hUsd,
-        });
+        token.risk = assessInventoryToken(token, flaggedRef.current);
         token.valueVerified = valueCounts(token.risk.level, trustedRef.current.has(trustedTokenKey(token.chainId, token.address)));
       }
 

@@ -24,6 +24,7 @@ import {
   FIB_LEVELS,
   distanceToSegment,
   formatCompact,
+  formatDuration,
   formatPrice,
   newDrawingId,
   pointsNeeded,
@@ -127,6 +128,11 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
   const logRef = React.useRef(false);
   const [manual, setManual] = React.useState(false);
   const [log, setLog] = React.useState(false);
+  /** Inline editor for a text drawing (position in canvas px). */
+  const [textEdit, setTextEdit] = React.useState<{ id: string; x: number; y: number; value: string } | null>(null);
+  /** Editor to open on pointer-up: opening it on pointer-down loses focus to the canvas' own mousedown focus. */
+  const pendingTextRef = React.useRef<{ id: string; x: number; y: number; value: string } | null>(null);
+  const avwapCache = React.useRef(new Map<string, { key: string; values: number[] }>());
   const stickRightRef = React.useRef(true);
   const hoverRef = React.useRef<{ x: number; y: number } | null>(null);
   const draftRef = React.useRef<Anchor[]>([]);
@@ -244,6 +250,27 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
   const setScale = React.useCallback((next: Scale) => { scaleRef.current = next; setManual(next.mode === "manual"); }, []);
   const resetScale = React.useCallback(() => setScale({ mode: "auto", min: 0, max: 1 }), [setScale]);
 
+  /** Anchored VWAP series for a drawing: cumulative from the anchor bar to the last bar (NaN before). */
+  const avwapValues = React.useCallback((d: Drawing): number[] => {
+    const c = propsRef.current.candles;
+    const start = Math.max(0, Math.min(c.length - 1, Math.round(timeToIndex(d.points[0].t))));
+    const key = `${start}:${c.length}:${c[c.length - 1]?.t ?? 0}`;
+    const hit = avwapCache.current.get(d.id);
+    if (hit && hit.key === key) return hit.values;
+    const values = new Array<number>(c.length).fill(NaN);
+    let pv = 0, vol = 0;
+    for (let i = start; i < c.length; i++) { const k = c[i]; const tp = (k.h + k.l + k.c) / 3; pv += tp * k.v; vol += k.v; values[i] = vol > 0 ? pv / vol : tp; }
+    avwapCache.current.set(d.id, { key, values });
+    return values;
+  }, [timeToIndex]);
+
+  /** The third point of a channel as an offset of the first line; the parallel line runs through it. */
+  const channelOffset = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) => {
+    const dx = b.x - a.x, dy = b.y - a.y; const len2 = dx * dx + dy * dy || 1;
+    const t = ((c.x - a.x) * dx + (c.y - a.y) * dy) / len2;
+    return { x: c.x - (a.x + t * dx), y: c.y - (a.y + t * dy) };
+  };
+
   // ── Hit testing ──────────────────────────────────────────────────────────
   const hitTest = React.useCallback((x: number, y: number): { id: string; handle?: number } | null => {
     const g = geom();
@@ -255,8 +282,28 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
       if (d.type === "hline") { if (Math.abs(pts[0].y - y) <= HIT_PX) return { id: d.id }; continue; }
       if (d.type === "vline") { if (Math.abs(pts[0].x - x) <= HIT_PX) return { id: d.id }; continue; }
       if (d.type === "crossline") { if (Math.abs(pts[0].x - x) <= HIT_PX || Math.abs(pts[0].y - y) <= HIT_PX) return { id: d.id }; continue; }
+      if (d.type === "hray") { if (Math.abs(pts[0].y - y) <= HIT_PX && x >= pts[0].x - HIT_PX) return { id: d.id }; continue; }
+      if (d.type === "text") { if (x >= pts[0].x - 6 && x <= pts[0].x + 180 && y >= pts[0].y - 24 && y <= pts[0].y + 8) return { id: d.id }; continue; }
+      if (d.type === "avwap") {
+        const values = avwapValues(d); const i = Math.round(xToIndex(x)); const v = values[i];
+        if (Number.isFinite(v) && Math.abs(priceToY(v) - y) <= HIT_PX) return { id: d.id };
+        continue;
+      }
       if (pts.length < 2) continue;
       const [a, b] = pts;
+      if (d.type === "measure" || d.type === "long" || d.type === "short") {
+        const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+        const ys = pts.map((p) => p.y); const y1 = Math.min(...ys), y2 = Math.max(...ys);
+        if (x >= x1 - HIT_PX && x <= x2 + HIT_PX && y >= y1 - HIT_PX && y <= y2 + HIT_PX) return { id: d.id };
+        continue;
+      }
+      if (d.type === "pricerange") { if (Math.abs(x - a.x) <= 24 && y >= Math.min(a.y, b.y) - HIT_PX && y <= Math.max(a.y, b.y) + HIT_PX) return { id: d.id }; continue; }
+      if (d.type === "daterange") { if (Math.abs(y - a.y) <= 24 && x >= Math.min(a.x, b.x) - HIT_PX && x <= Math.max(a.x, b.x) + HIT_PX) return { id: d.id }; continue; }
+      if (d.type === "channel") {
+        if (distanceToSegment(x, y, a.x, a.y, b.x, b.y) <= HIT_PX) return { id: d.id };
+        if (pts[2]) { const o = channelOffset(a, b, pts[2]); if (distanceToSegment(x, y, a.x + o.x, a.y + o.y, b.x + o.x, b.y + o.y) <= HIT_PX) return { id: d.id }; }
+        continue;
+      }
       if (d.type === "trend" && distanceToSegment(x, y, a.x, a.y, b.x, b.y) <= HIT_PX) return { id: d.id };
       if (d.type === "ray" || d.type === "extended") {
         const dx = b.x - a.x, dy = b.y - a.y; const far = dx === 0 && dy === 0 ? b : { x: a.x + dx * FAR, y: a.y + dy * FAR };
@@ -275,7 +322,7 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
       }
     }
     return null;
-  }, [geom, anchorToXY]);
+  }, [geom, anchorToXY, avwapValues, xToIndex, priceToY]);
 
   // ── Drawing ──────────────────────────────────────────────────────────────
   const draw = React.useCallback(() => {
@@ -448,11 +495,99 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
         const label = crosshairTime(t, iv); const tw = ctx.measureText(label).width + 12; const tx = Math.max(0, Math.min(g.plotW - tw, xx - tw / 2));
         ctx.fillStyle = th.hsl(th.accent); ctx.fillRect(tx, axisY + 3, tw, AXIS_H - 6); ctx.fillStyle = th.hsl(th.card); ctx.textAlign = "center"; ctx.fillText(label, tx + tw / 2, axisY + AXIS_H / 2);
       };
+      /** A small label box with one or more lines, anchored at its centre. */
+      const labelBox = (lines: string[], cx: number, cy: number, tone = th.hsl(th.card, 0.92)) => {
+        ctx.save(); ctx.setLineDash([]); ctx.font = `10px ${th.font}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 14, h = lines.length * 13 + 8;
+        const bx = Math.max(2, Math.min(g.plotW - w - 2, cx - w / 2)), by = Math.max(2, Math.min(g.plotH - h - 2, cy - h / 2));
+        ctx.fillStyle = tone; ctx.strokeStyle = th.hsl(th.border, 0.9); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(bx + 0.5, by + 0.5, w, h, 4); ctx.fill(); ctx.stroke();
+        lines.forEach((l, i) => { ctx.fillStyle = th.hsl(th.fg, i === 0 ? 1 : 0.8); ctx.fillText(l, bx + w / 2, by + 10 + i * 13); });
+        ctx.restore(); ctx.font = `11px ${th.font}`;
+      };
+      const arrow = (x1: number, y1: number, x2: number, y2: number) => {
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        const ang = Math.atan2(y2 - y1, x2 - x1);
+        for (const [px, py, a2] of [[x2, y2, ang], [x1, y1, ang + Math.PI]] as const) { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - 6 * Math.cos(a2 - 0.4), py - 6 * Math.sin(a2 - 0.4)); ctx.moveTo(px, py); ctx.lineTo(px - 6 * Math.cos(a2 + 0.4), py - 6 * Math.sin(a2 + 0.4)); ctx.stroke(); }
+      };
+      const barsBetween = (p1: Anchor, p2: Anchor) => Math.abs(Math.round(timeToIndex(p2.t)) - Math.round(timeToIndex(p1.t)));
+      const volumeBetween = (p1: Anchor, p2: Anchor) => { const i1 = Math.max(0, Math.round(timeToIndex(Math.min(p1.t, p2.t)))), i2 = Math.min(c.length - 1, Math.round(timeToIndex(Math.max(p1.t, p2.t)))); let v = 0; for (let i = i1; i <= i2; i++) v += c[i]?.v ?? 0; return v; };
+      const pct = (from: number, to: number) => (from ? ((to - from) / from) * 100 : 0);
+      const signed = (n: number, digits = 2) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(digits)}`;
+
       if (d.type === "hline" && pts[0]) hline(pts[0].y, d.points[0].p);
       else if (d.type === "vline" && pts[0]) vline(pts[0].x, d.points[0].t);
       else if (d.type === "crossline" && pts[0]) { hline(pts[0].y, d.points[0].p); ctx.strokeStyle = col; vline(pts[0].x, d.points[0].t); }
+      else if (d.type === "hray" && pts[0]) {
+        const yy = Math.round(pts[0].y) + 0.5; ctx.beginPath(); ctx.moveTo(pts[0].x, yy); ctx.lineTo(g.plotW, yy); ctx.stroke();
+        ctx.fillStyle = th.hsl(th.accent); ctx.fillRect(g.plotW + 2, yy - 9, AXIS_W - 4, 18); ctx.fillStyle = th.hsl(th.card); ctx.textAlign = "left"; ctx.fillText(formatPrice(d.points[0].p), g.plotW + 8, yy);
+      }
+      else if (d.type === "text" && pts[0]) {
+        const label = d.text?.trim() || (textEdit?.id === d.id ? "" : "Text");
+        if (label) {
+          ctx.save(); ctx.setLineDash([]); ctx.font = `12px ${th.font}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const w = ctx.measureText(label).width + 12;
+          ctx.fillStyle = th.hsl(th.card, 0.85); ctx.beginPath(); ctx.roundRect(pts[0].x - 4, pts[0].y - 20, w, 20, 4); ctx.fill();
+          ctx.fillStyle = d.text?.trim() ? th.hsl(th.fg) : th.hsl(th.muted); ctx.fillText(label, pts[0].x + 2, pts[0].y - 10);
+          ctx.restore(); ctx.font = `11px ${th.font}`;
+        }
+        ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, 2.5, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      }
+      else if (d.type === "avwap" && pts[0]) {
+        const values = avwapValues(d);
+        ctx.save(); ctx.strokeStyle = th.hsl(th.accent, ghost ? 0.6 : 0.95); ctx.lineWidth = 1.4; ctx.beginPath(); let open = false;
+        for (let i = from; i <= to; i++) { const v = values[i]; if (!Number.isFinite(v)) { open = false; continue; } const px = x(i), py = y(v); if (!open) { ctx.moveTo(px, py); open = true; } else ctx.lineTo(px, py); }
+        ctx.stroke(); ctx.restore();
+        const lastV = values[Math.min(c.length - 1, to)];
+        if (Number.isFinite(lastV)) labelBox([`AVWAP ${formatPrice(lastV)}`], Math.min(g.plotW - 50, x(Math.min(c.length - 1, to)) - 40), y(lastV) - 14);
+        ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, 3, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      }
       else if (pts.length >= 2) {
         const [a, b] = pts;
+        if (d.type === "measure") {
+          const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x), y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+          const up = d.points[1].p >= d.points[0].p; const tone = th.hsl(up ? th.up : th.down);
+          ctx.fillStyle = th.hsl(up ? th.up : th.down, 0.1); ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          ctx.strokeStyle = th.hsl(up ? th.up : th.down, 0.7); ctx.strokeRect(x1 + 0.5, y1 + 0.5, x2 - x1, y2 - y1);
+          ctx.strokeStyle = tone; ctx.lineWidth = 1.2;
+          arrow((x1 + x2) / 2, a.y, (x1 + x2) / 2, b.y); arrow(a.x, (y1 + y2) / 2, b.x, (y1 + y2) / 2);
+          const dp = d.points[1].p - d.points[0].p; const bars = barsBetween(d.points[0], d.points[1]);
+          labelBox([`${signed(dp)} (${signed(pct(d.points[0].p, d.points[1].p))}%)`, `${bars} bars · ${formatDuration(Math.abs(d.points[1].t - d.points[0].t))}`, `Vol ${formatCompact(volumeBetween(d.points[0], d.points[1]))}`], (x1 + x2) / 2, up ? y1 - 28 : y2 + 28);
+        }
+        if (d.type === "pricerange") {
+          const up = d.points[1].p >= d.points[0].p; ctx.strokeStyle = th.hsl(up ? th.up : th.down); ctx.lineWidth = 1.2;
+          arrow(a.x, a.y, a.x, b.y);
+          ctx.setLineDash([3, 3]); ctx.strokeStyle = th.hsl(th.fg, 0.35); for (const p of [a, b]) { ctx.beginPath(); ctx.moveTo(a.x - 20, Math.round(p.y) + 0.5); ctx.lineTo(a.x + 20, Math.round(p.y) + 0.5); ctx.stroke(); }
+          labelBox([`${signed(d.points[1].p - d.points[0].p)} (${signed(pct(d.points[0].p, d.points[1].p))}%)`], a.x + 60, (a.y + b.y) / 2);
+        }
+        if (d.type === "daterange") {
+          ctx.strokeStyle = th.hsl(th.accent); ctx.lineWidth = 1.2; arrow(a.x, a.y, b.x, a.y);
+          ctx.setLineDash([3, 3]); ctx.strokeStyle = th.hsl(th.fg, 0.35); for (const p of [a, b]) { ctx.beginPath(); ctx.moveTo(Math.round(p.x) + 0.5, a.y - 20); ctx.lineTo(Math.round(p.x) + 0.5, a.y + 20); ctx.stroke(); }
+          labelBox([`${barsBetween(d.points[0], d.points[1])} bars · ${formatDuration(Math.abs(d.points[1].t - d.points[0].t))}`], (a.x + b.x) / 2, a.y - 24);
+        }
+        if (d.type === "long" || d.type === "short") {
+          const entry = d.points[0], target = d.points[1]; const stop = d.points[2] ?? { t: target.t, p: entry.p - (target.p - entry.p) / 2 };
+          const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x) === x1 ? x1 + 20 * g.barW : Math.max(a.x, b.x);
+          const yE = y(entry.p), yT = y(target.p), yS = y(stop.p);
+          ctx.fillStyle = th.hsl(th.up, 0.16); ctx.fillRect(x1, Math.min(yE, yT), x2 - x1, Math.abs(yT - yE));
+          ctx.fillStyle = th.hsl(th.down, 0.16); ctx.fillRect(x1, Math.min(yE, yS), x2 - x1, Math.abs(yS - yE));
+          ctx.setLineDash([]); ctx.lineWidth = 1;
+          for (const [yy, tone] of [[yE, th.hsl(th.fg, 0.8)], [yT, th.hsl(th.up)], [yS, th.hsl(th.down)]] as const) { ctx.strokeStyle = tone; ctx.beginPath(); ctx.moveTo(x1, Math.round(yy) + 0.5); ctx.lineTo(x2, Math.round(yy) + 0.5); ctx.stroke(); }
+          const gain = Math.abs(target.p - entry.p), risk = Math.abs(entry.p - stop.p); const rr = risk > 0 ? gain / risk : 0;
+          const sign = d.type === "long" ? 1 : -1;
+          labelBox([`Target ${formatPrice(target.p)} (${signed(sign * pct(entry.p, target.p))}%)`], (x1 + x2) / 2, yT + (yT < yE ? -12 : 12), th.hsl(th.up, 0.25));
+          labelBox([`Stop ${formatPrice(stop.p)} (${signed(sign * pct(entry.p, stop.p))}%)`], (x1 + x2) / 2, yS + (yS > yE ? 12 : -12), th.hsl(th.down, 0.25));
+          labelBox([`${d.type === "long" ? "Long" : "Short"} ${formatPrice(entry.p)} · R/R 1:${rr.toFixed(2)}`], (x1 + x2) / 2, yE);
+        }
+        if (d.type === "channel") {
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          if (pts[2]) {
+            const o = channelOffset(a, b, pts[2]);
+            ctx.beginPath(); ctx.moveTo(a.x + o.x, a.y + o.y); ctx.lineTo(b.x + o.x, b.y + o.y); ctx.stroke();
+            ctx.fillStyle = th.hsl(th.accent, 0.08); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x + o.x, b.y + o.y); ctx.lineTo(a.x + o.x, a.y + o.y); ctx.closePath(); ctx.fill();
+            ctx.save(); ctx.setLineDash([2, 4]); ctx.strokeStyle = th.hsl(th.accent, 0.5); ctx.beginPath(); ctx.moveTo(a.x + o.x / 2, a.y + o.y / 2); ctx.lineTo(b.x + o.x / 2, b.y + o.y / 2); ctx.stroke(); ctx.restore();
+          }
+        }
         if (d.type === "trend") { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
         if (d.type === "ray" || d.type === "extended") {
           const dx = b.x - a.x, dy = b.y - a.y; const k = dx === 0 && dy === 0 ? 0 : FAR;
@@ -479,7 +614,7 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
     // In-progress draft
     const hv = hoverRef.current; const draft = draftRef.current; const t = propsRef.current.tool;
     if (draft.length && hv && t !== "cursor") {
-      const ghost: Drawing = { id: "draft", type: t, points: pointsNeeded(t) === 1 ? draft : [draft[0], xyToAnchor(hv.x, hv.y)] };
+      const ghost: Drawing = { id: "draft", type: t, points: pointsNeeded(t) === 1 ? draft : [...draft, xyToAnchor(hv.x, hv.y)] };
       drawOne(ghost, false, true);
     }
     ctx.restore();
@@ -547,7 +682,7 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
       for (const [k, v] of legend2) { ctx.fillStyle = th.hsl(th.muted); ctx.fillText(k, lx2, 28); lx2 += ctx.measureText(k).width + 4; ctx.fillStyle = th.hsl(th.fg, 0.9); ctx.fillText(v, lx2, 28); lx2 += ctx.measureText(v).width + 12; }
       ctx.font = `11px ${th.font}`;
     }
-  }, [geom, priceRange, anchorToXY, xyToAnchor, xToIndex, indexToTime, timeToIndex, yToPrice, outputs, compareAt, S]);
+  }, [geom, priceRange, anchorToXY, xyToAnchor, xToIndex, indexToTime, timeToIndex, yToPrice, outputs, compareAt, S, avwapValues, textEdit?.id]);
 
   const schedule = React.useCallback(() => { if (rafRef.current == null) rafRef.current = requestAnimationFrame(draw); }, [draw]);
 
@@ -629,13 +764,24 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
 
   const finishDrawing = (a: Anchor) => {
     const t = propsRef.current.tool; if (t === "cursor") return;
-    const pts = pointsNeeded(t) === 1 ? [a] : [draftRef.current[0], a];
-    if (pts.length === 2 && pts[0].t === pts[1].t && pts[0].p === pts[1].p) { draftRef.current = []; return; }
-    const d: Drawing = { id: newDrawingId(), type: t, points: pts };
+    const need = pointsNeeded(t);
+    const pts = need === 1 ? [a] : [...draftRef.current, a];
+    if (pts.length < need) { draftRef.current = pts; dragRef.current = null; schedule(); return; } // more clicks to come
+    if (pts.length >= 2 && pts[0].t === pts[1].t && pts[0].p === pts[1].p) { draftRef.current = []; return; }
+    // A position starts with its stop at half the target distance; drag the handle to change it.
+    if (t === "long" || t === "short") { const [entry, target] = pts; pts.push({ t: target.t, p: entry.p - (target.p - entry.p) / 2 }); }
+    const d: Drawing = { id: newDrawingId(), type: t, points: pts, ...(t === "text" ? { text: "" } : {}) };
     draftRef.current = []; dragRef.current = null;
     commitDrawings([...propsRef.current.drawings, d]);
     setSelected(d.id);
+    if (t === "text") { const xy = anchorToXY(a); pendingTextRef.current = { id: d.id, x: xy.x, y: xy.y, value: "" }; }
     propsRef.current.onToolDone?.();
+  };
+
+  const commitText = (id: string, value: string) => {
+    const text = value.trim();
+    commitDrawings(text ? propsRef.current.drawings.map((d) => (d.id === id ? { ...d, text } : d)) : propsRef.current.drawings.filter((d) => d.id !== id));
+    setTextEdit(null); schedule();
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -698,6 +844,7 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
     const { x, y } = local(e);
     const p = pinchRef.current; if (p) { p.pointers.delete(e.pointerId); if (p.pointers.size === 0) pinchRef.current = null; }
     const drag = dragRef.current;
+    if (pendingTextRef.current) { setTextEdit(pendingTextRef.current); pendingTextRef.current = null; }
     if (drag?.kind === "draw" && drag.moved && draftRef.current.length) { finishDrawing(xyToAnchor(x, y)); }
     else if (drag?.kind !== "draw") dragRef.current = null;
     if (drag?.kind === "draw" && !drag.moved) dragRef.current = null; // wait for the second click
@@ -740,6 +887,9 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
   const onDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const { x, y } = local(e);
     if (region(x, y) === "priceAxis") { resetScale(); schedule(); return; }
+    const hit = hitTest(x, y);
+    const d = hit ? propsRef.current.drawings.find((dd) => dd.id === hit.id) : undefined;
+    if (d?.type === "text") { const xy = anchorToXY(d.points[0]); setTextEdit({ id: d.id, x: xy.x, y: xy.y, value: d.text ?? "" }); return; }
     fit();
   };
 
@@ -768,6 +918,19 @@ export function CandleChart({ candles, interval, chartType = "candles", tool, on
         onDoubleClick={onDoubleClick}
         onKeyDown={onKeyDown}
       />
+      {textEdit && (
+        <input
+          autoFocus
+          value={textEdit.value}
+          onChange={(e) => setTextEdit({ ...textEdit, value: e.target.value })}
+          onKeyDown={(e) => { if (e.key === "Enter") commitText(textEdit.id, textEdit.value); if (e.key === "Escape") commitText(textEdit.id, propsRef.current.drawings.find((d) => d.id === textEdit.id)?.text ?? ""); }}
+          onBlur={() => commitText(textEdit.id, textEdit.value)}
+          placeholder="Type a note, Enter to keep"
+          aria-label="Chart note"
+          className="absolute z-10 h-7 w-52 rounded-md border border-brand-accent/60 bg-card px-2 text-xs text-foreground shadow-e2 focus-visible:outline-none"
+          style={{ left: Math.max(2, Math.min(textEdit.x - 4, (canvasRef.current?.clientWidth ?? 400) - 214)), top: Math.max(2, textEdit.y - 32) }}
+        />
+      )}
       {/* Axis controls: auto-fit (when the scale was stretched by hand) and log/linear */}
       <div className="absolute right-1 top-1 flex items-center gap-1">
         {manual && <button type="button" onClick={() => { resetScale(); schedule(); }} className={axisBtn} title="Fit the price scale to the visible bars">Auto</button>}

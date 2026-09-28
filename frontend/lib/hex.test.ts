@@ -26,7 +26,7 @@ describe('describeStake', () => {
     expect(mid.principalHex).toBe(1000);
     expect(describeStake(stake, 305).status).toBe('matured');
     expect(describeStake(stake, 400).status).toBe('late');
-    expect(describeStake({ ...stake, unlockedDay: 250 }, 400).status).toBe('ended');
+    expect(describeStake({ ...stake, unlockedDay: 250 }, 400).status).toBe('accounted');
   });
 });
 

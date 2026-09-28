@@ -1,9 +1,10 @@
 /**
- * @fileOverview  Token risk: turns what GoPlus Token Security says about a
- *                contract and what the DEX data says about its liquidity into
- *                one level with plain-language reasons. The inventory greys
- *                out anything that is not "ok" and leaves its value out of the
- *                total until the user chooses to count it. Pure; no fetching.
+ * @fileOverview  Token risk: turns what GoPlus Token Security and Honeypot.is
+ *                say about a contract, what the DEX data says about its
+ *                liquidity, and the user's own flags into one level with
+ *                plain-language reasons. The inventory greys out anything
+ *                that is not "ok" and leaves its value out of the total until
+ *                the user chooses to count it. Pure; no fetching.
  * @stability     evolving
  */
 
@@ -11,14 +12,16 @@ export type RiskLevel = 'ok' | 'caution' | 'danger' | 'unknown';
 
 export type TokenRisk = {
   level: RiskLevel;
-  /** Short, user-facing reasons, worst first. */
+  /** Short, user-facing reasons for the level, worst first. */
   reasons: string[];
+  /** Things worth knowing that did not change the level (thin liquidity, mintable supply…). */
+  notes: string[];
   liquidityUsd?: number;
   volume24hUsd?: number;
   honeypot?: boolean;
   buyTaxPct?: number;
   sellTaxPct?: number;
-  /** Where the verdict came from: "goplus", "dex", "known". */
+  /** Where the verdict came from: "goplus", "honeypot.is", "dex", "known", "you". */
   sources: string[];
 };
 
@@ -48,13 +51,29 @@ export type GoPlusSecurity = Partial<{
   dex: { liquidity?: string }[];
 }>;
 
+/** Honeypot.is sale simulation, reduced to what we act on. Taxes are percentages. */
+export type HoneypotVerdict = {
+  isHoneypot?: boolean;
+  simulationFailed?: boolean;
+  reason?: string;
+  buyTax?: number;
+  sellTax?: number;
+  risk?: string;
+  flags?: Array<{ flag: string; description: string; severity: string }>;
+};
+
 export type RiskInput = {
   isNative?: boolean;
   /** Well-known symbol on its home chain (USDC on Ethereum, HEX, …). */
   isKnown?: boolean;
+  /** The user marked this token as a scam themselves. */
+  flaggedByUser?: boolean;
   goplus?: GoPlusSecurity | null;
+  honeypot?: HoneypotVerdict | null;
   liquidityUsd?: number;
   volume24hUsd?: number;
+  /** A price exists (from the indexer or a DEX), so a zero-volume market is suspicious rather than merely unknown. */
+  hasPrice?: boolean;
 };
 
 const THIN_LIQUIDITY_USD = 10_000;
@@ -63,15 +82,18 @@ const DANGER_TAX = 0.10;
 const CAUTION_TAX = 0.03;
 
 const flag = (v: string | undefined) => v === '1';
-const pct = (v: string | undefined) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
+const pct = (v: string | undefined) => { const n = Number(v); return v !== undefined && v !== '' && Number.isFinite(n) ? n : undefined; };
 const money = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${Math.round(n / 1_000)}K` : `$${Math.round(n)}`;
 
 export function assessToken(input: RiskInput): TokenRisk {
-  if (input.isNative) return { level: 'ok', reasons: [], sources: ['known'] };
+  if (input.isNative) return { level: 'ok', reasons: [], notes: [], sources: ['known'] };
+  if (input.flaggedByUser) return { level: 'danger', reasons: ['Flagged by you as not to be counted.'], notes: [], sources: ['you'] };
   const danger: string[] = [];
   const caution: string[] = [];
+  const notes: string[] = [];
   const sources: string[] = [];
   const g = input.goplus ?? undefined;
+  const h = input.honeypot ?? undefined;
 
   let liquidityUsd = input.liquidityUsd;
   if (g) {
@@ -93,23 +115,36 @@ export function assessToken(input: RiskInput): TokenRisk {
     if (sell !== undefined && sell >= DANGER_TAX) danger.push(`Sell tax ${Math.round(sell * 100)}%.`);
     else if (sell !== undefined && sell >= CAUTION_TAX) caution.push(`Sell tax ${Math.round(sell * 100)}%.`);
     if (buy !== undefined && buy >= DANGER_TAX) caution.push(`Buy tax ${Math.round(buy * 100)}%.`);
-    if (flag(g.is_mintable)) caution.push('Supply can be minted.');
+    if (flag(g.is_mintable)) notes.push('Supply can be minted by the contract.');
     if (g.is_open_source === '0') caution.push('Source code not verified.');
     if (g.is_in_dex === '0') caution.push('Not listed on any DEX.');
   }
 
-  if (liquidityUsd !== undefined) {
-    if (!sources.includes('dex') && input.liquidityUsd !== undefined) sources.push('dex');
-    if (liquidityUsd < NO_LIQUIDITY_USD) danger.push(`Almost no liquidity (${money(liquidityUsd)}): the shown price cannot be realised.`);
-    else if (liquidityUsd < THIN_LIQUIDITY_USD) caution.push(`Thin liquidity (${money(liquidityUsd)}).`);
+  if (h) {
+    sources.push('honeypot.is');
+    if (h.isHoneypot) danger.push(`Honeypot: a sale fails in simulation${h.reason ? ` (${h.reason})` : ''}.`);
+    else if (h.simulationFailed) danger.push('A sale could not be simulated; the token may not be sellable.');
+    for (const f of h.flags ?? []) {
+      if (f.severity === 'critical' || f.severity === 'high') danger.push(f.description || f.flag);
+      else if (f.severity === 'medium') caution.push(f.description || f.flag);
+    }
+    if (h.sellTax !== undefined && h.sellTax >= DANGER_TAX * 100) danger.push(`Sell tax ${Math.round(h.sellTax)}% in simulation.`);
+    else if (h.sellTax !== undefined && h.sellTax >= CAUTION_TAX * 100) caution.push(`Sell tax ${Math.round(h.sellTax)}% in simulation.`);
   }
-  if (input.volume24hUsd !== undefined && input.volume24hUsd < 100 && (liquidityUsd ?? 0) < THIN_LIQUIDITY_USD) caution.push('No trading in the last 24 hours.');
 
-  const base = { liquidityUsd, volume24hUsd: input.volume24hUsd, honeypot: g ? flag(g.is_honeypot) : undefined, buyTaxPct: g ? pct(g.buy_tax) : undefined, sellTaxPct: g ? pct(g.sell_tax) : undefined, sources };
-  if (danger.length) return { level: 'danger', reasons: [...danger, ...caution], ...base };
+  if (liquidityUsd !== undefined) {
+    if (input.liquidityUsd !== undefined) sources.push('dex');
+    if (liquidityUsd < NO_LIQUIDITY_USD) danger.push(`Almost no liquidity (${money(liquidityUsd)}): the shown price cannot be realised.`);
+    else if (liquidityUsd < THIN_LIQUIDITY_USD) notes.push(`Thin liquidity (${money(liquidityUsd)}): large sales move the price.`);
+  }
+  if (input.volume24hUsd !== undefined && input.volume24hUsd <= 0 && input.hasPrice) caution.push('No trades in the last 24 hours despite a listed price.');
+
+  const base = { notes, liquidityUsd, volume24hUsd: input.volume24hUsd, honeypot: h?.isHoneypot ?? (g ? flag(g.is_honeypot) : undefined), buyTaxPct: h?.buyTax !== undefined ? h.buyTax / 100 : g ? pct(g.buy_tax) : undefined, sellTaxPct: h?.sellTax !== undefined ? h.sellTax / 100 : g ? pct(g.sell_tax) : undefined, sources };
+  const dedupe = (list: string[]) => Array.from(new Set(list));
+  if (danger.length) return { level: 'danger', reasons: dedupe([...danger, ...caution]), ...base };
   if (g && flag(g.trust_list)) return { level: 'ok', reasons: [], ...base, sources: [...sources, 'known'] };
   if (input.isKnown && !caution.length) return { level: 'ok', reasons: [], ...base, sources: [...sources, 'known'] };
-  if (caution.length) return { level: 'caution', reasons: caution, ...base };
+  if (caution.length) return { level: 'caution', reasons: dedupe(caution), ...base };
   if (!sources.length) return { level: 'unknown', reasons: ['No security or liquidity data for this token yet.'], ...base };
   return { level: 'ok', reasons: [], ...base };
 }

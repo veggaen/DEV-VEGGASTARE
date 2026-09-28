@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useChainId, useChains, useConfig } from "wagmi";
-import { readContracts, switchChain, waitForTransactionReceipt, writeContract } from "wagmi/actions";
+import { readContract, readContracts, switchChain, waitForTransactionReceipt, writeContract } from "wagmi/actions";
 import type { Address, Hex } from "viem";
 import { toast } from "sonner";
 import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiLoader, FiRefreshCw } from "react-icons/fi";
@@ -30,9 +30,9 @@ const STATUS_TONE: Record<HexStakeView["status"], string> = {
   active: "bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
   matured: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   late: "bg-red-500/12 text-red-700 dark:text-red-300",
-  ended: "bg-foreground/[0.06] text-muted-foreground",
+  accounted: "bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
 };
-const STATUS_LABEL: Record<HexStakeView["status"], string> = { pending: "Starts tomorrow", active: "Active", matured: "Matured · end it", late: "Late · penalties accrue", ended: "Ended" };
+const STATUS_LABEL: Record<HexStakeView["status"], string> = { pending: "Starts tomorrow", active: "Active", matured: "Matured · end it", late: "Late · penalties accrue", accounted: "Payout locked in · end it to collect" };
 const field = "h-10 w-full rounded-lg border border-border/60 bg-foreground/[0.04] px-3 text-sm tabular-nums text-foreground placeholder:text-muted-foreground/70 focus-visible:border-brand-accent/60 focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_hsl(var(--brand-accent)/0.14)]";
 const chip = "min-h-8 rounded-full border border-border/60 px-3 text-[11px] font-medium text-muted-foreground transition-[background-color,border-color,color] duration-150 hover:border-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const primary = "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-accent px-5 text-sm font-semibold text-brand-accent-foreground shadow-e2 transition-[background-color,transform,opacity] duration-200 hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0";
@@ -73,20 +73,31 @@ export function HexStakes({ className }: { className?: string }) {
       const count = Number(base[0]);
       const currentDay = Number(base[1]);
       const shareRate = BigInt(base[2][2]);
+      // Daily data exists only up to the last stored day (it lags today until someone triggers the update).
+      const dailyDataCount = Number(base[2][4]);
       const balance = base[3];
       const raw = count
         ? await readContracts(config, { contracts: Array.from({ length: count }, (_, i) => ({ address: HEX_ADDRESS, abi: hexAbi, functionName: "stakeLists" as const, args: [address, BigInt(i)] as const, chainId })), allowFailure: false })
         : [];
       const stakes = raw.map((r, index) => describeStake({ index, stakeId: BigInt(r[0]), stakedHearts: BigInt(r[1]), stakeShares: BigInt(r[2]), lockedDay: Number(r[3]), stakedDays: Number(r[4]), unlockedDay: Number(r[5]), isAutoStake: Boolean(r[6]) }, currentDay));
-      // Accrued yield: the contract's own daily payout loop, for stakes that have started.
+      setData({ currentDay, shareRate, balance, stakes, yields: new Map() });
+      // Accrued yield: the contract's own daily payout loop. One call per year of
+      // data per stake (a 2,000-day range in one multicall blows the call limit).
       const yields = new Map<number, bigint>();
-      const started = stakes.filter((s) => s.status !== "pending" && s.status !== "ended").slice(0, 20);
-      if (started.length) {
-        const ranges = await readContracts(config, {
-          contracts: started.map((s) => ({ address: HEX_ADDRESS, abi: hexAbi, functionName: "dailyDataRange" as const, args: [BigInt(s.lockedDay), BigInt(Math.min(currentDay, s.endDay))] as const, chainId })),
-          allowFailure: true,
-        });
-        ranges.forEach((r, i) => { if (r.status === "success") yields.set(started[i].index, accruedPayout(started[i].stakeShares, [...(r.result as readonly bigint[])])); });
+      const started = stakes.filter((s) => s.status !== "pending").slice(0, 20);
+      for (const s of started) {
+        const end = Math.min(currentDay, s.endDay, dailyDataCount);
+        let total = BigInt(0);
+        try {
+          for (let from = s.lockedDay; from < end; from += 365) {
+            const to = Math.min(end, from + 365);
+            const list = await readContract(config, { address: HEX_ADDRESS, abi: hexAbi, functionName: "dailyDataRange", args: [BigInt(from), BigInt(to)], chainId });
+            total += accruedPayout(s.stakeShares, [...(list as readonly bigint[])]);
+          }
+          yields.set(s.index, total);
+        } catch (yieldErr) {
+          console.warn("[HexStakes] yield unavailable for stake", s.stakeId.toString(), yieldErr);
+        }
       }
       setData({ currentDay, shareRate, balance, stakes, yields });
     } catch (err) {
@@ -98,7 +109,7 @@ export function HexStakes({ className }: { className?: string }) {
 
   const totals = useMemo(() => {
     if (!data) return null;
-    const live = data.stakes.filter((s) => s.status !== "ended");
+    const live = data.stakes;
     return {
       count: live.length,
       hearts: live.reduce((a, s) => a + s.stakedHearts, BigInt(0)),
@@ -142,6 +153,12 @@ export function HexStakes({ className }: { className?: string }) {
     setConfirmEnd(null);
     void run(`End stake #${s.stakeId.toString()}`, () =>
       writeContract(config, { connector: signer.connector, account: address, chainId, address: HEX_ADDRESS, abi: hexAbi, functionName: "stakeEnd", args: [BigInt(s.index), Number(s.stakeId)] }));
+  };
+  // Good accounting: after maturity, anyone can lock the payout in so late penalties stop growing; the stake still needs ending to collect.
+  const goodAccounting = (s: HexStakeView) => {
+    if (!address || !signer) return;
+    void run(`Good accounting for stake #${s.stakeId.toString()}`, () =>
+      writeContract(config, { connector: signer.connector, account: address, chainId, address: HEX_ADDRESS, abi: hexAbi, functionName: "stakeGoodAccounting", args: [address, BigInt(s.index), Number(s.stakeId)] }));
   };
 
   return (
@@ -201,14 +218,17 @@ export function HexStakes({ className }: { className?: string }) {
                   <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Principal</span><span className="font-semibold tabular-nums text-foreground">{formatHex(s.stakedHearts)} HEX</span></div>
                   <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">T-shares</span><span className="font-semibold tabular-nums text-foreground">{s.tShares.toLocaleString("en-US", { maximumFractionDigits: 3 })}</span></div>
                   <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Yield so far</span><span className="font-semibold tabular-nums text-brand-accent-hover dark:text-brand-accent-light">{y !== undefined ? `+${formatHex(y)} HEX` : "—"}</span></div>
-                  <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">{s.status === "ended" ? "Ended" : "Matures"}</span><span className="font-semibold tabular-nums text-foreground">{s.endDate.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}</span></div>
+                  <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">{s.status === "accounted" ? "Matured" : "Matures"}</span><span className="font-semibold tabular-nums text-foreground">{s.endDate.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}</span></div>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/[0.06]" role="progressbar" aria-valuenow={Math.round(s.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Stake progress">
                   <div className={cn("h-full rounded-full", s.status === "late" ? "bg-red-500/70" : s.status === "matured" ? "bg-amber-500/80" : "bg-brand-accent")} style={{ width: `${Math.round(s.progress * 100)}%` }} />
                 </div>
                 <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>Started {s.startDate.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}</span>
-                  {s.status !== "ended" && s.status !== "pending" && signer && (
+                  {(s.status === "matured" || s.status === "late") && signer && confirmEnd !== s.index && (
+                    <button type="button" onClick={() => goodAccounting(s)} title="Lock the payout in now so late penalties stop growing; the stake still needs ending to collect" className="mr-2 rounded-md border border-border/60 px-2 py-1 font-semibold text-muted-foreground transition-[background-color,color] duration-150 hover:bg-foreground/[0.06] hover:text-foreground">Good accounting</button>
+                  )}
+                  {s.status !== "pending" && signer && (
                     confirmEnd === s.index ? (
                       <span className="flex items-center gap-2">
                         <span className={cn(early ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300")}>{early ? "Ending early forfeits yield and can burn principal." : s.status === "late" ? "Late-end penalties apply." : "Ready to end."}</span>

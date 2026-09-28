@@ -25,8 +25,7 @@ import { useNftBalances, type InventoryNft } from "@/hooks/use-nft-balances";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { SendStackDialog } from "@/components/crypto-related/SendStackDialog";
 import { RISK_LABEL, type RiskLevel } from "@/lib/token-risk";
-import { isTokenTrusted, setTokenTrusted } from "@/lib/trusted-tokens";
-import { recordSnapshot } from "@/lib/portfolio-snapshots";
+import { isTokenFlagged, isTokenTrusted, setTokenFlagged, setTokenTrusted } from "@/lib/trusted-tokens";
 import { toast } from "sonner";
 import { consumeInventoryDropAck } from "@/lib/trade-drag-ack";
 import {
@@ -43,6 +42,7 @@ import {
   FiExternalLink,
   FiArrowRight,
   FiShield,
+  FiSlash,
 } from "react-icons/fi";
 
 // ────────────────────────────────────────────────────────────
@@ -282,11 +282,6 @@ export function OsrsInventory({
 
   // What the visible stacks are worth (same helper as the cells and the trade window).
   const portfolio = useMemo(() => sumStacksUsd(inventorySlots, cryptoPrices), [inventorySlots, cryptoPrices]);
-  // A fresh, complete total is a point on this wallet's portfolio curve (see PortfolioPanel).
-  useEffect(() => {
-    if (!effectiveAddress || loading || refreshing || balancesError || !tokens.length) return;
-    recordSnapshot("live", `${chainId}:${effectiveAddress}`, portfolio.usd);
-  }, [effectiveAddress, chainId, loading, refreshing, balancesError, tokens.length, portfolio.usd]);
   const portfolioLabel = portfolio.priced > 0 ? formatUsd(portfolio.usd) : null;
   const stackValueLabel = (slot: InventorySlot) => { const usd = stackUsd(slot.token, slot.rawAmount, cryptoPrices); return usd === null ? null : formatUsdCompact(usd); };
 
@@ -1348,32 +1343,36 @@ export function OsrsInventory({
                   </div>
                 </div>
 
-                {/* Risk verdict + whether the price counts */}
-                {detailSlot.token.risk && detailSlot.token.risk.level !== "ok" && (() => {
+                {/* Risk verdict + the user's say: count it, or flag it */}
+                {detailSlot.token.risk && !isNativeToken && (() => {
                   const r = detailSlot.token.risk;
-                  const trusted = isTokenTrusted(detailSlot.token.chainId, detailSlot.token.address);
-                  const tone = r.level === "danger" ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300" : r.level === "caution" ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200" : "border-border/60 bg-foreground/[0.04] text-muted-foreground";
+                  const { chainId: cid, address: addr, symbol } = detailSlot.token;
+                  const trusted = isTokenTrusted(cid, addr);
+                  const flagged = isTokenFlagged(cid, addr);
+                  const counted = detailSlot.token.valueVerified !== false;
+                  const tone = r.level === "danger" ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300" : r.level === "caution" ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200" : r.level === "unknown" ? "border-border/60 bg-foreground/[0.04] text-muted-foreground" : "border-brand-accent/30 bg-brand-accent/[0.06] text-foreground";
+                  const btn = "rounded-md border border-current/25 px-2 py-1 text-[10px] font-semibold transition-[background-color] duration-150 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
                   return (
                     <div className={`space-y-1.5 rounded-md border px-2.5 py-2 ${tone}`} role="note">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider">{RISK_LABEL[r.level]}</span>
-                        {r.liquidityUsd !== undefined && <span className="text-[10px] tabular-nums opacity-80">liquidity {formatUsdCompact(r.liquidityUsd)}</span>}
+                        <span className="text-[10px] font-semibold uppercase tracking-wider">{flagged ? "Flagged by you" : RISK_LABEL[r.level]}</span>
+                        <span className="text-[10px] tabular-nums opacity-80">{r.liquidityUsd !== undefined ? `liquidity ${formatUsdCompact(r.liquidityUsd)}` : ""}{r.sources.length ? ` · ${r.sources.filter((s) => s !== "you").join(", ")}` : ""}</span>
                       </div>
-                      {r.reasons.length > 0 && (
+                      {(r.reasons.length > 0 || r.notes.length > 0) && (
                         <ul className="space-y-0.5 text-[10px] leading-snug">
                           {r.reasons.slice(0, 4).map((reason) => <li key={reason}>· {reason}</li>)}
+                          {r.notes.slice(0, 2).map((note) => <li key={note} className="opacity-75">· {note}</li>)}
                         </ul>
                       )}
-                      <label className="flex cursor-pointer items-center justify-between gap-2 border-t border-current/15 pt-1.5 text-[10px]">
-                        <span className="text-foreground/85">{trusted ? "Counted in your total (your choice)" : "Left out of your total until you count it"}</span>
-                        <input
-                          type="checkbox"
-                          checked={trusted}
-                          onChange={(e) => { setTokenTrusted(detailSlot.token.chainId, detailSlot.token.address, e.target.checked); toast.info(e.target.checked ? `${detailSlot.token.symbol} now counts toward your total` : `${detailSlot.token.symbol} no longer counts`); }}
-                          aria-label={`Count ${detailSlot.token.symbol} value in totals`}
-                          className="h-3.5 w-3.5 accent-[hsl(var(--brand-accent))]"
-                        />
-                      </label>
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/15 pt-1.5 text-[10px]">
+                        <span className="text-foreground/85">{counted ? (trusted ? "Counted in your total (your choice)" : "Counted in your total") : "Left out of your total"}</span>
+                        <span className="flex items-center gap-1.5">
+                          {!flagged && r.level !== "ok" && (
+                            <button type="button" className={btn} onClick={() => { setTokenTrusted(cid, addr, !trusted); toast.info(!trusted ? `${symbol} now counts toward your total` : `${symbol} no longer counts`); }}>{trusted ? "Stop counting" : "Count value"}</button>
+                          )}
+                          <button type="button" className={btn} onClick={() => { setTokenFlagged(cid, addr, !flagged); toast.info(!flagged ? `${symbol} flagged as scam; it no longer counts` : `Your flag on ${symbol} was removed`); }}>{flagged ? "Remove my flag" : "Flag as scam"}</button>
+                        </span>
+                      </div>
                     </div>
                   );
                 })()}
@@ -1863,12 +1862,22 @@ function OsrsContextMenu({
         }]
       : []),
     { icon: FiSend, label: "Send…", action: () => { onSend?.(); onClose(); } },
-    ...(slot && slot.token.risk && slot.token.risk.level !== "ok"
+    ...(slot && slot.token.risk && slot.token.risk.level !== "ok" && !isTokenFlagged(slot.token.chainId, slot.token.address)
       ? [{
           icon: FiShield,
           label: isTokenTrusted(slot.token.chainId, slot.token.address) ? "Stop counting value" : "Count value in total",
           action: () => {
             setTokenTrusted(slot.token.chainId, slot.token.address, !isTokenTrusted(slot.token.chainId, slot.token.address));
+            onClose();
+          },
+        }]
+      : []),
+    ...(slot && !slot.token.isNative
+      ? [{
+          icon: FiSlash,
+          label: isTokenFlagged(slot.token.chainId, slot.token.address) ? "Remove my scam flag" : "Flag as scam · don't count",
+          action: () => {
+            setTokenFlagged(slot.token.chainId, slot.token.address, !isTokenFlagged(slot.token.chainId, slot.token.address));
             onClose();
           },
         }]

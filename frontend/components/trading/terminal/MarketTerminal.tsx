@@ -14,11 +14,10 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Activity, ChartArea, ChartCandlestick, ChartLine, ChevronDown, Crosshair, GitCompare, Layers, Maximize2, Minimize2, Minus, MousePointer2, MoveHorizontal, MoveUpRight, RefreshCw, RotateCcw, SeparatorVertical, Square, Trash2, TrendingUp, X,
+  Activity, Anchor, ArrowBigDown, ArrowBigUp, ArrowLeftRight, ArrowRightFromLine, ChartArea, ChartCandlestick, ChartLine, ChevronDown, Crosshair, Equal, GitCompare, Layers, Maximize2, Minimize2, Minus, MousePointer2, MoveHorizontal, MoveUpRight, MoveVertical, RefreshCw, RotateCcw, Ruler, SeparatorVertical, Square, Trash2, TrendingUp, Type, X,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { INDICATOR_CATALOGUE, defaultIndicator, indicatorLabel, loadIndicators, saveIndicators, type IndicatorConfig } from "@/components/trading/chart/indicators";
-import { recordSnapshot } from "@/lib/portfolio-snapshots";
 import { useCurrentUserWithStatus } from "@/hooks/use-current-user";
 import { useAccount } from "wagmi";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
@@ -31,7 +30,7 @@ import { HeaderTip } from "@/components/uicustom/chrome/header-tip";
 import { CHARTABLE_MARKETS, INTERVALS, marketBySymbol, type Interval, type Market } from "@/lib/market/symbols";
 import { useCandles, useTickers } from "@/hooks/use-market-data";
 import { CandleChart, type ChartType } from "@/components/trading/chart/CandleChart";
-import { TOOLS, formatCompact, formatPrice, loadDrawings, saveDrawings, type Drawing, type DrawingTool } from "@/components/trading/chart/drawings";
+import { TOOLS, TOOL_GROUPS, formatCompact, formatPrice, loadDrawings, saveDrawings, type Drawing, type DrawingTool } from "@/components/trading/chart/drawings";
 import { MarketList } from "./MarketList";
 import { OrderTicket, type TicketOrder } from "./OrderTicket";
 import { TerminalPanels } from "./TerminalPanels";
@@ -44,7 +43,10 @@ const SYMBOL_KEY = "veggat:terminal:symbol";
 const TRADE_MODE_KEY = "veggat:terminal:tradeMode";
 type TerminalTradeMode = "paper" | "live";
 const INTERVAL_KEY = "veggat:terminal:interval";
-const TOOL_ICONS: Record<DrawingTool, React.ComponentType<{ className?: string }>> = { cursor: MousePointer2, trend: TrendingUp, ray: MoveUpRight, extended: MoveHorizontal, hline: Minus, vline: SeparatorVertical, crossline: Crosshair, rect: Square, fib: Layers };
+const TOOL_ICONS: Record<DrawingTool, React.ComponentType<{ className?: string }>> = {
+  cursor: MousePointer2, trend: TrendingUp, ray: MoveUpRight, extended: ArrowLeftRight, hline: Minus, hray: ArrowRightFromLine, vline: SeparatorVertical, crossline: Crosshair, channel: Equal,
+  rect: Square, text: Type, fib: Layers, measure: Ruler, pricerange: MoveVertical, daterange: MoveHorizontal, long: ArrowBigUp, short: ArrowBigDown, avwap: Anchor,
+};
 const menuContent = "z-[120] min-w-60 rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl";
 const menuItem = "min-h-9 gap-2 rounded-lg px-2.5 text-xs";
 
@@ -165,11 +167,6 @@ export function MarketTerminal({ className }: { className?: string }) {
     return () => window.clearInterval(timer);
   }, [canTrade, portfolioState, settle]);
 
-  // The paper account's value is a point on its portfolio curve (see PortfolioPanel).
-  React.useEffect(() => {
-    if (user?.id && portfolio?.totalValueUsd != null) recordSnapshot("paper", user.id, portfolio.totalValueUsd);
-  }, [user?.id, portfolio?.totalValueUsd]);
-
   const startPortfolio = async () => {
     const balance = Number(startBalance);
     if (!Number.isFinite(balance) || balance < 1000 || balance > 10_000_000) { toast.error("Starting balance must be between $1,000 and $10,000,000"); return; }
@@ -277,11 +274,35 @@ export function MarketTerminal({ className }: { className?: string }) {
               ))}
             </div>
             <div role="toolbar" aria-label="Drawing tools" className="flex items-center gap-0.5 rounded-lg bg-foreground/[0.04] p-0.5">
-              {TOOLS.map((t) => { const Icon = TOOL_ICONS[t.id]; return (
-                <HeaderTip key={t.id} label={`${t.label} · ${t.hint}`}>
-                  <button type="button" aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)} className={cn(iconBtn, "size-7", tool === t.id && iconBtnActive)}><Icon className="size-4" /></button>
-                </HeaderTip>
-              ); })}
+              <HeaderTip label="Cursor · Select, move and pan">
+                <button type="button" aria-label="Cursor" aria-pressed={tool === "cursor"} onClick={() => setTool("cursor")} className={cn(iconBtn, "size-7", tool === "cursor" && iconBtnActive)}><MousePointer2 className="size-4" /></button>
+              </HeaderTip>
+              {TOOL_GROUPS.map((group) => {
+                const members = TOOLS.filter((t) => t.group === group.id);
+                const active = members.find((t) => t.id === tool);
+                const Icon = TOOL_ICONS[(active ?? members[0]).id];
+                return (
+                  <DropdownMenu key={group.id}>
+                    <HeaderTip label={active ? `${active.label} · ${active.hint}` : group.label}>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" aria-label={group.label} aria-pressed={Boolean(active)} className={cn(iconBtn, "h-7 w-9 gap-0 pl-0.5", active && iconBtnActive)}>
+                          <Icon className="size-4" /><ChevronDown className="-ml-0.5 size-2.5 opacity-60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                    </HeaderTip>
+                    {/* After picking a tool the next click lands on the chart, so focus must not bounce back to the toolbar. */}
+                    <DropdownMenuContent align="start" className={menuContent} onCloseAutoFocus={(e) => e.preventDefault()}>
+                      <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{group.label}</p>
+                      {members.map((t) => { const MIcon = TOOL_ICONS[t.id]; return (
+                        <DropdownMenuItem key={t.id} onSelect={() => setTool(t.id)} className={cn(menuItem, "items-start py-1.5", tool === t.id && "bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light")}>
+                          <MIcon className="mt-0.5 size-4 shrink-0" />
+                          <span className="flex min-w-0 flex-col"><span className="font-semibold">{t.label}</span><span className="text-[10px] text-muted-foreground">{t.hint}</span></span>
+                        </DropdownMenuItem>
+                      ); })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })}
               <HeaderTip label="Remove all drawings on this market">
                 <button type="button" aria-label="Clear drawings" disabled={!drawings.length} onClick={() => updateDrawings([])} className={cn(iconBtn, "size-7 hover:text-chart-down")}><Trash2 className="size-4" /></button>
               </HeaderTip>

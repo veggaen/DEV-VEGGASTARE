@@ -21,7 +21,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWalletAddressBook } from "@/hooks/use-wallet-address-book";
-import { useAccount, useChainId, useChains, useConnections } from "wagmi";
+import { useAccount, useChainId, useChains, useConfig, useConnections } from "wagmi";
+import { estimateGas, getGasPrice } from "wagmi/actions";
+import { encodeFunctionData, erc20Abi, formatUnits, type Address } from "viem";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
 import { toast } from "sonner";
 import {
@@ -42,7 +44,7 @@ import {
 import { ArrowLeftRight, Users } from "lucide-react";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { acknowledgeInventoryDrop } from "@/lib/trade-drag-ack";
-import { formatUsd, sumStacksUsd } from "@/lib/stack-value";
+import { formatUsd, stackUsd, sumStacksUsd } from "@/lib/stack-value";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCurrencyRates } from "@/hooks/useCurrencyRates";
 import { useSendStacks, type SendOutcome } from "@/hooks/use-send-stacks";
@@ -880,6 +882,7 @@ export function OsrsTradeWindow({
   const effectiveAddress = override?.address ?? address;
   const chainId = useChainId();
   const chains = useChains();
+  const config = useConfig();
   const addressBook = useWalletAddressBook();
   // Every real move goes through the wallet that holds the stack.
   const { send: sendItems, steps: sendSteps, connectionFor } = useSendStacks();
@@ -924,6 +927,8 @@ export function OsrsTradeWindow({
   const valueLabel = (v: { usd: number; priced: number; total: number }) => v.priced > 0 ? `≈ ${formatUsd(v.usd)}${v.priced < v.total ? "+" : ""}` : null;
   const [confirmed, setConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | undefined>();
+  /** Estimated network fee for sending my stacks (gas × current price), shown on the confirm step. */
+  const [feeEstimate, setFeeEstimate] = useState<{ native: string; usd: number | null; symbol: string } | null>(null);
   const [myOfferDragOver, setMyOfferDragOver] = useState(false);
   /** True while the inventory has a split ghost on the cursor (see OsrsInventory). */
   const [ghostActive, setGhostActive] = useState(false);
@@ -985,9 +990,23 @@ export function OsrsTradeWindow({
   );
   const [selfDestAddr, setSelfDestAddr] = useState<string | undefined>();
 
-  // Keep self-trade source synced with active wallet selection.
+  // Keep self-trade source synced with active wallet selection. When the active
+  // wallet changes mid-offer, the offered stacks belong to the previous wallet:
+  // clear them and start the offer again from the new one.
+  const lastWalletRef = useRef<string | undefined>(effectiveAddress);
   useEffect(() => {
     setSelfSourceAddr(effectiveAddress);
+    const previous = lastWalletRef.current;
+    lastWalletRef.current = effectiveAddress;
+    if (!previous || !effectiveAddress || previous.toLowerCase() === effectiveAddress.toLowerCase()) return;
+    if (phase === "complete" || phase === "cancelled") return;
+    setMyItems([]);
+    setMyReady(false);
+    setConfirmed(false);
+    setReadyTradeHash(null);
+    if (selfTrade) { setTheirReady(false); setPhase("offer"); setSelfDestAddr((d) => (d && d.toLowerCase() === effectiveAddress.toLowerCase() ? undefined : d)); }
+    toast.info(`Active wallet is now ${effectiveAddress.slice(0, 6)}…${effectiveAddress.slice(-4)}; the offer was cleared.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to the wallet only
   }, [effectiveAddress]);
 
   // ── Reorder items within own offer grid ──
@@ -1469,6 +1488,38 @@ export function OsrsTradeWindow({
     }
   }, [tradeId, selfTrade, selfSourceAddr, selfDestAddr, chainId, myItems, theirItems, readyTradeHash, tradeHash, effectiveAddress, settlement.partnerWallet, sendItems, connectionFor, chains]);
 
+  // Who sends to whom on the confirm step (an internal transfer or my leg of a P2P trade).
+  const routeFrom = selfTrade ? selfSourceAddr : effectiveAddress;
+  const routeTo = selfTrade ? selfDestAddr : settlement.partnerWallet;
+  const walletNameOf = (addr?: string) => (addr ? connectionFor(addr)?.connector.name ?? addressBook.getDisplayName(addr) : undefined);
+
+  useEffect(() => {
+    if (phase !== "confirm" || !routeFrom || !routeTo || !myItems.length) { setFeeEstimate(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const gasPrice = await getGasPrice(config, { chainId });
+        let gas = BigInt(0);
+        for (const item of myItems) {
+          try {
+            gas += item.token.isNative
+              ? await estimateGas(config, { chainId, account: routeFrom as Address, to: routeTo as Address, value: BigInt(item.rawAmount) })
+              : await estimateGas(config, { chainId, account: routeFrom as Address, to: item.token.address as Address, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [routeTo as Address, BigInt(item.rawAmount)] }) });
+          } catch {
+            gas += BigInt(item.token.isNative ? 21_000 : 65_000);
+          }
+        }
+        const symbol = chains.find((c) => c.id === chainId)?.nativeCurrency.symbol ?? "ETH";
+        const native = Number(formatUnits(gas * gasPrice, 18));
+        const price = cryptoPrices[symbol];
+        if (!cancelled) setFeeEstimate({ native: native < 0.0001 ? native.toPrecision(2) : native.toFixed(5), usd: price ? native * price : null, symbol });
+      } catch {
+        if (!cancelled) setFeeEstimate(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [phase, routeFrom, routeTo, myItems, chainId, config, chains, cryptoPrices]);
+
   // What the confirm button means for a P2P trade right now: the initiator sends
   // first; the responder's turn comes once the server has verified that leg.
   const p2pConfirm = useMemo(() => {
@@ -1818,23 +1869,42 @@ export function OsrsTradeWindow({
                   >
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
                       <FiShield className="h-3 w-3" />
-                      Check the trade
+                      {selfTrade ? "Check the transfer" : "Check the trade"}
+                    </div>
+
+                    {/* Who sends to whom */}
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-[11px]">
+                      <div className="min-w-0">
+                        <span className="block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">From</span>
+                        <span className="block truncate font-semibold text-foreground">{walletNameOf(routeFrom) ?? "Your wallet"}</span>
+                        <span className="block font-mono text-muted-foreground">{routeFrom ? `${routeFrom.slice(0, 8)}…${routeFrom.slice(-6)}` : "—"}</span>
+                      </div>
+                      <FiArrowRight className="h-3.5 w-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
+                      <div className="min-w-0 text-right">
+                        <span className="block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">To</span>
+                        <span className="block truncate font-semibold text-foreground">{selfTrade ? walletNameOf(routeTo) ?? "Pick a wallet" : displayPartner.name ?? "Partner"}</span>
+                        <span className="block font-mono text-muted-foreground">{routeTo ? `${routeTo.slice(0, 8)}…${routeTo.slice(-6)}` : "—"}</span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       {/* You give */}
                       <div className="space-y-1">
-                        <span className="font-medium text-muted-foreground">You give</span>
+                        <span className="font-medium text-muted-foreground">{selfTrade ? "Sending" : "You give"}</span>
                         {myItems.length === 0 ? (
                           <span className="text-muted-foreground">Nothing</span>
                         ) : (
-                          myItems.map((item) => (
-                            <div key={item.id} className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
-                              <span className="font-mono">−</span>
-                              <span className="font-semibold">{item.amount}</span>
-                              <span className="text-muted-foreground">{item.token.symbol}</span>
-                            </div>
-                          ))
+                          myItems.map((item) => {
+                            const usd = stackUsd(item.token, item.rawAmount, cryptoPrices);
+                            return (
+                              <div key={item.id} className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                                <span className="font-mono">−</span>
+                                <span className="font-semibold">{item.amount}</span>
+                                <span className="text-muted-foreground">{item.token.symbol}</span>
+                                {usd !== null && <span className="ml-auto tabular-nums text-muted-foreground">{formatUsd(usd)}</span>}
+                              </div>
+                            );
+                          })
                         )}
                       </div>
 
@@ -1853,6 +1923,12 @@ export function OsrsTradeWindow({
                           ))
                         )}
                       </div>
+                    </div>
+
+                    {/* What it costs */}
+                    <div className="flex items-center justify-between border-t border-border/50 pt-1.5 text-[10px]">
+                      <span className="text-muted-foreground">Network fee (estimate){myItems.length > 1 ? ` · ${myItems.length} transactions` : ""}</span>
+                      <span className="tabular-nums text-foreground">{feeEstimate ? `≈ ${feeEstimate.native} ${feeEstimate.symbol}${feeEstimate.usd !== null ? ` (${formatUsd(feeEstimate.usd)})` : ""}` : myItems.length ? "Estimating…" : "—"}</span>
                     </div>
 
                     {/* Trade Hash */}
