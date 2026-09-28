@@ -1365,7 +1365,7 @@ const FeedPage: React.FC = () => {
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
                         placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "What’s happening on your side of Veggat?"}
-                        className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-base leading-relaxed placeholder:text-muted-foreground/80"
+                        className="focus-delegated field-size-content max-h-64 min-h-[44px] resize-none border-0 bg-transparent p-0 pt-1.5 text-base leading-relaxed placeholder:text-muted-foreground/80"
                         rows={1}
                       />
 

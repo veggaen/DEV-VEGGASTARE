@@ -19,7 +19,6 @@ import {
   FiArrowRight, FiBarChart2, FiBriefcase, FiCheck, FiCpu, FiDownload, FiKey, FiLock, FiMessageCircle, FiPackage, FiSend, FiShield, FiShoppingBag, FiTrendingUp, FiUsers, FiZap,
 } from "react-icons/fi";
 import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
-import { LiveTicker } from "./LiveTicker";
 import { LandingDemoLoop } from "./LandingDemoLoop";
 
 /** Returns true when the page is in dark mode (watches Tailwind's dark class). */
@@ -553,8 +552,6 @@ export default function BelowFoldSections() {
 
   return (
     <div className="relative w-full">
-      {/* ── Live ticker: the page never sits still ─────────────────────── */}
-      <LiveTicker className="mb-4" />
       <div className="mx-auto max-w-5xl px-6 xl:max-w-6xl"><div className="h-px bg-linear-to-r from-transparent via-muted to-transparent" /></div>
 
       {/* ── Six doors ─────────────────────────────────────────────────────── */}

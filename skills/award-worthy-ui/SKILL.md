@@ -53,7 +53,7 @@ Semantic tokens, all HSL triplets consumed as `hsl(var(--token))`:
 
 ### Reusable CSS hooks (globals.css)
 
-`.auth-card-enter` (calm slide-up entrance) · `.message-bubble-enter` (fast pop-in) · `.scroll-reveal`+`.revealed` (IntersectionObserver reveals) · `.glass-panel` (theme-aware glassmorphism) · `.hero-spotlight` (cursor spotlight) · `.kinetic-char` (per-character title intro) · `.noise-overlay` (masks gradient banding) · `.no-scrollbar`, `.overscroll-contain-y`, `.fade-mask-*`.
+`.auth-card-enter` (calm slide-up entrance) · `.message-bubble-enter` (fast pop-in) · `.scroll-reveal`+`.revealed` (IntersectionObserver reveals) · `.glass-panel` (theme-aware glassmorphism) · `.hero-spotlight` (cursor spotlight) · `.kinetic-char` (per-character title intro) · `.noise-overlay` (masks gradient banding) · `.no-scrollbar`, `.overscroll-contain-y`, `.fade-mask-*` · `.focus-delegated` (a field inside a card that draws its own `focus-within` ring: kills the field's outline + halo so only one ring glows; unlayered because Tailwind's `outline-none` cannot beat the unlayered app-wide `:focus-visible` baseline).
 
 Theme toggle: `components/uicustom/chrome/theme-toggle.tsx` — `swapThemeWithReveal()` runs a View Transition (circular reveal from the control, `html.theme-vt::view-transition-new(root)`); without the API it adds `.theme-transitioning` to `<html>` for ~520ms so colors cross-fade (320ms). Accent presets live on `html[data-accent]` (Settings → Appearance, `prefs.accent`). Don't add global `transition: all` anywhere — it smears hover states and fights this system.
 
