@@ -30,7 +30,7 @@ import React, {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-export type TradeMode = "p2p" | "self" | "dex" | "paper" | "localchain";
+export type TradeMode = "p2p" | "self" | "dex" | "paper" | "hex" | "portfolio" | "localchain";
 
 export interface TradeModeState {
   /** Current active trading mode */
@@ -48,7 +48,7 @@ export interface TradeModeState {
   /** Human-readable label for current mode */
   modeLabel: string;
   /** Color scheme key for current mode */
-  modeColor: "emerald" | "purple" | "sky" | "amber" | "orange";
+  modeColor: "emerald" | "purple" | "sky" | "amber" | "orange" | "pink";
 }
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export interface TradeModeState {
 const STORAGE_KEY = "veggat:tradeMode";
 const CUSTOM_EVENT = "veggat:tradeModeChange";
 
-const MODE_ORDER: TradeMode[] = ["p2p", "self", "dex", "paper", "localchain"];
+const MODE_ORDER: TradeMode[] = ["p2p", "self", "dex", "paper", "hex", "portfolio", "localchain"];
 
 const MODE_META: Record<TradeMode, {
   label: string;
@@ -70,6 +70,8 @@ const MODE_META: Record<TradeMode, {
   dex:        { label: "DEX Swap",       color: "sky",     onChain: true,  simulated: false, nfts: false },
   // The terminal trades live (DEX) or on paper; "paper" is the mode id for compatibility.
   paper:      { label: "Terminal",       color: "amber",   onChain: false, simulated: true,  nfts: false },
+  hex:        { label: "HEX Stakes",     color: "pink",    onChain: true,  simulated: false, nfts: false },
+  portfolio:  { label: "Portfolio",      color: "sky",     onChain: false, simulated: false, nfts: false },
   localchain: { label: "Local Chain",    color: "orange",  onChain: true,  simulated: false, nfts: true  },
 };
 

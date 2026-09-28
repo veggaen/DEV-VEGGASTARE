@@ -26,6 +26,7 @@ import { TokenIcon } from "@/components/ui/token-icon";
 import { SendStackDialog } from "@/components/crypto-related/SendStackDialog";
 import { RISK_LABEL, type RiskLevel } from "@/lib/token-risk";
 import { isTokenTrusted, setTokenTrusted } from "@/lib/trusted-tokens";
+import { recordSnapshot } from "@/lib/portfolio-snapshots";
 import { toast } from "sonner";
 import { consumeInventoryDropAck } from "@/lib/trade-drag-ack";
 import {
@@ -281,6 +282,11 @@ export function OsrsInventory({
 
   // What the visible stacks are worth (same helper as the cells and the trade window).
   const portfolio = useMemo(() => sumStacksUsd(inventorySlots, cryptoPrices), [inventorySlots, cryptoPrices]);
+  // A fresh, complete total is a point on this wallet's portfolio curve (see PortfolioPanel).
+  useEffect(() => {
+    if (!effectiveAddress || loading || refreshing || balancesError || !tokens.length) return;
+    recordSnapshot("live", `${chainId}:${effectiveAddress}`, portfolio.usd);
+  }, [effectiveAddress, chainId, loading, refreshing, balancesError, tokens.length, portfolio.usd]);
   const portfolioLabel = portfolio.priced > 0 ? formatUsd(portfolio.usd) : null;
   const stackValueLabel = (slot: InventorySlot) => { const usd = stackUsd(slot.token, slot.rawAmount, cryptoPrices); return usd === null ? null : formatUsdCompact(usd); };
 

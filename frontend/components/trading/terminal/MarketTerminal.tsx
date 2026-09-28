@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { INDICATOR_CATALOGUE, defaultIndicator, indicatorLabel, loadIndicators, saveIndicators, type IndicatorConfig } from "@/components/trading/chart/indicators";
+import { recordSnapshot } from "@/lib/portfolio-snapshots";
 import { useCurrentUserWithStatus } from "@/hooks/use-current-user";
 import { useAccount } from "wagmi";
 import { useActiveWalletOverride } from "@/contexts/active-wallet-context";
@@ -163,6 +164,11 @@ export function MarketTerminal({ className }: { className?: string }) {
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void settle(); }, 30_000);
     return () => window.clearInterval(timer);
   }, [canTrade, portfolioState, settle]);
+
+  // The paper account's value is a point on its portfolio curve (see PortfolioPanel).
+  React.useEffect(() => {
+    if (user?.id && portfolio?.totalValueUsd != null) recordSnapshot("paper", user.id, portfolio.totalValueUsd);
+  }, [user?.id, portfolio?.totalValueUsd]);
 
   const startPortfolio = async () => {
     const balance = Number(startBalance);

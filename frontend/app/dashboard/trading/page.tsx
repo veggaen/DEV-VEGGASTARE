@@ -43,8 +43,11 @@ import {
   FiRefreshCw,
   FiClock,
 } from "react-icons/fi";
-import { ArrowLeftRight, Zap, FileText, Monitor, Users, Repeat } from "lucide-react";
+import { ArrowLeftRight, Zap, FileText, Monitor, Users, Repeat, Hexagon, PieChart } from "lucide-react";
 import { DexSwapPanel } from "@/components/crypto-related/DexSwapPanel";
+import { HexStakes } from "@/components/crypto-related/HexStakes";
+import { LiquidityPanel } from "@/components/crypto-related/LiquidityPanel";
+import { PortfolioPanel } from "@/components/crypto-related/PortfolioPanel";
 import { MarketTerminal } from "@/components/trading/terminal/MarketTerminal";
 import { TradeHistory } from "@/components/crypto-related/TradeHistory";
 
@@ -55,6 +58,8 @@ const MODE_ICONS: Record<TradeMode, React.ReactNode> = {
   self:       <ArrowLeftRight className="h-3.5 w-3.5" />,
   dex:        <Repeat className="h-3.5 w-3.5" />,
   paper:      <FileText className="h-3.5 w-3.5" />,
+  hex:        <Hexagon className="h-3.5 w-3.5" />,
+  portfolio:  <PieChart className="h-3.5 w-3.5" />,
   localchain: <Monitor className="h-3.5 w-3.5" />,
 };
 
@@ -63,6 +68,8 @@ const MODE_COLORS: Record<TradeMode, string> = {
   self:       "purple",
   dex:        "sky",
   paper:      "amber",
+  hex:        "pink",
+  portfolio:  "sky",
   localchain: "orange",
 };
 
@@ -71,6 +78,8 @@ const MODE_RING_CLASSES: Record<TradeMode, string> = {
   self:       "ring-purple-500/20 bg-purple-500/10 text-purple-400",
   dex:        "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   paper:      "ring-amber-500/20 bg-amber-500/10 text-amber-400",
+  hex:        "ring-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-500 dark:text-fuchsia-300",
+  portfolio:  "ring-brand-accent/20 bg-brand-accent/10 text-brand-accent",
   localchain: "ring-orange-500/20 bg-orange-500/10 text-orange-400",
 };
 
@@ -80,6 +89,8 @@ const MODE_GLOW: Record<TradeMode, string> = {
   self:       "shadow-[0_0_24px_-6px_rgb(168_85_247/0.5)]",
   dex:        "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
   paper:      "shadow-[0_0_24px_-6px_rgb(245_158_11/0.5)]",
+  hex:        "shadow-[0_0_24px_-6px_rgb(217_70_239/0.5)]",
+  portfolio:  "shadow-[0_0_24px_-6px_hsl(var(--brand-accent)/0.45)]",
   localchain: "shadow-[0_0_24px_-6px_rgb(249_115_22/0.5)]",
 };
 
@@ -88,6 +99,8 @@ const MODE_BTN_ACTIVE: Record<TradeMode, string> = {
   self:       "ring-1 ring-inset ring-purple-500/30 bg-purple-500/12 text-purple-700 dark:text-purple-300",
   dex:        "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
   paper:      "ring-1 ring-inset ring-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300",
+  hex:        "ring-1 ring-inset ring-fuchsia-500/30 bg-fuchsia-500/12 text-fuchsia-700 dark:text-fuchsia-300",
+  portfolio:  "ring-1 ring-inset ring-brand-accent/30 bg-brand-accent/12 text-brand-accent-hover dark:text-brand-accent-light",
   localchain: "ring-1 ring-inset ring-orange-500/30 bg-orange-500/12 text-orange-700 dark:text-orange-300",
 };
 
@@ -130,6 +143,8 @@ export default function TradingPage() {
   const [partnerResults, setPartnerResults] = useState<UserSearchResult[]>([]);
   const [searchingPartners, setSearchingPartners] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  /** DEX tab: route swaps through the aggregator, or add/remove liquidity on a V2 pool. */
+  const [dexView, setDexView] = useState<"swap" | "liquidity">("swap");
 
   // Auto-open correct trade panel when mode changes
   useEffect(() => {
@@ -197,7 +212,7 @@ export default function TradingPage() {
   const alwaysShowTradeArea = true;
 
   /* ── Not connected — but paper mode works without wallet ────── */
-  if (!walletReady && mode !== "paper" && walletSettling) {
+  if (!walletReady && mode !== "paper" && mode !== "portfolio" && walletSettling) {
     return (
       <section aria-busy="true" aria-label="Connecting your wallet" className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">
         <div className="size-10 animate-spin rounded-full border-2 border-brand-accent/30 border-t-brand-accent motion-reduce:animate-none" aria-hidden="true" />
@@ -206,7 +221,7 @@ export default function TradingPage() {
     );
   }
 
-  if (!walletReady && mode !== "paper") {
+  if (!walletReady && mode !== "paper" && mode !== "portfolio") {
     return (
       <section aria-labelledby="trading-empty-title" className="page-rise flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="relative mb-6">
@@ -455,7 +470,7 @@ export default function TradingPage() {
         ) : (
           /* ── Normal Trading View ────────────────────── */
           <motion.div
-            key={mode === "paper" ? "paper-terminal" : "trading-panel"}
+            key={mode === "paper" ? "paper-terminal" : mode === "hex" || mode === "portfolio" ? `${mode}-panel` : "trading-panel"}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -464,6 +479,10 @@ export default function TradingPage() {
           >
         {mode === "paper" ? (
           <MarketTerminal className="h-full min-h-[560px] lg:h-full" />
+        ) : mode === "hex" ? (
+          <HexStakes className="mx-auto max-w-5xl" />
+        ) : mode === "portfolio" ? (
+          <PortfolioPanel className="mx-auto max-w-5xl" />
         ) : (
         <div
           className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[380px_minmax(0,1fr)_380px]"
@@ -522,8 +541,17 @@ export default function TradingPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3"
               >
-                <DexSwapPanel />
+                <div role="tablist" aria-label="DEX action" className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-foreground/[0.04] p-0.5">
+                  {(["swap", "liquidity"] as const).map((v) => (
+                    <button key={v} type="button" role="tab" aria-selected={dexView === v} onClick={() => setDexView(v)}
+                      className={`min-h-8 rounded-full px-3.5 text-[11px] font-semibold uppercase tracking-wider transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dexView === v ? "bg-brand-accent/15 text-brand-accent-hover dark:text-brand-accent-light" : "text-muted-foreground hover:text-foreground"}`}>
+                      {v === "swap" ? "Swap" : "Liquidity"}
+                    </button>
+                  ))}
+                </div>
+                {dexView === "swap" ? <DexSwapPanel /> : <LiquidityPanel />}
               </motion.div>
             )}
 
