@@ -19,6 +19,8 @@ import {
   FiArrowRight, FiBarChart2, FiBriefcase, FiCheck, FiCpu, FiDownload, FiKey, FiLock, FiMessageCircle, FiPackage, FiSend, FiShield, FiShoppingBag, FiTrendingUp, FiUsers, FiZap,
 } from "react-icons/fi";
 import { PulseHeart } from "@/components/uicustom/icons/PulseIcons";
+import { LiveTicker } from "./LiveTicker";
+import { LandingDemoLoop } from "./LandingDemoLoop";
 
 /** Returns true when the page is in dark mode (watches Tailwind's dark class). */
 function useIsDark() {
@@ -157,9 +159,16 @@ const FeatureCard = React.memo(function FeatureCard({
       transition={{ delay, duration: 0.5, ease: EASE }}
       whileTap={{ scale: 0.98 }}
       onMouseEnter={onMouseEnter}
+      onPointerMove={(e) => {
+        // Spotlight follows the cursor: CSS variables on the node, no React state.
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+      }}
       className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 bg-surface-1/70 p-6 shadow-e1 backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-border hover:shadow-e2"
     >
       <div className="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-br from-brand-accent/[0.07] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: "radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), hsl(var(--brand-accent) / 0.16), transparent 65%)" }} />
       <div className="relative inline-flex size-10 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent transition-transform duration-200 group-hover:scale-110 [&>svg]:size-5">
         {icon}
       </div>
@@ -259,14 +268,24 @@ const SectionHeading = React.memo(function SectionHeading({ eyebrow, title, subt
 const mock = "rounded-2xl border border-border/60 bg-surface-1/80 shadow-e2 backdrop-blur-xl";
 
 function MarketVisual() {
-  const items = [
-    { title: "Studio print · 4K", price: "€24", tag: "Digital" },
-    { title: "Oak desk organiser", price: "kr 890", tag: "Ships from Oslo" },
+  const reduceMotion = useReducedMotion();
+  const items = React.useMemo(() => [
+    { title: "Studio print · 4K", price: "€24", tag: "Digital · instant delivery" },
+    { title: "Oak desk organiser", price: "kr 890", tag: "Physical · ships from Oslo" },
     { title: "500 AI credits", price: "$5", tag: "Prepaid" },
-  ];
+  ], []);
+  // The stack keeps dealing: every few seconds the top card goes to the back.
+  const [offset, setOffset] = React.useState(0);
+  React.useEffect(() => {
+    if (reduceMotion) return;
+    const t = setInterval(() => setOffset((o) => (o + 1) % items.length), 3600);
+    return () => clearInterval(t);
+  }, [reduceMotion, items.length]);
   return (
     <div className="relative mx-auto h-64 w-full max-w-md" aria-hidden="true">
-      {items.map((item, i) => (
+      {items.map((item, idx) => {
+        const i = (idx - offset + items.length) % items.length;
+        return (
         <motion.div
           key={item.title}
           className={`${mock} absolute left-0 right-0 top-0 p-4`}
@@ -286,11 +305,12 @@ function MarketVisual() {
           </div>
           {i === 2 && (
             <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-              <FiDownload className="size-3.5 text-brand-accent" /> Delivered to My downloads · receipt kept on the order
+              <FiDownload className="size-3.5 text-brand-accent" /> {idx === 1 ? "Tracked shipment · receipt kept on the order" : "Delivered to My downloads · receipt kept on the order"}
             </div>
           )}
         </motion.div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -321,7 +341,7 @@ function FeedVisual() {
         ))}
       </div>
       <div className="mt-3 flex items-center gap-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1 text-brand-accent"><PulseHeart className="size-3.5" /> 128</span>
+        <span className="inline-flex items-center gap-1 text-brand-accent"><motion.span className="inline-flex" animate={reduceMotion ? undefined : { scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 1.4, repeatDelay: 1.6, ease: "easeInOut" }}><PulseHeart className="size-3.5" /></motion.span> 128</span>
         <span className="inline-flex items-center gap-1"><FiMessageCircle className="size-3.5" /> 14</span>
         <span className="inline-flex items-center gap-1"><FiUsers className="size-3.5" /> 1.9k reach</span>
       </div>
@@ -330,6 +350,7 @@ function FeedVisual() {
 }
 
 function BoardVisual() {
+  const reduceMotion = useReducedMotion();
   const steps = [
     { icon: <FiSend />, title: "Request posted", text: "Custom motor bracket, 2 photos, needed by Friday" },
     { icon: <FiBriefcase />, title: "3 companies reply", text: "Offers land in Messages, with questions" },
@@ -347,7 +368,10 @@ function BoardVisual() {
             viewport={{ once: true, margin: "-60px 0px" }}
             transition={{ delay: 0.2 + i * 0.18, duration: 0.5, ease: EASE }}
           >
-            <span className="absolute -left-[29px] top-0.5 grid size-4 place-items-center rounded-full border border-brand-accent bg-surface-1 text-[9px] text-brand-accent [&>svg]:size-2.5">{step.icon}</span>
+            <span className="absolute -left-[29px] top-0.5 grid size-4 place-items-center rounded-full border border-brand-accent bg-surface-1 text-[9px] text-brand-accent [&>svg]:size-2.5">
+              {i === 1 && !reduceMotion && <motion.span aria-hidden="true" className="absolute inset-0 rounded-full border border-brand-accent" animate={{ scale: [1, 2.2], opacity: [0.7, 0] }} transition={{ repeat: Infinity, duration: 1.8, ease: "easeOut", delay: 1 }} />}
+              {step.icon}
+            </span>
             <p className="text-sm font-semibold text-foreground">{step.title}</p>
             <p className="text-xs text-muted-foreground">{step.text}</p>
           </motion.li>
@@ -393,6 +417,8 @@ function TerminalVisual() {
           );
         })}
         <motion.path d={line} fill="none" stroke="hsl(var(--brand-accent))" strokeWidth="2" strokeLinecap="round" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ delay: 0.6, duration: reduceMotion ? 0 : 1.4, ease: "easeInOut" }} />
+        {/* A crosshair that keeps sweeping: the chart is alive, not a picture */}
+        {!reduceMotion && <motion.line x1="0" x2="0" y1="0" y2="140" stroke="hsl(var(--foreground) / 0.22)" strokeWidth="1" strokeDasharray="3 3" animate={{ x: [0, 320] }} transition={{ repeat: Infinity, duration: 8, ease: "linear", delay: 2 }} />}
       </svg>
       <div className="flex items-center justify-between border-t border-border/50 px-4 py-2.5 text-[11px] text-muted-foreground">
         <span>Paper account · $100,000</span>
@@ -403,6 +429,7 @@ function TerminalVisual() {
 }
 
 function AiVisual() {
+  const reduceMotion = useReducedMotion();
   const bubbles = [
     { who: "You", text: "Draft a launch post for the print series, keep it short.", me: true },
     { who: "Jonas", text: "Mention the oak frame poll result?", me: false },
@@ -428,6 +455,10 @@ function AiVisual() {
             {b.text}
           </motion.div>
         ))}
+        {/* Someone is always about to say something */}
+        <motion.div className="flex w-fit items-center gap-1 rounded-2xl bg-foreground/[0.06] px-3 py-2" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 1.1 }} aria-hidden="true">
+          {[0, 1, 2].map((i) => <motion.span key={i} className="size-1.5 rounded-full bg-muted-foreground" animate={reduceMotion ? undefined : { opacity: [0.25, 1, 0.25] }} transition={{ repeat: Infinity, duration: 1, delay: i * 0.18 }} />)}
+        </motion.div>
       </div>
     </div>
   );
@@ -512,7 +543,7 @@ export default function BelowFoldSections() {
   const statCellRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
   const FEATURES = [
-    { icon: <FiShoppingBag />, title: "Sell anything, keep every file", description: "Listings with photos, files, stock and shipping. Digital goods deliver the moment payment is verified and stay in the buyer's account.", href: "/products", cta: "Browse the marketplace" },
+    { icon: <FiShoppingBag />, title: "Sell anything, physical or digital", description: "Photos, stock and shipping for things that ship; files that deliver the moment payment is verified for things that download. One listing flow for both.", href: "/products", cta: "Browse the marketplace" },
     { icon: <PulseHeart />, title: "Say it, poll it, watch it move", description: "A live feed of posts and polls scored by real reach, not vanity counts. Verification and good work grow your voice.", href: "/pulse", cta: "Open Pulse" },
     { icon: <FiBriefcase />, title: "Post a request, receive offers", description: "Describe the job, attach photos, and let companies come to you. Or browse open requests and win the work.", href: "/jobs", cta: "See the job board" },
     { icon: <FiTrendingUp />, title: "Chart it, paper trade it, own it", description: "Candles, indicators, drawing tools and a paper account to practise on. Real positions run through your own wallet.", href: "/dashboard/trading", cta: "Open the terminal" },
@@ -522,6 +553,8 @@ export default function BelowFoldSections() {
 
   return (
     <div className="relative w-full">
+      {/* ── Live ticker: the page never sits still ─────────────────────── */}
+      <LiveTicker className="mb-4" />
       <div className="mx-auto max-w-5xl px-6 xl:max-w-6xl"><div className="h-px bg-linear-to-r from-transparent via-muted to-transparent" /></div>
 
       {/* ── Six doors ─────────────────────────────────────────────────────── */}
@@ -534,6 +567,16 @@ export default function BelowFoldSections() {
           {FEATURES.map((f, i) => (
             <FeatureCard key={f.title} delay={i * 0.07} {...f} onMouseEnter={(e) => features.enter(e.currentTarget)} />
           ))}
+        </div>
+      </div>
+
+      {/* ── Watch it work: a self-playing tour ──────────────────────────── */}
+      <div className="border-t border-border/60 bg-foreground/[0.03]">
+        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-24 xl:max-w-6xl">
+          <SectionHeading eyebrow="Watch it work" title="Four things you can do in the next five minutes" subtitle="A scripted tour that plays on its own. Hover to pause, pick a scene to jump." />
+          <motion.div initial={reduceMotion ? false : { opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-80px 0px" }} transition={{ duration: 0.55, ease: EASE }}>
+            <LandingDemoLoop />
+          </motion.div>
         </div>
       </div>
 

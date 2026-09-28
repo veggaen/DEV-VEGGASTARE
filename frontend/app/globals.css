@@ -542,6 +542,12 @@ html.theme-vt::view-transition-new(root) {
   z-index: 1;
 }
 
+/* Seamless horizontal loop: the track holds two copies of its content, so -50% lands on the seam. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 @keyframes ambientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
