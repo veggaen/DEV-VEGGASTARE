@@ -9,8 +9,8 @@ import authConfig from "@/auth.config"
 import { UserRole } from "@/generated/prisma/browser"
 import { getUserById } from "@/data/user"
 import { getAccountByUserId } from "./lib/account"
-import { recalculateVerificationTier } from "@/lib/verification-recalc"
-import { sendOauthLinkConfirmationEmail } from "@/lib/mail"
+import { applyOauthLinkEffects, isLinkableProvider } from "@/lib/oauth-link-effects"
+import { accountRowFromProvider, currentSessionUserId, linkOauthAccountToUser } from "@/lib/oauth-account-link"
 import {
   SESSION_COOKIE_NAME,
   PKCE_COOKIE_NAME,
@@ -23,9 +23,6 @@ import {
 // Console.log PREFIX
 const LOG_PREFIX = '[auth.ts] '
 const isDev = process.env.NODE_ENV !== 'production'
-const requireOauthEmailConfirmation =
-  process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION === 'true' ||
-  (!isDev && process.env.OAUTH_LINK_REQUIRE_EMAIL_CONFIRMATION !== 'false');
 
 import { resolveDisplayImage, resolveDisplayName, type IdentityEmailMode, type IdentitySource } from '@/lib/identity-display';
 import type { ExtendedUser } from '@/next-auth';
@@ -93,116 +90,16 @@ export const {
 
       },
       async linkAccount({ user, profile, account }){
-        const provider = account.provider as 'google' | 'github' | 'discord' | string;
-        const profileAny = profile as Record<string, unknown> | null;
-        const providerProfileName =
-          typeof profileAny?.name === 'string'
-            ? profileAny.name
-            : typeof user?.name === 'string'
-              ? user.name
-              : undefined;
-        const providerProfileImage =
-          typeof profileAny?.image === 'string'
-            ? profileAny.image
-            : typeof profileAny?.picture === 'string'
-              ? profileAny.picture
-              : typeof profileAny?.avatar_url === 'string'
-                ? profileAny.avatar_url
-                : typeof user?.image === 'string'
-                  ? user.image
-                  : undefined;
-        const providerProfileEmail =
-          typeof profileAny?.email === 'string'
-            ? profileAny.email
-            : typeof user?.email === 'string'
-              ? user.email
-              : undefined;
-
-        // Mark emailVerified, but DO NOT clobber existing identity fields on link.
-        // Users may have intentionally customized name/avatar/email in settings.
-        // We only backfill missing values from the OAuth profile.
-        if (user?.id) {
-          const current = await dbPrisma.user.findUnique({
-            where: { id: user.id },
-            select: { name: true, image: true, email: true },
-          });
-
-          await dbPrisma.user.update({
-            where: { id: user.id },
-            data: {
-              emailVerified: new Date(),
-              name: current?.name ?? user.name ?? profile.name ?? undefined,
-              image: current?.image ?? profile.image ?? user.image ?? undefined,
-              email: current?.email ?? user.email ?? undefined,
-              ...(provider === 'google'
-                ? {
-                    googleProfileName: providerProfileName,
-                    googleProfileImage: providerProfileImage,
-                    googleProfileEmail: providerProfileEmail,
-                  }
-                : {}),
-              ...(provider === 'github'
-                ? {
-                    githubProfileName: providerProfileName,
-                    githubProfileImage: providerProfileImage,
-                    githubProfileEmail: providerProfileEmail,
-                  }
-                : {}),
-              ...(provider === 'discord'
-                ? {
-                    discordProfileName: providerProfileName,
-                    discordProfileImage: providerProfileImage,
-                    discordProfileEmail: providerProfileEmail,
-                  }
-                : {}),
-            }
-          });
-        }
-
-        // For named OAuth providers: create a pending link record and send confirmation email.
-        // hasXxxAuth is only set to true after the user clicks the confirm link in the email.
-        if (
-          user?.id &&
-          user.email &&
-          (provider === 'google' || provider === 'github' || provider === 'discord')
-        ) {
-          if (!requireOauthEmailConfirmation) {
-            const flagKey =
-              provider === 'google'
-                ? 'hasGoogleAuth'
-                : provider === 'github'
-                  ? 'hasGithubAuth'
-                  : 'hasDiscordAuth';
-
-            await dbPrisma.user.update({
-              where: { id: user.id },
-              data: { [flagKey]: true },
-            });
-            await dbPrisma.pendingOAuthLink.deleteMany({
-              where: { userId: user.id, provider },
-            });
-            await recalculateVerificationTier(user.id);
-            return;
-          }
-
-          // Upsert: replace any existing pending record for this provider (e.g. re-linking)
-          const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 h
-          const pending = await dbPrisma.pendingOAuthLink.upsert({
-            where: { userId_provider: { userId: user.id, provider } },
-            update: { token: crypto.randomUUID(), expires },
-            create: { userId: user.id, provider, expires },
-          });
-
-          try {
-            await sendOauthLinkConfirmationEmail(user.email, {
-              provider: provider as 'google' | 'github' | 'discord',
-              userName: user.name,
-              token: pending.token,
-            });
-          } catch (err) {
-            console.error(`${LOG_PREFIX} linkAccount: failed to send confirmation email`, err);
-          }
-        }
+        // Profile backfill + pending confirmation live in lib/oauth-link-effects.ts,
+        // shared with the "link to the signed-in user" path in callbacks.signIn.
+        await applyOauthLinkEffects({
+          userId: user?.id,
+          userEmail: user?.email ?? null,
+          userName: user?.name ?? null,
+          userImage: user?.image ?? null,
+          provider: account.provider,
+          profile: (profile ?? null) as Record<string, unknown> | null,
+        });
       },
     },
     callbacks: {
@@ -212,6 +109,38 @@ export const {
           // Allow OAuth without email verification. Consider a change to this logic if in the future we want to be adding more login providers
           if ( account?.provider !== 'credentials' ){
             if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: OAuth provider`)
+
+            // "Link Google/GitHub/Discord" from Settings: a session already exists in this browser.
+            // Auth.js would otherwise match by email (refused) or register a new user; instead
+            // attach the provider to the signed-in user and go straight back to Settings.
+            // Returning a URL aborts the sign-in, so the current session stays as it is.
+            if (account && isLinkableProvider(account.provider)) {
+              const currentUserId = await currentSessionUserId(authSecret);
+              if (currentUserId) {
+                if (isDemoUserId(currentUserId)) return '/settings?section=verification&oauthError=AccessDenied';
+                const decision = await linkOauthAccountToUser({
+                  currentUserId,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  findOwner: async (provider, providerAccountId) =>
+                    (await dbPrisma.account.findUnique({ where: { provider_providerAccountId: { provider, providerAccountId } }, select: { userId: true } }))?.userId ?? null,
+                  link: async () => {
+                    await dbPrisma.account.create({ data: accountRowFromProvider(account as unknown as Record<string, unknown>, currentUserId) });
+                    await applyOauthLinkEffects({
+                      userId: currentUserId,
+                      userEmail: user?.email ?? null,
+                      userName: user?.name ?? null,
+                      userImage: user?.image ?? null,
+                      provider: account.provider,
+                      profile: (profile ?? null) as Record<string, unknown> | null,
+                    });
+                  },
+                });
+                if (isDev) console.log(`${LOG_PREFIX} callbacks.signIn: linked ${account.provider} to the signed-in user (${decision})`);
+                if (decision === 'linked-elsewhere') return '/settings?section=verification&oauthError=OAuthAccountLinkedElsewhere';
+                return `/settings?section=verification&oauthConfirm=${account.provider}`;
+              }
+            }
             return true;
           }
           

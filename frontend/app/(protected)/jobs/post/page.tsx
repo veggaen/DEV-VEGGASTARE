@@ -8,12 +8,13 @@ import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaFileUpload } from "react-icons/fa";
-import { FiXCircle, FiPlus, FiTrash2, FiLink, FiFileText, FiTruck, FiMessageSquare, FiDollarSign, FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { FiXCircle, FiPlus, FiTrash2, FiLink, FiFileText, FiTruck, FiMessageSquare, FiDollarSign, FiChevronDown, FiChevronUp, FiArrowLeft, FiCheckCircle } from "react-icons/fi";
 import { useCurrentUser, useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { Button } from '@/components/ui/button';
 import { useEdgeStore } from '@/lib/edgestore';
 import { ImageHandlerJobAsk } from '@/components/uicustom/company/img-handler-job-ask';
+import { PageHeader } from "@/components/uicustom/chrome/page-header";
 
 interface CompanyListItem {
   id: string;
@@ -92,17 +93,21 @@ function PostJobForm() {
   }, [user]);
 
   useEffect(() => {
+    let active = true;
     const fetchCompanies = async () => {
       try {
-        const response = await fetch('/api/companies');
+        // The public directory: every member can address any company. (/api/companies is admin-only.)
+        const response = await fetch('/api/companies/public', { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch companies');
-        const result = await response.json();
-        setCompanies(result);
+        const result: unknown = await response.json();
+        if (!active) return;
+        setCompanies(Array.isArray(result) ? result.map((c: { id: string; name: string; description?: string | null }) => ({ id: c.id, name: c.name, description: c.description ?? null })) : []);
       } catch (error) {
         console.error('Error fetching companies:', error);
       }
     };
     fetchCompanies();
+    return () => { active = false; };
   }, []);
 
   const handleChange = (
@@ -142,13 +147,11 @@ function PostJobForm() {
     });
   };
 
-  const handleCompanySelect = (e: ChangeEvent<HTMLSelectElement>) => {
-    const { options } = e.target;
-    const selectedCompanies = Array.from(options).filter(option => option.selected).map(option => option.value);
-    setFormData((prevData) => ({
-      ...prevData,
-      companyIds: selectedCompanies.filter((id): id is string => id !== undefined),
-    }));
+  const toggleCompany = (id: string) => {
+    setFormData((prevData) => {
+      const current = prevData.companyIds ?? [];
+      return { ...prevData, companyIds: current.includes(id) ? current.filter(c => c !== id) : [...current, id] };
+    });
   };
 
   const handleAddFields = (field: 'descriptions' | 'links') => {
@@ -257,67 +260,33 @@ function PostJobForm() {
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-linear-to-b from-background/15 via-transparent to-background/5" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.1, 0.18, 0.1] }}
+          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.35, 0.6, 0.35] }}
           transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background: "radial-gradient(closest-side, rgba(16,185,129,0.15), rgba(56,189,248,0.08), transparent 70%)",
-            mixBlendMode: "screen",
-          }}
-        />
-        <motion.div
-          className="absolute -left-24 bottom-20 h-[520px] w-[520px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, 12, 0], y: [0, -10, 0], opacity: [0.08, 0.16, 0.08] }}
-          transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background: "radial-gradient(closest-side, rgba(99,102,241,0.12), rgba(236,72,153,0.08), transparent 72%)",
-            mixBlendMode: "screen",
-          }}
+          style={{ background: "radial-gradient(closest-side, hsl(var(--brand-accent) / 0.14), hsl(var(--brand-accent) / 0.05), transparent 70%)" }}
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-4xl px-6 py-10 lg:py-12">
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <motion.div
           initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
         >
-          {/* Header */}
-          <header className="space-y-3 mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Experimental · Job board</p>
-            <Link 
-              href="/jobs" 
-              className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-4"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Job Board
-            </Link>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground/[0.05] px-3 py-1 text-xs font-semibold text-foreground/70">
-              <motion.span
-                className="h-2 w-2 rounded-full bg-brand-accent-light"
-                aria-hidden
-                animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <span>New Request</span>
-            </div>
-            <h1 className="text-balance text-3xl font-semibold text-foreground sm:text-4xl">
-              Post a Request
-            </h1>
-            <p className="max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
-              Describe what you&apos;re looking for and companies will reach out with offers.
-              Add images and details to help them understand your needs.
-            </p>
-          </header>
+          <PageHeader
+            eyebrow="Job board · Experimental"
+            title="Post a request"
+            description="Describe what you need and let companies come to you with offers. Photos and details help them quote precisely."
+            back={<Link href="/jobs" className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><FiArrowLeft aria-hidden="true" className="size-4" />Back to requests</Link>}
+            className="mb-8"
+          />
 
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0">
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title Section */}
             <section className="space-y-4">
               <label className="block">
@@ -329,7 +298,7 @@ function PostJobForm() {
                   value={formData.title}
                   onChange={(e) => handleChange(e, undefined, 'title')}
                   required
-                  className="h-12 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 focus:bg-foreground/[0.05]"
+                  className="h-12 w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 focus:bg-foreground/[0.05]"
                 />
               </label>
             </section>
@@ -361,7 +330,7 @@ function PostJobForm() {
               <button
                 type="button"
                 onClick={() => handleAddFields('descriptions')}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-foreground/[0.05] py-3 text-sm text-foreground/60 transition-colors hover:border-foreground/20 hover:bg-foreground/[0.05] hover:text-foreground/80"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-background/40 py-3 text-sm text-foreground/60 transition-colors hover:border-foreground/20 hover:bg-foreground/[0.05] hover:text-foreground/80"
               >
                 <FiPlus className="h-4 w-4" />
                 Add another image & description
@@ -372,7 +341,7 @@ function PostJobForm() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              className="flex w-full items-center justify-between rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.05]"
+              className="flex w-full items-center justify-between rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 py-3 text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.05]"
             >
               <span className="font-medium">Optional Details</span>
               {showOptional ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
@@ -383,7 +352,7 @@ function PostJobForm() {
               <motion.div
                 initial={reduceMotion ? undefined : { opacity: 0, height: 0 }}
                 animate={reduceMotion ? undefined : { opacity: 1, height: 'auto' }}
-                className="space-y-6 rounded-xl border border-border bg-foreground/[0.05] p-5"
+                className="space-y-6 rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] p-5"
               >
                 {/* Links */}
                 <div className="space-y-3">
@@ -398,12 +367,12 @@ function PostJobForm() {
                         placeholder="https://example.com/reference"
                         value={link}
                         onChange={(e) => handleChange(e, index, 'links')}
-                        className="h-10 flex-1 rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
+                        className="h-10 flex-1 rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveFields(index, 'links')}
-                        className="rounded-xl border border-border bg-foreground/[0.05] px-3 text-muted-foreground transition-colors hover:bg-red-500/20 hover:text-red-400"
+                        className="rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-3 text-muted-foreground transition-colors hover:bg-red-500/20 hover:text-red-400"
                       >
                         <FiTrash2 className="h-4 w-4" />
                       </button>
@@ -457,7 +426,7 @@ function PostJobForm() {
                     placeholder="e.g., Pickup, Shipping, Digital delivery"
                     value={formData.delivery}
                     onChange={(e) => handleChange(e, undefined, 'delivery')}
-                    className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
+                    className="h-10 w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                   />
                 </div>
 
@@ -473,7 +442,7 @@ function PostJobForm() {
                     value={formData.additionalNotes}
                     onChange={(e) => handleChange(e, undefined, 'additionalNotes')}
                     rows={3}
-                    className="w-full rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
+                    className="w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
                   />
                 </div>
 
@@ -494,23 +463,26 @@ function PostJobForm() {
                     <div className="space-y-3 pl-7">
                       <input
                         type="text"
+                        aria-label="Search companies"
                         placeholder="Search companies..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
+                        className="h-10 w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                       />
-                      <select
-                        multiple
-                        onChange={handleCompanySelect}
-                        className="w-full rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
-                        size={Math.min(filteredCompanies.length, 5)}
-                      >
-                        {filteredCompanies.map(company => (
-                          <option key={company.id} value={company.id} className="bg-card py-1">
-                            {company.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div role="group" aria-label="Companies to send to" className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-border/60 p-1">
+                        {filteredCompanies.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">{companies.length === 0 ? 'No companies to choose from yet.' : 'No company matches that search.'}</p>}
+                        {filteredCompanies.map(company => {
+                          const checked = (formData.companyIds ?? []).includes(company.id);
+                          return (
+                            <label key={company.id} className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${checked ? 'bg-brand-accent/10 text-foreground' : 'text-foreground/85 hover:bg-foreground/[0.04]'}`}>
+                              <input type="checkbox" checked={checked} onChange={() => toggleCompany(company.id)} className="size-4 rounded border-border accent-[hsl(var(--brand-accent))]" />
+                              <span className="min-w-0 flex-1 truncate">{company.name}</span>
+                              {company.description && <span className="hidden max-w-[40%] truncate text-xs text-muted-foreground sm:inline">{company.description}</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {(formData.companyIds?.length ?? 0) > 0 && <p className="text-xs text-muted-foreground">{formData.companyIds?.length} selected</p>}
                     </div>
                   )}
                 </div>
@@ -531,7 +503,7 @@ function PostJobForm() {
                           name="price"
                           value={formData.price}
                           onChange={(e) => handleChange(e, undefined, 'price')}
-                          className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
+                          className="h-10 w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                         />
                       </div>
                       <div className="space-y-2">
@@ -541,7 +513,7 @@ function PostJobForm() {
                           name="paymentMethod"
                           value={formData.paymentMethod}
                           onChange={(e) => handleChange(e, undefined, 'paymentMethod')}
-                          className="h-10 w-full rounded-xl border border-border bg-foreground/[0.05] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
+                          className="h-10 w-full rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50"
                         />
                       </div>
                     </div>
@@ -565,7 +537,7 @@ function PostJobForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent px-8 text-base font-semibold text-brand-accent-foreground transition hover:bg-brand-accent-light disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-accent px-8 text-base font-semibold text-brand-accent-foreground shadow-e1 transition-[background-color,transform,box-shadow] duration-200 hover:bg-brand-accent-hover motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {isSubmitting ? (
                 <>
@@ -580,6 +552,29 @@ function PostJobForm() {
               )}
             </button>
           </form>
+          </div>
+
+          <aside className="hidden lg:block">
+            <div className="sticky top-20 space-y-4">
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-e1 backdrop-blur-xl">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">What happens next</h3>
+                <ol className="space-y-3 text-sm text-muted-foreground [counter-reset:step]">
+                  {['Your request is visible to every company, or only the ones you pick.', 'Companies reply with offers and questions in Messages.', 'You choose an offer and agree terms directly. The board never charges you.'].map((text, i) => (
+                    <li key={text} className="flex gap-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-accent/10 text-xs font-semibold text-brand-accent">{i + 1}</span><span>{text}</span></li>
+                  ))}
+                </ol>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-e1 backdrop-blur-xl">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">Good requests</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex gap-2"><FiCheckCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-accent" />Name the outcome, not just the part.</li>
+                  <li className="flex gap-2"><FiCheckCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-accent" />Add measurements, materials and a photo.</li>
+                  <li className="flex gap-2"><FiCheckCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-accent" />Say when you need it and how it should arrive.</li>
+                </ul>
+              </div>
+            </div>
+          </aside>
+          </div>
         </motion.div>
       </div>
     </div>
@@ -619,7 +614,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
   });
 
   return (
-    <div className="rounded-xl border border-border bg-foreground/[0.05] p-4 transition-colors hover:bg-foreground/[0.05]">
+    <div className="rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] p-4 transition-colors hover:bg-foreground/[0.05]">
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* Image Dropzone */}
         <div className="w-full lg:w-1/3">
@@ -677,7 +672,7 @@ const JobDescriptionField: FC<JobDescriptionFieldProps> = ({
             onChange={(e) => handleChange(e, index, 'descriptions')}
             required
             rows={6}
-            className="flex-1 rounded-xl border border-border bg-foreground/[0.05] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
+            className="flex-1 rounded-xl border border-border/70 bg-background/60 dark:bg-foreground/[0.04] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:bg-foreground/[0.05] focus:border-brand-accent/50 resize-none"
           />
           {canRemove && (
             <button

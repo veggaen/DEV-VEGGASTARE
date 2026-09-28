@@ -11,6 +11,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
   CredentialsSignin: 'Email or password is incorrect. Please try again.',
   SessionRequired: 'Please sign in to continue.',
   OAuthAccountNotLinked: 'This email uses a different sign-in method. Sign in using the method you originally chose, then manage linked accounts in Settings.',
+  OAuthAccountLinkedElsewhere: 'That account is already linked to a different Veggat user. Unlink it there first, or use another account.',
 };
 
 export function authErrorMessage(code?: string | null): string | undefined {
