@@ -14,8 +14,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { isDemoUserId } from '@/lib/demo-policy';
 import { PayoutWalletPicker } from './payout-wallet-picker';
 import {
-  FiCheckCircle, FiAlertCircle, FiMail, FiTrash2, FiLoader,
+  FiCheckCircle, FiAlertCircle, FiCreditCard, FiMail, FiTrash2, FiLoader,
 } from 'react-icons/fi';
+import { SectionHeader } from './settings-primitives';
 import {
   savePaypalEmail,
   removePaypalEmail,
@@ -32,10 +33,7 @@ export function SellerPaymentSettings() {
 
 function DemoSellerPayments() {
   return <section className="space-y-6" aria-labelledby="seller-payment-heading">
-    <div className="border-b border-border pb-4">
-      <h2 id="seller-payment-heading" className="text-xl font-semibold">Seller Payments</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Payout setup preview · no money moves in the demo.</p>
-    </div>
+    <SectionHeader id="seller-payment-heading" icon={FiCreditCard} title="Seller Payments" description="Payout setup preview · no money moves in the demo." />
     <p className="rounded-xl border border-border bg-foreground/[0.04] p-4 text-sm text-muted-foreground">
       Use your own account to save and verify a PayPal receiving email or link a payout wallet. Demo accounts cannot change payout details.
     </p>
@@ -129,13 +127,7 @@ function EditableSellerPayments() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="border-b border-border pb-4">
-        <h2 className="text-xl font-semibold text-foreground">Seller Payments</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure how you receive payments when selling products
-        </p>
-      </div>
+      <SectionHeader icon={FiCreditCard} title="Seller Payments" description="How you receive payments when selling products." />
 
       {/* ─── PayPal Section ────────────────────────────────────────────────── */}
       <div className="space-y-3">

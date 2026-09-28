@@ -14,7 +14,10 @@ import { useConfirm } from '@/components/providers/confirm-dialog';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
 import { FiPlus, FiMessageCircle, FiUsers, FiLock, FiTrash2, FiMoreVertical, FiShare2, FiEye, FiSearch, FiInbox } from 'react-icons/fi';
 import { formatDistanceToNow } from 'date-fns';
-import { PageHeader } from "@/components/uicustom/chrome/page-header";
+import { PageHeader } from '@/components/uicustom/chrome/page-header';
+import { HoverChaser } from '@/components/uicustom/chrome/hover-chaser';
+import { StatusPill, fieldClass } from '@/components/uicustom/settings/settings-primitives';
+import { cn } from '@/lib/utils';
 
 interface Conversation {
   id: string;
@@ -106,38 +109,37 @@ function Inbox({ userId, role, readOnly }: { userId: string; role?: string; read
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-5 space-y-5">
-        <PageHeader
-          eyebrow="Inbox"
-          title="Messages"
-          description="Private conversations with sellers, buyers and support."
-          actions={<Button asChild className="min-h-11 gap-2"><Link href="/conversations/new"><FiPlus aria-hidden />New chat</Link></Button>}
-          className="border-b-0 pb-0"
-        />
+      <PageHeader
+        eyebrow="Inbox"
+        title="Messages"
+        description="Private conversations with sellers, buyers and support."
+        actions={<Button asChild variant="vegaEmeraldBtn" className="min-h-11 gap-2"><Link href="/conversations/new"><FiPlus aria-hidden />New chat</Link></Button>}
+        className="mb-5"
+      >
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative min-w-0 flex-1">
-            <FiSearch aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input ref={searchInput} type="search" name="conversation-search" autoComplete="off" aria-label="Search conversations" placeholder="Search conversations…" value={search} onChange={event => setSearch(event.target.value)} className="h-12 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+            <FiSearch aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input ref={searchInput} type="search" name="conversation-search" autoComplete="off" aria-label="Search conversations" placeholder="Search conversations…" value={search} onChange={event => setSearch(event.target.value)} className={cn(fieldClass, 'h-12 w-full border pl-10 pr-3 outline-none')} />
           </div>
           <Select value={sort} onValueChange={value => setSort(value as Sort)}>
-            <SelectTrigger aria-label="Sort conversations" className="h-12 w-full text-base sm:w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Sort conversations" className={cn(fieldClass, 'h-12 w-full sm:w-52')}><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="active">Latest activity</SelectItem><SelectItem value="recent">Newest conversations</SelectItem></SelectContent>
           </Select>
         </div>
-      </div>
+      </PageHeader>
       {isLoading ? <ConversationListSkeleton count={6} /> : accessLost ? (
-        <div role="alert" className="rounded-xl border border-border p-6 text-center"><p className="mb-4">Sign in again to view your messages.</p><Button asChild><Link href="/auth/login">Sign in</Link></Button></div>
+        <div role="alert" className="rounded-2xl border border-border/60 p-6 text-center"><p className="mb-4">Sign in again to view your messages.</p><Button asChild><Link href="/auth/login">Sign in</Link></Button></div>
       ) : (
         <>
-          {error && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4"><p>Could not load messages.</p><Button variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button></div>}
+          {error && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"><p>Could not load messages.</p><Button variant="vegaNormalBtn" className="min-h-11" disabled={isValidating} onClick={() => void mutate()}>Try again</Button></div>}
           {!error && filtered.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
-              <FiInbox aria-hidden className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <div className="rounded-2xl border border-dashed border-border/70 p-8 text-center">
+              <FiInbox aria-hidden className="mx-auto mb-3 size-8 text-muted-foreground" />
               <h2 className="mb-4 font-medium">{query ? 'No matching conversations' : 'No conversations yet'}</h2>
-              {query ? <Button variant="outline" className="min-h-11" onClick={() => { setSearch(''); searchInput.current?.focus(); }}>Clear search</Button> : <Button asChild className="min-h-11"><Link href="/conversations/new">Start a conversation</Link></Button>}
+              {query ? <Button variant="vegaNormalBtn" className="min-h-11" onClick={() => { setSearch(''); searchInput.current?.focus(); }}>Clear search</Button> : <Button asChild variant="vegaEmeraldBtn" className="min-h-11"><Link href="/conversations/new">Start a conversation</Link></Button>}
             </div>
           )}
-          <ul aria-label="Conversations" className="divide-y divide-border/60">
+          <HoverChaser as="ul" aria-label="Conversations" className="space-y-1" boxClassName="rounded-2xl">
             {filtered.map(item => {
               const people = item.participantDetails ?? [];
               const other = item.type === 'PRIVATE_DM' ? people.find(person => person.id !== userId) : null;
@@ -145,28 +147,33 @@ function Inbox({ userId, role, readOnly }: { userId: string; role?: string; read
               const updated = item.lastMessage?.createdAt || item.updatedAt;
               const date = new Date(updated);
               return (
-                <li key={item.id} className="flex min-w-0 items-center gap-1 rounded-xl py-1 [content-visibility:auto] [contain-intrinsic-size:auto_100px]">
-                  <Link href={`/conversations/${item.id}`} prefetch={false} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl px-2 py-4 outline-none transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring sm:px-3">
-                    <Avatar className="h-11 w-11 shrink-0">{other?.image && <AvatarImage src={other.image} alt="" />}<AvatarFallback>{other ? other.name?.[0] || '?' : item.type === 'GROUP' ? <FiUsers aria-hidden /> : <FiMessageCircle aria-hidden />}</AvatarFallback></Avatar>
+                <li key={item.id} data-chase className="flex min-w-0 items-center gap-1 rounded-2xl pr-1 [content-visibility:auto] [contain-intrinsic-size:auto_92px]">
+                  <Link href={`/conversations/${item.id}`} prefetch={false} className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl px-3 py-3.5 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4">
+                    <Avatar className="size-11 shrink-0 ring-1 ring-border/60">{other?.image && <AvatarImage src={other.image} alt="" />}<AvatarFallback className="bg-brand-accent/10 text-brand-accent">{other ? other.name?.[0] || '?' : item.type === 'GROUP' ? <FiUsers aria-hidden /> : <FiMessageCircle aria-hidden />}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-2"><h2 className="truncate font-semibold">{title}</h2>{item.isLocked && <FiLock aria-label="Locked" className="shrink-0 text-muted-foreground" />}{item.isPinned && <span className="shrink-0 text-xs text-muted-foreground">Pinned</span>}</div>
-                      <p className="truncate text-sm text-muted-foreground">{item.lastMessage?.content || (item.lastMessage?.imageUrl ? 'Photo' : 'No messages yet')}</p>
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">{!Number.isNaN(date.valueOf()) && <time dateTime={updated}>{formatDistanceToNow(date, { addSuffix: true })}</time>}{item.type === 'GROUP' && <span>{people.length} members</span>}{item.deletionScheduledFor && <span className="text-destructive">Deletion scheduled</span>}</div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h2 className="truncate text-sm font-semibold">{title}</h2>
+                        {item.isLocked && <FiLock aria-label="Locked" className="size-3.5 shrink-0 text-muted-foreground" />}
+                        {item.isPinned && <StatusPill>Pinned</StatusPill>}
+                        {!Number.isNaN(date.valueOf()) && <time dateTime={updated} className="ml-auto shrink-0 text-xs text-muted-foreground">{formatDistanceToNow(date, { addSuffix: true })}</time>}
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">{item.lastMessage?.content || (item.lastMessage?.imageUrl ? 'Photo' : 'No messages yet')}</p>
+                      {(item.type === 'GROUP' || item.deletionScheduledFor) && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">{item.type === 'GROUP' && <span>{people.length} members</span>}{item.deletionScheduledFor && <span className="text-destructive">Deletion scheduled</span>}</div>}
                     </div>
                   </Link>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Actions for ${title}`} disabled={pendingId !== null} className="h-11 w-11 shrink-0"><FiMoreVertical aria-hidden className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="max-w-xs">
-                      <DropdownMenuItem asChild className="min-h-11"><Link href={`/conversations/${item.id}`}><FiEye aria-hidden className="mr-2" />Open conversation</Link></DropdownMenuItem>
-                      <DropdownMenuItem className="min-h-11" onSelect={() => void copyLink(item.id)}><FiShare2 aria-hidden className="mr-2" />Copy link</DropdownMenuItem>
-                      {canManage(item) && <><DropdownMenuSeparator /><DropdownMenuItem className="min-h-11 text-destructive focus:text-destructive" onSelect={() => void deleteConversation(item, !!item.deletionScheduledFor)}><FiTrash2 aria-hidden className="mr-2" />{item.deletionScheduledFor ? 'Cancel deletion' : 'Delete'}</DropdownMenuItem></>}
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Actions for ${title}`} disabled={pendingId !== null} className="size-11 shrink-0 rounded-xl"><FiMoreVertical aria-hidden className="size-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[120] max-w-xs rounded-xl border-border/70 bg-popover/95 p-1 shadow-e3 backdrop-blur-xl">
+                      <DropdownMenuItem asChild className="min-h-11 rounded-lg"><Link href={`/conversations/${item.id}`}><FiEye aria-hidden className="mr-2" />Open conversation</Link></DropdownMenuItem>
+                      <DropdownMenuItem className="min-h-11 rounded-lg" onSelect={() => void copyLink(item.id)}><FiShare2 aria-hidden className="mr-2" />Copy link</DropdownMenuItem>
+                      {canManage(item) && <><DropdownMenuSeparator /><DropdownMenuItem className="min-h-11 rounded-lg text-destructive focus:text-destructive" onSelect={() => void deleteConversation(item, !!item.deletionScheduledFor)}><FiTrash2 aria-hidden className="mr-2" />{item.deletionScheduledFor ? 'Cancel deletion' : 'Delete'}</DropdownMenuItem></>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </li>
               );
             })}
-          </ul>
-          {hasMore && <div className="mt-4 space-y-2 text-center">{query && <p className="text-sm text-muted-foreground">Searching loaded conversations.</p>}<Button variant="outline" className="min-h-11" disabled={isValidating} onClick={() => void (error ? mutate() : setSize(size + 1))}>{isValidating ? 'Loading…' : error ? 'Retry loading more' : 'Load more conversations'}</Button></div>}
+          </HoverChaser>
+          {hasMore && <div className="mt-4 space-y-2 text-center">{query && <p className="text-sm text-muted-foreground">Searching loaded conversations.</p>}<Button variant="vegaNormalBtn" className="min-h-11" disabled={isValidating} onClick={() => void (error ? mutate() : setSize(size + 1))}>{isValidating ? 'Loading…' : error ? 'Retry loading more' : 'Load more conversations'}</Button></div>}
         </>
       )}
     </div>

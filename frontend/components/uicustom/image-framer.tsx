@@ -197,18 +197,73 @@ export const ImageFramer = React.forwardRef<ImageFramerHandle, ImageFramerProps>
   );
 });
 
-/** The zoom slider that pairs with an ImageFramer; lives wherever the toolbar is. */
+const ZOOM_RANGE = FRAMER_MAX_ZOOM - FRAMER_MIN_ZOOM;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * The zoom control that pairs with an ImageFramer. A real slider: press
+ * anywhere on the track to jump, drag the thumb (pointer capture, so it keeps
+ * following outside the track), −/+ steps, and full keyboard support. Pointer
+ * events stop here so a framing surface or drag handler around it never
+ * starts its own drag.
+ */
 export function FramerZoom({ zoom, onZoomChange, className, onReset }: { zoom: number; onZoomChange: (z: number) => void; className?: string; onReset?: () => void }) {
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const pct = ((clampZoom(zoom) - FRAMER_MIN_ZOOM) / ZOOM_RANGE) * 100;
+
+  const fromClientX = (clientX: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0) return;
+    const t = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    onZoomChange(round2(FRAMER_MIN_ZOOM + t * ZOOM_RANGE));
+  };
+  const step = (delta: number) => onZoomChange(clampZoom(round2(zoom + delta)));
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const steps: Record<string, number> = { ArrowRight: 0.05, ArrowUp: 0.05, ArrowLeft: -0.05, ArrowDown: -0.05, PageUp: 0.25, PageDown: -0.25 };
+    if (e.key === "Home") onZoomChange(FRAMER_MIN_ZOOM);
+    else if (e.key === "End") onZoomChange(FRAMER_MAX_ZOOM);
+    else if (e.key in steps) step(steps[e.key]);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const stepBtn = "grid size-7 shrink-0 place-items-center rounded-full text-base leading-none opacity-80 transition-[background-color,opacity] duration-150 hover:bg-foreground/[0.08] hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
   return (
-    <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <span aria-hidden className="text-[11px] text-muted-foreground">−</span>
-      <input
-        type="range" min={FRAMER_MIN_ZOOM} max={FRAMER_MAX_ZOOM} step={0.01} value={zoom}
-        onChange={(e) => onZoomChange(Number(e.target.value))} aria-label="Zoom"
-        className="h-1.5 w-full min-w-16 cursor-pointer appearance-none rounded-full bg-foreground/[0.15] accent-[hsl(var(--brand-accent))]"
-      />
-      <span aria-hidden className="text-[11px] text-muted-foreground">+</span>
-      {onReset && <button type="button" onClick={onReset} className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground">Reset</button>}
+    <div className={cn("flex min-w-0 items-center gap-1.5", className)} onPointerDown={(e) => e.stopPropagation()}>
+      <button type="button" aria-label="Zoom out" onClick={() => step(-0.1)} className={stepBtn}>−</button>
+      <div
+        ref={trackRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Zoom"
+        aria-valuemin={FRAMER_MIN_ZOOM}
+        aria-valuemax={FRAMER_MAX_ZOOM}
+        aria-valuenow={round2(zoom)}
+        aria-valuetext={`${zoom.toFixed(2)}×`}
+        onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setDragging(true); fromClientX(e.clientX); }}
+        onPointerMove={(e) => { if (dragging) fromClientX(e.clientX); }}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        onKeyDown={onKeyDown}
+        className="group relative flex h-7 min-w-16 flex-1 cursor-pointer touch-none items-center focus-visible:outline-none"
+      >
+        <span data-track className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-foreground/[0.15]" />
+        <span className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-brand-accent" style={{ width: `${pct}%` }} />
+        <span
+          className={cn(
+            "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-brand-accent bg-card shadow-e1 transition-transform duration-150",
+            dragging ? "scale-125" : "group-hover:scale-110 group-focus-visible:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-ring group-focus-visible:ring-offset-1",
+          )}
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <button type="button" aria-label="Zoom in" onClick={() => step(0.1)} className={stepBtn}>+</button>
+      <span aria-hidden className="w-8 shrink-0 text-right text-[11px] tabular-nums opacity-80">{zoom.toFixed(1)}×</span>
+      {onReset && <button type="button" onClick={onReset} className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] opacity-80 transition-[background-color,opacity] duration-150 hover:bg-foreground/[0.08] hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Reset</button>}
     </div>
   );
 }

@@ -1,19 +1,56 @@
 'use client';
 
+/**
+ * @fileOverview  Nexus — the business hub: one screen of doors to profile,
+ *                community, the job board and business tools. Each group is a
+ *                trailing-box grid; cards keep their own surface and the box
+ *                is the hover.
+ * @stability     evolving
+ */
+
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { useCurrentUserWithStatus } from '@/hooks/use-current-user';
-import { CiInboxIn } from "react-icons/ci";
-import { SiGooglebigquery } from "react-icons/si";
-import { 
-  FiUser, FiSettings, FiMessageCircle, FiBriefcase,
-  FiChevronRight, FiGrid
-} from 'react-icons/fi';
+import { CiInboxIn } from 'react-icons/ci';
+import { SiGooglebigquery } from 'react-icons/si';
+import { FiArrowRight, FiBriefcase, FiGrid, FiMessageCircle, FiSettings, FiShoppingBag, FiUser } from 'react-icons/fi';
 import { MdBusiness } from 'react-icons/md';
 import { PulseHeart } from '@/components/uicustom/icons/PulseIcons';
-import { PageHeader } from "@/components/uicustom/chrome/page-header";
+import { PageHeader } from '@/components/uicustom/chrome/page-header';
+import { HoverChaser } from '@/components/uicustom/chrome/hover-chaser';
+import { cn } from '@/lib/utils';
+
+type Tint = 'accent' | 'violet' | 'rose' | 'amber' | 'muted';
+const tint: Record<Tint, string> = {
+  accent: 'bg-brand-accent/10 text-brand-accent',
+  violet: 'bg-violet-500/10 text-violet-600 dark:text-violet-300',
+  rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-300',
+  amber: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  muted: 'bg-foreground/[0.06] text-muted-foreground',
+};
+
+const GROUPS: { section: string; items: { href: string; label: string; description: string; icon: React.ComponentType<{ className?: string }>; tint: Tint }[] }[] = [
+  { section: 'Account', items: [
+    { href: '/profile', label: 'My profile', description: 'View and customise your public profile', icon: FiUser, tint: 'violet' },
+    { href: '/settings', label: 'Settings', description: 'Account, security and preferences', icon: FiSettings, tint: 'muted' },
+  ] },
+  { section: 'Community', items: [
+    { href: '/pulse', label: 'Pulse', description: 'Public feed and discussions', icon: PulseHeart, tint: 'rose' },
+    { href: '/conversations', label: 'Messages', description: 'Your private conversations', icon: FiMessageCircle, tint: 'accent' },
+  ] },
+  { section: 'Job board', items: [
+    { href: '/jobs', label: 'Browse requests', description: 'Find work opportunities', icon: CiInboxIn, tint: 'violet' },
+    { href: '/jobs/post', label: 'Post a request', description: 'Get quotes from companies', icon: SiGooglebigquery, tint: 'accent' },
+  ] },
+  { section: 'Business', items: [
+    { href: '/companies', label: 'Companies', description: 'Manage your companies', icon: MdBusiness, tint: 'amber' },
+    { href: '/my-sales', label: 'My sales', description: 'Orders containing your products', icon: FiBriefcase, tint: 'accent' },
+    { href: '/products', label: 'Marketplace', description: 'Browse and list products', icon: FiGrid, tint: 'muted' },
+    { href: '/my-orders', label: 'My orders', description: 'Receipts and purchases', icon: FiShoppingBag, tint: 'muted' },
+  ] },
+];
 
 export default function NexusPage() {
   const reduceMotion = useReducedMotion();
@@ -24,180 +61,60 @@ export default function NexusPage() {
   // otherwise treat as "logged in" and bounce us back here → redirect loop),
   // then land on the login page. `force=1` tells middleware to let us stay.
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      signOut({ callbackUrl: '/auth/login?force=1' });
-    }
+    if (status === 'unauthenticated') signOut({ callbackUrl: '/auth/login?force=1' });
   }, [status]);
-
-  const quickLinks = [
-    {
-      section: 'Account',
-      items: [
-        { 
-          href: '/profile', 
-          label: 'My Profile', 
-          description: 'View and customize your public profile',
-          icon: FiUser,
-          color: 'indigo'
-        },
-        { 
-          href: '/settings', 
-          label: 'Settings', 
-          description: 'Account, security, and preferences',
-          icon: FiSettings,
-          color: 'slate'
-        },
-      ]
-    },
-    {
-      section: 'Community',
-      items: [
-        { 
-          href: '/pulse', 
-          label: 'Pulse', 
-          description: 'Public feed and discussions',
-          icon: PulseHeart,
-          color: 'pink'
-        },
-        { 
-          href: '/conversations', 
-          label: 'Messages', 
-          description: 'Your private conversations',
-          icon: FiMessageCircle,
-          color: 'blue'
-        },
-      ]
-    },
-    {
-      section: 'Job Board',
-      items: [
-        { 
-          href: '/jobs', 
-          label: 'Browse Requests', 
-          description: 'Find work opportunities',
-          icon: CiInboxIn,
-          color: 'indigo'
-        },
-        { 
-          href: '/jobs/post', 
-          label: 'Post a Request', 
-          description: 'Get quotes from companies',
-          icon: SiGooglebigquery,
-          color: 'emerald'
-        },
-      ]
-    },
-    {
-      section: 'Business',
-      items: [
-        { 
-          href: '/companies', 
-          label: 'Companies', 
-          description: 'Manage your companies',
-          icon: MdBusiness,
-          color: 'amber'
-        },
-        { 
-          href: '/products', 
-          label: 'Marketplace', 
-          description: 'Browse and list products',
-          icon: FiGrid,
-          color: 'cyan'
-        },
-      ]
-    },
-  ];
-
-  const colorClasses: Record<string, string> = {
-    indigo: 'text-indigo-500 group-hover:bg-indigo-500/10',
-    slate: 'text-muted-foreground group-hover:bg-muted/10',
-    pink: 'text-pink-500 group-hover:bg-pink-500/10',
-    blue: 'text-blue-500 group-hover:bg-blue-500/10',
-    emerald: 'text-brand-accent group-hover:bg-brand-accent/10',
-    amber: 'text-amber-500 group-hover:bg-amber-500/10',
-    cyan: 'text-cyan-500 group-hover:bg-cyan-500/10',
-  };
 
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          {status === 'loading' ? 'Loading…' : 'Redirecting to sign in…'}
-        </div>
+        <div className="animate-pulse text-muted-foreground">{status === 'loading' ? 'Loading…' : 'Redirecting to sign in…'}</div>
       </div>
     );
   }
 
   return (
     <div className="relative min-h-[calc(100vh-var(--app-header-offset,0px))] overflow-x-hidden">
-      {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-linear-to-b from-background/5 via-transparent to-background/5 dark:from-background/15" />
         <motion.div
           className="absolute -right-20 top-32 h-[480px] w-[480px] rounded-full blur-3xl"
-          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.06, 0.12, 0.06] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            background: "radial-gradient(closest-side, rgba(99,102,241,0.1), rgba(168,85,247,0.06), transparent 70%)",
-            mixBlendMode: "screen",
-          }}
+          animate={reduceMotion ? undefined : { x: [0, -10, 0], y: [0, 8, 0], opacity: [0.35, 0.6, 0.35] }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: 'radial-gradient(closest-side, hsl(var(--brand-accent) / 0.14), hsl(var(--brand-accent) / 0.05), transparent 70%)' }}
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-4xl px-6 py-10 lg:py-12">
-        <motion.div
-          initial={reduceMotion ? undefined : { opacity: 0, y: 14 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
-          {/* Header */}
-          <PageHeader
-            eyebrow="Your workspace"
-            title="Nexus"
-            description="Your command center: profile, community, jobs and business tools in one place."
-            className="mb-10"
-          />
+      <div className="relative mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:py-12">
+        <motion.div initial={reduceMotion ? undefined : { opacity: 0, y: 14 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: 'easeOut' }}>
+          <PageHeader eyebrow="Your workspace" title="Nexus" description="Your command centre: profile, community, jobs and business tools in one place." className="mb-8" />
 
-          {/* Quick Links Grid */}
           <div className="space-y-8">
-            {quickLinks.map((section, sectionIndex) => (
-              <motion.div
-                key={section.section}
-                initial={reduceMotion ? undefined : { opacity: 0, y: 12 }}
-                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: sectionIndex * 0.05 }}
-              >
-                <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
-                  {section.section}
-                </h2>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {section.items.map((item) => (
+            {GROUPS.map((group, index) => (
+              <motion.section key={group.section} aria-label={group.section} initial={reduceMotion ? undefined : { opacity: 0, y: 12 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: index * 0.05 }}>
+                <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">{group.section}</h2>
+                <HoverChaser className="grid gap-3 sm:grid-cols-2" boxClassName="rounded-2xl">
+                  {group.items.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl transition-[transform,box-shadow,border-color,background-color] duration-200 hover:border-brand-accent/40 hover:bg-card hover:shadow-e2 motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-chase
+                      className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl transition-[transform,border-color] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-foreground/[0.05] transition-colors ${colorClasses[item.color]}`}>
-                        <item.icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-foreground">{item.label}</div>
-                        <div className="text-xs text-muted-foreground">{item.description}</div>
-                      </div>
-                      <FiChevronRight className="h-4 w-4 text-muted-foreground/50 transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
+                      <span className={cn('grid size-11 shrink-0 place-items-center rounded-xl', tint[item.tint])}><item.icon className="size-5" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                        <span className="block text-xs text-muted-foreground">{item.description}</span>
+                      </span>
+                      <FiArrowRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground/60 transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-brand-accent" />
                     </Link>
                   ))}
-                </div>
-              </motion.div>
+                </HoverChaser>
+              </motion.section>
             ))}
           </div>
 
-          {/* Keyboard shortcut hint */}
-          <div className="mt-10 text-center">
-            <p className="text-xs text-muted-foreground/60">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px]">K</kbd> to open command palette anywhere
-            </p>
-          </div>
+          <p className="mt-10 text-center text-xs text-muted-foreground/70">
+            Press <kbd className="rounded bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">Ctrl</kbd> + <kbd className="rounded bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">K</kbd> to open the command palette anywhere
+          </p>
         </motion.div>
       </div>
     </div>

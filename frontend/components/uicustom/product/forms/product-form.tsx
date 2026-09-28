@@ -1660,7 +1660,7 @@ export const MyProductCreationForm = () => {
   };
 
   return (
-    <div className='w-full flex flex-col'>
+    <div className='flex h-full min-h-0 w-full flex-col'>
       {/* File Re-selection Notice — quiet inline line shown after login redirect */}
       {showFileReselectionNotice && (
         <div className="mb-6 flex items-start gap-2 border-l-2 border-amber-500/50 pl-3 text-xs text-muted-foreground">
@@ -1682,10 +1682,10 @@ export const MyProductCreationForm = () => {
       <Form {...form}>
         <form
           onSubmit={handleFormSubmit}
-          className='grid w-full grid-cols-1 gap-10 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-14'
+          className='grid min-h-0 w-full flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-3 lg:grid-cols-[200px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-10'
         >
           {/* ── Left rail: text-only step nav ─────────────────────────────── */}
-          <nav aria-label="Listing steps" className="lg:sticky lg:top-6 lg:self-start">
+          <nav aria-label="Listing steps" className="shrink-0 lg:self-start">
             <ol className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
               {visibleSteps.map((s, idx) => {
                 const active = idx === safeActiveStep;
@@ -1730,8 +1730,9 @@ export const MyProductCreationForm = () => {
             </ol>
           </nav>
 
-          {/* ── Right column: step panels ─────────────────────────────────── */}
-          <div className="min-w-0" ref={stepPanelsRef}>
+          {/* ── Right column: the active step scrolls inside; Back / Continue stay put ── */}
+          <div className="flex min-h-0 min-w-0 flex-col" ref={stepPanelsRef}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 lg:pr-3">
 
           {/* Images Section — belongs to step 1 "Type & photos" */}
           <div hidden={!isStepActive('type')} data-listing-step="type" className="w-full scroll-mt-4 pb-2">
@@ -1745,7 +1746,7 @@ export const MyProductCreationForm = () => {
               // EMPTY STATE — big, inviting single drop target (fixed aspect)
               <div
                 {...getRootProps()}
-                className="relative mx-auto flex aspect-[4/5] w-full max-w-[380px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:bg-foreground/[0.03]"
+                className="relative mx-auto flex aspect-[16/10] w-full max-w-[520px] cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/80 bg-background/45 p-4 text-center transition-colors duration-150 hover:border-brand-accent/50 hover:bg-foreground/[0.03]"
               >
                 <input {...getInputProps()} />
                 <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border/70 bg-muted/35">
@@ -2490,7 +2491,7 @@ export const MyProductCreationForm = () => {
             {/* Column 2: Options + Specifications */}
             <div className='contents'>
               {/* Product Type Selection */}
-              <div hidden={!isStepActive('type')} className={`${customStyles.section} order-1 mt-8 border-t border-border/70 pt-8`}>
+              <div hidden={!isStepActive('type')} className={`${customStyles.section} order-1 mt-5 border-t border-border/70 pt-5`}>
                 <h3 className={customStyles.sectionTitle}>Product Type</h3>
 
                 {isDigitalOnlyLiteMode && (
@@ -3145,8 +3146,10 @@ export const MyProductCreationForm = () => {
             </div>
           </div>
 
+          </div>{/* /scrolling step area */}
+
           {/* ── Step footer: Back / Continue / Publish ────────────────────── */}
-          <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 flex shrink-0 flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => goToStep(safeActiveStep - 1)}

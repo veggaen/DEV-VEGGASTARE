@@ -9,10 +9,17 @@ import { SALE_FILTERS, SALE_LABELS, SellerOrderList, SellerOrdersQuery, safeShip
 import HistoricalPriceNote from './historical-price-note';
 import { orderMoney } from '@/lib/order-presentation';
 import { SalesOrdersSkeleton, SalesRowsSkeleton } from './seller-orders-skeleton';
+import { PageHeader } from '@/components/uicustom/chrome/page-header';
+import { HoverChaser } from '@/components/uicustom/chrome/hover-chaser';
+import { StatusPill } from '@/components/uicustom/settings/settings-primitives';
+import { cn } from '@/lib/utils';
 
-const control = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const control = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-sm font-medium transition-[background-color,border-color,color] duration-150 hover:border-brand-accent/50 hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
+const card = 'min-w-0 rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl';
 const readable = (value: string) => value.toLowerCase().replaceAll('_', ' ').replace(/^./, char => char.toUpperCase());
 const date = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const fulfilmentTone = (status: SellerOrderRow['fulfilmentStatus']): 'accent' | 'neutral' | 'warning' | 'danger' =>
+  status === 'DELIVERED' ? 'accent' : status === 'UNFULFILLED' ? 'warning' : status === 'RETURNED' || status === 'CANCELLED' ? 'danger' : 'neutral';
 
 export default function SellerOrdersDashboard() {
   const search = useSearchParams();
@@ -53,38 +60,44 @@ export default function SellerOrdersDashboard() {
     window.history.pushState(null, '', `/my-sales${params.size ? `?${params}` : ''}`);
   }
   return <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
-    <header className="space-y-4">
-      <Link href="/nexus" className={`${control} w-fit`}><ArrowLeft aria-hidden="true" className="size-4" /> Business workspace</Link>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Marketplace</p><h1 className="mt-2 text-balance text-3xl font-semibold tracking-tight">My sales</h1><p className="mt-2 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">Track orders containing your products. Payment and fulfilment are shown separately.</p></div>
+    <PageHeader
+      eyebrow="Marketplace"
+      title="My sales"
+      description="Track orders containing your products. Payment and fulfilment are shown separately."
+      back={<Link href="/nexus" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft aria-hidden="true" className="size-4" /> Business workspace</Link>}
+      actions={<>
         <button type="button" className={control} disabled={loading} onClick={() => setRevision(value => value + 1)}><RefreshCw aria-hidden="true" className={`size-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />{loading ? 'Loading…' : 'Refresh sales'}</button>
-      </div>
-      <Link href="/my-sales/requests" className={`${control} w-full sm:w-auto`}>Review purchase requests <ArrowUpRight aria-hidden="true" className="size-4" /></Link>
-    </header>
+        <Link href="/my-sales/requests" className={cn(control, 'border-brand-accent/40 bg-brand-accent/10 text-foreground')}>Review purchase requests <ArrowUpRight aria-hidden="true" className="size-4" /></Link>
+      </>}
+    />
     <HistoricalPriceNote />
-    {!parsed.success && <p role="status" className="rounded-lg border border-border p-4 text-sm">The saved filter was invalid. Showing all orders.</p>}
-    {error && <div role="alert" className="space-y-3 rounded-xl border border-destructive/40 bg-destructive/5 p-5"><p className="font-medium">Sales unavailable</p><p className="text-sm">{error}</p>{data && <p className="text-sm text-muted-foreground">{current ? 'Previously loaded orders remain below and may be out of date.' : 'Previous filter counts remain visible. Orders for the selected filter are unavailable.'}</p>}<div className="flex flex-wrap gap-3"><button type="button" className={control} disabled={loading} onClick={() => setRevision(value => value + 1)}>Try again</button><Link className={control} href="/auth/login?callbackUrl=%2Fmy-sales">Sign in</Link></div></div>}
+    {!parsed.success && <p role="status" className="rounded-xl border border-border/60 p-4 text-sm">The saved filter was invalid. Showing all orders.</p>}
+    {error && <div role="alert" className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-5"><p className="font-medium">Sales unavailable</p><p className="text-sm">{error}</p>{data && <p className="text-sm text-muted-foreground">{current ? 'Previously loaded orders remain below and may be out of date.' : 'Previous filter counts remain visible. Orders for the selected filter are unavailable.'}</p>}<div className="flex flex-wrap gap-3"><button type="button" className={control} disabled={loading} onClick={() => setRevision(value => value + 1)}>Try again</button><Link className={control} href="/auth/login?callbackUrl=%2Fmy-sales">Sign in</Link></div></div>}
     {!data && loading && <SalesOrdersSkeleton />}
     {data && <>
-      {data.readOnly && <aside aria-label="Demo sales" className="rounded-xl border border-brand-accent/30 bg-brand-accent/5 p-4 text-sm leading-6">Demo workspace: real buyers’ sales and payment details are private. Explore your own unpaid purchases in <Link href="/my-orders" className="underline underline-offset-4 focus-visible:outline">My orders</Link>.</aside>}
-      <dl className="grid gap-3 sm:grid-cols-3">
-        <Metric title="Orders across all statuses"><span>{data.counts.ALL.toLocaleString()}</span></Metric>
-        <Metric title="Displayed items value">{current ? <PriceTotal context="history" entries={data.orders.map(order => ({ amount: order.sellerTotal, currency: order.currency }))} /> : <span aria-label="Not available yet">—</span>}</Metric>
-        <Metric title="Awaiting fulfilment"><span>{data.counts.UNFULFILLED.toLocaleString()}</span></Metric>
-      </dl>
+      {data.readOnly && <aside aria-label="Demo sales" className="rounded-2xl border border-brand-accent/30 bg-brand-accent/[0.06] p-4 text-sm leading-6">Demo workspace: real buyers’ sales and payment details are private. Explore your own unpaid purchases in <Link href="/my-orders" className="underline underline-offset-4 focus-visible:outline">My orders</Link>.</aside>}
+      <HoverChaser as="div" className="grid gap-3 sm:grid-cols-3" boxClassName="rounded-2xl">
+        <dl className="contents">
+          <Metric title="Orders across all statuses"><span>{data.counts.ALL.toLocaleString()}</span></Metric>
+          <Metric title="Displayed items value">{current ? <PriceTotal context="history" entries={data.orders.map(order => ({ amount: order.sellerTotal, currency: order.currency }))} /> : <span aria-label="Not available yet">—</span>}</Metric>
+          <Metric title="Awaiting fulfilment" accent={data.counts.UNFULFILLED > 0}><span>{data.counts.UNFULFILLED.toLocaleString()}</span></Metric>
+        </dl>
+      </HoverChaser>
       <p className="text-xs leading-5 text-muted-foreground">Displayed value covers only the items shown on this page. It is not paid revenue, profit or a payout balance.</p>
-      <div aria-label="Filter sales by fulfilment" role="group" className="flex flex-wrap gap-2">{SALE_FILTERS.map(filter => <button key={filter} type="button" aria-pressed={filter === status} className={`${control} ${filter === status ? 'border-foreground/40 bg-muted' : ''}`} onClick={() => navigate(filter, 1)}>{SALE_LABELS[filter]}<span className="rounded-md bg-muted px-1.5 text-xs tabular-nums">{data.counts[filter].toLocaleString()}</span></button>)}</div>
+      <HoverChaser as="div" aria-label="Filter sales by fulfilment" role="group" className="flex flex-wrap gap-2" boxClassName="rounded-xl">
+        {SALE_FILTERS.map(filter => <button key={filter} type="button" aria-pressed={filter === status} data-chase className={cn(control, 'hover:border-border/70 hover:bg-card/60', filter === status && 'border-brand-accent/60 bg-brand-accent/10 text-foreground hover:border-brand-accent/60 hover:bg-brand-accent/10')} onClick={() => navigate(filter, 1)}>{SALE_LABELS[filter]}<span className="rounded-md bg-foreground/[0.06] px-1.5 text-xs tabular-nums">{data.counts[filter].toLocaleString()}</span></button>)}
+      </HoverChaser>
       <p aria-live="polite" className="text-sm text-muted-foreground">{loading ? `Loading ${SALE_LABELS[status].toLowerCase()}…` : !current ? 'Orders unavailable for this filter.' : `${data.pagination.total.toLocaleString()} ${data.pagination.total === 1 ? 'order' : 'orders'} · ${SALE_LABELS[status]}`}</p>
-      <section aria-label="Sales orders" aria-busy={loading} className="space-y-3">
-        {!current ? loading ? <SalesRowsSkeleton /> : null : data.orders.length === 0 ? <div className="rounded-xl border border-border bg-card p-6 text-center sm:p-10"><ShoppingBag aria-hidden="true" className="mx-auto mb-4 size-8 text-muted-foreground" /><h2 className="text-lg font-semibold">{page > 1 ? 'No orders on this page' : status === 'ALL' ? 'No sales yet' : 'No matching orders'}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{data.readOnly ? 'Demo purchases are available in My orders; they do not create real seller revenue.' : status === 'ALL' ? 'Orders appear here when someone orders one of your products.' : 'Choose another fulfilment status or return to all orders.'}</p>{(page > 1 || status !== 'ALL') && <button className={`${control} mt-5`} onClick={() => navigate('ALL', 1)}>Show all orders</button>}</div> : data.orders.map(order => <OrderCard key={order.id} order={order} expanded={expanded === order.id} onToggle={() => navigate(status, page, expanded === order.id ? null : order.id)} />)}
-      </section>
-      {current && (data.pagination.totalPages > 1 || page > 1) && <nav aria-label="Sales pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5"><button className={control} disabled={loading || page <= 1} onClick={() => navigate(status, page - 1)}>Previous page</button><span className="text-sm tabular-nums text-muted-foreground">Page {page} of {Math.max(1, data.pagination.totalPages)}</span><button className={control} disabled={loading || page >= data.pagination.totalPages} onClick={() => navigate(status, page + 1)}>Next page</button></nav>}
+      <HoverChaser as="section" aria-label="Sales orders" aria-busy={loading} className="space-y-3" boxClassName="rounded-2xl">
+        {!current ? loading ? <SalesRowsSkeleton /> : null : data.orders.length === 0 ? <div className="rounded-2xl border border-dashed border-border/70 p-6 text-center sm:p-10"><ShoppingBag aria-hidden="true" className="mx-auto mb-4 size-8 text-muted-foreground" /><h2 className="text-lg font-semibold">{page > 1 ? 'No orders on this page' : status === 'ALL' ? 'No sales yet' : 'No matching orders'}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{data.readOnly ? 'Demo purchases are available in My orders; they do not create real seller revenue.' : status === 'ALL' ? 'Orders appear here when someone orders one of your products.' : 'Choose another fulfilment status or return to all orders.'}</p>{(page > 1 || status !== 'ALL') && <button className={`${control} mt-5`} onClick={() => navigate('ALL', 1)}>Show all orders</button>}</div> : data.orders.map(order => <OrderCard key={order.id} order={order} expanded={expanded === order.id} onToggle={() => navigate(status, page, expanded === order.id ? null : order.id)} />)}
+      </HoverChaser>
+      {current && (data.pagination.totalPages > 1 || page > 1) && <nav aria-label="Sales pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-5"><button className={control} disabled={loading || page <= 1} onClick={() => navigate(status, page - 1)}>Previous page</button><span className="text-sm tabular-nums text-muted-foreground">Page {page} of {Math.max(1, data.pagination.totalPages)}</span><button className={control} disabled={loading || page >= data.pagination.totalPages} onClick={() => navigate(status, page + 1)}>Next page</button></nav>}
     </>}
   </div>;
 }
 
-function Metric({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5"><dt className="text-sm text-muted-foreground">{title}</dt><dd className="mt-2 break-words text-xl font-semibold tabular-nums sm:mt-3 sm:text-2xl">{children}</dd></div>;
+function Metric({ title, children, accent }: { title: string; children: React.ReactNode; accent?: boolean }) {
+  return <div data-chase className={cn(card, 'p-4 sm:p-5', accent && 'border-brand-accent/40')}><dt className="text-sm text-muted-foreground">{title}</dt><dd className={cn('mt-2 break-words text-xl font-semibold tabular-nums sm:mt-3 sm:text-2xl', accent && 'text-brand-accent-hover dark:text-brand-accent-light')}>{children}</dd></div>;
 }
 
 function OrderCard({ order, expanded, onToggle }: { order: SellerOrderRow; expanded: boolean; onToggle: () => void }) {
@@ -92,19 +105,25 @@ function OrderCard({ order, expanded, onToggle }: { order: SellerOrderRow; expan
   const trackingUrl = safeShippingLink(order.tracking?.url ?? null);
   const labelUrl = safeShippingLink(order.tracking?.labelUrl ?? null);
   const shortId = order.id.slice(-8).toUpperCase();
-  return <article className="min-w-0 rounded-xl border border-border bg-card">
-    <h2><button type="button" aria-expanded={expanded} aria-controls={`sale-${order.id}`} aria-label={`Order ${shortId} details`} onClick={onToggle} className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-xl p-4 text-left transition-colors duration-150 hover:bg-foreground/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:p-5">
-      <span className="grid min-w-0 gap-3 sm:grid-cols-2 sm:items-center"><span className="min-w-0"><span className="block text-sm font-semibold">#{shortId}</span><time dateTime={order.createdAt} className="mt-1 block text-xs font-normal text-muted-foreground">{date(order.createdAt)}</time></span><span className="w-fit rounded-md border border-border px-2 py-1 text-xs font-normal">{SALE_LABELS[order.fulfilmentStatus]}</span><span className="text-base font-semibold sm:col-span-2"><PriceAmount context="history" amount={order.sellerTotal} currency={order.currency} /></span></span>
+  return <article data-chase className={card}>
+    <h2><button type="button" aria-expanded={expanded} aria-controls={`sale-${order.id}`} aria-label={`Order ${shortId} details`} onClick={onToggle} className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-2xl p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-5">
+      <span className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">#{shortId}</span><StatusPill tone={fulfilmentTone(order.fulfilmentStatus)}>{SALE_LABELS[order.fulfilmentStatus]}</StatusPill></span><time dateTime={order.createdAt} className="mt-1 block text-xs font-normal text-muted-foreground">{date(order.createdAt)} · {order.customer.name || 'Customer'} · {order.items.length} {order.items.length === 1 ? 'item' : 'items'}</time></span>
+        <span className="text-base font-semibold tabular-nums sm:text-right"><PriceAmount context="history" amount={order.sellerTotal} currency={order.currency} /></span>
+      </span>
       <ChevronDown aria-hidden="true" className={`mt-1 size-5 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`} />
     </button></h2>
-    {expanded && <div id={`sale-${order.id}`} className="space-y-6 border-t border-border p-4 sm:p-5">
-      <div className="grid min-w-0 gap-6 lg:grid-cols-2"><section className="min-w-0"><h3 className="text-sm font-semibold">Customer</h3><p className="mt-2 break-words text-sm">{order.customer.name || 'Customer'}</p>{order.customer.email && <p className="mt-1 break-all text-sm text-muted-foreground">{order.customer.email}</p>}</section><section className="min-w-0"><h3 className="text-sm font-semibold">Payment status</h3><p className="mt-2 text-sm">{order.environment === 'DEMO' ? 'Demo — no payment' : payment ? readable(payment.state ?? payment.status) : order.sharedOrder ? 'Whole-order payment hidden' : 'No verified payment recorded'}</p><p className="mt-1 text-sm text-muted-foreground">{payment ? readable(payment.method) : `Order: ${readable(order.status)}`}{order.environment ? ` · ${order.environment}` : ''}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">Fulfilment does not prove payment. A request approval does not issue a refund.</p></section></div>
+    {expanded && <div id={`sale-${order.id}`} className="space-y-6 border-t border-border/60 p-4 sm:p-5">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <section className="min-w-0 rounded-xl bg-foreground/[0.03] p-3"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer</h3><p className="mt-2 break-words text-sm font-medium">{order.customer.name || 'Customer'}</p>{order.customer.email && <p className="mt-1 break-all text-sm text-muted-foreground">{order.customer.email}</p>}</section>
+        <section className="min-w-0 rounded-xl bg-foreground/[0.03] p-3"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment status</h3><p className="mt-2 text-sm font-medium">{order.environment === 'DEMO' ? 'Demo — no payment' : payment ? readable(payment.state ?? payment.status) : order.sharedOrder ? 'Whole-order payment hidden' : 'No verified payment recorded'}</p><p className="mt-1 text-sm text-muted-foreground">{payment ? readable(payment.method) : `Order: ${readable(order.status)}`}{order.environment ? ` · ${order.environment}` : ''}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">Fulfilment does not prove payment. A request approval does not issue a refund.</p></section>
+      </div>
       <p className="text-sm text-muted-foreground">Recorded items value: <span className="font-medium tabular-nums text-foreground">{orderMoney(order.sellerTotal, order.currency)}</span>. This is not a payout balance.</p>
-      {order.sharedOrder && <p className="rounded-lg bg-foreground/[0.05] p-3 text-sm leading-6">Only your displayed items are included. Whole-order payment and tracking details are hidden when other or additional lines are present.</p>}
-      <section><h3 className="text-sm font-semibold">Your items</h3><ul className="mt-2 divide-y divide-border">{order.items.map(item => <li key={item.id} className="grid min-w-0 gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0"><p className="break-words text-sm font-medium">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.quantity} × {readable(item.productType)}</p></div><span className="text-sm"><PriceAmount context="history" amount={item.priceAtTime * item.quantity} currency={order.currency} /></span></li>)}</ul>{order.items.length === 50 && <p className="text-xs text-muted-foreground">Showing the first 50 matching lines. Contact support for larger historical orders.</p>}</section>
-      {order.shipping?.address && <section><h3 className="text-sm font-semibold">Delivery address</h3><address className="mt-2 break-words text-sm not-italic leading-6">{order.shipping.name}<br />{order.shipping.address}<br />{order.shipping.postalCode} {order.shipping.city}<br />{order.shipping.country}</address></section>}
-      {order.tracking?.number && <section><h3 className="text-sm font-semibold">Shipment</h3><p className="mt-2 break-all text-sm">{order.tracking.number}</p><div className="mt-3 flex flex-wrap gap-3">{trackingUrl && <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className={control}>Track shipment <span className="sr-only">(opens a new tab)</span></a>}{labelUrl && <a href={labelUrl} target="_blank" rel="noopener noreferrer" className={control}>Shipping label <span className="sr-only">(opens a new tab)</span></a>}</div></section>}
-      {payment && <section><h3 className="text-sm font-semibold">Payment details</h3><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">{[
+      {order.sharedOrder && <p className="rounded-xl border border-border/60 bg-foreground/[0.03] p-3 text-sm leading-6">Only your displayed items are included. Whole-order payment and tracking details are hidden when other or additional lines are present.</p>}
+      <section><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your items</h3><ul className="mt-2 divide-y divide-border/50">{order.items.map(item => <li key={item.id} className="grid min-w-0 gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0"><p className="break-words text-sm font-medium">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.quantity} × {readable(item.productType)}</p></div><span className="text-sm tabular-nums"><PriceAmount context="history" amount={item.priceAtTime * item.quantity} currency={order.currency} /></span></li>)}</ul>{order.items.length === 50 && <p className="text-xs text-muted-foreground">Showing the first 50 matching lines. Contact support for larger historical orders.</p>}</section>
+      {order.shipping?.address && <section><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Delivery address</h3><address className="mt-2 break-words text-sm not-italic leading-6">{order.shipping.name}<br />{order.shipping.address}<br />{order.shipping.postalCode} {order.shipping.city}<br />{order.shipping.country}</address></section>}
+      {order.tracking?.number && <section><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Shipment</h3><p className="mt-2 break-all font-mono text-sm">{order.tracking.number}</p><div className="mt-3 flex flex-wrap gap-3">{trackingUrl && <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className={control}>Track shipment <span className="sr-only">(opens a new tab)</span></a>}{labelUrl && <a href={labelUrl} target="_blank" rel="noopener noreferrer" className={control}>Shipping label <span className="sr-only">(opens a new tab)</span></a>}</div></section>}
+      {payment && <section><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment details</h3><dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">{[
         ['Recipient', payment.receiver], ['Sender', payment.sender], ['Payment reference', payment.reference],
         ['Network', payment.chainFamily ? `${payment.chainFamily}${payment.chainId ? ` · ${payment.chainId}` : ''}` : null],
         ['Crypto paid', payment.nativeAmount && payment.tokenSymbol ? `${payment.nativeAmount} ${payment.tokenSymbol}` : null],

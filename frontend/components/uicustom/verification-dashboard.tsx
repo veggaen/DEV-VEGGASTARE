@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { isOAuthProvider, OAUTH_PROVIDERS, oauthLinkState, oauthLinkFeedback, type OAuthProvider } from '@/lib/oauth-link-state';
 import { confirmOauthLink, resendOauthConfirmation, unlinkOauthProvider } from '@/actions/oauth-links';
+import { SectionHeader } from '@/components/uicustom/settings/settings-primitives';
 import {
   FiCheckCircle, FiCircle, FiRefreshCw, FiArrowRight,
   FiMail, FiSmartphone, FiShield, FiLock, FiXCircle,
@@ -476,15 +477,7 @@ export function VerificationDashboard() {
         </section>
       )}
       {/* Header */}
-      <div className="border-b border-border pb-6">
-        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <FiShield className="text-brand-accent" />
-          Verification & Trust
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Increase your verification level to boost your Reach multiplier and unlock more features
-        </p>
-      </div>
+      <SectionHeader icon={FiShield} title="Verification & Trust" description="Raise your verification level to boost your Reach multiplier and unlock more features." />
 
       {/* Tier Card */}
       <motion.div
@@ -621,8 +614,8 @@ export function VerificationDashboard() {
                   isComplete
                     ? 'bg-brand-accent/5 border-brand-accent/20'
                     : isPending
-                      ? 'bg-yellow-500/5 border-yellow-500/30 dark:border-yellow-500/25'
-                      : 'bg-surface-1/50 border-border hover:border-blue-500/30 dark:bg-foreground/[0.05] dark:hover:border-border'
+                      ? 'bg-amber-500/5 border-amber-500/30'
+                      : 'bg-card/60 border-border/60 hover:border-brand-accent/40'
                 }`}
               >
                 {/* Status icon */}
@@ -630,7 +623,7 @@ export function VerificationDashboard() {
                   {isComplete ? (
                     <FiCheckCircle className="w-5 h-5 text-brand-accent" />
                   ) : isPending ? (
-                    <FiMail className="w-5 h-5 text-yellow-500" />
+                    <FiMail className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   ) : (
                     <FiCircle className="w-5 h-5 text-muted-foreground/40" />
                   )}
@@ -645,7 +638,7 @@ export function VerificationDashboard() {
                     isComplete
                       ? 'text-brand-accent-hover dark:text-brand-accent-light line-through'
                       : isPending
-                        ? 'text-yellow-600 dark:text-yellow-400'
+                        ? 'text-amber-700 dark:text-amber-300'
                         : 'text-foreground'
                   }`}>
                     {item.label}
@@ -664,7 +657,7 @@ export function VerificationDashboard() {
                   isComplete
                     ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                     : isPending
-                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
                       : 'bg-surface-1/80 text-muted-foreground dark:bg-foreground/[0.05]'
                 }`}>
                   +{item.points}
@@ -703,7 +696,7 @@ export function VerificationDashboard() {
                       onClick={() => provider && handleResend(provider)}
                       disabled={Boolean(linking)}
                       aria-label={`Send ${provider ? OAUTH_PROVIDERS[provider].label : ''} confirmation email`}
-                      className="min-h-11 text-amber-800 dark:text-yellow-400 hover:bg-yellow-500/10"
+                      className="min-h-11 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
                     >
                       {linking === provider ? 'Sending…' : 'Send email'}
                       <FiMail className="w-3.5 h-3.5 ml-1" />

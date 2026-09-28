@@ -612,7 +612,8 @@ export default function ProfilePage() {
 
       {/* Banner: a 3:1 frame at every width. In edit mode it IS the framing surface: drag, scroll or slide to zoom, then Save. */}
       <div
-        className="relative aspect-[3/1] w-full overflow-hidden rounded-2xl bg-foreground/[0.04]"
+        // While framing, the banner rises above the content block that overlaps its bottom edge, so the zoom pill takes the pointer.
+        className={cn('relative aspect-[3/1] w-full overflow-hidden rounded-2xl bg-foreground/[0.04]', bannerEdit && 'z-10')}
         onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
         onDrop={(e) => {
           if (!canEditProfile) return;
@@ -682,7 +683,7 @@ export default function ProfilePage() {
           <div className="absolute bottom-3 right-3 flex w-56 items-center gap-3 sm:bottom-4 sm:right-4 sm:w-72">
             <span className={cn(onImageButton, 'w-full gap-2 px-3')}>
               <FiMove className="size-4 shrink-0" aria-hidden="true" />
-              <FramerZoom zoom={bannerZoom} onZoomChange={setBannerZoom} className="flex-1 [&_input]:bg-white/25" />
+              <FramerZoom zoom={bannerZoom} onZoomChange={setBannerZoom} className="flex-1 [&_[data-track]]:bg-white/30" />
             </span>
           </div>
         )}
@@ -691,10 +692,11 @@ export default function ProfilePage() {
       {/* Profile Content */}
       <div className="relative mx-auto w-full min-w-0 px-0 pb-2 sm:px-4">
         {/* Avatar and basic info */}
-        <div className="relative -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
+        {/* The row overlaps the banner's bottom edge (where the zoom pill sits while editing): only its children take the pointer. */}
+        <div className="pointer-events-none relative -mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end sm:gap-6 [&>*]:pointer-events-auto">
           {/* Avatar with paste/drag support. In edit mode the circle is the framing surface. */}
           <div
-            className="relative w-fit shrink-0 self-start"
+            className="relative z-20 w-fit shrink-0 self-start"
             onPaste={handleAvatarPaste}
             onDragOver={(e) => { if (canEditProfile) e.preventDefault(); }}
             onDrop={handleAvatarDrop}
