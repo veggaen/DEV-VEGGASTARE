@@ -57,6 +57,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageHeader } from "@/components/uicustom/chrome/page-header";
+import { HoverChaser } from "@/components/uicustom/chrome/hover-chaser";
 
 const PollBuilder = dynamic(() => import('@/components/uicustom/polls/PollBuilder').then(module => module.PollBuilder), {
   loading: () => <div role="status" className="p-8 text-sm text-muted-foreground">Loading poll editor…</div>,
@@ -1142,7 +1143,7 @@ const FeedPage: React.FC = () => {
             </Link>
           )}
           {currentUser && (
-            <div className="rounded-[22px] border border-border bg-card/80 dark:bg-surface-3/70 backdrop-blur-xl shadow-sm transition duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
+            <div className="rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 focus-within:border-brand-accent/50 focus-within:shadow-[0_0_0_4px_hsl(var(--brand-accent)/0.10)]">
               {filter === 'polls' ? (
                 // Poll-focused compose
                 <div className="p-4 space-y-4">
@@ -1346,10 +1347,14 @@ const FeedPage: React.FC = () => {
                 </div>
               ) : (
                 // Regular compose
-                <div className="px-4 pt-4 pb-2.5 space-y-2.5">
+                <div className="space-y-2.5 px-4 pb-2.5 pt-3.5">
+                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <span>New pulse</span>
+                    {composeText.length > 0 && <span className="tabular-nums normal-case tracking-normal">{composeText.length} characters</span>}
+                  </div>
                   {/* User avatar + textarea */}
                   <div className="flex gap-3">
-                    <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                    <Avatar className="mt-0.5 size-9 shrink-0 ring-1 ring-border/60">
                       <AvatarImage src={currentUser.image || undefined} />
                       <AvatarFallback>{currentUser.name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
@@ -1359,7 +1364,7 @@ const FeedPage: React.FC = () => {
                         aria-label="Write a Pulse"
                         value={composeText}
                         onChange={(e) => setComposeText(e.target.value)}
-                        placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "Pulse your thoughts..."}
+                        placeholder={pendingAdvancedPoll ? "Add a message with your advanced poll (optional)..." : "What’s happening on your side of Veggat?"}
                         className="min-h-[44px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-0 pt-1.5 text-base leading-relaxed placeholder:text-muted-foreground/80"
                         rows={1}
                       />
@@ -1491,8 +1496,8 @@ const FeedPage: React.FC = () => {
                 {/* Action bar — ghost icon controls, matching the chat composer.
                     Divider is inset to line up under the textarea (not the avatar),
                     so the seam reads intentional rather than floating. */}
-                <div className="mt-0.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 sm:ml-12 dark:border-border">
-                  <div className="flex items-center gap-0.5">
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 sm:ml-12">
+                  <HoverChaser className="flex items-center gap-0.5" boxClassName="rounded-full">
                     {/* Poll Options Dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1500,6 +1505,7 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          data-chase
                           className={cn(
                             'h-11 w-11 rounded-full gap-1 p-0 transition-colors sm:w-auto sm:px-2.5',
                             includePoll
@@ -1609,6 +1615,7 @@ const FeedPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowTagInput(!showTagInput)}
+                      data-chase
                       aria-label="Add tags"
                       aria-expanded={showTagInput}
                       className={cn(
@@ -1628,6 +1635,7 @@ const FeedPage: React.FC = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
+                          data-chase
                           aria-label="Post visibility and replies"
                           className="h-11 w-11 rounded-full gap-1 p-0 text-muted-foreground hover:bg-foreground/[0.05] sm:w-auto sm:px-2.5"
                         >
@@ -1701,6 +1709,7 @@ const FeedPage: React.FC = () => {
                             dictation.stop();
                           }
                         }}
+                        data-chase
                         aria-pressed={dictation.listening}
                         aria-label={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type'}
                         title={dictation.listening ? 'Release to stop voice typing' : 'Hold to voice type. Right-click to choose microphone.'}
@@ -1717,7 +1726,7 @@ const FeedPage: React.FC = () => {
                         )}
                       </Button>
                     )}
-                  </div>
+                  </HoverChaser>
 
                   <AnimatePresence>
                     {micMenu && (
@@ -1820,7 +1829,8 @@ const FeedPage: React.FC = () => {
                       onClick={handlePost}
                       disabled={isSubmitting || (!composeText.trim() && !pollQuestion.trim())}
                       size="sm"
-                      className="h-11 rounded-full px-4 bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent-hover shadow-sm shadow-brand-accent/20 disabled:opacity-40"
+                      variant="vegaEmeraldBtn"
+                      className="h-10 rounded-full px-4 disabled:opacity-40"
                     >
                       {isSubmitting ? <Spinner /> : <><PulsePositive className="h-4 w-4 mr-1" /> {pulseLabels.post}</>}
                     </Button>
@@ -1831,7 +1841,7 @@ const FeedPage: React.FC = () => {
             </div>
           )}
 
-          {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card lg:hidden">
+          {currentUser && <details className="min-w-0 rounded-2xl border border-border/60 bg-card/70 shadow-e1 backdrop-blur-xl lg:hidden">
             <summary className="min-h-11 cursor-pointer rounded-2xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">Find people</summary>
             <div className="[&_section]:border-0 [&_section]:bg-transparent [&_section]:pt-1 [&_h2]:sr-only"><DiscoverPeople /></div>
           </details>}
@@ -2213,7 +2223,7 @@ const FeedPage: React.FC = () => {
         <aside aria-label="Explore Pulse" className="hidden min-w-0 lg:block">
           <div data-pulse-explore-scroll tabIndex={0} aria-label="Explore Pulse panels" className="sticky top-[76px] max-h-[calc(100dvh-var(--app-header-offset,72px)-var(--demo-notice-height,0px)-92px)] space-y-4 overflow-y-auto overscroll-contain rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {!currentUser && (
-              <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
                 <div className="font-semibold">Welcome</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Browse public posts, polls, and updates. Sign in to post and join the conversation.
@@ -2225,38 +2235,41 @@ const FeedPage: React.FC = () => {
               </div>
             )}
 
-            <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <div className="font-semibold">Trending tags</div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold"><FiHash aria-hidden="true" className="size-4 text-brand-accent" />Trending tags</h3>
                 {tagFilter && (
-                  <Button size="sm" variant="ghost" onClick={() => changeTag(null)}>
+                  <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => changeTag(null)}>
                     Clear
                   </Button>
                 )}
               </div>
               {trendingTags.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No tags yet.</p>
+                <p className="mt-3 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground">No tags yet. Add #tags to a pulse and the most used ones land here.</p>
               ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <HoverChaser className="mt-3 flex flex-wrap gap-1.5" boxClassName="rounded-full">
                   {trendingTags.map(({ tag, count }) => (
                     <button
                       key={tag}
+                      type="button"
+                      data-chase
+                      aria-pressed={tagFilter === tag}
                       onClick={() => changeTag(tag)}
-                      className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-sm text-foreground/90 transition hover:bg-background/50"
+                      className={cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', tagFilter === tag ? 'border-brand-accent/60 bg-brand-accent/10 text-foreground' : 'border-border/60 bg-background/30 text-foreground/90')}
                     >
-                      <span className="font-medium">#{tag}</span>
-                      <span className="text-xs text-muted-foreground">{count}</span>
+                      <span>#{tag}</span>
+                      <span className="tabular-nums text-muted-foreground">{count}</span>
                     </button>
                   ))}
-                </div>
+                </HoverChaser>
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/70 dark:bg-surface-3/60 p-4 backdrop-blur-xl shadow-e1 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-e2">
-              <div className="font-semibold">Top heartbeats</div>
-              <div className="mt-3 space-y-2">
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-e1 backdrop-blur-xl">
+              <h3 className="flex items-center gap-2 text-sm font-semibold"><PulseHeart aria-hidden="true" className="size-4 text-brand-accent" />Top heartbeats</h3>
+              <HoverChaser className="mt-3 space-y-1" boxClassName="rounded-xl">
                 {topPosts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nothing yet.</p>
+                  <p className="rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground">Nothing yet. The most viewed pulses of the moment land here.</p>
                 ) : (
                   topPosts.map((post) => {
                     const headline =
@@ -2269,7 +2282,8 @@ const FeedPage: React.FC = () => {
                     return (
                       <div
                         key={post.id}
-                        className="w-full rounded-xl border border-border/50 bg-background/20 px-3 py-2 text-left transition hover:bg-background/40"
+                        data-chase
+                        className="w-full rounded-xl px-3 py-2 text-left"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -2294,7 +2308,7 @@ const FeedPage: React.FC = () => {
                               {headline}
                             </button>
                           </div>
-                          <div className="shrink-0 text-xs text-muted-foreground">
+                          <div className="shrink-0 text-xs tabular-nums text-muted-foreground">
                             {(post.viewCount || 0) > 0 ? `${post.viewCount} views` : `${post.messageCount} msgs`}
                           </div>
                         </div>
@@ -2302,7 +2316,7 @@ const FeedPage: React.FC = () => {
                     );
                   })
                 )}
-              </div>
+              </HoverChaser>
             </div>
 
             {/* Discover People - Find and follow users */}

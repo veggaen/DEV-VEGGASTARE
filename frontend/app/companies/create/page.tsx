@@ -56,7 +56,7 @@ const CompanyCreatePage = () => {
           {/* Sidebar – desktop only */}
           <aside className="hidden lg:block">
             <div className="sticky top-20 space-y-6">
-              <div className="rounded-xl border border-border/80 bg-card shadow-sm dark:shadow-none p-5">
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-e1 backdrop-blur-xl">
                 <h3 className="text-sm font-semibold text-foreground mb-4">
                   Quick tips
                 </h3>

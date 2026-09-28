@@ -121,8 +121,8 @@ export default function HomeHero({
 
   const firstName = userName?.trim().split(/\s+/)[0];
   const subcopy = isLoggedIn
-    ? `Welcome back${firstName ? `, ${firstName}` : ""}. Your products, polls and AI credits are right where you left them.`
-    : "Creator-made digital products, live polls and AI in one place. Look around freely — no card, no account needed.";
+    ? `Welcome back${firstName ? `, ${firstName}` : ""}. Your listings, feed, requests, charts and credits are exactly where you left them.`
+    : "A marketplace, a live feed, a job board, a trading terminal and an AI workspace, on one account with your own keys. Look around freely: no card, no sign-up.";
 
   const rise = (delay: number) =>
     reduceMotion
@@ -141,7 +141,7 @@ export default function HomeHero({
         {/* Eyebrow — the one line above the mark, kept small and tracked */}
         <motion.p {...rise(0.05)} className="m-0">
           <KineticEyebrow
-            text="Digital goods. Built on trust."
+            text="Buy · Post · Hire · Trade · Ask"
             className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-accent-hover sm:text-xs dark:text-brand-accent-light/85"
           />
         </motion.p>
@@ -233,7 +233,7 @@ export default function HomeHero({
         {!children && (
           <motion.p {...rise(0.4)} className="m-0 inline-flex items-center gap-2 text-xs text-muted-foreground/80">
             <FiZap aria-hidden="true" className="size-3.5 text-brand-accent" />
-            Verified sellers, prepaid AI and live polls. Nothing hidden behind a paywall.
+            Verified people, prepaid AI and wallets that stay yours. Nothing hidden behind a paywall.
           </motion.p>
         )}
       </div>

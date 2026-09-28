@@ -484,23 +484,23 @@ export function VerificationDashboard() {
         initial={reducedMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18 }}
-        className="relative overflow-hidden rounded-2xl border p-6"
+        className="relative overflow-hidden rounded-2xl border p-4 sm:p-5"
         style={{
           borderColor: tierInfo.color + '40',
           background: `linear-gradient(135deg, ${tierInfo.color}08, ${tierInfo.color}15)`,
         }}
       >
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div
-              className="flex items-center justify-center w-16 h-16 rounded-2xl text-3xl"
+              className="flex size-12 items-center justify-center rounded-xl text-2xl"
               style={{ backgroundColor: tierInfo.color + '20' }}
             >
               {tierInfo.icon}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold" style={{ color: tierInfo.color }}>
+                <h3 className="text-base font-semibold" style={{ color: tierInfo.color }}>
                   {tierInfo.label}
                 </h3>
                 <span
@@ -533,8 +533,8 @@ export function VerificationDashboard() {
         </div>
 
         {/* Score progress bar */}
-        <div className="mt-5">
-          <div className="flex justify-between text-xs mb-1.5">
+        <div className="mt-3">
+          <div className="flex justify-between text-xs mb-1">
             <span className="text-muted-foreground">
               Verification Score
             </span>
@@ -554,7 +554,7 @@ export function VerificationDashboard() {
         </div>
 
         {/* Tier Progress Strip */}
-        <div className="mt-4 flex items-center gap-1">
+        <div className="mt-3 flex items-center gap-1">
           {TIER_ORDER.map((t, i) => {
             const info = TIER_DISPLAY[t];
             const isCurrent = t === data.tier;
@@ -593,12 +593,12 @@ export function VerificationDashboard() {
         </div>
       </motion.div>
 
-      {/* Verification Checklist */}
+      {/* Verification Checklist: two columns on wide screens so the whole list fits one view */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          Verification Checklist — {completedSteps}/{totalSteps} complete
+        <h3 className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <span>Checklist</span><span className="tabular-nums">{completedSteps}/{totalSteps} complete</span>
         </h3>
-
+        <div className="grid gap-2 lg:grid-cols-2">
         {CHECKLIST.map((item) => {
           const provider = isOAuthProvider(item.action) ? item.action : null;
           const providerState = provider ? oauthLinkState(provider, data) : null;
@@ -610,7 +610,7 @@ export function VerificationDashboard() {
           return (
             <div key={item.key}>
               <div
-                className={`flex flex-wrap items-center gap-3 p-3 rounded-xl border transition-colors ${
+                className={`flex min-h-12 flex-wrap items-center gap-2.5 rounded-xl border px-3 py-2 transition-colors ${
                   isComplete
                     ? 'bg-brand-accent/5 border-brand-accent/20'
                     : isPending
@@ -621,16 +621,16 @@ export function VerificationDashboard() {
                 {/* Status icon */}
                 <div className="shrink-0">
                   {isComplete ? (
-                    <FiCheckCircle className="w-5 h-5 text-brand-accent" />
+                    <FiCheckCircle className="size-4 text-brand-accent" />
                   ) : isPending ? (
-                    <FiMail className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <FiMail className="size-4 text-amber-600 dark:text-amber-400" />
                   ) : (
-                    <FiCircle className="w-5 h-5 text-muted-foreground/40" />
+                    <FiCircle className="size-4 text-muted-foreground/40" />
                   )}
                 </div>
 
                 {/* Icon */}
-                <span className="text-lg shrink-0">{item.icon}</span>
+                <span className="shrink-0 text-base leading-none">{item.icon}</span>
 
                 {/* Label & description */}
                 <div className="flex-1 min-w-0">
@@ -653,7 +653,7 @@ export function VerificationDashboard() {
                 </div>
 
                 {/* Points badge */}
-                <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] ${
                   isComplete
                     ? 'bg-brand-accent/10 text-brand-accent-hover dark:text-brand-accent-light'
                     : isPending
@@ -670,7 +670,7 @@ export function VerificationDashboard() {
                     size="sm"
                     onClick={() => handleAction(item)}
                     disabled={Boolean(linking)}
-                    className="min-h-11 shrink-0 text-blue-700 dark:text-blue-400 hover:bg-blue-500/10"
+                    className="h-9 min-h-9 shrink-0 px-2.5 text-xs text-brand-accent-hover hover:bg-brand-accent/10 dark:text-brand-accent-light"
                   >
                     {linking === item.action
                       ? 'Opening…'
@@ -696,7 +696,7 @@ export function VerificationDashboard() {
                       onClick={() => provider && handleResend(provider)}
                       disabled={Boolean(linking)}
                       aria-label={`Send ${provider ? OAUTH_PROVIDERS[provider].label : ''} confirmation email`}
-                      className="min-h-11 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
+                      className="h-9 min-h-9 px-2.5 text-xs text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
                     >
                       {linking === provider ? 'Sending…' : 'Send email'}
                       <FiMail className="w-3.5 h-3.5 ml-1" />
@@ -706,7 +706,7 @@ export function VerificationDashboard() {
                       size="sm"
                       onClick={() => handleUnlink(item.action!)}
                       disabled={unlinking === item.action}
-                      className="min-h-11 min-w-11 text-red-700 dark:text-red-400 hover:bg-red-500/10"
+                      className="size-9 min-h-9 min-w-9 p-0 text-destructive hover:bg-destructive/10"
                       title="Cancel pending link"
                       aria-label={`Disconnect ${provider ? OAUTH_PROVIDERS[provider].label : ''}`}
                     >
@@ -723,7 +723,7 @@ export function VerificationDashboard() {
                     onClick={() => handleUnlink(item.action!)}
                     disabled={unlinking === item.action}
                     aria-label={`Disconnect ${provider ? OAUTH_PROVIDERS[provider].label : ''}`}
-                    className="min-h-11 shrink-0 text-red-700 dark:text-red-400 hover:bg-red-500/10 text-xs"
+                    className="h-9 min-h-9 shrink-0 px-2.5 text-xs text-destructive hover:bg-destructive/10"
                   >
                     {unlinking === item.action ? '…' : 'Unlink'}
                   </Button>
@@ -754,13 +754,14 @@ export function VerificationDashboard() {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Linked Accounts Overview */}
       {data.linkedProviders.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-surface-1/50 dark:bg-foreground/[0.05]">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Linked Accounts
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/70 px-3 py-2 shadow-e1">
+          <h4 className="mr-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Linked
           </h4>
           <div className="flex flex-wrap gap-2">
             {data.linkedProviders.map((p) => {
