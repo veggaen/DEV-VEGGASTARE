@@ -2,7 +2,31 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
-## New development release checks — 28 September 2026
+## Main promotion — 28 September 2026
+
+**DONE for this release; full-app readiness remains PARTIAL.** Owner-authorized
+PR #86 merged `dev` into `main` as `d48d446`, after PR #88's release/auth fixes.
+Vercel `dpl_2XVwn7nvjNbdEe7rZdVRt9dN3aSP` is READY on `www.veggat.com` and the
+Live version endpoint reports `d48d4460`. All three pending migrations applied
+successfully (59 total); the read-only production preflight found zero failed
+migrations and zero incompatible legacy checkout rows.
+
+Isolated Preview checks **18/18** and Live checks **20/20** pass: public/demo
+entry, cart persistence and controls, private API guards, responsive PDP/gallery
+scrolling through 360–2560px, login controls and OAuth host/PKCE/cookie handling.
+Local build/type/lint/Prisma checks, **2,507 Vitest tests** and **five Node tests**
+pass; **278 optional tests remain skipped**. Existing Sandbox evidence is not
+relabelled as a new Live payment test. No new purchase or refund was performed.
+
+GitHub Actions remains **BLOCKED before execution** by the account billing lock;
+it is not green and no billing or protection settings were changed. Railway's
+production source is aligned with `main`, retaining the same backend code and
+runtime settings. The paper-order execution/cancellation race, remaining Live
+merchant currency checks and expanded seller/employee/business acceptance are
+still open. See [current handoff](../HANDOFF.md) and
+[release evidence](https://github.com/veggaen/DEV-VEGGASTARE/pull/86).
+
+## Earlier development release checks — 28 September 2026
 
 **PARTIAL — not promoted.** GitHub Actions is blocked before job execution by an
 account billing-lock annotation, reproduced on retry. The public repository's
