@@ -25,20 +25,26 @@ export function joinChunkedCookie(all: { name: string; value: string }[], name: 
   return chunks.length ? chunks.map((c) => c.v).join('') : null;
 }
 
-/** The user signed in to THIS browser, from the session cookie. Null when signed out, previewing another account, or unreadable. */
-export async function currentSessionUserId(secret: string | undefined): Promise<string | null> {
-  if (!secret) return null;
+/** A signed cookie alone is not enough: revocation must also block account linking. */
+export async function currentSessionUserId(
+  secret: string | undefined,
+  readUser: (id: string) => Promise<{ tokenVersion: number } | null>,
+): Promise<string | null> {
+  const store = await cookies();
+  const raw = joinChunkedCookie(store.getAll(), SESSION_COOKIE_NAME);
+  if (!raw) return null;
+  if (!secret) throw new Error('INVALID_OAUTH_LINK_SESSION');
+  let token;
   try {
-    const store = await cookies();
-    const raw = joinChunkedCookie(store.getAll(), SESSION_COOKIE_NAME);
-    if (!raw) return null;
-    const token = await decode({ token: raw, secret, salt: SESSION_COOKIE_NAME });
-    if (!token?.sub) return null;
-    if ((token as { isImpersonating?: unknown }).isImpersonating === true) return null;
-    return token.sub;
+    token = await decode({ token: raw, secret, salt: SESSION_COOKIE_NAME });
   } catch {
-    return null;
+    throw new Error('INVALID_OAUTH_LINK_SESSION');
   }
+  if (!token?.sub || token.isImpersonating === true || token.sub.startsWith('demo_') ||
+    !Number.isInteger(token.tokenVersion)) throw new Error('INVALID_OAUTH_LINK_SESSION');
+  const user = await readUser(token.sub);
+  if (!user || user.tokenVersion !== token.tokenVersion) throw new Error('INVALID_OAUTH_LINK_SESSION');
+  return token.sub;
 }
 
 export type LinkDecision = 'not-signed-in' | 'already-linked' | 'linked-elsewhere' | 'linked';

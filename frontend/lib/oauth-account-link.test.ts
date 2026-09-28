@@ -1,8 +1,41 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('next/headers', () => ({ cookies: async () => ({ getAll: () => [] }) }));
+const session = vi.hoisted(() => ({ cookies: vi.fn(), decode: vi.fn() }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ getAll: session.cookies }) }));
+vi.mock('next-auth/jwt', () => ({ decode: session.decode }));
 
-import { accountRowFromProvider, joinChunkedCookie, linkOauthAccountToUser } from './oauth-account-link';
+import { accountRowFromProvider, currentSessionUserId, joinChunkedCookie, linkOauthAccountToUser } from './oauth-account-link';
+import { SESSION_COOKIE_NAME } from './auth-cookies';
+
+describe('fresh OAuth linking session', () => {
+  beforeEach(() => {
+    session.cookies.mockReturnValue([{ name: SESSION_COOKIE_NAME, value: 'signed-cookie' }]);
+    session.decode.mockResolvedValue({ sub: 'owner', tokenVersion: 3 });
+  });
+  it('allows only the current session version', async () => {
+    expect(await currentSessionUserId('test-secret', async () => ({ tokenVersion: 3 }))).toBe('owner');
+    await expect(currentSessionUserId('test-secret', async () => ({ tokenVersion: 4 }))).rejects.toThrow('INVALID_OAUTH_LINK_SESSION');
+  });
+  it('rejects a deleted user', async () => {
+    await expect(currentSessionUserId('test-secret', async () => null)).rejects.toThrow('INVALID_OAUTH_LINK_SESSION');
+  });
+  it.each([{ sub: 'owner' }, { sub: 'owner', tokenVersion: 3, isImpersonating: true }, { sub: 'demo_qa', tokenVersion: 3 }, null])('rejects unsafe session claims %j', async token => {
+    session.decode.mockResolvedValue(token);
+    const read = vi.fn();
+    await expect(currentSessionUserId('test-secret', read)).rejects.toThrow('INVALID_OAUTH_LINK_SESSION');
+    expect(read).not.toHaveBeenCalled();
+  });
+  it('fails closed for an unreadable cookie, not into automatic linking', async () => {
+    session.decode.mockRejectedValue(new Error('invalid encrypted token'));
+    await expect(currentSessionUserId('test-secret', vi.fn())).rejects.toThrow('INVALID_OAUTH_LINK_SESSION');
+  });
+  it('leaves ordinary signed-out login unchanged', async () => {
+    session.cookies.mockReturnValue([]);
+    const read = vi.fn();
+    expect(await currentSessionUserId('test-secret', read)).toBeNull();
+    expect(read).not.toHaveBeenCalled();
+  });
+});
 
 describe('linkOauthAccountToUser', () => {
   const base = { provider: 'discord', providerAccountId: '42' };

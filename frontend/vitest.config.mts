@@ -4,5 +4,6 @@ import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
-  test: { exclude: ['**/node_modules/**', '**/.next*/**', '**/e2e/**', '**/%SystemDrive%/**'] },
+  // Deployment scripts use node:test and run separately from the Vitest suites.
+  test: { exclude: ['**/node_modules/**', '**/.next*/**', '**/e2e/**', '**/%SystemDrive%/**', 'scripts/*.test.mjs'] },
 });

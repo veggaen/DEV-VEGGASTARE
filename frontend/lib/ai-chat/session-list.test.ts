@@ -4,7 +4,10 @@ import { NextRequest } from 'next/server';
 vi.mock('server-only', () => ({}));
 const mock = vi.hoisted(() => ({ auth: vi.fn(), rate: vi.fn(), many: vi.fn(), first: vi.fn(), unique: vi.fn(), update: vi.fn(), messages: vi.fn() }));
 vi.mock('@/lib/user-auth', () => ({ MyLibUserAuth: mock.auth }));
-vi.mock('@/lib/db', () => ({ dbPrisma: { aiConversation: { findMany: mock.many, findFirst: mock.first, findUnique: mock.unique, update: mock.update }, aiConvMessage: { findMany: mock.messages } } }));
+vi.mock('@/lib/db', () => {
+  const database = { aiConversation: { findMany: mock.many, findFirst: mock.first, findUnique: mock.unique, update: mock.update }, aiConvMessage: { findMany: mock.messages }, $executeRaw: vi.fn() };
+  return { dbPrisma: { ...database, $transaction: (run: (tx: typeof database) => Promise<unknown>) => run(database) } };
+});
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: mock.rate, getClientIdentifier: () => 'qa', rateLimitedResponse: () => new Response(null, { status: 429 }) }));
 vi.mock('@/lib/auth-rate-limit', () => ({ allowAuthAttempt: vi.fn() }));
 import { GET } from '@/app/api/ai-chat/sessions/route';

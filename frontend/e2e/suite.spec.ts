@@ -9215,9 +9215,16 @@ test.describe("Layer 3 — Content", () => {
         if (index) await page.goto('/products', { waitUntil: 'domcontentloaded' });
         await page.getByText(title, { exact: true }).first().click();
         await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
-        const gallery = page.getByRole('img', { name: title, exact: true }).first();
-        await expect(gallery).toBeVisible();
-        await expect.poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+        if (index === 0) {
+          const gallery = page.getByRole('img', { name: `${title} — image 1`, exact: true });
+          await expect(gallery).toBeVisible();
+          await expect.poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+        } else {
+          // Credits use an accessible live amount preview, not a static image.
+          const preview = page.getByRole('complementary', { name: 'Included with your credits', exact: true });
+          await expect(preview).toBeVisible();
+          await expect(preview.locator('[data-credit-preview]')).toHaveText('100');
+        }
         for (const width of [390, 1280]) {
           await page.setViewportSize({ width, height: 844 });
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

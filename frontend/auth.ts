@@ -115,7 +115,8 @@ export const {
             // attach the provider to the signed-in user and go straight back to Settings.
             // Returning a URL aborts the sign-in, so the current session stays as it is.
             if (account && isLinkableProvider(account.provider)) {
-              const currentUserId = await currentSessionUserId(authSecret);
+              const currentUserId = await currentSessionUserId(authSecret, id =>
+                dbPrisma.user.findUnique({ where: { id }, select: { tokenVersion: true } }));
               if (currentUserId) {
                 if (isDemoUserId(currentUserId)) return '/settings?section=verification&oauthError=AccessDenied';
                 const decision = await linkOauthAccountToUser({

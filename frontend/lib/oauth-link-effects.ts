@@ -40,13 +40,17 @@ export async function applyOauthLinkEffects({ userId, userEmail, userName, userI
   const providerProfileImage = str(p.image) ?? str(p.picture) ?? str(p.avatar_url) ?? userImage ?? undefined;
   const providerProfileEmail = str(p.email) ?? userEmail ?? undefined;
 
-  // Mark emailVerified, but DO NOT clobber existing identity fields on link:
+  // A different provider email does not verify the account's primary email.
   // users may have customised name/avatar/email in settings. Only backfill.
   const current = await dbPrisma.user.findUnique({ where: { id: userId }, select: { name: true, image: true, email: true } });
+  const primaryEmail = current?.email ?? userEmail;
+  const matchesPrimary = Boolean(primaryEmail && providerProfileEmail &&
+    primaryEmail.trim().toLowerCase() === providerProfileEmail.trim().toLowerCase() &&
+    p.email_verified !== false && p.verified !== false);
   await dbPrisma.user.update({
     where: { id: userId },
     data: {
-      emailVerified: new Date(),
+      ...(matchesPrimary ? { emailVerified: new Date() } : {}),
       name: current?.name ?? userName ?? str(p.name) ?? undefined,
       image: current?.image ?? str(p.image) ?? userImage ?? undefined,
       email: current?.email ?? userEmail ?? undefined,
@@ -56,7 +60,7 @@ export async function applyOauthLinkEffects({ userId, userEmail, userName, userI
     },
   });
 
-  if (!userEmail || !isLinkableProvider(provider)) return;
+  if (!primaryEmail || !isLinkableProvider(provider)) return;
 
   // hasXxxAuth only flips after the user confirms from their inbox (unless confirmation is off).
   if (!requireOauthEmailConfirmation) {
@@ -74,8 +78,8 @@ export async function applyOauthLinkEffects({ userId, userEmail, userName, userI
     create: { userId, provider, expires },
   });
   try {
-    await sendOauthLinkConfirmationEmail(userEmail, { provider, userName: userName ?? undefined, token: pending.token });
-  } catch (err) {
-    console.error('[oauth-link-effects] failed to send confirmation email', err);
+    await sendOauthLinkConfirmationEmail(primaryEmail, { provider, userName: current?.name ?? userName ?? undefined, token: pending.token });
+  } catch {
+    console.error('[oauth-link-effects] confirmation email unavailable');
   }
 }

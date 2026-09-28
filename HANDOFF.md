@@ -1,5 +1,42 @@
 # Veggat development handoff — 27 September 2026
 
+## Release-check update — 28 September 2026
+
+The unsuffixed folder is now on `feat/chrome-kernel`, committed HEAD `420369e`
+(also `origin/dev`), plus uncommitted release/auth fixes. The branch/folder table
+below records the earlier handoff, not the current primary branch. PR #86 is
+`dev` → `main`; no merge, push or Production deployment was performed during
+this release-check pass.
+
+- GitHub's automated jobs fail **before starting** with an account billing-lock
+  annotation, including a retry. The repository is public. The owner's billing
+  overview shows GitHub Free, 0/2,000 minutes, $0.42 gross usage fully discounted,
+  and no next payment due. This is not evidence that pushing code requires a paid
+  plan or that an Actions allowance was exhausted. No billing settings changed.
+- Corrected branch-scoped Vercel Preview `AUTH_URL` and `PAYPAL_WEBHOOK_ID` for
+  `dev` and `feat/chrome-kernel` using the existing isolated Preview callback and
+  matching Sandbox webhook. Verified Production environment entries unchanged.
+  A fresh hosted Preview build has not yet been verified.
+- Local production build, TypeScript, full quiet lint, 2,507 Vitest tests and five
+  Node deployment-preflight tests pass. 278 optional tests were skipped; this is
+  not equivalent to database, payment or full business-workflow acceptance.
+  Twenty baseline browser/API checks pass. Public/demo entry and product gallery
+  layout at eight viewport sizes pass. After updating obsolete gallery/credit
+  preview selectors, the demo cart journey also passes: both product lines,
+  reload persistence, quantity changes, removal and demo upload denial.
+- OAuth account linking now rejects stale/revoked/demo/impersonated sessions,
+  checks the database token version, and does not mark an unrelated primary email
+  verified. Confirmation notices target the existing account email. Unit coverage
+  was added. No automatic cross-email merge was enabled.
+- Release review found a concurrency risk in `actions/paper-orders.ts`: settlement
+  executes a paper trade before changing the order from OPEN. Concurrent polling
+  or cancellation can race. This remains unfixed and must be addressed before
+  calling the new paper-order feature production-ready. The earlier paper
+  execution and Live merchant currency-preference checks also remain open.
+
+Keep new release fixes separate from user-authored design instructions and ignored
+local credentials. Do not merge to main solely because a local build is green.
+
 ## Start here
 
 Use the **unsuffixed `DEV-VEGGASTARE` folder** for new development. It is now on
@@ -33,7 +70,8 @@ worktree list` and each tree's status before any later retirement.
 ## Production and Preview must stay separate
 
 - Verified Live code: `release/ui-september`, `d1968b7`; latest recorded deployment
-  `dpl_CTiT6r6PbEsYgWQ11nrqrJKdJLgK`, `https://www.veggat.com`, **56 migrations**.
+  `dpl_Dvh5WgvxFyYVLGqmdpb8K28MdkKa` (same source, Discord environment refresh),
+  `https://www.veggat.com`, **56 migrations**.
 - This development branch includes native-currency/exact-spend checkout work and
   **57 migrations**. Those additional payment/schema changes are not yet Live.
 - Last verified isolated Preview: `dpl_4fsDqLSYqiEgvFhy6wbqJZ9R8LpP` at
@@ -80,6 +118,56 @@ fresh login and a second account. Phone, landscape, portrait, desktop, ultrawide
 and 125% zoom are acceptance targets; not all are fully certified yet.
 
 ## Local setup and safety
+
+### Local login repair — 2026-09-27
+
+The styling branch's local setup had selected an older database. The known test
+account existed there without a password or linked providers; its Google/GitHub
+links were still present in the previously verified isolated QA database. Core
+authentication code had not changed. Restoring the ignored local configuration
+fixed Google and GitHub browser round trips without manually linking accounts or
+weakening PKCE, cookies, CSRF, or email-linking protections.
+
+`frontend/.env.local` now selects that isolated QA database through
+`DATABASE_URL_MAINDEV`, explicitly uses `http://localhost:3000` for both auth URL
+variables, and has development OAuth and Sandbox-only PayPal credentials. Never
+publish this file. A local-only backup is retained under the ignored
+`frontend/scripts/_probe/` directory. No migrations, production changes or Live
+purchases were performed. Purchase-confirmation email sending remains off locally
+to prevent accidental mail to real recipients.
+
+The login page and signed-out header menu discover configured providers from `/api/auth/providers`, disable
+buttons until discovery finishes, omit unavailable providers, and offer retry
+after a discovery failure. Keep the new styling branch; do not restore old auth
+files over it. Git branches do not carry ignored environment settings.
+
+On 2026-09-27 the owner requested Discord repair for development and production.
+The Discord portal already registers
+`http://localhost:3000/api/auth/callback/discord` and
+`https://www.veggat.com/api/auth/callback/discord`; Public Client remains off.
+The prior local/Vercel secret returned HTTP 401 `invalid_client`. The owner reset
+it in Discord; the replacement was saved in the existing Vercel variable
+(including Production; environment scope unchanged) and ignored local
+`frontend/.env.local`, without printing its value or touching payment/DB keys.
+Local Discord now completes a real Chrome sign-in to the Discord identity's
+account. That identity uses a different email from the Google/GitHub test user;
+do not merge the accounts automatically. The existing Live deployment alone was
+redeployed as `dpl_Dvh5WgvxFyYVLGqmdpb8K28MdkKa` to load the new secret. It is
+READY and the `www.veggat.com` alias points to it; health returns 200. The build
+reported 56 migrations and none pending. Production Discord initiation reaches
+the correct HTTPS callback/S256 login flow, but Discord requests fresh sign-in.
+The retained browser tab is awaiting the owner; positive Live callback acceptance
+is not yet recorded. Never enable dangerous automatic account linking to bypass
+`OAuthAccountNotLinked`. Older worktree environment files retain the invalid
+secret; do not copy it back over the repaired environment.
+Anthropic and AI Gateway keys were not present in the prior local QA
+configuration and remain unconfigured.
+
+Auth repair verification: Google/GitHub and demo login passed in real Chrome;
+existing QA password login and logout passed through the Auth.js CSRF flow.
+130 focused auth tests across 10 files, TypeScript, and lint on changed
+auth/header files pass. Provider buttons now hide unconfigured methods instead of advertising a
+broken route. This is not a claim that all application features are verified.
 
 Local `.env*` files were preserved, not copied to GitHub. Do not assume the older
 main-folder environment is correct for current code. Check variable names and
