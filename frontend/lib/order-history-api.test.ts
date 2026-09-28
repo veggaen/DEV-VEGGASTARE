@@ -12,7 +12,7 @@ import { GET as downloads } from '@/app/api/my-downloads/route';
 const request = new NextRequest('http://localhost/api/orders');
 const listContext = { params: Promise.resolve({ userId: 'buyer' }) }, detailContext = { params: Promise.resolve({ id: 'order' }) };
 const time = new Date('2026-09-23T10:00:00Z');
-const fixture = () => ({ id: 'order', userId: 'buyer', totalAmount: 68, currency: 'NOK', status: 'COMPLETED', fulfilmentStatus: 'DELIVERED', createdAt: time, updatedAt: time, Payment: null, User: { id: 'buyer' }, CheckoutAttempt: { environment: 'DEMO', state: 'COMPLETED', captureId: null }, OrderItem: [{ id: 'line', title: 'Review pack', quantity: 1, priceAtTime: 29 }] });
+const fixture = () => ({ id: 'order', userId: 'buyer', totalAmount: 68, currency: 'NOK', status: 'COMPLETED', fulfilmentStatus: 'DELIVERED', createdAt: time, updatedAt: time, Payment: null, User: { id: 'buyer' }, _count: { DownloadToken: 0 }, CheckoutAttempt: { environment: 'DEMO', state: 'COMPLETED', captureId: null, createdAt: time }, OrderItem: [{ id: 'line', title: 'Review pack', quantity: 1, priceAtTime: 29 }] });
 beforeEach(() => { vi.resetAllMocks(); mocks.auth.mockResolvedValue({ user: { id: 'buyer', role: 'USER' } }); mocks.user.mockResolvedValue({ id: 'buyer', role: 'USER' }); mocks.limit.mockResolvedValue({ success: true }); mocks.orders.mockResolvedValue([fixture()]); mocks.order.mockResolvedValue(fixture()); mocks.tokens.mockResolvedValue([]); mocks.items.mockResolvedValue([]); mocks.products.mockResolvedValue([]); });
 describe('private orders and downloads', () => {
   it('requires authentication and enforces buyer ownership', async () => {

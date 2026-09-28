@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { describeCurrentMediaError, openMicrophoneStream } from '@/lib/voice/media-devices';
+import { useClientReady } from '@/hooks/use-client-ready';
 import { readVoicePrefs } from '@/lib/voice/voice-prefs';
 
 // The Web Speech API isn't in the TS DOM lib by default; minimal shapes here.
@@ -55,7 +56,8 @@ interface Options {
 }
 
 export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
-  const [supported, setSupported] = useState(false);
+  const ready = useClientReady();
+  const supported = ready && Boolean(getRecognitionCtor());
   const [listening, setListening] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [interim, setInterim] = useState('');
@@ -65,11 +67,7 @@ export function useSpeechToText({ onResult, lang = 'en-US' }: Options) {
   const requestingRef = useRef(false);
   // Keep the latest onResult without re-creating the recognizer each render.
   const onResultRef = useRef(onResult);
-  onResultRef.current = onResult;
-
-  useEffect(() => {
-    setSupported(!!getRecognitionCtor());
-  }, []);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
 
   const stop = useCallback(() => {
     recRef.current?.stop();

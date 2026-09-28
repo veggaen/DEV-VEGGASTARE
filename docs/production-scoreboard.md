@@ -2,6 +2,54 @@
 
 Evidence is recorded per slice; a passing HTTP response is not proof of feature completion.
 
+## New development release checks — 28 September 2026
+
+**PARTIAL — not promoted.** GitHub Actions is blocked before job execution by an
+account billing-lock annotation, reproduced on retry. The public repository's
+owner billing overview shows Free, no allowance consumed and no next payment due;
+no payment or plan change is warranted from that evidence alone. GitHub support
+may need to clear the account restriction. Production and billing are unchanged.
+
+Preview-only callback/webhook configuration for `dev` and `feat/chrome-kernel`
+is repaired; a new hosted build remains to be verified. Local production build,
+TypeScript, quiet lint, 2,507 Vitest tests and five Node preflight tests pass;
+278 opt-in tests are skipped. Twenty baseline browser/API checks plus public/demo
+entry and the eight-width product gallery check pass. The demo cart journey now
+also passes after obsolete gallery/credit-preview selectors were corrected:
+separate product lines, reload persistence, quantity changes, removal and demo
+upload denial. This does not certify real payment or employee/seller workflows.
+
+OAuth linking now checks current session revocation and sends security notices
+to the existing account email without verifying a different email implicitly.
+The new paper-order settlement has an unresolved concurrent execution/cancellation
+race. Pending Live currency checks and broader business acceptance still apply.
+See the dated update in [HANDOFF](../HANDOFF.md) before promoting PR #86.
+
+## Local auth recovery and Discord configuration — 27 September 2026
+
+**DONE for configuration; PARTIAL for final Live Discord acceptance.** The local
+environment had selected an older database without the test account's OAuth
+links. Restoring the verified isolated QA target fixed Google/GitHub sign-in;
+no records were manually linked and no auth protections were weakened. Local
+demo and password/login/logout checks also pass. The local login page and header
+now discover configured providers; 130 focused auth tests, TypeScript and touched
+lint pass. These UI changes are not part of the Live environment-only release.
+
+Discord's prior secret was rejected with `invalid_client` locally and in Vercel.
+The owner reset it. The replacement is saved in ignored local configuration and
+the existing Vercel variable (Production included; environment scope unchanged).
+A real Chrome local Discord round trip now signs in successfully. Discord's
+current identity has a different email from the Google/GitHub test account;
+these remain separate accounts. No automatic cross-email account merge occurred.
+
+Only the existing production deployment was rebuilt to activate the environment
+change: `dpl_Dvh5WgvxFyYVLGqmdpb8K28MdkKa` is READY and serves `www.veggat.com`.
+The build reports 56 migrations with none pending. Both health endpoints return
+200; localhost and Live expose their correct Discord callback URLs. The Live
+browser reaches Discord with S256 PKCE but requires fresh owner sign-in before
+positive callback acceptance can be claimed. No pending payment/schema or new
+styling branch changes were promoted, and no purchase was made.
+
 ## Paper-account reads and older history — 26 September 2026
 
 **PARTIAL — read recovery verified; full trading acceptance remains open.** Failed

@@ -188,18 +188,6 @@ export function OsrsInventory({
   const effectiveChainId = override?.chainId ?? chainId;
   const activeChain = chains.find((c) => c.id === effectiveChainId) ?? (override ? { id: override.chainId, name: override.label ?? `Chain ${override.chainId}` } : undefined);
 
-  // Track whether we just finished a floating-item operation so the grid
-  // sync below doesn't immediately overwrite user-modified grid state.
-  const wasFloatingRef = useRef(false);
-
-  // Track previous tradeMode so we can re-sync grid when trade closes
-  const prevTradeModeRef = useRef(tradeMode);
-
-  // ── Re-sync inventory when trade window closes ────────
-  // Items dragged to trade are removed from gridState via handleDragEnd.
-  // Closing the trade loses those items — force a rebuild from real tokens.
-  const [tradeCloseRevision, setTradeCloseRevision] = useState(0);
-
   // ── Reservations: what the open trade window already holds ───────────
   // Keyed by chain + token address so a split stack still counts against its
   // source. The window publishes its offer; the balance poll can then never
@@ -220,29 +208,22 @@ export function OsrsInventory({
     window.addEventListener("veggat:offerChanged", handler);
     return () => window.removeEventListener("veggat:offerChanged", handler);
   }, []);
-  useEffect(() => {
-    const wasTrade = prevTradeModeRef.current;
-    prevTradeModeRef.current = tradeMode;
-    if (wasTrade && !tradeMode) {
-      // Trade just closed — bump revision so the token-sync below re-runs
-      setTradeCloseRevision((r) => r + 1);
-    }
-  }, [tradeMode]);
-
   // ── Build dynamic grid from fetched tokens ─────────────
   // Skip refresh while a floating item (split ghost) is active — otherwise
   // the token poll resets the source back to its full balance, duplicating
   // the ghost amount.  Also skip the FIRST cycle after the ghost is placed
   // so the split/merge result isn't wiped out.
-  useEffect(() => {
-    if (floatingItem) {
-      wasFloatingRef.current = true;
-      return;
-    }
-    if (wasFloatingRef.current) {
-      wasFloatingRef.current = false;
-      return;
-    }
+  const [gridSource, setGridSource] = useState({ tokens: null as typeof tokens | null, chainId, floatingItem, tradeMode, reserved });
+  const gridSourceChanged = gridSource.tokens !== tokens || gridSource.chainId !== chainId ||
+    gridSource.floatingItem !== floatingItem || gridSource.tradeMode !== tradeMode || gridSource.reserved !== reserved;
+  if (gridSourceChanged) {
+    setGridSource({ tokens, chainId, floatingItem, tradeMode, reserved });
+  }
+  // Reconcile before paint, not in a cascading effect. Preserve split results
+  // when the ghost is placed; opening a trade alone must not rebuild the grid.
+  if (gridSourceChanged && !floatingItem && !gridSource.floatingItem &&
+    (gridSource.tokens !== tokens || gridSource.chainId !== chainId || gridSource.reserved !== reserved ||
+      (gridSource.tradeMode && !tradeMode))) {
 
     // Deduplicate tokens by id (prevents duplicate keys from race conditions)
     const seenIds = new Set<string>();
@@ -273,7 +254,7 @@ export function OsrsInventory({
     while (nextGrid.length < gridSize) nextGrid.push(null);
 
     setGridState(nextGrid);
-  }, [tokens, chainId, floatingItem, tradeCloseRevision, reserved]);
+  }
 
   const inventorySlots = useMemo(
     () => gridState.filter((slot): slot is InventorySlot => slot !== null),
@@ -394,7 +375,7 @@ export function OsrsInventory({
         : `${splitAmount} ${sourceSlot.token.symbol} split — click a slot to place it`,
       { duration: 4000 },
     );
-  }, [splitDialog, splitAmount, inventorySlots]);
+  }, [splitDialog, splitAmount, inventorySlots, onAddToTrade]);
 
   /** Split an amount off a stack and hand it straight to the open trade window. */
   const confirmSplitToTrade = useCallback(() => {
@@ -1082,9 +1063,8 @@ export function OsrsInventory({
           <button
             type="button"
             onClick={() => {
-              wasFloatingRef.current = false;
               setFloatingItem(null);
-              setGridState([]);
+              setGridSource((previous) => ({ ...previous, tokens: null, floatingItem: null }));
               refetch();
             }}
             className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-brand-accent"

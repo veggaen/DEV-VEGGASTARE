@@ -11,7 +11,7 @@
     "postinstall": "patch-package --error-on-fail && prisma generate",
     "seed:reach-poll": "npx ts-node --project tsconfig.json scripts/seed-reach-poll.ts",
     "test": "vitest run --exclude '**/e2e/**'",
-    "test:unit": "vitest run --exclude '**/e2e/**'",
+    "test:unit": "node scripts/test-unit.mjs",
     "test:watch": "vitest --exclude '**/e2e/**'",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
